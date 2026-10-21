@@ -50,6 +50,8 @@ input.t:focus{border-color:var(--faint)}
 .note{color:var(--faint);font-size:12px}
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--card);border:1px solid var(--line);padding:8px 16px;border-radius:99px;transition:opacity .3s;z-index:20}
 @media (max-width:1000px){.app{grid-template-columns:1fr}aside.l,aside.r{border:0;border-top:1px solid var(--line)}aside.l{order:2}main{order:1}aside.r{order:3}}
+/* No rounded corners anywhere for now (overrides shell.js styles too). */
+*,*::before,*::after{border-radius:0!important}
 </style></head><body>
 <header><a href="../index.html" id="backLink">←</a><h1>Edit Anything</h1><span class="src" id="src"></span><span class="from hidden" id="from" style="display:none">from Director</span><span class="sp"></span>
  <span id="acts"></span></header>

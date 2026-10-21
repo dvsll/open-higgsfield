@@ -82,6 +82,8 @@ textarea:focus{border-color:var(--faint)}
 @keyframes nudge{0%{box-shadow:0 0 0 0 rgba(232,227,217,.5)}70%{box-shadow:0 0 0 12px rgba(232,227,217,0)}100%{box-shadow:0 0 0 0 rgba(232,227,217,0)}}
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--card);border:1px solid var(--line);padding:8px 16px;border-radius:99px;transition:opacity .3s;z-index:20}
 @media (max-width:1000px){.app{grid-template-columns:1fr}aside.l,aside.r{border:0;border-top:1px solid var(--line)}aside.l{order:2}main{order:1}aside.r{order:3}}
+/* No rounded corners anywhere for now (overrides shell.js styles too). */
+*,*::before,*::after{border-radius:0!important}
 </style></head><body>
 <header><a href="../index.html">←</a><h1>Director</h1><span class="proj">/ The Robot in the Junkyard</span><span class="sp"></span>
  <span id="rt" class="rt" title="Local runtime: shared/runtime/serve.py → comfy-sdk → ComfyUI">○ placeholders</span>

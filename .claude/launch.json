@@ -3,8 +3,8 @@
   "configurations": [
     {
       "name": "site",
-      "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "http.server", "8765"],
+      "runtimeExecutable": ".venv/Scripts/python.exe",
+      "runtimeArgs": ["shared/runtime/serve.py", "--port", "8765"],
       "port": 8765
     }
   ]

@@ -15,13 +15,28 @@ Two apps for Comfy Org's [Open Source Higgsfield](https://comfy.org/open-source-
 **Read first:** [`DEADLINES.md`](DEADLINES.md) (dates we must hit) and [`PLAN.md`](PLAN.md) (what to build, in priority order).
 
 ## Run locally
-Everything is static for now:
+The apps open as static pages with placeholders. For **real generation** they need the local runtime in `shared/runtime/`:
 
-```bash
-python -m http.server 8765
+```
+browser  →  shared/runtime/serve.py (comfy-sdk)  →  comfy-api-proxy :8189  →  your ComfyUI :8188
 ```
 
-Then open http://localhost:8765/ (it links to both apps and the archive).
+1. Run ComfyUI (any install: Desktop, portable or git) on `127.0.0.1:8188`.
+2. Fetch the dev models into its `models/` folder (skips files you already have):
+   ```bash
+   python shared/runtime/fetch_models.py --models-dir "<ComfyUI>/models" --dry-run
+   ```
+   Drop `--dry-run` to actually download. Models, licenses and sizes are listed in `shared/runtime/models.json` (~30 GB total).
+3. Install the runtime and start it (it also starts `comfy-api-proxy`):
+   ```bash
+   python -m venv .venv
+   .venv/Scripts/pip install -r shared/runtime/requirements.txt
+   .venv/Scripts/python shared/runtime/serve.py
+   ```
+   On macOS/Linux use `.venv/bin/` instead of `.venv/Scripts/`.
+4. Open http://localhost:8765/. The Director header shows **● local ComfyUI** when it's connected.
+
+Outputs land in `outputs/` (gitignored). Workflow details and timings: `shared/workflows/CONTRACT.md`.
 
 ## Rules that keep the split easy
 1. A project only loads files from **its own folder** and **`shared/`** (as `../shared/...`). Never from the other project.

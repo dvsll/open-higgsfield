@@ -75,12 +75,14 @@ const SHELL = (() => {
   }
   // ---- selected media: what's selected in this app, and which workflows can open it ----
   let media = null;
-  function select(m) { const key = m && JSON.stringify([m.type, m.label, m.spec, m.u]); if (key === select.k) return; select.k = key; media = m; drawMedia(); }
+  function select(m) { const key = m && JSON.stringify([m.type, m.label, m.spec, m.u, m.img]); if (key === select.k) return; select.k = key; media = m; drawMedia(); }
   function drawMedia() {
     const box = document.querySelector('#shared .media'); if (!box) return;
     if (!media) { box.innerHTML = '<div class="none">Select a shot, keyframe or frame to open it in another workflow.</div>'; return; }
     box.innerHTML = `<canvas width="320" height="180"></canvas><div class="mt"><span class="ty">${TYPES[media.type]}</span><b>${media.label}</b></div><div class="openin"></div>`;
-    SC.frame(box.querySelector('canvas').getContext('2d'), media.spec, 2, media.u ?? .3, look, str);
+    const cv = box.querySelector('canvas'), g = cv.getContext('2d');
+    if (media.img) { const im = new Image(); im.onload = () => { const r = Math.max(cv.width / im.naturalWidth, cv.height / im.naturalHeight); g.drawImage(im, (cv.width - im.naturalWidth * r) / 2, (cv.height - im.naturalHeight * r) / 2, im.naturalWidth * r, im.naturalHeight * r); }; im.src = media.img; }
+    else SC.frame(g, media.spec, 2, media.u ?? .3, look, str);
     const list = box.querySelector('.openin');
     APPS.forEach(([id, n, href, types]) => {
       const b = document.createElement('button'), ok = types.includes(media.type), here = id === opts.app;

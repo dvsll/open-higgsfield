@@ -4,3 +4,5 @@ node_modules/
 *.mp4
 outputs/
 __pycache__/
+shared/workflows/.shot_*.json
+.venv/

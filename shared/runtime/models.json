@@ -1,0 +1,15 @@
+{
+  "_note": "Models the shared workflows need, relative to a ComfyUI models/ folder. Fast/small dev set: fits 12 GB (4070 Super) and 10-12 GB (3080) with ComfyUI's offloading.",
+  "models": [
+    {"file": "diffusion_models/z_image_turbo_bf16.safetensors", "size_gb": 12.3, "used_by": "keyframe_zimage", "license": "Apache-2.0",
+     "url": "https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_files/diffusion_models/z_image_turbo_bf16.safetensors"},
+    {"file": "text_encoders/qwen_3_4b_fp8_mixed.safetensors", "size_gb": 5.6, "used_by": "keyframe_zimage", "license": "Apache-2.0",
+     "url": "https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_files/text_encoders/qwen_3_4b_fp8_mixed.safetensors"},
+    {"file": "vae/ae.safetensors", "size_gb": 0.3, "used_by": "keyframe_zimage", "license": "Apache-2.0",
+     "url": "https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_files/vae/ae.safetensors"},
+    {"file": "checkpoints/ltxv-2b-0.9.8-distilled.safetensors", "size_gb": 6.34, "used_by": "shot_ltxv", "license": "LTXV Open Weights License",
+     "url": "https://huggingface.co/Lightricks/LTX-Video/resolve/main/ltxv-2b-0.9.8-distilled.safetensors"},
+    {"file": "text_encoders/t5xxl_fp8_e4m3fn_scaled.safetensors", "size_gb": 5.16, "used_by": "shot_ltxv", "license": "Apache-2.0",
+     "url": "https://huggingface.co/comfyanonymous/flux_text_encoders/resolve/main/t5xxl_fp8_e4m3fn_scaled.safetensors"}
+  ]
+}

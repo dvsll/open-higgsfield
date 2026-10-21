@@ -73,6 +73,9 @@ Local cards (Arc Pro B60 24GB, RTX 4070 Super 12GB) are below the LTX-2.5 offici
 - Verify any factual claim (rules, model capabilities, prices) against a source before relying on it; record the source here.
 - Prefer existing CLIs (`comfy`, `gh`, `ffmpeg`) over hand-written scripts.
 
+## Switching agents
+The user switches between Claude Code and ChatGPT/Codex. `AGENTS.md` is the shared, agent-neutral guide. Before ending a session, or when the user says they are switching, update `notes/studio.md` → "Where we left off", then commit and push.
+
 ## Categories + rules (decided 2026-10-21)
 Both projects compete for **Open Weights Only, LTX VFX bonus, Most Innovative**. Follow `RULES.md`: LTX-2.5 core, open models only (no partner nodes/closed APIs), generation via the Comfy SDK, demo explains the innovation. This overrides the per-concept targets above.
 

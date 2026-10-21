@@ -103,6 +103,15 @@ textarea:focus{border-color:var(--faint)}
 @keyframes nudge{0%{box-shadow:0 0 0 0 rgba(232,227,217,.5)}70%{box-shadow:0 0 0 12px rgba(232,227,217,0)}100%{box-shadow:0 0 0 0 rgba(232,227,217,0)}}
 #sName{outline:none;border-bottom:1px dashed transparent;cursor:text;min-width:2ch;display:inline-block}#sName:hover{border-bottom-color:var(--faint)}#sName:focus{border-bottom-color:var(--acc)}
 #sTitle .pen{font-size:12px;color:var(--faint);margin-left:6px;cursor:pointer}
+.hist{display:flex;flex-direction:column;gap:8px;padding-top:4px}
+.hist .hh{font-size:11px;font-weight:500;color:var(--dim);text-transform:uppercase;letter-spacing:.09em;display:flex;gap:8px}.hist .hh span{color:var(--faint);text-transform:none;letter-spacing:0}
+.hist .hs{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px}
+.hist .hc{flex:none;width:168px;background:var(--col);border:1px solid var(--line);cursor:pointer;padding:0;color:var(--txt);text-align:left}
+.hist .hc:hover{border-color:var(--acc)}
+.hist .hc img,.hist .hc video{width:100%;aspect-ratio:16/9;object-fit:cover;display:block;background:#000}
+.hist .hc div{padding:5px 7px;font-size:11px;line-height:1.35}.hist .hc small{display:block;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hist .hc .kind{font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:#aab6d8}
+.hist .none{font-size:12px;color:var(--faint)}
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--card);border:1px solid var(--line);padding:8px 16px;border-radius:99px;transition:opacity .3s;z-index:20}
 @media (max-width:1000px){.app{grid-template-columns:1fr}aside.l,aside.r{border:0;border-top:1px solid var(--line)}aside.l{order:2}main{order:1}aside.r{order:3}}
 /* No rounded corners anywhere for now (overrides shell.js styles too). */
@@ -129,6 +138,7 @@ textarea:focus{border-color:var(--faint)}
    <div class="tl" id="tl"><div class="ruler" id="ruler"></div><div class="trk" id="trk"></div><div class="gph" id="gph"></div></div>
    <div class="stash" id="stash"></div><div class="trashpop" id="trashpop"></div>
   </div>
+  <div class="hist" id="hist"></div>
  </main>
  <aside class="r">
   <div class="sec">Generate keyframe</div>
@@ -137,7 +147,7 @@ textarea:focus{border-color:var(--faint)}
   <div class="chips" id="els"></div>
   <div class="sec">Framing</div>
   <div class="chips" id="frm"></div>
-  <div style="color:var(--faint);font-size:12px">Look: <span id="lookUse"></span>, from the mood board</div>
+  <div style="color:var(--faint);font-size:12px">Look: <span id="lookUse"></span>, from Stylemaxxer</div>
   <button class="pill solid" id="kgo" style="width:100%">Generate 4 keyframes</button>
   <div class="sec">Results <span>click = add at playhead<br>or drag onto a clip</span></div>
   <div id="res"><div class="empty">Generated keyframes show up here.</div></div>

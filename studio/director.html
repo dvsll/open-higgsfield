@@ -55,6 +55,27 @@ textarea:focus{border-color:var(--faint)}
 .k{position:absolute;top:30px;width:80px;height:48px;margin-left:-40px;border-radius:5px;overflow:hidden;border:2px solid #3a4462;cursor:grab;background:#000;touch-action:none;z-index:2}
 .k.on{border-color:var(--key)}.k canvas{width:100%;height:100%;display:block}
 .k::after{content:"";position:absolute;left:50%;bottom:-1px;width:6px;height:6px;margin-left:-3px;background:var(--key);transform:rotate(45deg)}
+.clip .act{display:none;margin-left:auto;gap:3px}.clip:hover .act{display:flex}
+.clip .act button{pointer-events:auto;border:0;background:rgba(0,0,0,.45);color:#fff;height:18px;min-width:18px;cursor:pointer;font-size:10px;padding:0 5px}
+.clip .act button:hover{background:rgba(255,255,255,.25)}
+.clip.dragging{opacity:.4}.trk.dropzone{outline:1px dashed var(--key);outline-offset:2px}
+.stash{display:flex;align-items:center;gap:8px;margin-top:8px;padding-top:8px;border-top:1px solid #1f1f23;min-height:44px}
+.stash .sl{font-size:11px;color:var(--dim);width:58px;flex:none}
+.stash .items{display:flex;gap:6px;overflow-x:auto;flex:1}
+.stash .it{position:relative;flex:none;width:96px;height:40px;border:1px solid #2c3550;background:#000;cursor:grab;overflow:hidden}
+.stash .it canvas{width:100%;height:100%;display:block;opacity:.75}
+.stash .it span{position:absolute;left:0;right:0;bottom:0;font-size:10px;padding:1px 4px;background:rgba(0,0,0,.6);white-space:nowrap;overflow:hidden}
+.stash .it button{position:absolute;right:0;top:0;border:0;background:rgba(0,0,0,.6);color:#fff;font-size:10px;cursor:pointer;display:none;padding:1px 4px}.stash .it:hover button{display:block}
+.stash .none{font-size:11px;color:var(--faint)}
+.stash.drop{background:rgba(217,164,65,.06)}
+.trashb{background:none;border:0!important;color:var(--faint)!important;font-size:11px;cursor:pointer;padding:2px 4px!important}
+.trashb:hover{color:var(--dim)!important}
+.trashpop{position:absolute;right:10px;bottom:calc(100% + 6px);width:280px;background:var(--card);border:1px solid var(--line);padding:8px;z-index:30;display:none;box-shadow:0 10px 30px rgba(0,0,0,.4)}
+.trashpop .tr{display:flex;align-items:center;gap:8px;padding:5px 2px;font-size:12px;border-bottom:1px solid #1f1f23}
+.trashpop .tr canvas{width:48px;height:27px;flex:none;opacity:.6}.trashpop .tr small{color:var(--faint);display:block}
+.trashpop .tr button,.trashpop .foot button{margin-left:auto;background:none;border:1px solid var(--line);color:var(--dim);font-size:11px;cursor:pointer;padding:2px 8px}
+.trashpop .foot{display:flex;justify-content:space-between;align-items:center;padding-top:6px;font-size:11px;color:var(--faint)}
+.tlw{position:relative}
 .crumb{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--dim)}.crumb a{color:var(--dim);cursor:pointer;text-decoration:none}.crumb a:hover{color:var(--txt)}.crumb b{color:var(--txt);font-weight:500}
 .gph{position:absolute;top:0;bottom:0;width:2px;background:var(--acc);margin-left:-1px;pointer-events:none;z-index:5}
 .gph::before{content:"";position:absolute;top:0;left:-5px;border:6px solid transparent;border-top-color:var(--acc)}
@@ -80,6 +101,8 @@ textarea:focus{border-color:var(--faint)}
 .empty{border-radius:12px}
 #gen.nudge{box-shadow:0 0 0 0 rgba(232,227,217,.55);animation:nudge 1.6s infinite}
 @keyframes nudge{0%{box-shadow:0 0 0 0 rgba(232,227,217,.5)}70%{box-shadow:0 0 0 12px rgba(232,227,217,0)}100%{box-shadow:0 0 0 0 rgba(232,227,217,0)}}
+#sName{outline:none;border-bottom:1px dashed transparent;cursor:text;min-width:2ch;display:inline-block}#sName:hover{border-bottom-color:var(--faint)}#sName:focus{border-bottom-color:var(--acc)}
+#sTitle .pen{font-size:12px;color:var(--faint);margin-left:6px;cursor:pointer}
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--card);border:1px solid var(--line);padding:8px 16px;border-radius:99px;transition:opacity .3s;z-index:20}
 @media (max-width:1000px){.app{grid-template-columns:1fr}aside.l,aside.r{border:0;border-top:1px solid var(--line)}aside.l{order:2}main{order:1}aside.r{order:3}}
 /* No rounded corners anywhere for now (overrides shell.js styles too). */
@@ -91,7 +114,7 @@ textarea:focus{border-color:var(--faint)}
 <div class="app">
  <aside class="l" id="shared"></aside>
  <main>
-  <div class="title"><h2 id="sTitle"></h2><span id="sMeta"></span><span class="sp"></span><span id="sState"></span></div>
+  <div class="title"><h2 id="sTitle"><span id="sNum"></span><span id="sName" contenteditable="plaintext-only" spellcheck="false" title="Click to rename (F2)"></span><span class="pen">✎</span></h2><span id="sMeta"></span><span class="sp"></span><span id="sState"></span></div>
   <div class="view"><canvas id="cv"></canvas><video id="vid" muted playsinline preload="auto"></video>
    <div class="empty" id="empty"><div class="msg"><h3 id="emT">Not generated yet</h3><p id="emP"></p></div>
     <svg viewBox="0 0 1000 562" preserveAspectRatio="none"><defs><marker id="ah" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#e8e3d9"/></marker></defs>
@@ -103,8 +126,9 @@ textarea:focus{border-color:var(--faint)}
    <button class="pill solid" id="gen" style="white-space:nowrap;padding:0 18px">Generate shot</button>
   </div>
   <div class="tlw">
-   <div class="tlh"><span class="crumb" id="crumb"></span><span id="tot"></span><span class="sp"></span><span class="hint" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0"><span id="hintT"></span></span><button id="addKeyBtn" title="Add a keyframe at the playhead (copies the nearest one)">＋ Keyframe</button><button id="editKey" title="Open the selected keyframe in Edit Anything">✎ Edit keyframe</button><button id="delKey">Remove key</button></div>
+   <div class="tlh"><span class="crumb" id="crumb"></span><span id="tot"></span><span class="sp"></span><span class="hint" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0"><span id="hintT"></span></span><button id="trashBtn" class="trashb" title="Deleted shots (restorable)"></button><button id="addKeyBtn" title="Add a keyframe at the playhead (copies the nearest one)">＋ Keyframe</button><button id="editKey" title="Open the selected keyframe in Edit Anything">✎ Edit keyframe</button><button id="delKey">Remove key</button></div>
    <div class="tl" id="tl"><div class="ruler" id="ruler"></div><div class="trk" id="trk"></div><div class="gph" id="gph"></div></div>
+   <div class="stash" id="stash"></div><div class="trashpop" id="trashpop"></div>
   </div>
  </main>
  <aside class="r">
@@ -134,8 +158,9 @@ const SH=[{n:'Wide',d:4,spec:SP({scene:'yard',scale:.6}),m:'slow push toward Mia
 SH.forEach(s=>{s.r=false;s.keys=[{t:0,u:0,spec:s.spec},{t:+(s.d*.75).toFixed(1),u:1,spec:s.spec}]});
 // Restore state (survives the round trip to Edit Anything).
 const saved=SC.get('osh-director');if(saved&&saved.SH){SH.length=0;saved.SH.forEach(x=>SH.push(x));}
-function save(){SC.set('osh-director',{SH,cur,G})}
-let cur=saved?.cur||0,selKey=null,G=saved?.G||0,playing=true,pxs=1,results=[],dragV=null;
+let STASH=saved?.STASH||[],TRASH=saved?.TRASH||[];
+function save(){SC.set('osh-director',{SH,cur,G,STASH,TRASH})}
+let cur=saved?.cur||0,selKey=null,G=saved?.G||0,playing=false,pxs=1,results=[],dragV=null;
 const tot=()=>SH.reduce((a,s)=>a+s.d,0),start=i=>SH.slice(0,i).reduce((a,s)=>a+s.d,0);
 function at(g){let a=0;for(let i=0;i<SH.length;i++){if(g<a+SH[i].d||i===SH.length-1)return[i,Math.min(SH[i].d,g-a)];a+=SH[i].d}}
 // ---------- drawing ----------
@@ -156,21 +181,30 @@ function shotFrame(g,s,lt,t){const k=[...s.keys].sort((a,b)=>a.t-b.t);if(!k.leng
 let open=null;
 function openShot(i){open=i;cur=i;selKey=null;G=start(i);timeline();head()}
 function closeShot(){const i=open;open=null;selKey=null;if(i!=null)G=start(i);timeline();head()}
-function timeline(){const trk=$('#trk'),W0=$('#tl').clientWidth;$('#addKeyBtn').style.display=open==null?'none':'';trk.innerHTML='';trk.classList.toggle('scene',open!=null);
+function timeline(){stashUI();const trk=$('#trk'),W0=$('#tl').clientWidth;$('#addKeyBtn').style.display=open==null?'none':'';trk.innerHTML='';trk.classList.toggle('scene',open!=null);
  if(open!=null&&!SH[open])open=null;
  if(open==null){ // ---- sequence: shots act as videos
   const T=tot();pxs=(W0-50)/T;$('#tot').textContent=`${SH.length} shots · ${T}s`;$('#crumb').innerHTML='<b>Sequence</b>';
   $('#hintT').textContent='double-click a shot to open it · drag a clip edge to trim';
   $('#ruler').innerHTML=[...Array(T+1)].map((_,k)=>`<span style="left:${k*pxs}px">${k}s</span>`).join('');
   SH.forEach((s,i)=>{const c=document.createElement('div');c.className='clip'+(i===cur?' on':'');c.style.width=(s.d*pxs-3)+'px';
-   c.innerHTML=`<canvas class="strip" width="${Math.max(10,s.d*pxs|0)}" height="80"></canvas><span class="lbl"><i class="${s.r?'ok':''}"></i>${i+1} · ${s.n} · ${s.d}s<button class="tw" title="Open this shot">Open ▸</button></span><div class="grip" title="Drag to trim"></div>`;
+   c.innerHTML=`<canvas class="strip" width="${Math.max(10,s.d*pxs|0)}" height="80"></canvas><span class="lbl"><i class="${s.r?'ok':''}"></i>${i+1} · ${s.n} · ${s.d}s<span class="act"><button class="tw" title="Open this shot">Open ▸</button><button data-a="stash" title="Move to stash">⇣</button><button data-a="del" title="Delete (goes to trash)">✕</button></span></span><div class="grip" title="Drag to trim"></div>`;
    strip(c,s);
    c.querySelector('.tw').onclick=ev=>{ev.stopPropagation();openShot(i)};
-   c.onclick=ev=>{if(ev.target.closest('.grip,.tw'))return;cur=i;selKey=null;const r=c.getBoundingClientRect();G=start(i)+Math.max(0,Math.min(s.d-.01,(ev.clientX-r.left)/pxs));timeline();head()};
-   c.ondblclick=ev=>{if(ev.target.closest('.grip,.tw'))return;openShot(i)};
+   c.querySelector('[data-a=stash]').onclick=ev=>{ev.stopPropagation();removeShot(i,'stash')};
+   c.querySelector('[data-a=del]').onclick=ev=>{ev.stopPropagation();removeShot(i,'trash')};
+   c.draggable=true;c.ondragstart=ev=>{dragShot={from:'seq',i};c.classList.add('dragging');ev.dataTransfer.setData('text/plain','shot')};c.ondragend=()=>{dragShot=null;c.classList.remove('dragging')};
+   c.onclick=ev=>{if(ev.target.closest('.grip,.tw,.act'))return;cur=i;selKey=null;const r=c.getBoundingClientRect();G=start(i)+Math.max(0,Math.min(s.d-.01,(ev.clientX-r.left)/pxs));timeline();head()};
+   c.ondblclick=ev=>{if(ev.target.closest('.grip,.tw,.act'))return;openShot(i)};
    trim(c,s);dropTarget(c,i);trk.append(c)});
   const a=document.createElement('button');a.className='addclip';a.textContent='＋';a.title='Add shot';
-  a.onclick=()=>{SH.push({n:'New',d:3,spec:SP({scene:SH[cur].spec.scene}),m:'',r:false,keys:[]});openShot(SH.length-1);toast('Empty shot — drop keyframes into it')};trk.append(a);return}
+  a.onclick=()=>{SH.push({n:'New',d:3,spec:SP({scene:SH[cur].spec.scene}),m:'',r:false,keys:[]});openShot(SH.length-1);toast('Empty shot — drop keyframes into it')};trk.append(a);
+  trk.ondragover=ev=>{if(!dragShot)return;ev.preventDefault();trk.classList.add('dropzone')};trk.ondragleave=()=>trk.classList.remove('dropzone');
+  trk.ondrop=ev=>{if(!dragShot)return;ev.preventDefault();trk.classList.remove('dropzone');const r=trk.getBoundingClientRect(),t=(ev.clientX-r.left)/pxs;let idx=SH.length,acc=0;for(let j=0;j<SH.length;j++){if(t<acc+SH[j].d/2){idx=j;break}acc+=SH[j].d}
+   if(dragShot.from==='stash'){const it=STASH.splice(dragShot.i,1)[0];SH.splice(idx,0,it.shot);cur=idx;toast(`${it.shot.n} back in the sequence`)}
+   else{const [sh]=SH.splice(dragShot.i,1);if(idx>dragShot.i)idx--;SH.splice(idx,0,sh);cur=idx}
+   dragShot=null;G=start(cur);timeline();head();save()};
+  return}
  // ---- one shot opened
  const i=open,s=SH[i];pxs=(W0-6)/s.d;$('#tot').textContent=`${s.d}s · ${s.keys.length} keyframe${s.keys.length===1?'':'s'}`;
  $('#crumb').innerHTML=`<a id="toSeq">Sequence</a> › <b>Shot ${i+1} · ${s.n}</b>`;$('#toSeq').onclick=closeShot;
@@ -188,6 +222,27 @@ function timeline(){const trk=$('#trk'),W0=$('#tl').clientWidth;$('#addKeyBtn').
  c.onclick=ev=>{if(ev.target.closest('.k,.grip,.tw'))return;selKey=null;const r=c.getBoundingClientRect();G=start(i)+Math.max(0,Math.min(s.d-.01,(ev.clientX-r.left)/pxs));timeline();head()};
  c.ondblclick=ev=>{if(ev.target.closest('.k,.grip,.tw'))return;closeShot()};
  trim(c,s);dropTarget(c,i);trk.append(c)}
+// ---------- stash (visible parking tray) and trash (discreet, restorable) ----------
+let dragShot=null;
+function removeShot(i,where){if(SH.length<=1)return toast('Keep at least one shot in the sequence');const [sh]=SH.splice(i,1);(where==='stash'?STASH:TRASH).unshift({shot:sh,from:i,at:Date.now()});
+ if(open===i)open=null;cur=Math.min(i,SH.length-1);selKey=null;G=Math.min(start(cur),tot()-.01);timeline();head();save();
+ toast(where==='stash'?`${sh.n} moved to the stash`:`${sh.n} deleted — restore it from 🗑 in the timeline header`)}
+function restore(list,j){const it=list.splice(j,1)[0],idx=Math.min(it.from,SH.length);SH.splice(idx,0,it.shot);cur=idx;G=start(idx);timeline();head();save();toast(`${it.shot.n} restored`)}
+function thumb(cv,sh){const g=cv.getContext('2d',{willReadFrequently:true});shotFrame(og,sh,Math.min(1,sh.d/2),2);if(!sh.r)mute(og);g.drawImage(off,0,0,cv.width,cv.height)}
+function stashUI(){const el=$('#stash');el.innerHTML=`<span class="sl">Stash${STASH.length?' · '+STASH.length:''}</span><div class="items"></div>`;const items=el.querySelector('.items');
+ if(!STASH.length)items.innerHTML='<span class="none">Park shots here with ⇣ on a clip. Drag them back into the sequence any time.</span>';
+ STASH.forEach((it,j)=>{const d=document.createElement('div');d.className='it';d.draggable=true;d.title='Drag into the sequence, or click ↩';d.innerHTML=`<canvas width="192" height="80"></canvas><span>${it.shot.n} · ${it.shot.d}s</span><button title="Back to the sequence">↩</button>`;
+  thumb(d.querySelector('canvas'),it.shot);d.querySelector('button').onclick=()=>restore(STASH,j);
+  d.ondragstart=ev=>{dragShot={from:'stash',i:j};ev.dataTransfer.setData('text/plain','shot')};d.ondragend=()=>dragShot=null;items.append(d)});
+ el.ondragover=ev=>{if(dragShot?.from!=='seq')return;ev.preventDefault();el.classList.add('drop')};el.ondragleave=()=>el.classList.remove('drop');
+ el.ondrop=ev=>{if(dragShot?.from!=='seq')return;ev.preventDefault();el.classList.remove('drop');const i=dragShot.i;dragShot=null;removeShot(i,'stash')};
+ const tb=$('#trashBtn');tb.textContent=TRASH.length?`🗑 ${TRASH.length}`:'';tb.style.display=TRASH.length?'':'none';if(!TRASH.length)$('#trashpop').style.display='none';else if($('#trashpop').style.display==='block')trashUI()}
+function trashUI(){const p=$('#trashpop');p.innerHTML='';TRASH.forEach((it,j)=>{const r=document.createElement('div');r.className='tr';const ago=Math.max(1,Math.round((Date.now()-it.at)/60000));
+  r.innerHTML=`<canvas width="96" height="54"></canvas><div>${it.shot.n} · ${it.shot.d}s<small>deleted ${ago} min ago</small></div><button>Restore</button>`;thumb(r.querySelector('canvas'),it.shot);r.querySelector('button').onclick=()=>restore(TRASH,j);p.append(r)});
+ const f=document.createElement('div');f.className='foot';f.innerHTML='<span>Deleted shots stay here.</span><button>Empty trash</button>';
+ f.querySelector('button').onclick=()=>{if(confirm(`Permanently remove ${TRASH.length} deleted shot(s)? This can't be undone.`)){TRASH=[];save();stashUI()}};p.append(f)}
+$('#trashBtn').onclick=e=>{e.stopPropagation();const p=$('#trashpop');const on=p.style.display!=='block';p.style.display=on?'block':'none';if(on)trashUI()};
+addEventListener('click',e=>{if(!e.target.closest('#trashpop,#trashBtn'))$('#trashpop').style.display='none'});
 function strip(c,s){const cv=c.querySelector('.strip'),sg=cv.getContext('2d'),h=cv.height,tw=h*16/9;for(let x=0;x<cv.width;x+=tw){shotFrame(og,s,Math.min(s.d,(x+tw/2)/pxs),2);if(!s.r)mute(og);sg.drawImage(off,x,0,tw,h)}}
 function trim(c,s){const gr=c.querySelector('.grip');gr.onpointerdown=ev=>{ev.stopPropagation();gr.setPointerCapture(ev.pointerId);const x0=ev.clientX,d0=s.d,p0=pxs;
   gr.onpointermove=m=>{s.d=Math.max(1,Math.min(8,Math.round(d0+(m.clientX-x0)/p0)));c.style.width=(s.d*p0-3)+'px'};
@@ -200,17 +255,27 @@ $('#ruler').onpointerup=()=>$('#ruler').onpointermove=null;
 addEventListener('keydown',e=>{if(e.key==='Escape'&&open!=null&&!/TEXTAREA|INPUT/.test(e.target.tagName))closeShot()});
 function media(){const s=SH[cur];if(selKey&&s.keys.includes(selKey))return{type:'keyframe',label:`Shot ${cur+1} · keyframe @ ${selKey.t.toFixed(1)}s`,spec:selKey.spec,u:selKey.u,img:selKey.img,ref:{shot:cur,key:s.keys.indexOf(selKey)}};
  return{type:'shot',label:`Shot ${cur+1} · ${s.n} · ${s.d}s`,spec:(s.keys[0]||s).spec,u:.3,ref:{shot:cur}}}
-function head(){const s=SH[cur];SHELL.select(media());$('#sTitle').textContent=`Shot ${cur+1} — ${s.n}`;$('#sMeta').textContent=`${s.d}s · ${s.keys.length} keyframe${s.keys.length===1?'':'s'}`;
+function head(){const s=SH[cur];SHELL.select(media());$('#sNum').textContent=`Shot ${cur+1} — `;if(document.activeElement!==$('#sName'))$('#sName').textContent=s.n;$('#sMeta').textContent=`${s.d}s · ${s.keys.length} keyframe${s.keys.length===1?'':'s'}`;
  $('#sState').innerHTML=s.r?'<span style="color:var(--ok)">● generated</span>':'<span style="color:var(--dim)">○ keyframes only</span>';if(document.activeElement!==$('#motion'))$('#motion').value=s.m}
 function addKey(i,t,v){const s=SH[i],k={t,u:v.u,spec:v.spec,img:v.img};open=i;s.keys.push(k);selKey=k;cur=i;s.r=false;G=start(i)+Math.min(t,s.d-.01);playing=false;$('#play').textContent='▶';timeline();head();toast(`Keyframe added to shot ${i+1} at ${t.toFixed(1)}s`)}
-function delKey(){if(!selKey)return toast('Select a keyframe first');SH.forEach(s=>{const j=s.keys.indexOf(selKey);if(j>=0){s.keys.splice(j,1);s.r=false}});selKey=null;timeline();head()}
+function delKey(){if(!selKey&&open==null)return removeShot(cur,'trash');if(!selKey)return toast('Select a keyframe first');SH.forEach(s=>{const j=s.keys.indexOf(selKey);if(j>=0){s.keys.splice(j,1);s.r=false}});selKey=null;timeline();head()}
 $('#delKey').onclick=delKey;
+// Rename the current shot: click the title (or ✎ / F2), Enter to save, Esc to cancel.
+const nm=$('#sName');let nm0='';
+nm.onfocus=()=>{nm0=SH[cur].n;const r=document.createRange();r.selectNodeContents(nm);getSelection().removeAllRanges();getSelection().addRange(r)};
+nm.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();nm.blur()}if(e.key==='Escape'){nm.textContent=nm0;nm.blur()}e.stopPropagation()};
+nm.onblur=()=>{const v=nm.textContent.trim().slice(0,40)||nm0;nm.textContent=v;if(v!==SH[cur].n){SH[cur].n=v;timeline();save()}};
+$('#sTitle .pen').onclick=()=>nm.focus();
+addEventListener('keydown',e=>{if(e.key==='F2'&&!/TEXTAREA|INPUT/.test(e.target.tagName)&&!e.target.isContentEditable){e.preventDefault();nm.focus()}});
 $('#addKeyBtn').onclick=()=>{if(open==null)return toast('Open a shot first (double-click it)');const s=SH[open],t=Math.round((G-start(open))*10)/10,near=[...s.keys].sort((a,b)=>Math.abs(a.t-t)-Math.abs(b.t-t))[0];addKey(open,t,{spec:near?near.spec:s.spec,u:.5,img:near?.img})};
 function editKey(){if(!selKey)return toast('Select a keyframe first');head();SHELL.open('edit')}
 $('#editKey').onclick=editKey;
 addEventListener('keydown',e=>{if(/TEXTAREA|INPUT/.test(e.target.tagName))return;if(e.key==='Backspace'||e.key==='Delete')delKey();if(e.code==='Space'){e.preventDefault();$('#play').click()}});
 $('#motion').oninput=e=>{SH[cur].m=e.target.value;if(SH[cur].r){SH[cur].r=false;timeline()}head()};
-$('#play').onclick=()=>{playing=!playing;$('#play').textContent=playing?'❚❚':'▶'};$('#play').textContent='❚❚';
+// Starts paused. Play runs to the end (of the sequence, or of the opened shot) and stops; pressing play at the end restarts.
+const span=()=>open!=null?[start(open),start(open)+SH[open].d]:[0,tot()];
+function setPlaying(v){playing=v;$('#play').textContent=v?'❚❚':'▶'}
+$('#play').onclick=()=>{if(!playing){const[a,b]=span();if(G>=b-.06||G<a)G=a}setPlaying(!playing)};setPlaying(false);
 // ---------- generate video from keyframes ----------
 // ---------- prompts for the real models ----------
 const EL_P={mia:'Mia, a 10-year-old girl in a yellow raincoat',bolt:'Bolt, a small boxy grey robot with round eyes',yard:'a junkyard full of scrap piles',street:'an empty lamplit street',room:"Mia's bedroom with a desk and a lamp"};
@@ -256,7 +321,7 @@ function toast(t){const d=document.createElement('div');d.className='toast';d.te
 // ---------- loop: one playhead across the whole sequence ----------
 const g=K.canvas($('#cv'),W,H);let last=performance.now();
 addEventListener('resize',()=>timeline());
-K.loop(t=>{const now=performance.now(),dt=(now-last)/1000;last=now;if(playing){if(open!=null){const a0=start(open),d=SH[open].d;G+=dt;if(G>=a0+d||G<a0)G=a0}else G=(G+dt)%tot()}
+K.loop(t=>{const now=performance.now(),dt=(now-last)/1000;last=now;if(playing){const[a,b]=span();if(G<a)G=a;G+=dt;if(G>=b-.01){G=b-.01;setPlaying(false)}}
  const[i,lt]=at(G),s=SH[i];if(i!==cur&&open==null){cur=i;selKey=null;timeline();head()}
  const vid=$('#vid');if(s.r&&s.video){if(!vid.src.endsWith(s.video)){vid.src=s.video;vid.currentTime=lt}vid.style.display='block';
   if(playing){if(vid.paused)vid.play().catch(()=>{});if(Math.abs(vid.currentTime-lt)>.35)vid.currentTime=lt}else{vid.pause();if(Math.abs(vid.currentTime-lt)>.05)vid.currentTime=lt}}

@@ -1,8 +1,45 @@
+# --- local / personal ---
 CLAUDE.local.md
-node_modules/
+*.local.md
+.claude/settings.local.json
+.codex/
 .env
-*.mp4
-outputs/
-__pycache__/
-shared/workflows/.shot_*.json
+.env.*
+!.env.example
+
+# --- python / node ---
 .venv/
+venv/
+__pycache__/
+*.pyc
+node_modules/
+
+# --- generated media + runtime output (never commit) ---
+outputs/
+examples/**/*.mp4
+*.mp4
+*.webm
+*.mov
+*.wav
+shared/workflows/.shot_*.json
+
+# --- models / downloads (huge; fetch with shared/runtime/fetch_models.py) ---
+*.safetensors
+*.gguf
+*.ckpt
+*.pt
+*.pth
+*.bin
+*.onnx
+*.part
+*.7z
+*.zip
+
+# --- tooling junk ---
+t.js
+*.log
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/

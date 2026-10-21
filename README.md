@@ -10,6 +10,8 @@ Two apps for Comfy Org's [Open Source Higgsfield](https://comfy.org/open-source-
 | `archive/` | Concept wireframes and mockups from ideation (frozen) | — |
 | `notes/` | One running-notes file per project | each owns theirs |
 
+**Competing for:** Open Weights Only (fully open source) · LTX VFX bonus · Most Innovative. **Rules: [`RULES.md`](RULES.md).**
+
 **Read first:** [`DEADLINES.md`](DEADLINES.md) (dates we must hit) and [`PLAN.md`](PLAN.md) (what to build, in priority order).
 
 ## Run locally

@@ -94,9 +94,9 @@ textarea:focus{border-color:var(--faint)}
 .view video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none;background:#000}
 .gen .v.busy{display:grid;place-items:center;color:var(--faint);font-size:12px}
 .empty{position:absolute;inset:0;display:none;background:radial-gradient(ellipse at 40% 45%,rgba(14,14,16,.72),rgba(14,14,16,.92));z-index:2}
-.empty .msg{position:absolute;left:8%;top:30%;max-width:46%}
-.empty h3{color:var(--txt);margin:0 0 6px;font-size:22px;font-weight:600;letter-spacing:-.01em}.empty p{margin:0;color:var(--dim);font-size:13px;line-height:1.5}
-.empty .arw{position:absolute;right:56px;bottom:-12px;width:56px;height:64px;pointer-events:none;overflow:visible;fill:none;stroke:#e8e3d9;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;opacity:.42}
+.empty .msg{position:absolute;left:50%;top:50%;transform:translate(-50%,-60%);text-align:center;width:min(80%,520px)}
+.empty h3{color:var(--txt);margin:0 0 6px;font-size:20px;font-weight:600;letter-spacing:-.01em}.empty p{margin:0;color:var(--dim);font-size:13px;line-height:1.5}
+.empty .arw{display:block;margin:18px auto 0;width:20px;height:56px;pointer-events:none;overflow:visible;fill:none;stroke:#e8e3d9;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;opacity:.42}
 .view{overflow:visible!important}.view>canvas,.view>video{border-radius:12px}
 .empty{border-radius:12px}
 #gen.nudge{box-shadow:0 0 0 0 rgba(232,227,217,.55);animation:nudge 1.6s infinite}
@@ -116,8 +116,8 @@ textarea:focus{border-color:var(--faint)}
  <main>
   <div class="title"><h2 id="sTitle"><span id="sNum"></span><span id="sName" contenteditable="plaintext-only" spellcheck="false" title="Click to rename (F2)"></span><span class="pen">✎</span></h2><span id="sMeta"></span><span class="sp"></span><span id="sState"></span></div>
   <div class="view"><canvas id="cv"></canvas><video id="vid" muted playsinline preload="auto"></video>
-   <div class="empty" id="empty"><div class="msg"><h3 id="emT">Not generated yet</h3><p id="emP"></p></div>
-    <svg class="arw" viewBox="0 0 64 72" aria-hidden="true"><path d="M6,6 C34,8 50,26 49,60" /><path d="M41,52 L49,63 L57,52" /></svg></div><span class="tag" id="tag"></span><span class="tc" id="tc"></span>
+   <div class="empty" id="empty"><div class="msg"><h3 id="emT">Not generated yet</h3><p id="emP"></p><svg class="arw" viewBox="0 0 20 56" aria-hidden="true"><path d="M10,2 L10,52" /><path d="M3,44 L10,53 L17,44" /></svg></div>
+    </div><span class="tag" id="tag"></span><span class="tc" id="tc"></span>
    <div class="ov" id="ov"><div id="ovt"></div><div class="prog"><i id="pb"></i></div></div></div>
   <div class="row">
    <button class="play" id="play" title="Play / pause (space)">▶</button>
@@ -170,7 +170,7 @@ const off=document.createElement('canvas'),og=K.canvas(off,W,H);
 const IMG={};function img(url){if(!url)return null;let im=IMG[url];if(!im){im=IMG[url]=new Image();im.onload=()=>{clearTimeout(img.t);img.t=setTimeout(()=>{timeline();res()},50)};im.src=url}return im.complete&&im.naturalWidth?im:null}
 function cover(g,im,z=1){const W=g.canvas.width,H=g.canvas.height,r=Math.max(W/im.naturalWidth,H/im.naturalHeight)*z,w=im.naturalWidth*r,h=im.naturalHeight*r;g.drawImage(im,(W-w)/2,(H-h)/2,w,h)}
 function drawKey(g,k,t,u){const im=img(k.img);if(im)cover(g,im,1+(u||0)*.04);else frame(g,k.spec,t,u??k.u)}
-function shotFrame(g,s,lt,t){const k=[...s.keys].sort((a,b)=>a.t-b.t);if(!k.length){g.fillStyle='#111';g.fillRect(0,0,g.canvas.width,g.canvas.height);g.fillStyle='#666';g.font='16px Inter,system-ui';g.textAlign='center';g.fillText('Empty shot — add keyframes',g.canvas.width/2,g.canvas.height/2);g.textAlign='left';return}
+function shotFrame(g,s,lt,t){const k=[...s.keys].sort((a,b)=>a.t-b.t);if(!k.length){g.fillStyle='#111';g.fillRect(0,0,g.canvas.width,g.canvas.height);return}
  let a=k[0],b=k[0];if(lt>=k[k.length-1].t)a=b=k[k.length-1];else if(lt>k[0].t)for(let i=0;i<k.length-1;i++)if(lt<=k[i+1].t){a=k[i];b=k[i+1];break}
  const v=a===b?0:(lt-a.t)/((b.t-a.t)||1),e=v*v*(3-2*v);
  if(!a.img&&!b.img&&SC.same(a.spec,b.spec))frame(g,a.spec,t,a.u+(b.u-a.u)*e);else{drawKey(g,a,t,a.img?v:a.u);if(e>0){drawKey(og,b,t,b.img?v:b.u);g.globalAlpha=e;g.drawImage(off,0,0,g.canvas.width,g.canvas.height);g.globalAlpha=1}}}
@@ -326,7 +326,7 @@ K.loop(t=>{const now=performance.now(),dt=(now-last)/1000;last=now;if(playing){c
   if(playing){if(vid.paused)vid.play().catch(()=>{});if(Math.abs(vid.currentTime-lt)>.35)vid.currentTime=lt}else{vid.pause();if(Math.abs(vid.currentTime-lt)>.05)vid.currentTime=lt}}
  else{if(vid.style.display!=='none'){vid.pause();vid.style.display='none'}}
  shotFrame(g,s,lt,t);if(!s.r)mute(g);
- const em=!s.r;$('#empty').style.display=em?'block':'none';$('#tag').style.visibility=$('#tc').style.visibility=em?'hidden':'visible';$('#gen').classList.toggle('nudge',em);if(em){$('#emT').textContent=`Shot ${i+1} isn't generated yet`;$('#emP').textContent=s.keys.length?`${s.keys.length} keyframe${s.keys.length===1?'':'s'} ready. Press Generate shot to turn them into video.`:'Add keyframes first, then press Generate shot.'}if(lt<.2&&i>0&&playing&&open==null){g.fillStyle=`rgba(0,0,0,${1-lt/.2})`;g.fillRect(0,0,W,H)}
+ const em=!s.r;$('#empty').style.display=em?'block':'none';$('#tag').style.visibility=$('#tc').style.visibility=em?'hidden':'visible';$('#gen').classList.toggle('nudge',em);if(em){$('#emT').textContent=`${s.n} isn't generated yet`;$('#emP').textContent=s.keys.length?`${s.keys.length} keyframe${s.keys.length===1?'':'s'} ready. Generate video to get started.`:'Add keyframes or generate video to get started.'}if(lt<.2&&i>0&&playing&&open==null){g.fillStyle=`rgba(0,0,0,${1-lt/.2})`;g.fillRect(0,0,W,H)}
  $('#tag').textContent=s.r?`Shot ${i+1} · generated${s.video?' · LTX-Video':''}`:`Shot ${i+1} · keyframe preview — generate for real motion`;$('#tc').textContent=`${G.toFixed(1)} / ${tot()}s`;
  $('#gph').style.left=((open!=null?G-start(open):G)*pxs)+'px';SHELL.select(media())});
 // Coming back from Edit Anything with an edited keyframe

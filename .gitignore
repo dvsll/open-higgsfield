@@ -16,11 +16,14 @@ node_modules/
 
 # --- generated media + runtime output (never commit) ---
 outputs/
-examples/**/*.mp4
 *.mp4
 *.webm
 *.mov
 *.wav
+# ...except curated example outputs for the submission (keep them small)
+!examples/**/*.mp4
+!examples/**/*.webm
+!examples/**/*.png
 shared/workflows/.shot_*.json
 
 # --- models / downloads (huge; fetch with shared/runtime/fetch_models.py) ---

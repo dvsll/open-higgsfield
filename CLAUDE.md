@@ -87,5 +87,6 @@ Live notes from each project:
 - **`shared/`** (workflows + `CONTRACT.md`, scripts, style board, lib) is used by both. Change it only with a dated note in both notes files.
 - **Keep the split easy:** a project loads files only from its own folder and `../shared/`. See README → "Splitting into two repos".
 - **This file (CLAUDE.md) is the stable brief.** Do not append running notes here.
+- **Commits: Conventional Commits** (`feat:`, `fix:`, `docs:`, `chore:`, `refactor:`, optional scope like `feat(studio):`). Claude commits on its own after each meaningful change; nobody should have to think about it. The Stop hook's auto-sync commit is only a fallback (`chore: auto-sync wip`).
 - **Sync is automatic.** Hooks in `.claude/settings.json`: on session start it pulls and shows the last 24h of commits; on every prompt it tells you about partner commits you haven't pulled; at the end of every turn it commits, rebases on the remote and pushes. If a rebase hits a conflict the hook aborts it and nothing is pushed; then resolve it yourself: `git pull --rebase`, fix, continue, push.
 - Your personal, uncommitted instructions go in `CLAUDE.local.md` (gitignored), e.g. "I am on adstudio".

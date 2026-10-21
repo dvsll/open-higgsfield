@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Blockout Mockup</title>
+<style>
+:root{--app:#16171b;--panel:#1f2026;--panel2:#272830;--edge:#34353f;--txt:#d8d9de;--dim:#8a8c96;--hi:#6c8cff;--warm:#ffb347}
+*{box-sizing:border-box}html,body{height:100%}
+body{margin:0;background:var(--app);color:var(--txt);font:13px/1.4 system-ui,sans-serif;display:flex;flex-direction:column}
+.bar{display:flex;align-items:center;gap:12px;padding:8px 14px;background:var(--panel);border-bottom:1px solid var(--edge)}
+.brand{font-weight:700}.nav{margin-left:auto;display:flex;gap:4px}
+.nav button{background:none;border:0;color:var(--dim);padding:5px 12px;border-radius:99px;cursor:pointer;font:inherit}
+.nav button.on{background:var(--panel2);color:var(--txt)}
+.body{flex:1;display:flex;min-height:0}
+.side{width:210px;background:var(--panel);border-right:1px solid var(--edge);padding:12px;display:flex;flex-direction:column;gap:6px;overflow:auto}
+.side.r{border-right:0;border-left:1px solid var(--edge);width:270px}
+.h{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin:8px 0 2px}
+button.t{background:var(--panel2);border:1px solid transparent;color:var(--txt);padding:7px 9px;border-radius:6px;text-align:left;cursor:pointer;font:inherit}
+button.t:hover{border-color:var(--edge)}
+.item{padding:5px 8px;border-radius:5px;color:var(--dim);cursor:pointer}.item.sel{background:rgba(108,140,255,.18);color:var(--txt)}
+.stage{flex:1;display:flex;flex-direction:column;min-width:0;position:relative}
+#vp{flex:1;min-height:0;position:relative}#vp canvas{display:block}
+.tag{position:absolute;top:10px;left:12px;color:var(--dim);font-size:12px;pointer-events:none}
+.tl{display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--panel);border-top:1px solid var(--edge)}
+.tl input{flex:1}
+.keys{position:relative;height:6px;flex:1}
+input.inp,textarea.inp{width:100%;background:var(--app);border:1px solid var(--edge);border-radius:5px;padding:6px 8px;color:var(--txt);font:inherit}
+textarea.inp{min-height:80px;resize:vertical}
+.row{display:grid;grid-template-columns:40px 1fr 1fr 1fr;gap:4px;align-items:center}.row b{font-weight:500;color:var(--dim)}
+.row input{width:100%;background:var(--app);border:1px solid var(--edge);border-radius:4px;color:var(--txt);padding:3px 4px;font:inherit}
+.btnp{background:var(--hi);color:#fff;border:0;font-weight:600;border-radius:7px;padding:10px;cursor:pointer;font:inherit;font-weight:600}
+.btng{background:none;border:1px solid var(--edge);color:var(--txt);border-radius:7px;padding:8px;cursor:pointer;font:inherit}
+.chips{display:flex;flex-wrap:wrap;gap:5px}
+.chip{padding:3px 10px;border-radius:99px;border:1px solid var(--edge);color:var(--dim);cursor:pointer;background:none;font:inherit;font-size:12px}
+.chip.on{border-color:var(--hi);color:var(--txt)}
+.msgs{display:flex;flex-direction:column;gap:6px;max-height:180px;overflow:auto}
+.msg{padding:7px 9px;border-radius:8px;background:var(--panel2)}.msg.me{background:rgba(108,140,255,.2);align-self:flex-end}
+.note{color:var(--dim);font-size:12px}
+.overlay{position:absolute;inset:0;background:rgba(10,10,14,.85);display:none;align-items:center;justify-content:center;flex-direction:column;gap:12px}
+.prog{width:320px;height:6px;background:var(--edge);border-radius:3px;overflow:hidden}.prog i{display:block;height:100%;width:0;background:var(--hi)}
+.wipe{position:absolute;top:0;bottom:0;width:2px;background:#fff;cursor:ew-resize}
+.wipe::after{content:"⇆";position:absolute;top:50%;left:-13px;width:28px;height:28px;border-radius:50%;background:#fff;color:#000;display:grid;place-items:center;transform:translateY(-50%)}
+.lbl{position:absolute;bottom:10px;padding:2px 8px;background:rgba(0,0,0,.6);border-radius:4px;font-size:12px}
+.hist{display:grid;grid-template-columns:1fr 1fr;gap:6px}.hist div{aspect-ratio:16/9;border-radius:4px;background:linear-gradient(135deg,#40214f,#0d2b44)}
+.hidden{display:none!important}
+@media (max-width:800px){.body{flex-direction:column;overflow:auto}.side,.side.r{width:auto;border:0}.stage{flex:none;height:60vh}}
+</style></head><body>
+<div class="bar"><span class="brand">▣ Blockout</span><span class="note">mockup — renders are faked in-browser</span>
+<div class="nav"><button data-s="block" class="on">1 Block</button><button data-s="describe">2 Describe</button><button data-s="result">3 Result</button></div></div>
+<div class="body">
+ <div class="side" id="left">
+  <div class="h">Add</div>
+  <button class="t" data-add="box">■ Box</button><button class="t" data-add="sphere">● Sphere</button><button class="t" data-add="cyl">▮ Cylinder</button>
+  <div class="h">Scene</div><div id="outliner"></div>
+  <div class="h">Camera keys</div>
+  <button class="t" id="addKey">＋ Key camera at current frame</button>
+  <button class="t" id="clearKeys">Clear keys</button>
+  <div class="note">Orbit = drag · Pan = right-drag · Click object to select · Arrow keys move it</div>
+ </div>
+ <div class="stage">
+  <div id="vp"><div class="tag" id="vptag">Perspective · editor view</div>
+   <div class="wipe hidden" id="wipe"></div><span class="lbl hidden" id="lA" style="left:10px">Blockout</span><span class="lbl hidden" id="lB" style="right:10px">Final</span>
+  </div>
+  <div class="tl"><button class="btng" id="play">▶</button><button class="btng" id="camView">🎥 Cam view</button>
+   <input type="range" id="frame" min="0" max="120" value="0"><span id="fl">f 0 / 120</span></div>
+  <div class="overlay" id="ov"><div id="ovt">Recording playblast…</div><div class="prog"><i id="pb"></i></div><div class="note" id="ovs"></div></div>
+ </div>
+ <div class="side r" id="right">
+  <div data-p="block">
+   <div class="h">Selected · <span id="selName">—</span></div>
+   <div class="row"><b>Pos</b><input data-k="position" data-a="x"><input data-k="position" data-a="y"><input data-k="position" data-a="z"></div>
+   <div class="row"><b>Scale</b><input data-k="scale" data-a="x"><input data-k="scale" data-a="y"><input data-k="scale" data-a="z"></div>
+   <button class="btng" id="del" style="margin-top:6px">Delete</button>
+   <div class="h">Direct the camera</div>
+   <div class="msgs" id="msgs"><div class="msg">Try: “slow push in”, “orbit left”, “crane up”, “low angle”</div></div>
+   <input class="inp" id="ask" placeholder="Tell the camera what to do… ⏎">
+  </div>
+  <div data-p="describe" class="hidden">
+   <div class="h">Prompt</div>
+   <textarea class="inp" id="prompt">Rainy neon street at night, red sports car, reflections on wet asphalt, cinematic</textarea>
+   <div class="h">Style</div><div class="chips" data-g="style"><button class="chip on" data-v="neon">Neon night</button><button class="chip" data-v="golden">Golden hour</button><button class="chip" data-v="snow">Snow</button><button class="chip" data-v="toy">Toy / clay</button></div>
+   <div class="h">Quality</div><div class="chips" data-g="q"><button class="chip on" data-v="draft">Draft 540p · ~1 min</button><button class="chip" data-v="final">1080p + 2× upscale · ~4 min</button></div>
+   <div class="h">Layout strength</div><input type="range" id="str" min="0" max="100" value="80" style="width:100%">
+   <div class="note" style="margin:8px 0">Open weights only · LTX-2.5 + Layout to Render</div>
+   <button class="btnp" id="render" style="width:100%">Render shot</button>
+  </div>
+  <div data-p="result" class="hidden">
+   <div class="h">Export</div>
+   <button class="btnp" style="width:100%" onclick="alert('mock: would download MP4')">Download MP4</button>
+   <button class="btng" style="width:100%;margin-top:6px" onclick="alert('mock: side-by-side card')">Side-by-side for posting</button>
+   <button class="btng" style="width:100%;margin-top:6px" id="back">← Back to scene & tweak</button>
+   <div class="h">History</div><div class="hist" id="hist"></div>
+  </div>
+ </div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const vp=$('#vp'),R=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});vp.prepend(R.domElement);
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x24262d);
+const edCam=new THREE.PerspectiveCamera(50,1,.1,500),shotCam=new THREE.PerspectiveCamera(40,16/9,.1,500);
+const grey=()=>new THREE.MeshStandardMaterial({color:0x9a9ca4,roughness:.9});
+scene.add(new THREE.HemisphereLight(0xffffff,0x444455,.8));const sun=new THREE.DirectionalLight(0xffffff,.7);sun.position.set(5,10,4);scene.add(sun);
+const grid=new THREE.GridHelper(60,60,0x555866,0x3a3c46);scene.add(grid);
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(60,60),grey());ground.rotation.x=-Math.PI/2;ground.material.color.set(0x5a5c63);ground.name='ground';scene.add(ground);
+let keys=[{f:0,p:new THREE.Vector3(0,1.6,12)},{f:120,p:new THREE.Vector3(0,.6,5)}],target=new THREE.Vector3(0,.6,0);
+const objs=[];let sel=null,n=0;
+const geos={box:()=>new THREE.BoxGeometry(1,1,1),sphere:()=>new THREE.SphereGeometry(.5,24,16),cyl:()=>new THREE.CylinderGeometry(.5,.5,1,20)};
+function add(t,p,s,name){const m=new THREE.Mesh(geos[t](),grey());m.position.set(...p);m.scale.set(...s);m.position.y=s[1]/2+(p[1]||0);m.name=name||`${t}_${++n}`;m.userData.t=t;scene.add(m);objs.push(m);select(m);outline();return m}
+add('box',[0,0,0],[1.8,1.1,4],'car');add('box',[-5,0,-2],[3,8,10],'building_L');add('box',[5,0,-3],[3,6,10],'building_R');add('cyl',[2.6,0,2],[.25,4,.25],'lamp');select(objs[0]);
+// camera rig
+const camHelperObj=new THREE.Group();const camBody=new THREE.Mesh(new THREE.BoxGeometry(.5,.35,.7),new THREE.MeshBasicMaterial({color:0xffb347}));camHelperObj.add(camBody);scene.add(camHelperObj);
+const pathLine=new THREE.Line(new THREE.BufferGeometry(),new THREE.LineDashedMaterial({color:0xffb347,dashSize:.3,gapSize:.2}));scene.add(pathLine);
+const keyDots=new THREE.Group();scene.add(keyDots);
+function camAt(f){if(!keys.length)return new THREE.Vector3(0,2,10);const k=[...keys].sort((a,b)=>a.f-b.f);if(f<=k[0].f)return k[0].p.clone();for(let i=0;i<k.length-1;i++)if(f<=k[i+1].f){let t=(f-k[i].f)/(k[i+1].f-k[i].f);t=t*t*(3-2*t);return k[i].p.clone().lerp(k[i+1].p,t)}return k[k.length-1].p.clone()}
+function rebuildPath(){const pts=[];for(let f=0;f<=120;f+=4)pts.push(camAt(f));pathLine.geometry.setFromPoints(pts);pathLine.computeLineDistances();keyDots.clear();keys.forEach(k=>{const d=new THREE.Mesh(new THREE.SphereGeometry(.12),new THREE.MeshBasicMaterial({color:0xffb347}));d.position.copy(k.p);keyDots.add(d)})}
+rebuildPath();
+// orbit
+let sph={r:22,th:.7,ph:1.0},tgt=new THREE.Vector3(0,1,0),drag=null;
+function placeEd(){edCam.position.set(tgt.x+sph.r*Math.sin(sph.ph)*Math.sin(sph.th),tgt.y+sph.r*Math.cos(sph.ph),tgt.z+sph.r*Math.sin(sph.ph)*Math.cos(sph.th));edCam.lookAt(tgt)}placeEd();
+const cv=R.domElement;cv.oncontextmenu=e=>e.preventDefault();
+cv.onpointerdown=e=>{drag={x:e.clientX,y:e.clientY,b:e.button,moved:0}};
+addEventListener('pointermove',e=>{if(!drag)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;drag.moved+=Math.abs(dx)+Math.abs(dy);drag.x=e.clientX;drag.y=e.clientY;
+ if(drag.b===2){const r=new THREE.Vector3().setFromMatrixColumn(edCam.matrix,0);tgt.addScaledVector(r,-dx*.03);tgt.y+=dy*.03}else{sph.th-=dx*.008;sph.ph=Math.min(1.5,Math.max(.1,sph.ph-dy*.008))}useCam=false;placeEd()});
+addEventListener('pointerup',e=>{if(drag&&drag.moved<4&&drag.b===0&&!useCam){const r=new THREE.Raycaster(),m=new THREE.Vector2((e.offsetX/cv.clientWidth)*2-1,-(e.offsetY/cv.clientHeight)*2+1);r.setFromCamera(m,edCam);const h=r.intersectObjects(objs)[0];if(h)select(h.object)}drag=null});
+cv.onwheel=e=>{sph.r=Math.min(80,Math.max(4,sph.r*(1+e.deltaY*.001)));placeEd();e.preventDefault()};
+addEventListener('keydown',e=>{if(!sel||e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA')return;const d={ArrowLeft:[-.5,0],ArrowRight:[.5,0],ArrowUp:[0,-.5],ArrowDown:[0,.5]}[e.key];if(d){sel.position.x+=d[0];sel.position.z+=d[1];fields();e.preventDefault()}});
+function select(m){if(sel)sel.material.emissive.set(0);sel=m;if(m)m.material.emissive.set(0x1a2a66);$('#selName').textContent=m?m.name:'—';fields();outline()}
+function outline(){$('#outliner').innerHTML='';objs.forEach(o=>{const d=document.createElement('div');d.className='item'+(o===sel?' sel':'');d.textContent=o.name;d.onclick=()=>select(o);$('#outliner').append(d)});const c=document.createElement('div');c.className='item';c.textContent=`📷 camera · ${keys.length} keys`;$('#outliner').append(c)}
+function fields(){$$('.row input').forEach(i=>{i.value=sel?(+sel[i.dataset.k][i.dataset.a]).toFixed(1):''})}
+$$('.row input').forEach(i=>i.onchange=()=>{if(sel){sel[i.dataset.k][i.dataset.a]=+i.value}});
+$$('[data-add]').forEach(b=>b.onclick=()=>add(b.dataset.add,[Math.random()*6-3,0,Math.random()*4],[1,1,1]));
+$('#del').onclick=()=>{if(!sel)return;scene.remove(sel);objs.splice(objs.indexOf(sel),1);select(objs[0]||null)};
+// timeline
+let frame=0,playing=false,useCam=false;
+const fr=$('#frame');fr.oninput=()=>{frame=+fr.value};
+$('#play').onclick=()=>{playing=!playing;$('#play').textContent=playing?'❚❚':'▶';if(playing)useCam=true};
+$('#camView').onclick=()=>{useCam=!useCam};
+$('#addKey').onclick=()=>{keys=keys.filter(k=>k.f!==frame);keys.push({f:frame,p:(useCam?camAt(frame):edCam.position.clone())});rebuildPath();outline();say(`Keyed camera at f${frame}.`)};
+$('#clearKeys').onclick=()=>{keys=[];rebuildPath();outline()};
+// fake "local LLM" director
+function say(t,me){const d=document.createElement('div');d.className='msg'+(me?' me':'');d.textContent=t;$('#msgs').append(d);$('#msgs').scrollTop=1e9}
+$('#ask').onkeydown=e=>{if(e.key!=='Enter'||!e.target.value.trim())return;const q=e.target.value.toLowerCase();say(e.target.value,1);e.target.value='';
+ const T=(sel||objs[0]).position.clone();target.copy(T);target.y=Math.max(.5,T.y);const V=(x,y,z)=>new THREE.Vector3(T.x+x,y,T.z+z);let r;
+ if(q.includes('orbit'))r=[0,30,60,90,120].map((f,i)=>({f,p:V(Math.sin(i*.6*(q.includes('right')?-1:1))*9,1.8,Math.cos(i*.6)*9)}));
+ else if(q.includes('crane')||q.includes('up'))r=[{f:0,p:V(0,.5,8)},{f:120,p:V(0,9,6)}];
+ else if(q.includes('low'))r=[{f:0,p:V(-4,.3,7)},{f:120,p:V(1,.25,4)}];
+ else if(q.includes('pull')||q.includes('out'))r=[{f:0,p:V(0,1.2,4)},{f:120,p:V(0,3,15)}];
+ else r=[{f:0,p:V(0,1.6,13)},{f:120,p:V(0,.7,5)}];
+ setTimeout(()=>{keys=r;rebuildPath();outline();useCam=true;playing=true;$('#play').textContent='❚❚';say(`Set ${r.length} camera keys, look_at → ${(sel||objs[0]).name} ✓`)},400)};
+// steps
+let step='block',style='neon',wipeX=.5,finalMode=false;
+function go(s){step=s;$$('.nav button').forEach(b=>b.classList.toggle('on',b.dataset.s===s));$$('[data-p]').forEach(p=>p.classList.toggle('hidden',p.dataset.p!==s));$('#left').classList.toggle('hidden',s!=='block');
+ if(s!=='block'){useCam=true;playing=true;$('#play').textContent='❚❚'}['#wipe','#lA','#lB'].forEach(q=>$(q).classList.toggle('hidden',s!=='result'));
+ [camHelperObj,pathLine,keyDots,grid].forEach(o=>o.visible=s==='block');setTimeout(resize)}
+$$('.nav button').forEach(b=>b.onclick=()=>go(b.dataset.s));$('#back').onclick=()=>go('block');
+$$('.chips').forEach(g=>g.onclick=e=>{const c=e.target.closest('.chip');if(!c)return;g.querySelectorAll('.chip').forEach(x=>x.classList.toggle('on',x===c));if(g.dataset.g==='style')style=c.dataset.v});
+$('#render').onclick=()=>{const ov=$('#ov');ov.style.display='flex';const steps=['Recording playblast (120 frames)…','Uploading to Comfy API…','LTX-2.5 + Layout to Render · denoising…','Decoding video…'];let t=0;const final=$('[data-g=q] .on').dataset.v==='final';
+ const iv=setInterval(()=>{t+=final?1:2;$('#pb').style.width=t+'%';$('#ovt').textContent=steps[Math.min(3,t/26|0)];$('#ovs').textContent=`step ${Math.min(30,t*.3|0)}/30 · RTX PRO 6000`;if(t>=100){clearInterval(iv);ov.style.display='none';
+  const h=document.createElement('div');h.style.background=looks[style].thumb;$('#hist').prepend(h);go('result')}},60)};
+// faux "final" looks
+const looks={neon:{bg:0x0b0a1a,fog:0x1a1030,amb:.6,ground:0x2a2a36,cols:[0xe0182a,0x3a3d58,0x34385a,0xffe0a0],lights:[[0xff2fb0,-3,3,0],[0x20c8ff,3,4,-2]],thumb:'linear-gradient(135deg,#40214f,#0d2b44)'},
+ golden:{bg:0xf3b26b,fog:0xe9a05a,amb:.9,ground:0x9b7b5a,cols:[0xc22a1a,0xd8b48a,0xc59a70,0x333333],lights:[[0xffb070,-8,3,6]],thumb:'linear-gradient(135deg,#f3b26b,#7a4a2a)'},
+ snow:{bg:0xdfe6ee,fog:0xdfe6ee,amb:1.1,ground:0xf4f7fb,cols:[0x1c3c7a,0x8892a0,0x9aa3ad,0x222222],lights:[],thumb:'linear-gradient(135deg,#eef3f8,#9aa3ad)'},
+ toy:{bg:0xbfe3f2,fog:0xbfe3f2,amb:1,ground:0x8fd47b,cols:[0xff5a5a,0xffd34d,0x6aa8ff,0xffffff],lights:[],thumb:'linear-gradient(135deg,#ffd34d,#6aa8ff)'}};
+const extra=[];
+function applyLook(on){finalMode=on;extra.forEach(l=>l.visible=false);if(!on){scene.background.set(0x24262d);scene.fog=null;objs.forEach(o=>{o.material.color.set(0x9a9ca4);o.material.roughness=.9;o.material.metalness=0});ground.material.color.set(0x5a5c63);ground.material.roughness=.9;ground.material.metalness=0;scene.children[0].intensity=.8;sun.intensity=.7;return}
+ const L=looks[style];scene.background.set(L.bg);scene.fog=new THREE.Fog(L.fog,8,45);scene.children[0].intensity=L.amb;sun.intensity=L.amb*.6;ground.material.color.set(L.ground);ground.material.roughness=style==='neon'?.15:.9;ground.material.metalness=style==='neon'?.6:0;
+ objs.forEach((o,i)=>{o.material.color.set(L.cols[Math.min(i,3)]);o.material.roughness=i===0?.25:.8;o.material.metalness=i===0?.5:0});
+ L.lights.forEach((l,i)=>{if(!extra[i]){extra[i]=new THREE.PointLight(0xffffff,6,30);scene.add(extra[i])}extra[i].visible=true;extra[i].color.set(l[0]);extra[i].position.set(l[1],l[2],l[3])})}
+// wipe
+const w=$('#wipe');w.onpointerdown=e=>{e.stopPropagation();const mv=ev=>{const r=vp.getBoundingClientRect();wipeX=Math.min(1,Math.max(0,(ev.clientX-r.left)/r.width))};addEventListener('pointermove',mv);addEventListener('pointerup',()=>removeEventListener('pointermove',mv),{once:true})};
+function resize(){const W=vp.clientWidth,H=vp.clientHeight;R.setSize(W,H);edCam.aspect=W/H;edCam.updateProjectionMatrix();shotCam.aspect=W/H;shotCam.updateProjectionMatrix()}addEventListener('resize',resize);resize();
+let last=performance.now();
+(function loop(now){const dt=(now-last)/1000;last=now;if(playing){frame=(frame+dt*24)%121;fr.value=frame|0}$('#fl').textContent=`f ${frame|0} / 120`;
+ const p=camAt(frame);shotCam.position.copy(p);shotCam.lookAt(target);camHelperObj.position.copy(p);camHelperObj.lookAt(target);
+ const cam=useCam?shotCam:edCam;$('#vptag').textContent=step==='block'?(useCam?'🎥 Shot camera · 24 fps · 5.0 s':'Perspective · editor view'):step==='describe'?'Playblast preview':'';
+ const W=vp.clientWidth,H=vp.clientHeight;R.setScissorTest(false);
+ if(step==='result'){R.setScissorTest(true);applyLook(false);R.setScissor(0,0,W*wipeX,H);R.render(scene,cam);applyLook(true);R.setScissor(W*wipeX,0,W*(1-wipeX),H);R.render(scene,cam);w.style.left=(wipeX*100)+'%'}
+ else{applyLook(false);R.render(scene,cam)}
+ requestAnimationFrame(loop)})(last);
+</script></body></html>

@@ -1,0 +1,205 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Director Demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0e0e10;--col:#141416;--card:#1a1a1d;--line:#26262a;--txt:#ececef;--dim:#8b8b93;--faint:#5a5a62;--acc:#e8e3d9;--key:#d9a441;--ok:#5bbf8a;--clip:#1d2230;--clipOn:#26304a}
+*{box-sizing:border-box}html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--txt);font:13px/1.45 Inter,system-ui,sans-serif;display:grid;grid-template-rows:auto 1fr;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit}
+header{display:flex;align-items:center;gap:14px;padding:12px 20px;border-bottom:1px solid var(--line)}
+header a{color:var(--faint);text-decoration:none}header h1{font-size:14px;font-weight:600;margin:0}header .proj{color:var(--dim)}header .sp{flex:1}
+.pill{border:1px solid var(--line);background:none;border-radius:99px;padding:6px 14px;cursor:pointer;color:var(--txt)}
+.pill:hover{border-color:var(--faint)}.pill.solid{background:var(--acc);color:#111;border-color:var(--acc);font-weight:600}.pill:disabled{opacity:.4;cursor:default}
+.app{display:grid;grid-template-columns:250px 1fr 290px;min-height:0}
+aside{background:var(--col);overflow:auto;padding:18px 16px;display:flex;flex-direction:column;gap:14px}
+aside.l{border-right:1px solid var(--line)}aside.r{border-left:1px solid var(--line)}
+.sec{font-size:11px;font-weight:500;color:var(--dim);text-transform:uppercase;letter-spacing:.09em;display:flex;align-items:center;gap:8px}
+.sec span{margin-left:auto;text-transform:none;letter-spacing:0;color:var(--faint);text-align:right}
+.mood{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.pin{position:relative;border-radius:8px;overflow:hidden;cursor:pointer;aspect-ratio:4/5;border:1px solid transparent}
+.pin.on{border-color:var(--acc)}.pin canvas{width:100%;height:100%;display:block}
+.pin i{position:absolute;left:6px;bottom:6px;font-style:normal;font-size:11px;background:rgba(0,0,0,.55);padding:1px 7px;border-radius:99px}
+.swatches{display:flex;gap:6px}.swatches b{flex:1;height:20px;border-radius:5px}
+.cast{display:flex;flex-direction:column;gap:6px}
+.who{display:flex;align-items:center;gap:10px;padding:6px;border-radius:8px;background:var(--card)}
+.who .av{width:30px;height:30px;border-radius:6px;background:#2a2a2e;display:grid;place-items:center;font-size:16px}
+.who small{display:block;color:var(--faint)}
+input[type=range]{width:100%;accent-color:var(--acc)}
+main{display:flex;flex-direction:column;min-width:0;padding:16px 22px;gap:12px;overflow:auto}
+.title{display:flex;align-items:baseline;gap:10px}.title h2{margin:0;font-size:18px;font-weight:600}.title span{color:var(--dim)}.title .sp{flex:1}
+.view{position:relative;border-radius:12px;overflow:hidden;background:#000;aspect-ratio:16/9;width:100%;max-height:48vh;align-self:center;flex:none}
+.view canvas{width:100%;height:100%;display:block}
+.view .tag{position:absolute;left:12px;top:12px;font-size:11px;background:rgba(0,0,0,.5);padding:3px 9px;border-radius:99px;color:#ddd}
+.view .tc{position:absolute;right:12px;bottom:10px;font:12px ui-monospace,Consolas,monospace;color:#ddd;text-shadow:0 1px 3px #000}
+.row{display:flex;gap:10px;align-items:stretch}
+.play{width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:none;cursor:pointer;flex:none;align-self:center}
+textarea{width:100%;background:var(--col);border:1px solid var(--line);border-radius:10px;padding:9px 12px;color:var(--txt);font:inherit;outline:none;resize:none}
+textarea:focus{border-color:var(--faint)}
+.tlw{background:var(--col);border:1px solid var(--line);border-radius:12px;padding:8px 10px 10px;user-select:none}
+.tlh{display:flex;align-items:center;gap:10px;font-size:11px;color:var(--dim);margin-bottom:4px}
+.tlh .sp{flex:1}.tlh .hint{color:var(--faint)}.tlh button{background:none;border:1px solid var(--line);border-radius:6px;padding:2px 8px;cursor:pointer;color:var(--dim)}
+.tl{position:relative}
+.ruler{position:relative;height:16px;font-size:10px;color:var(--faint);cursor:ew-resize}.ruler span{position:absolute;transform:translateX(-50%)}
+.trk{position:relative;display:flex;height:96px;margin-top:4px}
+.clip{position:relative;height:100%;border-radius:8px;background:var(--clip);border:1px solid #2c3550;margin-right:3px;cursor:pointer;flex:none}
+.clip.on{background:var(--clipOn);border-color:#5a6fa8}.clip.drop{border-color:var(--key);border-style:dashed}
+.clip .lbl{position:absolute;left:8px;top:5px;right:8px;overflow:hidden;font-size:11px;color:#c9cfdf;white-space:nowrap;pointer-events:none;display:flex;gap:6px;align-items:center}
+.clip .lbl i{width:6px;height:6px;border-radius:50%;background:var(--faint);flex:none}.clip .lbl i.ok{background:var(--ok)}
+.clip .strip{position:absolute;left:0;right:0;bottom:0;height:22px;width:100%;opacity:.45;border-radius:0 0 7px 7px;pointer-events:none}
+.clip .grip{position:absolute;right:-2px;top:0;bottom:0;width:8px;cursor:ew-resize;z-index:3}
+.clip .grip:hover{background:rgba(255,255,255,.12)}
+.k{position:absolute;top:24px;width:64px;height:36px;margin-left:-32px;border-radius:5px;overflow:hidden;border:2px solid #3a4462;cursor:grab;background:#000;touch-action:none;z-index:2}
+.k.on{border-color:var(--key)}.k canvas{width:100%;height:100%;display:block}
+.addclip{flex:none;width:44px;height:100%;border:1px dashed var(--line);border-radius:8px;background:none;color:var(--faint);cursor:pointer}
+.gph{position:absolute;top:0;bottom:0;width:2px;background:var(--acc);margin-left:-1px;pointer-events:none;z-index:5}
+.gph::before{content:"";position:absolute;top:0;left:-5px;border:6px solid transparent;border-top-color:var(--acc)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:none;border-radius:99px;padding:4px 10px;cursor:pointer;color:var(--dim);font-size:12px}
+.chip.on{border-color:var(--acc);color:var(--txt);background:#1f1f22}
+.gen{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.gen .v{position:relative;border-radius:8px;overflow:hidden;cursor:grab;border:1px solid var(--line);aspect-ratio:16/9;background:#000}
+.gen .v:hover{border-color:var(--acc)}.gen canvas{width:100%;height:100%;display:block;pointer-events:none}
+.gen .v span{position:absolute;right:5px;bottom:5px;border-radius:99px;background:rgba(0,0,0,.65);padding:2px 8px;font-size:11px;opacity:0;transition:opacity .15s;pointer-events:none}
+.gen .v:hover span{opacity:1}
+.empty{color:var(--faint);font-size:12px;border:1px dashed var(--line);border-radius:8px;padding:14px;text-align:center}
+.ov{position:absolute;inset:0;background:rgba(10,10,12,.78);display:none;flex-direction:column;align-items:center;justify-content:center;gap:10px;z-index:9}
+.prog{width:50%;height:3px;background:#333;border-radius:2px;overflow:hidden}.prog i{display:block;height:100%;width:0;background:var(--acc)}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--card);border:1px solid var(--line);padding:8px 16px;border-radius:99px;transition:opacity .3s;z-index:20}
+@media (max-width:1000px){.app{grid-template-columns:1fr}aside.l,aside.r{border:0;border-top:1px solid var(--line)}aside.l{order:2}main{order:1}aside.r{order:3}}
+</style></head><body>
+<header><a href="../index.html">←</a><h1>Director</h1><span class="proj">/ The Robot in the Junkyard</span><span class="sp"></span>
+ <button class="pill" id="genAll">Generate all shots</button></header>
+<div class="app">
+ <aside class="l" id="shared"></aside>
+ <main>
+  <div class="title"><h2 id="sTitle"></h2><span id="sMeta"></span><span class="sp"></span><span id="sState"></span></div>
+  <div class="view"><canvas id="cv"></canvas><span class="tag" id="tag"></span><span class="tc" id="tc"></span>
+   <div class="ov" id="ov"><div id="ovt"></div><div class="prog"><i id="pb"></i></div></div></div>
+  <div class="row">
+   <button class="play" id="play" title="Play / pause (space)">▶</button>
+   <textarea id="motion" rows="2" placeholder="How should this shot move between its keyframes?"></textarea>
+   <button class="pill solid" id="gen" style="white-space:nowrap;padding:0 18px">Generate shot</button>
+  </div>
+  <div class="tlw">
+   <div class="tlh"><span>SEQUENCE</span><span id="tot"></span><span class="sp"></span><span class="hint" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0">drag keys to retime · double-click a clip to add one · drag a clip edge to trim</span><button id="editKey" title="Open the selected keyframe in Edit Anything">✎ Edit keyframe</button><button id="delKey">Remove key</button></div>
+   <div class="tl" id="tl"><div class="ruler" id="ruler"></div><div class="trk" id="trk"></div><div class="gph" id="gph"></div></div>
+  </div>
+ </main>
+ <aside class="r">
+  <div class="sec">Generate keyframe</div>
+  <textarea id="kp" rows="3">Mia holds Bolt up to the window, first light on his face</textarea>
+  <div class="sec">Elements</div>
+  <div class="chips" id="els"></div>
+  <div class="sec">Framing</div>
+  <div class="chips" id="frm"></div>
+  <div style="color:var(--faint);font-size:12px">Look: <span id="lookUse"></span>, from the mood board</div>
+  <button class="pill solid" id="kgo" style="width:100%">Generate 4 keyframes</button>
+  <div class="sec">Results <span>click = add at playhead<br>or drag onto a clip</span></div>
+  <div id="res"><div class="empty">Generated keyframes show up here.</div></div>
+ </aside>
+</div>
+<script src="../shared/lib/kit.js"></script><script src="../shared/styleboard/looks.js"></script><script src="scene.js"></script><script src="shell.js"></script><script>
+const {$,$$}=K,W=640,H=360;
+// ---------- data ----------
+const LOOKS=SC.LOOKS;
+let look=LOOKS[0],str=.8;
+const SP=SC.SP;
+const SH=[{n:'Wide',d:4,spec:SP({scene:'yard',scale:.6}),m:'slow push toward Mia as she spots Bolt in the scrap'},
+ {n:'Close',d:3,spec:SP({scene:'yard',scale:2.6,mia:false}),m:'her hand brushes the dust off Bolt\'s face'},
+ {n:'Medium',d:4,spec:SP({scene:'street',scale:1.3,carry:true}),m:'she shifts Bolt to her other arm, streetlights flicker on'},
+ {n:'Insert',d:3,spec:SP({scene:'room',scale:1.6,night:true}),m:'tools glint under the desk lamp'},
+ {n:'Close',d:4,spec:SP({scene:'room',scale:2.4,mia:false,eyes:true}),m:'Bolt\'s eyes flicker, then glow'}];
+SH.forEach(s=>{s.r=false;s.keys=[{t:0,u:0,spec:s.spec},{t:+(s.d*.75).toFixed(1),u:1,spec:s.spec}]});
+// Restore state (survives the round trip to Edit Anything).
+const saved=SC.get('osh-director');if(saved&&saved.SH){SH.length=0;saved.SH.forEach(x=>SH.push(x));}
+function save(){SC.set('osh-director',{SH,cur,G})}
+let cur=saved?.cur||0,selKey=null,G=saved?.G||0,playing=true,pxs=1,results=[],dragV=null;
+const tot=()=>SH.reduce((a,s)=>a+s.d,0),start=i=>SH.slice(0,i).reduce((a,s)=>a+s.d,0);
+function at(g){let a=0;for(let i=0;i<SH.length;i++){if(g<a+SH[i].d||i===SH.length-1)return[i,Math.min(SH[i].d,g-a)];a+=SH[i].d}}
+// ---------- drawing ----------
+const frame=(g,sp,t,u)=>SC.frame(g,sp,t,u,look,str),mute=SC.mute;
+const off=document.createElement('canvas'),og=K.canvas(off,W,H);
+// A shot plays by easing between its keyframes; different keyframe images cross-dissolve.
+function shotFrame(g,s,lt,t){const k=[...s.keys].sort((a,b)=>a.t-b.t);if(!k.length){g.fillStyle='#111';g.fillRect(0,0,g.canvas.width,g.canvas.height);g.fillStyle='#666';g.font='16px Inter,system-ui';g.textAlign='center';g.fillText('Empty shot — add keyframes',g.canvas.width/2,g.canvas.height/2);g.textAlign='left';return}
+ let a=k[0],b=k[0];if(lt>=k[k.length-1].t)a=b=k[k.length-1];else if(lt>k[0].t)for(let i=0;i<k.length-1;i++)if(lt<=k[i+1].t){a=k[i];b=k[i+1];break}
+ const v=a===b?0:(lt-a.t)/((b.t-a.t)||1),e=v*v*(3-2*v);
+ if(SC.same(a.spec,b.spec))frame(g,a.spec,t,a.u+(b.u-a.u)*e);else{frame(g,a.spec,t,a.u);if(e>0){frame(og,b.spec,t,b.u);g.globalAlpha=e;g.drawImage(off,0,0,g.canvas.width,g.canvas.height);g.globalAlpha=1}}}
+// ---------- sequence timeline ----------
+function timeline(){const T=tot(),trk=$('#trk');pxs=($('#tl').clientWidth-50)/T;$('#tot').textContent=`${SH.length} shots · ${T}s`;
+ $('#ruler').innerHTML=[...Array(T+1)].map((_,k)=>`<span style="left:${k*pxs}px">${k}s</span>`).join('');
+ trk.innerHTML='';SH.forEach((s,i)=>{const c=document.createElement('div');c.className='clip'+(i===cur?' on':'');c.style.width=(s.d*pxs-3)+'px';
+  c.innerHTML=`<span class="lbl"><i class="${s.r?'ok':''}"></i>${i+1} · ${s.n} · ${s.d}s${s.r?'':' · keys only'}</span><canvas class="strip" width="${Math.max(10,s.d*pxs|0)}" height="22"></canvas><div class="grip" title="Drag to trim"></div>`;
+  const sg=c.querySelector('.strip').getContext('2d');for(let x=0;x<s.d*pxs;x+=40){shotFrame(og,s,x/pxs,2);sg.drawImage(off,x,0,40,22)}
+  s.keys.forEach(k=>{const e=document.createElement('div');e.className='k'+(k===selKey?' on':'');e.style.left=Math.max(32,Math.min(s.d*pxs-35,k.t*pxs))+'px';e.innerHTML='<canvas width="128" height="72"></canvas>';frame(e.firstChild.getContext('2d'),k.spec,2,k.u);
+   e.ondblclick=ev=>{ev.stopPropagation();selKey=k;editKey()};e.title='Double-click to edit in Edit Anything';
+   e.onpointerdown=ev=>{ev.stopPropagation();selKey=k;cur=i;e.setPointerCapture(ev.pointerId);$$('.k').forEach(x=>x.classList.toggle('on',x===e));const x0=ev.clientX,t0=k.t;let mv=false;
+    e.onpointermove=m=>{mv=true;k.t=Math.round(Math.min(s.d,Math.max(0,t0+(m.clientX-x0)/pxs))*10)/10;e.style.left=Math.max(32,Math.min(s.d*pxs-35,k.t*pxs))+'px';G=start(i)+k.t};
+    e.onpointerup=()=>{e.onpointermove=null;if(mv)s.r=false;G=start(i)+k.t;playing=false;$('#play').textContent='▶';timeline();head()}};c.append(e)});
+  c.onclick=ev=>{if(ev.target.closest('.k,.grip'))return;cur=i;selKey=null;const r=c.getBoundingClientRect();G=start(i)+Math.max(0,Math.min(s.d-.01,(ev.clientX-r.left)/pxs));timeline();head()};
+  c.ondblclick=ev=>{if(ev.target.closest('.k,.grip'))return;const r=c.getBoundingClientRect(),t=Math.round((ev.clientX-r.left)/pxs*10)/10;
+   const near=[...s.keys].sort((a,b)=>Math.abs(a.t-t)-Math.abs(b.t-t))[0];addKey(i,t,{spec:near?near.spec:s.spec,u:.5})};
+  const gr=c.querySelector('.grip');gr.onpointerdown=ev=>{ev.stopPropagation();gr.setPointerCapture(ev.pointerId);const x0=ev.clientX,d0=s.d;
+   gr.onpointermove=m=>{s.d=Math.max(1,Math.min(8,Math.round(d0+(m.clientX-x0)/pxs)));c.style.width=(s.d*pxs-3)+'px'};
+   gr.onpointerup=()=>{gr.onpointermove=null;s.keys.forEach(k=>k.t=Math.min(k.t,s.d));if(s.d!==d0)s.r=false;G=Math.min(G,tot()-.01);timeline();head()}};
+  c.ondragover=ev=>{if(!dragV)return;ev.preventDefault();c.classList.add('drop')};c.ondragleave=()=>c.classList.remove('drop');
+  c.ondrop=ev=>{ev.preventDefault();c.classList.remove('drop');if(!dragV)return;const r=c.getBoundingClientRect();addKey(i,Math.round(Math.min(s.d,Math.max(0,(ev.clientX-r.left)/pxs))*10)/10,dragV)};
+  trk.append(c)});
+ const a=document.createElement('button');a.className='addclip';a.textContent='＋';a.title='Add shot';
+ a.onclick=()=>{SH.push({n:'New',d:3,spec:SP({scene:SH[cur].spec.scene}),m:'',r:false,keys:[]});cur=SH.length-1;G=start(cur);selKey=null;timeline();head();toast('Empty shot added — drop keyframes into it')};trk.append(a)}
+$('#ruler').onpointerdown=e=>{const seek=ev=>{const r=$('#trk').getBoundingClientRect();G=Math.min(tot()-.01,Math.max(0,(ev.clientX-r.left)/pxs));const[i]=at(G);if(i!==cur){cur=i;selKey=null;timeline()}head()};seek(e);$('#ruler').setPointerCapture(e.pointerId);$('#ruler').onpointermove=seek};
+$('#ruler').onpointerup=()=>$('#ruler').onpointermove=null;
+function media(){const s=SH[cur];if(selKey&&s.keys.includes(selKey))return{type:'keyframe',label:`Shot ${cur+1} · keyframe @ ${selKey.t.toFixed(1)}s`,spec:selKey.spec,u:selKey.u,ref:{shot:cur,key:s.keys.indexOf(selKey)}};
+ return{type:'shot',label:`Shot ${cur+1} · ${s.n} · ${s.d}s`,spec:(s.keys[0]||s).spec,u:.3,ref:{shot:cur}}}
+function head(){const s=SH[cur];SHELL.select(media());$('#sTitle').textContent=`Shot ${cur+1} — ${s.n}`;$('#sMeta').textContent=`${s.d}s · ${s.keys.length} keyframe${s.keys.length===1?'':'s'}`;
+ $('#sState').innerHTML=s.r?'<span style="color:var(--ok)">● generated</span>':'<span style="color:var(--dim)">○ keyframes only</span>';if(document.activeElement!==$('#motion'))$('#motion').value=s.m}
+function addKey(i,t,v){const s=SH[i],k={t,u:v.u,spec:v.spec};s.keys.push(k);selKey=k;cur=i;s.r=false;G=start(i)+Math.min(t,s.d-.01);playing=false;$('#play').textContent='▶';timeline();head();toast(`Keyframe added to shot ${i+1} at ${t.toFixed(1)}s`)}
+function delKey(){if(!selKey)return toast('Select a keyframe first');SH.forEach(s=>{const j=s.keys.indexOf(selKey);if(j>=0){s.keys.splice(j,1);s.r=false}});selKey=null;timeline();head()}
+$('#delKey').onclick=delKey;
+function editKey(){if(!selKey)return toast('Select a keyframe first');head();SHELL.open('edit')}
+$('#editKey').onclick=editKey;
+addEventListener('keydown',e=>{if(/TEXTAREA|INPUT/.test(e.target.tagName))return;if(e.key==='Backspace'||e.key==='Delete')delKey();if(e.code==='Space'){e.preventDefault();$('#play').click()}});
+$('#motion').oninput=e=>{SH[cur].m=e.target.value;if(SH[cur].r){SH[cur].r=false;timeline()}head()};
+$('#play').onclick=()=>{playing=!playing;$('#play').textContent=playing?'❚❚':'▶'};$('#play').textContent='❚❚';
+// ---------- generate video from keyframes ----------
+async function fake(msgs,ms){const ov=$('#ov');ov.style.display='flex';const t0=performance.now();await new Promise(res=>{(function tick(){const p=Math.min(1,(performance.now()-t0)/ms);$('#pb').style.width=p*100+'%';$('#ovt').textContent=msgs[Math.min(msgs.length-1,p*msgs.length|0)];p<1?requestAnimationFrame(tick):res()})()});ov.style.display='none'}
+$('#gen').onclick=async()=>{const s=SH[cur];if(!s.keys.length)return toast('Add at least one keyframe');await fake([`${s.keys.length} keyframes + motion prompt → LTX-2.5`,`Generating shot ${cur+1}`,'Decoding'],2200);s.r=true;timeline();head();toast(`Shot ${cur+1} generated from its keyframes`)};
+$('#genAll').onclick=async()=>{const todo=SH.filter(s=>!s.r&&s.keys.length);if(!todo.length)return toast('Nothing to generate');await fake(todo.map(s=>`Generating shot ${SH.indexOf(s)+1} of ${SH.length} from its keyframes`),todo.length*600+600);todo.forEach(s=>s.r=true);timeline();head()};
+// ---------- keyframe generator ----------
+const ELS=[['mia','👧 Mia',1],['bolt','🤖 Bolt',1],['yard','🏚 Junkyard',0],['street','🏙 Street',0],['room','🛏 Mia\'s room',1]],PLACES=['yard','street','room'];
+const FR=[['wide','Wide',.6],['medium','Medium',1.3],['close','Close',2.4]];let frm='medium';
+$('#els').innerHTML=ELS.map(([k,n,on])=>`<button class="chip ${on?'on':''}" data-k="${k}">${n}</button>`).join('');
+$('#frm').innerHTML=FR.map(([k,n])=>`<button class="chip ${k===frm?'on':''}" data-k="${k}">${n}</button>`).join('');
+$('#els').onclick=e=>{const c=e.target.closest('.chip');if(!c)return;if(PLACES.includes(c.dataset.k))$$('#els .chip').forEach(x=>{if(PLACES.includes(x.dataset.k))x.classList.toggle('on',x===c)});else c.classList.toggle('on')};
+$('#frm').onclick=e=>{const c=e.target.closest('.chip');if(!c)return;frm=c.dataset.k;$$('#frm .chip').forEach(x=>x.classList.toggle('on',x===c))};
+function specFromUI(){const on=k=>$(`#els [data-k=${k}]`).classList.contains('on'),p=$('#kp').value.toLowerCase();
+ return SP({mia:on('mia'),bolt:on('bolt'),scene:on('street')?'street':on('room')?'room':'yard',scale:FR.find(f=>f[0]===frm)[2],night:/night|dark|midnight/.test(p),dawn:/dawn|first light|morning|sunrise/.test(p),eyes:/glow|eyes|wake|light/.test(p),carry:/carr|holds|holding/.test(p)})}
+$('#kgo').onclick=async()=>{const base=specFromUI();if(!base.mia&&!base.bolt)return toast('Pick at least Mia or Bolt');$('#kgo').disabled=true;$('#kgo').textContent='Generating…';await K.sleep(900);
+ results=[0,1,2,3].map(i=>({spec:{...base,scale:base.scale*(1+(i-1.5)*.08),dx:(i-1.5)*.06},u:[.2,.5,.8,.4][i],p:$('#kp').value})).concat(results).slice(0,12);
+ $('#kgo').disabled=false;$('#kgo').textContent='Generate 4 keyframes';res()};
+function res(){if(!results.length)return;$('#res').innerHTML='<div class="gen"></div>';results.forEach(v=>{const d=document.createElement('div');d.className='v';d.draggable=true;d.title=v.p;d.innerHTML='<canvas width="256" height="144"></canvas><span>＋ add at playhead</span>';
+ frame(d.firstChild.getContext('2d'),v.spec,2,v.u);d.ondragstart=e=>{dragV=v;e.dataTransfer.setData('text/plain','keyframe');e.dataTransfer.effectAllowed='copy'};d.ondragend=()=>dragV=null;
+ d.onclick=()=>{const[i,lt]=at(G);addKey(i,Math.round(lt*10)/10,v)};$('#res .gen').append(d)})}
+function toast(t){const d=document.createElement('div');d.className='toast';d.textContent=t;document.body.append(d);setTimeout(()=>d.style.opacity=0,1700);setTimeout(()=>d.remove(),2100)}
+// ---------- loop: one playhead across the whole sequence ----------
+const g=K.canvas($('#cv'),W,H);let last=performance.now();
+addEventListener('resize',()=>timeline());
+K.loop(t=>{const now=performance.now(),dt=(now-last)/1000;last=now;if(playing)G=(G+dt)%tot();
+ const[i,lt]=at(G),s=SH[i];if(i!==cur){cur=i;selKey=null;timeline();head()}
+ shotFrame(g,s,lt,t);if(!s.r)mute(g);if(lt<.2&&i>0&&playing){g.fillStyle=`rgba(0,0,0,${1-lt/.2})`;g.fillRect(0,0,W,H)}
+ $('#tag').textContent=s.r?`Shot ${i+1} · generated`:`Shot ${i+1} · keyframe preview — generate for real motion`;$('#tc').textContent=`${G.toFixed(1)} / ${tot()}s`;
+ $('#gph').style.left=(G*pxs)+'px';SHELL.select(media())});
+// Coming back from Edit Anything with an edited keyframe
+const back=SC.get('osh-edit-return');SC.set('osh-edit-return',null);
+if(back&&SH[back.shot]&&SH[back.shot].keys[back.key]){const k=SH[back.shot].keys[back.key];k.spec=back.spec;SH[back.shot].r=false;cur=back.shot;selKey=k;G=start(cur)+Math.min(k.t,SH[cur].d-.01);playing=false;setTimeout(()=>toast(`Keyframe updated with ${back.n} edit${back.n===1?'':'s'} from Edit Anything`),300)}
+setInterval(save,1000);addEventListener('beforeunload',save);
+// Opened from another workflow with a keyframe/shot: select it.
+const inc=new URLSearchParams(location.search).get('from')?SC.get('osh-handoff'):null;SC.set('osh-handoff',null);
+if(inc&&inc.ref&&SH[inc.ref.shot]){cur=inc.ref.shot;selKey=SH[cur].keys[inc.ref.key]||null;G=start(cur)+(selKey?Math.min(selKey.t,SH[cur].d-.01):0);playing=false}
+SHELL.mount({app:'director',elementHint:'click to use in keyframe',useLabel:()=>'use',
+ beforeOpen:()=>save(),
+ onLook:(l,s2,commit)=>{look=l;str=s2;$('#lookUse').textContent=l.n;if(commit){SH.forEach(x=>x.r=false);timeline();head();res()}},
+ onElement:e=>{const c=$(`#els [data-k=${e.id}]`);c.click();markEls();toast(`${e.n} ${c.classList.contains('on')?'added to':'removed from'} the keyframe prompt`)}});
+function markEls(){SHELL.mark($$('#els .chip.on').map(c=>c.dataset.k))}
+$('#els').addEventListener('click',()=>setTimeout(markEls));
+timeline();head();markEls();if(!playing)$('#play').textContent='▶';
+</script></body></html>

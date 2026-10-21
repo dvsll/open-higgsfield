@@ -1,0 +1,426 @@
+<title>Open Higgsfield Concepts</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: slate header → concept picker → app-window mock with step rail → shared stack strip */
+:root {
+  --bg: #E9ECF0; --surface: #F6F7F9; --panel: #FFFFFF; --ink: #14171C; --muted: #59616E;
+  --line: #C8CED7; --accent: #B9530F; --accent-ink: #FFFFFF; --accent-soft: #F5E2D2;
+  --ok: #1E7449; --ok-soft: #DCEFE4; --warn: #8C5B00; --warn-soft: #F6EBCF; --stage: #20252C;
+  --display: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0E1115; --surface: #161A20; --panel: #1C2129; --ink: #E6E9ED; --muted: #9AA3AF;
+  --line: #2C333E; --accent: #EF8A3D; --accent-ink: #1B0E03; --accent-soft: #3A2514;
+  --ok: #52C48E; --ok-soft: #13301F; --warn: #E2B04E; --warn-soft: #33270C; --stage: #0A0C0F; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0E1115; --surface: #161A20; --panel: #1C2129; --ink: #E6E9ED; --muted: #9AA3AF;
+  --line: #2C333E; --accent: #EF8A3D; --accent-ink: #1B0E03; --accent-soft: #3A2514;
+  --ok: #52C48E; --ok-soft: #13301F; --warn: #E2B04E; --warn-soft: #33270C; --stage: #0A0C0F; color-scheme: dark }
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.55;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 28px 48px; }
+.wrap { max-width: 1120px; margin: 0 auto; display: grid; gap: 28px; }
+h1, h2, h3 { font-family: var(--display); font-weight: 600; letter-spacing: .01em; text-wrap: balance; margin: 0; line-height: 1.05; }
+h1 { font-size: clamp(34px, 6vw, 52px); }
+h2 { font-size: 26px; }
+h3, .cname { font-size: 20px; }
+.cname { font-family: var(--display); font-weight: 600; line-height: 1.05; }
+p { margin: 0; }
+.mono { font-family: var(--mono); font-size: 12.5px; }
+.label { font-family: var(--mono); font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+button { font: inherit; color: inherit; cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; border-bottom: 2px solid var(--ink); padding-bottom: 16px; }
+.head p { color: var(--muted); max-width: 60ch; margin-top: 8px; }
+.slate { display: grid; grid-template-columns: auto auto; gap: 2px 14px; font-family: var(--mono); font-size: 12px; border: 1px solid var(--line); background: var(--panel); padding: 10px 14px; border-radius: 4px; font-variant-numeric: tabular-nums; }
+.slate b { font-weight: 500; color: var(--accent); }
+
+.picker { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.concept { text-align: left; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 16px; display: grid; gap: 10px; align-content: start; transition: border-color .15s; }
+.concept:hover { border-color: var(--muted); }
+.concept[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.concept .top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.concept p { color: var(--muted); font-size: 14px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font-family: var(--mono); font-size: 11px; padding: 2px 7px; border-radius: 3px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+.chip.prize { background: var(--accent-soft); border-color: transparent; color: var(--accent); }
+.chip.pick { background: var(--ink); color: var(--bg); border-color: transparent; }
+.chip.risk { background: var(--warn-soft); border-color: transparent; color: var(--warn); }
+
+.stage-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: end; gap: 12px; }
+.stage-head p { color: var(--muted); max-width: 70ch; }
+.rail { display: flex; flex-wrap: wrap; gap: 6px; }
+.rail button { border: 1px solid var(--line); background: var(--panel); border-radius: 20px; padding: 5px 12px; font-size: 13px; display: flex; gap: 6px; align-items: center; }
+.rail button .n { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.rail button[aria-current="step"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.rail button[aria-current="step"] .n { color: var(--bg); opacity: .7; }
+
+.window { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--surface); }
+.titlebar { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 8px 14px; border-bottom: 1px solid var(--line); background: var(--panel); flex-wrap: wrap; }
+.titlebar .app { font-family: var(--display); font-size: 18px; font-weight: 600; letter-spacing: .03em; }
+.screen { display: grid; grid-template-columns: minmax(0, 1fr) 300px; min-height: 420px; }
+@media (max-width: 820px) { .screen { grid-template-columns: minmax(0, 1fr); } }
+.canvas { padding: 18px; display: grid; gap: 12px; align-content: start; min-width: 0; }
+.inspector { border-left: 1px solid var(--line); background: var(--panel); padding: 18px; display: grid; gap: 16px; align-content: start; min-width: 0; }
+@media (max-width: 820px) { .inspector { border-left: 0; border-top: 1px solid var(--line); } }
+.frame { background: var(--stage); border-radius: 4px; overflow: hidden; position: relative; aspect-ratio: 16 / 9; max-width: 100%; }
+.frame svg { display: block; width: 100%; height: 100%; }
+.tc { position: absolute; left: 10px; bottom: 8px; font-family: var(--mono); font-size: 11px; color: #E6E9ED; background: rgba(0,0,0,.55); padding: 1px 6px; border-radius: 2px; }
+.tag { position: absolute; top: 8px; font-family: var(--mono); font-size: 11px; color: #E6E9ED; background: rgba(0,0,0,.55); padding: 1px 6px; border-radius: 2px; }
+.timeline { display: grid; gap: 6px; }
+.track { position: relative; height: 26px; background: var(--panel); border: 1px solid var(--line); border-radius: 3px; }
+.track .key { position: absolute; top: 50%; width: 10px; height: 10px; background: var(--accent); transform: translate(-50%, -50%) rotate(45deg); }
+.track .ticks { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 10.5px; color: var(--muted); padding: 0 2px; }
+.field { display: grid; gap: 6px; }
+.field label, .field .label { font-size: 12px; }
+input[type="text"], textarea, select { width: 100%; font: inherit; font-size: 14px; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 8px 10px; }
+textarea { min-height: 84px; resize: vertical; }
+.seg { display: flex; flex-wrap: wrap; gap: 6px; }
+.seg button { border: 1px solid var(--line); background: var(--surface); border-radius: 4px; padding: 5px 10px; font-size: 13px; }
+.seg button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.primary { background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 4px; padding: 9px 14px; font-weight: 600; font-size: 14px; }
+.ghost { background: transparent; border: 1px solid var(--line); border-radius: 4px; padding: 8px 12px; font-size: 14px; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.hood { border-top: 1px dashed var(--line); padding: 12px 18px; display: flex; gap: 10px; flex-wrap: wrap; align-items: baseline; background: var(--panel); }
+.hood code { font-family: var(--mono); font-size: 12.5px; color: var(--ink); overflow-wrap: anywhere; }
+.nav { display: flex; justify-content: space-between; gap: 8px; padding: 12px 18px; border-top: 1px solid var(--line); background: var(--surface); }
+
+.stages { display: grid; gap: 8px; list-style: none; margin: 0; padding: 0; }
+.stages li { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; gap: 10px; align-items: center; font-size: 14px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 4px; background: var(--panel); }
+.stages .dot { width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid var(--muted); justify-self: center; }
+.stages li[data-s="done"] .dot { background: var(--ok); border-color: var(--ok); }
+.stages li[data-s="run"] .dot { border-color: var(--accent); background: var(--accent-soft); }
+.stages li[data-s="run"] { border-color: var(--accent); }
+.stages .st { font-family: var(--mono); font-size: 11.5px; color: var(--muted); }
+.bar { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--accent); transition: width .3s; }
+
+.compare { position: relative; }
+.compare .after { position: absolute; inset: 0; }
+.compare .split { position: absolute; top: 0; bottom: 0; width: 2px; background: #FFFFFF; transform: translateX(-1px); }
+input[type="range"] { width: 100%; accent-color: var(--accent); }
+.toggle { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+.toggle:last-child { border-bottom: 0; }
+.toggle input { accent-color: var(--accent); width: 18px; height: 18px; }
+.toggle small { display: block; color: var(--muted); font-size: 12px; }
+.sphere { touch-action: none; cursor: grab; max-width: 220px; width: 100%; justify-self: center; }
+.note { font-size: 13px; color: var(--muted); }
+.card { border: 1px solid var(--line); border-radius: 4px; padding: 10px 12px; background: var(--surface); display: grid; gap: 4px; }
+.kv { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 12px; font-size: 13px; }
+.kv dt { color: var(--muted); }
+.kv dd { margin: 0; font-family: var(--mono); font-size: 12.5px; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+
+.stack { display: grid; gap: 12px; }
+.pipe { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px; }
+.pipe .card b { font-family: var(--display); font-size: 17px; font-weight: 600; }
+.pipe .card span { font-size: 13px; color: var(--muted); }
+.sources { font-size: 13px; color: var(--muted); display: grid; gap: 4px; }
+.sources a { color: var(--accent); }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header class="head">
+    <div>
+      <div class="label">Open Source Higgsfield · flow mocks</div>
+      <h1>Open Higgsfield Concepts</h1>
+      <p>Three entry concepts, each a clickable flow of the app's four screens. Nothing here calls a model; the screens show what the user sees and the line under each screen shows what the app runs.</p>
+    </div>
+    <div class="slate" aria-label="Competition dates">
+      <span>Window</span><span>Oct 15 – Oct 30</span>
+      <span>Due</span><b>Oct 30 · 09:00 PT</b>
+      <span>Winners</span><span>Nov 6</span>
+    </div>
+  </header>
+
+  <section aria-labelledby="pick-h" class="stack">
+    <h2 id="pick-h" class="sr">Pick a concept</h2>
+    <div class="picker" id="picker"></div>
+  </section>
+
+  <section class="stack" aria-labelledby="flow-h">
+    <div class="stage-head">
+      <div class="stack" style="gap:6px">
+        <div class="label" id="flow-eyebrow"></div>
+        <h2 id="flow-h"></h2>
+        <p id="flow-sub"></p>
+      </div>
+      <nav class="rail" id="rail" aria-label="Flow steps"></nav>
+    </div>
+    <div class="window">
+      <div class="titlebar">
+        <span class="app" id="appname"></span>
+        <span class="mono" id="filename" style="color:var(--muted)"></span>
+      </div>
+      <div class="screen" id="screen"></div>
+      <div class="hood"><span class="label">Under the hood</span><code id="hood"></code></div>
+      <div class="nav">
+        <button class="ghost" id="back">Back</button>
+        <button class="primary" id="next">Next</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="stack" aria-labelledby="stack-h">
+    <h3 id="stack-h">Shared stack for all three</h3>
+    <div class="pipe">
+      <div class="card"><b>Web app</b><span>The four screens above. Repo, license and a demo of 2 minutes or less are required.</span></div>
+      <div class="card"><b>comfy-sdk</b><span>Submits the workflow in API format and downloads outputs. Same code for Cloud, Comfy API or a self-hosted ComfyUI.</span></div>
+      <div class="card"><b>Comfy API deployment</b><span>Workflow packaged with <span class="mono">comfy build</span>. RTX PRO 6000 (96 GB) lists at $4.54/hr.</span></div>
+      <div class="card"><b>LTX-2.5 + IC-LoRAs</b><span>Open weights, LTX as the core video model. Official minimum is an NVIDIA GPU with 32 GB+ VRAM.</span></div>
+    </div>
+    <div class="sources">
+      <span>Sources: <a href="https://comfy.org/open-source-higgsfield/">competition page</a> · <a href="https://docs.ltx.io/open-source-model/integration-tools/ic-lo-ra-adapters">LTX IC-LoRA adapters</a> · <a href="https://docs.ltx.io/open-source-model/getting-started/system-requirements">LTX system requirements</a> · <a href="https://docs.comfy.org/development/api-development/sdks">Comfy SDKs</a> · <a href="https://comfy.org/platform/comfy-api/">Comfy API pricing</a></span>
+    </div>
+  </section>
+</div>
+
+<script>
+const C = {
+  blockout: {
+    name: "Blockout", app: "BLOCKOUT", file: "alley_chase_v03.blk",
+    tag: "Previs to finished shot",
+    pitch: "Block a scene with grey shapes and a real camera path, get a finished shot back. Replaces picking from a menu of preset camera moves.",
+    prizes: ["Open weights", "Most innovative", "LTX VFX bonus"], pick: "Primary entry",
+    risk: "Layout to Render quality unproven",
+    loras: "Layout to Render · Pixel Spatial Upscaler",
+    steps: ["Block the scene", "Describe the look", "Render", "Review"],
+    hood: [
+      "three.js viewport → records a playblast MP4 of the camera path (client side, no model call)",
+      "prompt + playblast set as workflow inputs → wf.set_input(…)",
+      "client.run(wf) → LTX-2.5 + IC-LoRA \"Layout to Render\" → optional \"Pixel Spatial Upscaler\" 2× pass",
+      "job.get_outputs(…) → MP4 shown next to the playblast; re-render keeps the same blockout"
+    ]
+  },
+  sunline: {
+    name: "Sunline", app: "SUNLINE", file: "street_corner_0412.mp4",
+    tag: "Relight any shot",
+    pitch: "Drag the sun across a sphere and re-render the clip with that light. The app hides the light-ball trick the Relight adapter needs.",
+    prizes: ["Open weights", "Most viral", "LTX VFX bonus"], pick: "Second entry",
+    risk: "Relight strength on real footage unknown",
+    loras: "Relight · Day to Night",
+    steps: ["Upload clip", "Place the sun", "Render", "Compare"],
+    hood: [
+      "upload → client.assets.from_file(\"street_corner_0412.mp4\")",
+      "sphere position → app paints a lit ball into the top-right corner of each reference frame",
+      "client.run(wf) → LTX-2.5 + IC-LoRA \"Relight\" (or \"Day to Night\" for the night preset)",
+      "before/after wipe on the two MP4s; export the relit clip"
+    ]
+  },
+  rescue: {
+    name: "Rescue", app: "RESCUE", file: "birthday_1996_vhs.mp4",
+    tag: "Restore old home video",
+    pitch: "Drop in a tape transfer, pick the fixes, get a clean colour version and a shareable before/after card.",
+    prizes: ["Most viral", "Open weights", "LTX VFX bonus"], pick: "Fallback",
+    risk: "Least novel; footage must be your own",
+    loras: "Deblurring · Decompression · Colorization · Upscaler",
+    steps: ["Upload tape", "Pick fixes", "Render", "Share"],
+    hood: [
+      "upload → client.assets.from_file(\"birthday_1996_vhs.mp4\")",
+      "each enabled fix adds one IC-LoRA pass to the chain",
+      "client.run(wf) per pass → LTX-2.5 reference-video adapters, output of one pass feeds the next",
+      "renders a split-screen card (before | after) sized for X and Reels"
+    ]
+  }
+};
+
+const state = { c: "blockout", s: 0, sun: { x: 0.62, y: 0.3 }, preset: "custom", fixes: { deblur: true, decomp: true, color: true, up: true, hdr: false }, wipe: 50, look: "Rain-soaked neon alley, anamorphic, 35mm grain" };
+try { const saved = JSON.parse(localStorage.getItem("osh-flow") || "null"); if (saved && C[saved.c]) { state.c = saved.c; state.s = Math.min(3, saved.s | 0); } } catch (e) {}
+const save = () => { try { localStorage.setItem("osh-flow", JSON.stringify({ c: state.c, s: state.s })); } catch (e) {} };
+const $ = (id) => document.getElementById(id);
+
+function scene(v) {
+  const P = {
+    day:    { sky: "#8EC5EA", sky2: "#D9ECF7", ground: "#7A7F86", b: ["#C9B79C", "#A99A86", "#D6C9B4"], win: "#5B7591", fig: "#2E3440", sun: "#FFF6D8", sunOn: true },
+    golden: { sky: "#E9894A", sky2: "#F7D29A", ground: "#6B5546", b: ["#C98E5E", "#A9714D", "#D9A374"], win: "#FFD79A", fig: "#2A1E18", sun: "#FFE3A8", sunOn: true },
+    night:  { sky: "#0B1430", sky2: "#1C2A55", ground: "#1A1D24", b: ["#252B3A", "#1E2331", "#2C3346"], win: "#F2C14E", fig: "#0A0C10", sun: "#E8EEF8", sunOn: false },
+    render: { sky: "#18142A", sky2: "#3A1F4A", ground: "#14161C", b: ["#2B2238", "#231C30", "#33283F"], win: "#FF5E9A", fig: "#0C0A10", sun: "#9AE6FF", sunOn: false },
+    vhs:    { sky: "#9EA39A", sky2: "#C2C4B8", ground: "#7E7F78", b: ["#A8A79C", "#93938A", "#B5B3A8"], win: "#6D716C", fig: "#4B4D4A", sun: "#E2E2D8", sunOn: true },
+    restored: { sky: "#79B7E8", sky2: "#CFE6F6", ground: "#6E9B5A", b: ["#E4C9A2", "#C79F7A", "#F0DDBF"], win: "#4E6E90", fig: "#C0392B", sun: "#FFF4CC", sunOn: true }
+  }[v];
+  const sx = v === "golden" ? 470 : 120 + state.sun.x * 380, sy = v === "golden" ? 150 : 40 + state.sun.y * 80;
+  return `<svg viewBox="0 0 640 360" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    <rect width="640" height="360" fill="${P.sky2}"/><rect width="640" height="180" fill="${P.sky}" opacity=".85"/>
+    ${P.sunOn ? `<circle cx="${sx}" cy="${sy}" r="26" fill="${P.sun}"/>` : `<circle cx="520" cy="60" r="14" fill="${P.sun}" opacity=".85"/>`}
+    <rect x="40" y="110" width="150" height="200" fill="${P.b[0]}"/><rect x="200" y="70" width="120" height="240" fill="${P.b[1]}"/>
+    <rect x="420" y="130" width="180" height="180" fill="${P.b[2]}"/>
+    ${[0,1,2,3].map(r=>[0,1,2].map(c=>`<rect x="${58+c*44}" y="${130+r*42}" width="22" height="22" fill="${P.win}"/>`).join("")).join("")}
+    ${[0,1,2,3,4].map(r=>[0,1].map(c=>`<rect x="${222+c*50}" y="${90+r*42}" width="24" height="22" fill="${P.win}"/>`).join("")).join("")}
+    ${[0,1,2].map(r=>[0,1,2].map(c=>`<rect x="${440+c*54}" y="${150+r*44}" width="26" height="24" fill="${P.win}"/>`).join("")).join("")}
+    <rect y="300" width="640" height="60" fill="${P.ground}"/>
+    <circle cx="352" cy="258" r="10" fill="${P.fig}"/><rect x="344" y="270" width="16" height="34" rx="3" fill="${P.fig}"/>
+  </svg>`;
+}
+
+function blockoutViewport(animKey) {
+  return `<svg viewBox="0 0 640 360" aria-hidden="true">
+    <rect width="640" height="360" fill="#1B1F26"/>
+    ${Array.from({length: 13}, (_, i) => `<line x1="${i*53}" y1="200" x2="${320 + (i*53-320)*2.2}" y2="360" stroke="#2E343E" stroke-width="1"/>`).join("")}
+    ${[200, 222, 252, 292, 345].map(y => `<line x1="0" y1="${y}" x2="640" y2="${y}" stroke="#2E343E" stroke-width="1"/>`).join("")}
+    <rect x="60" y="80" width="140" height="190" fill="#8A919C" stroke="#C3C8D0"/><rect x="200" y="60" width="26" height="210" fill="#6F7682"/>
+    <rect x="430" y="110" width="160" height="170" fill="#8A919C" stroke="#C3C8D0"/><rect x="404" y="124" width="26" height="156" fill="#6F7682"/>
+    <circle cx="318" cy="222" r="10" fill="#C3C8D0"/><rect x="310" y="234" width="16" height="40" rx="6" fill="#C3C8D0"/>
+    <text x="336" y="230" fill="#9BA3AE" font-family="IBM Plex Mono, monospace" font-size="11">actor_01</text>
+    <path d="M110 330 C 220 300, 300 300, 330 300 S 470 290, 540 250" fill="none" stroke="#EF8A3D" stroke-width="2" stroke-dasharray="6 5"/>
+    <circle cx="110" cy="330" r="5" fill="#EF8A3D"/><circle cx="330" cy="300" r="5" fill="#EF8A3D"/><circle cx="540" cy="250" r="5" fill="#EF8A3D"/>
+    <g transform="translate(110 330)"><polygon points="0,0 -16,-22 16,-22" fill="none" stroke="#EF8A3D" stroke-width="1.5"/><rect x="-9" y="-6" width="18" height="12" fill="#EF8A3D" transform="translate(0 6)"/></g>
+    <text x="16" y="24" fill="#9BA3AE" font-family="IBM Plex Mono, monospace" font-size="11">PERSPECTIVE · cam_A · 35mm</text>
+  </svg>`;
+}
+
+function stagesHTML(list, pct) {
+  return `<ol class="stages" id="stages">${list.map((t, i) => {
+    const s = (i + 1) / list.length * 100 <= pct ? "done" : (i / list.length * 100 < pct ? "run" : "queued");
+    return `<li data-s="${s}"><span class="dot"></span><span>${t[0]}</span><span class="st">${s === "done" ? t[1] : s === "run" ? "running" : "queued"}</span></li>`;
+  }).join("")}</ol>
+  <div class="bar" aria-hidden="true"><i id="barfill" style="width:${pct}%"></i></div>
+  <div class="row"><button class="ghost" id="replay">Replay render</button><span class="note" id="pctnote">${pct}% · example timings</span></div>`;
+}
+
+const SCREENS = {
+  blockout: [
+    () => ({ canvas: `<div class="frame">${blockoutViewport()}<span class="tc">00:00:02:14</span></div>
+      <div class="timeline"><div class="label">Camera keys</div>
+        <div class="track"><span class="key" style="left:4%"></span><span class="key" style="left:48%"></span><span class="key" style="left:96%"></span></div>
+        <div class="track ticks" style="border:0;background:none;height:auto"><span>0s</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5s</span></div></div>`,
+      side: `<div class="field"><span class="label">Add shape</span><div class="seg"><button aria-pressed="false">Box</button><button aria-pressed="false">Actor</button><button aria-pressed="false">Plane</button></div></div>
+      <div class="field"><span class="label">Camera</span><dl class="kv"><dt>Lens</dt><dd>35mm</dd><dt>Keys</dt><dd>3 · ease in/out</dd><dt>Length</dt><dd>5.0 s @ 24 fps</dd></dl></div>
+      <p class="note">The user only blocks space and camera. No prompt yet.</p>` }),
+    () => ({ canvas: `<div class="frame">${blockoutViewport()}<span class="tag" style="left:10px">playblast · 120 frames</span></div>`,
+      side: `<div class="field"><label for="look">Look</label><textarea id="look">${state.look}</textarea></div>
+      <div class="field"><span class="label">Output</span><div class="seg"><button aria-pressed="true">1080p</button><button aria-pressed="false">2× upscale</button></div></div>
+      <div class="field"><span class="label">Style reference</span><div class="card"><span class="mono">none · optional image</span></div></div>
+      <button class="primary" data-go="2">Render shot</button>` }),
+    () => ({ canvas: stagesHTML([["Capture playblast", "0:04"], ["Upload to deployment", "0:09"], ["Layout to Render", "3:40"], ["2× upscale", "1:55"]], 62),
+      side: `<div class="card"><span class="label">Shot</span><span>alley_chase · take 3</span></div>
+      <p class="note">Timings are placeholders. Measure real ones on the rented GPU in the first two days.</p>` }),
+    () => ({ canvas: `<div class="compare frame" id="cmp"><div>${blockoutViewport()}</div><div class="after" id="after">${scene("render")}</div><div class="split" id="split"></div><span class="tag" style="left:10px">blockout</span><span class="tag" style="right:10px">render</span></div>
+      <label for="wipe" class="label">Wipe</label><input type="range" id="wipe" min="0" max="100" value="${state.wipe}">`,
+      side: `<div class="field"><span class="label">Takes</span><div class="seg"><button aria-pressed="false">Take 1</button><button aria-pressed="false">Take 2</button><button aria-pressed="true">Take 3</button></div></div>
+      <div class="row"><button class="primary">Export MP4</button><button class="ghost" data-go="1">Change look</button></div>
+      <p class="note">Changing the look reuses the same blockout and camera.</p>` })
+  ],
+  sunline: [
+    () => ({ canvas: `<div class="frame">${scene("day")}<span class="tc">00:00:00:00 / 00:00:06:00</span></div>`,
+      side: `<div class="card"><span class="label">Clip</span><dl class="kv"><dt>File</dt><dd>street_corner_0412.mp4</dd><dt>Length</dt><dd>6.0 s</dd><dt>Size</dt><dd>1920 × 1080</dd></dl></div>
+      <button class="ghost">Replace clip</button><p class="note">Sample clip shown. The real app takes a file upload.</p>` }),
+    () => ({ canvas: `<div class="frame" id="sunframe">${scene(state.preset === "golden" ? "golden" : state.preset === "night" ? "night" : "day")}<span class="tag" style="left:10px">preview frame</span></div>`,
+      side: `<div class="field"><span class="label">Drag the light</span>
+        <svg class="sphere" id="sphere" viewBox="0 0 200 200" role="slider" tabindex="0" aria-label="Light direction" aria-valuetext="">
+          <circle cx="100" cy="100" r="86" fill="var(--surface)" stroke="var(--line)"/>
+          <ellipse cx="100" cy="100" rx="86" ry="26" fill="none" stroke="var(--line)" stroke-dasharray="3 4"/>
+          <line x1="100" y1="14" x2="100" y2="186" stroke="var(--line)" stroke-dasharray="3 4"/>
+          <circle id="sunpt" r="11" fill="var(--accent)" stroke="var(--panel)" stroke-width="3"/>
+        </svg></div>
+        <dl class="kv"><dt>Azimuth</dt><dd id="az"></dd><dt>Elevation</dt><dd id="el"></dd></dl>
+        <div class="field"><span class="label">Presets</span><div class="seg" id="presets">
+          ${[["custom","Custom"],["golden","Golden hour"],["night","Night"]].map(([k,t]) => `<button data-preset="${k}" aria-pressed="${state.preset===k}">${t}</button>`).join("")}</div></div>
+        <button class="primary" data-go="2">Relight clip</button>` }),
+    () => ({ canvas: stagesHTML([["Paint light ball into reference", "0:06"], ["Upload to deployment", "0:11"], [state.preset === "night" ? "Day to Night" : "Relight", "3:10"]], 55),
+      side: `<div class="card"><span class="label">Light</span><span class="mono">${state.preset === "night" ? "night preset" : "az " + azEl().az + "° · el " + azEl().el + "°"}</span></div>
+      <p class="note">The adapter reads a lit ball in the top-right corner. The user never sees that step.</p>` }),
+    () => ({ canvas: `<div class="compare frame" id="cmp"><div>${scene("day")}</div><div class="after" id="after">${scene(state.preset === "night" ? "night" : "golden")}</div><div class="split" id="split"></div><span class="tag" style="left:10px">original</span><span class="tag" style="right:10px">relit</span></div>
+      <label for="wipe" class="label">Wipe</label><input type="range" id="wipe" min="0" max="100" value="${state.wipe}">`,
+      side: `<div class="row"><button class="primary">Export MP4</button><button class="ghost" data-go="1">Move the sun</button></div>
+      <p class="note">The wipe is the shareable moment. It goes first in the demo video.</p>` })
+  ],
+  rescue: [
+    () => ({ canvas: `<div class="frame"><div style="filter:grayscale(.85) blur(1.4px) contrast(.8);height:100%">${scene("vhs")}</div><span class="tc">PLAY ▸ SP 0:42</span></div>`,
+      side: `<div class="card"><span class="label">Tape transfer</span><dl class="kv"><dt>File</dt><dd>birthday_1996_vhs.mp4</dd><dt>Size</dt><dd>720 × 480</dd><dt>Length</dt><dd>42 s</dd></dl></div>
+      <p class="note">Entries must not use other people's likeness without permission. Use your own family tape for the demo.</p>` }),
+    () => ({ canvas: `<div class="frame"><div style="filter:grayscale(.85) blur(1.4px) contrast(.8);height:100%">${scene("vhs")}</div><span class="tag" style="left:10px">source</span></div>
+      <div class="card"><span class="label">Chain</span><span class="mono" id="chain"></span></div>`,
+      side: `<div class="field"><span class="label">Fixes</span><div>
+        ${[["deblur","Sharpen","Deblurring"],["decomp","Remove tape artifacts","Decompression"],["color","Add colour","Colorization"],["up","2× resolution","Pixel Spatial Upscaler"],["hdr","HDR for grading","SDR to HDR"]].map(([k,t,a]) =>
+          `<label class="toggle" for="fx-${k}"><span>${t}<small>${a}</small></span><input type="checkbox" id="fx-${k}" data-fx="${k}" ${state.fixes[k] ? "checked" : ""}></label>`).join("")}
+        </div></div><button class="primary" data-go="2">Restore</button>` }),
+    () => ({ canvas: stagesHTML(chainList().map(n => [n, "pass"]), 50),
+      side: `<div class="card"><span class="label">Passes</span><span class="mono">${chainList().length} sequential</span></div>
+      <p class="note">Each pass is a separate run. Order matters: clean first, then colour, then upscale.</p>` }),
+    () => ({ canvas: `<div class="compare frame" id="cmp"><div style="filter:grayscale(.85) blur(1.4px) contrast(.8);height:100%">${scene("vhs")}</div><div class="after" id="after">${scene("restored")}</div><div class="split" id="split"></div><span class="tag" style="left:10px">1996</span><span class="tag" style="right:10px">restored</span></div>
+      <label for="wipe" class="label">Wipe</label><input type="range" id="wipe" min="0" max="100" value="${state.wipe}">`,
+      side: `<div class="field"><span class="label">Share card</span><div class="seg"><button aria-pressed="true">X · 16:9</button><button aria-pressed="false">Reels · 9:16</button></div></div>
+      <button class="primary">Export card</button><p class="note">The card is the growth loop: every share links back to the repo.</p>` })
+  ]
+};
+
+function chainList() {
+  const m = { deblur: "Deblurring", decomp: "Decompression", color: "Colorization", up: "Pixel Spatial Upscaler", hdr: "SDR to HDR" };
+  return ["decomp", "deblur", "color", "up", "hdr"].filter(k => state.fixes[k]).map(k => m[k]);
+}
+function azEl() {
+  const dx = state.sun.x - 0.5, dy = state.sun.y - 0.5, r = Math.min(0.5, Math.hypot(dx, dy));
+  return { az: Math.round((Math.atan2(dx, -dy) * 180 / Math.PI + 360) % 360), el: Math.round((1 - r / 0.5) * 90) };
+}
+
+function renderPicker() {
+  $("picker").innerHTML = Object.entries(C).map(([k, c]) => `
+    <button class="concept" data-c="${k}" aria-pressed="${state.c === k}">
+      <span class="top"><span class="cname">${c.name}</span><span class="chip ${k === "blockout" ? "pick" : ""}">${c.pick}</span></span>
+      <span class="label" style="text-transform:none;letter-spacing:0">${c.tag}</span>
+      <p>${c.pitch}</p>
+      <span class="chips">${c.prizes.map(p => `<span class="chip prize">${p}</span>`).join("")}</span>
+      <span class="chips"><span class="chip">${c.loras}</span><span class="chip risk">${c.risk}</span></span>
+    </button>`).join("");
+}
+
+function render() {
+  const c = C[state.c];
+  document.querySelectorAll(".concept").forEach(b => b.setAttribute("aria-pressed", b.dataset.c === state.c));
+  $("flow-eyebrow").textContent = `${c.name} · step ${state.s + 1} of 4`;
+  $("flow-h").textContent = c.steps[state.s];
+  $("flow-sub").textContent = c.tag;
+  $("appname").textContent = c.app;
+  $("filename").textContent = c.file;
+  $("rail").innerHTML = c.steps.map((t, i) => `<button data-step="${i}" ${i === state.s ? 'aria-current="step"' : ""}><span class="n">${i + 1}</span>${t}</button>`).join("");
+  const scr = SCREENS[state.c][state.s]();
+  $("screen").innerHTML = `<div class="canvas">${scr.canvas}</div><aside class="inspector">${scr.side}</aside>`;
+  $("hood").textContent = c.hood[state.s];
+  $("back").disabled = state.s === 0;
+  $("back").style.opacity = state.s === 0 ? .4 : 1;
+  $("next").textContent = state.s === 3 ? "Start over" : "Next";
+  wire();
+  save();
+}
+
+function wire() {
+  const wipe = $("wipe");
+  if (wipe) { const set = () => { state.wipe = +wipe.value; $("after").style.clipPath = `inset(0 0 0 ${state.wipe}%)`; $("split").style.left = state.wipe + "%"; }; wipe.addEventListener("input", set); set(); }
+  const sph = $("sphere");
+  if (sph) {
+    const pt = $("sunpt");
+    const upd = () => { pt.setAttribute("cx", 14 + state.sun.x * 172); pt.setAttribute("cy", 14 + state.sun.y * 172); const a = azEl(); $("az").textContent = a.az + "°"; $("el").textContent = a.el + "°"; sph.setAttribute("aria-valuetext", `azimuth ${a.az} degrees, elevation ${a.el} degrees`); const f = $("sunframe"); if (f && state.preset === "custom") f.innerHTML = scene("day") + '<span class="tag" style="left:10px">preview frame</span>'; };
+    const move = (e) => { const r = sph.getBoundingClientRect(); let x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height; const dx = x - .5, dy = y - .5, d = Math.hypot(dx, dy); if (d > .43) { x = .5 + dx / d * .43; y = .5 + dy / d * .43; } state.sun = { x, y }; state.preset = "custom"; document.querySelectorAll("[data-preset]").forEach(b => b.setAttribute("aria-pressed", b.dataset.preset === "custom")); upd(); };
+    sph.addEventListener("pointerdown", (e) => { sph.setPointerCapture(e.pointerId); move(e); sph.addEventListener("pointermove", move); });
+    sph.addEventListener("pointerup", () => sph.removeEventListener("pointermove", move));
+    sph.addEventListener("keydown", (e) => { const k = { ArrowLeft: [-.04, 0], ArrowRight: [.04, 0], ArrowUp: [0, -.04], ArrowDown: [0, .04] }[e.key]; if (!k) return; e.preventDefault(); const r = sph.getBoundingClientRect(); move({ clientX: r.left + (state.sun.x + k[0]) * r.width, clientY: r.top + (state.sun.y + k[1]) * r.height }); });
+    upd();
+  }
+  document.querySelectorAll("[data-preset]").forEach(b => b.addEventListener("click", () => { state.preset = b.dataset.preset; if (state.preset === "golden") state.sun = { x: .84, y: .62 }; render(); }));
+  document.querySelectorAll("[data-fx]").forEach(cb => cb.addEventListener("change", () => { state.fixes[cb.dataset.fx] = cb.checked; $("chain").textContent = chainList().join(" → ") || "no passes selected"; }));
+  if ($("chain")) $("chain").textContent = chainList().join(" → ") || "no passes selected";
+  document.querySelectorAll("[data-go]").forEach(b => b.addEventListener("click", () => { state.s = +b.dataset.go; render(); }));
+  document.querySelectorAll(".seg:not(#presets) button").forEach(b => b.addEventListener("click", () => { b.parentElement.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b)); }));
+  const rp = $("replay");
+  if (rp) rp.addEventListener("click", () => {
+    const items = [...document.querySelectorAll("#stages li")], n = items.length;
+    const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let p = reduce ? 100 : 0;
+    const paint = () => { items.forEach((li, i) => { const s = (i + 1) / n * 100 <= p ? "done" : (i / n * 100 < p ? "run" : "queued"); li.dataset.s = s; li.querySelector(".st").textContent = s === "done" ? "done" : s === "run" ? "running" : "queued"; }); $("barfill").style.width = p + "%"; $("pctnote").textContent = Math.round(p) + "% · example timings"; };
+    paint(); if (reduce) return;
+    const t = setInterval(() => { p = Math.min(100, p + 4); paint(); if (p >= 100) clearInterval(t); }, 90);
+  });
+}
+
+$("picker").addEventListener("click", (e) => { const b = e.target.closest(".concept"); if (!b) return; state.c = b.dataset.c; state.s = 0; render(); });
+$("rail").addEventListener("click", (e) => { const b = e.target.closest("[data-step]"); if (!b) return; state.s = +b.dataset.step; render(); });
+$("back").addEventListener("click", () => { if (state.s > 0) { state.s--; render(); } });
+$("next").addEventListener("click", () => { state.s = state.s === 3 ? 0 : state.s + 1; render(); });
+renderPicker(); render();
+</script>

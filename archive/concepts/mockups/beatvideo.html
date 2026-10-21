@@ -1,0 +1,55 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Beat Video Mockup</title><link rel="stylesheet" href="kit.css"><style>
+.tlw{background:var(--panel);border-top:1px solid var(--edge);padding:10px 14px}
+#wave{width:100%;height:120px;display:block;cursor:pointer;border-radius:6px;background:#121318}
+.ctl{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+</style></head><body>
+<div class="bar"><a class="back" href="../index.html">←</a><span class="brand">♫ Beat Video</span><span class="note">mockup — placeholder synth track; shots faked in-browser</span></div>
+<div class="body">
+ <div class="side">
+  <div class="h">Track</div><div class="drop">🎵 my_track.wav · 120 BPM · 0:24<br><span class="note">your own track is safest</span></div>
+  <div class="h">Cut on</div><div class="chips" data-g="cut"><button class="chip" data-v="1">every beat</button><button class="chip on" data-v="2">2 beats</button><button class="chip" data-v="4">bar</button></div>
+  <div class="h">Sections</div><div id="secs" style="display:flex;flex-direction:column;gap:4px"></div>
+ </div>
+ <div class="stage" id="stage"><div class="vid"><canvas id="pv"></canvas><span class="lbl" style="left:10px" id="pl"></span><span class="lbl" style="right:10px" id="cutn"></span></div></div>
+ <div class="side r">
+  <div class="h" id="sh">Section</div>
+  <textarea class="inp" id="prompt"></textarea>
+  <div class="note">Each cut inside a section gets a variation of this prompt.</div>
+  <button class="btnp" id="go" style="margin-top:10px">Render all sections · ~6 min</button>
+  <button class="btng" style="margin-top:6px" onclick="K.toast('mock: MP4 with your audio')">Export</button>
+ </div>
+</div>
+<div class="tlw"><div class="ctl"><button class="btng" id="play">▶ Play (sound on)</button><span class="note" id="tc">0.0s</span><span class="note" style="margin-left:auto">beats detected with an open onset library · click waveform to seek</span></div><canvas id="wave"></canvas></div>
+<script src="kit.js"></script><script>
+const {$,$$}=K,DUR=24,BPM=120,BEAT=60/BPM;
+const S=[{n:'intro',a:0,b:8,p:'empty city street at dawn, slow, misty',c:'#6c8cff'},{n:'chorus',a:8,b:16,p:'city lights strobing, dancer silhouette',c:'#ff6bd6'},{n:'outro',a:16,b:24,p:'rooftop at sunrise, calm, wide',c:'#ffb347'}];
+let sel=S[1],ph=0,playing=false,rendered=false,ac=null,lastBeat=-1;
+function secs(){$('#secs').innerHTML='';S.forEach(s=>{const d=document.createElement('div');d.className='item'+(s===sel?' sel':'');d.innerHTML=`<i style="width:8px;height:8px;border-radius:2px;background:${s.c}"></i>${s.n}<span class="r">${s.a}–${s.b}s</span>`;d.onclick=()=>{sel=s;secs();insp()};$('#secs').append(d)})}
+function insp(){$('#sh').textContent=`Section · ${sel.n} · 00:${String(sel.a).padStart(2,'0')}–00:${String(sel.b).padStart(2,'0')}`;$('#prompt').value=sel.p}
+$('#prompt').oninput=e=>{sel.p=e.target.value;rendered=false};
+const wv=$('#wave'),wg=wv.getContext('2d');function wsize(){wv.width=wv.clientWidth*devicePixelRatio;wv.height=120*devicePixelRatio}addEventListener('resize',wsize);wsize();
+const amp=[...Array(600)].map((_,i)=>{const t=i/600*DUR,b=(t%BEAT)/BEAT,ch=t>=8&&t<16?1:.6;return(Math.exp(-b*6)*.8+.15*Math.random())*ch});
+function wave(){const W=wv.width,H=wv.height,cut=+K.chip('cut');wg.clearRect(0,0,W,H);
+ S.forEach(s=>{wg.fillStyle=s.c+(s===sel?'30':'14');wg.fillRect(s.a/DUR*W,0,(s.b-s.a)/DUR*W,H);wg.fillStyle=s.c;wg.font=`${11*devicePixelRatio}px system-ui`;wg.fillText(s.n,s.a/DUR*W+6,14*devicePixelRatio)});
+ amp.forEach((a,i)=>{const x=i/600*W;wg.fillStyle='#8a8c96';wg.fillRect(x,H/2-a*H*.4,W/600*.7,a*H*.8)});
+ for(let k=0;k*BEAT<DUR;k++){const x=k*BEAT/DUR*W;if(k%cut===0){wg.fillStyle='#fff';wg.fillRect(x,H-14*devicePixelRatio,1.5*devicePixelRatio,14*devicePixelRatio)}else{wg.fillStyle='#555';wg.fillRect(x,H-6*devicePixelRatio,1,6*devicePixelRatio)}}
+ wg.fillStyle='#ff6b6b';wg.fillRect(ph/DUR*W,0,2*devicePixelRatio,H)}
+wv.onclick=e=>{const b=wv.getBoundingClientRect();ph=(e.clientX-b.left)/b.width*DUR;const s=S.find(s=>ph>=s.a&&ph<s.b);if(s){sel=s;secs();insp()}};
+function kick(){if(!ac)return;const o=ac.createOscillator(),g=ac.createGain(),t=ac.currentTime;o.frequency.setValueAtTime(150,t);o.frequency.exponentialRampToValueAtTime(40,t+.15);g.gain.setValueAtTime(.5,t);g.gain.exponentialRampToValueAtTime(.001,t+.2);o.connect(g).connect(ac.destination);o.start(t);o.stop(t+.22)}
+$('#play').onclick=()=>{playing=!playing;if(playing&&!ac)ac=new AudioContext();$('#play').textContent=playing?'❚❚ Pause':'▶ Play (sound on)'};
+$('#go').onclick=async()=>{await K.render($('#stage'),S.map(s=>`LTX-2.5 · ${s.n} · ${Math.ceil((s.b-s.a)/BEAT/+K.chip('cut'))} cuts…`),3000);rendered=true;K.toast('All sections rendered')};
+K.chips(()=>rendered=false);
+const g=K.canvas($('#pv'),640,360);
+function lookFor(p,v){const t=p.toLowerCase();let o=/dawn|sunrise/.test(t)?K.LOOKS.golden:/night|lights|neon|strob/.test(t)?K.LOOKS.neon:/snow/.test(t)?K.LOOKS.snow:{};
+ return {...o,horizon:[.62,.5,.72,.58][v%4],people:/dancer|people|crowd/.test(t)?2:v%2,trees:v%2===0,buildings:!/rooftop|field|beach/.test(t)||v%3===0}}
+let last=performance.now();
+K.loop(t=>{const now=performance.now();if(playing){ph=(ph+(now-last)/1000)%DUR}last=now;
+ const beat=Math.floor(ph/BEAT),cut=+K.chip('cut'),ci=Math.floor(beat/cut);if(playing&&beat!==lastBeat){kick();lastBeat=beat}
+ const s=S.find(s=>ph>=s.a&&ph<s.b)||S[0],sinceCut=(ph-ci*cut*BEAT);
+ if(rendered){g.save();const z=1+sinceCut*.04;g.translate(320,180);g.scale(z,z);g.translate(-320+(ci%2?-1:1)*sinceCut*10,-180);K.paint(g,lookFor(s.p,ci),t);g.restore();
+  if(s.n==='chorus'&&sinceCut<.08){g.fillStyle='rgba(255,255,255,.5)';g.fillRect(0,0,640,360)}}
+ else{g.fillStyle=['#2a2c34','#33353f'][ci%2];g.fillRect(0,0,640,360);g.fillStyle=s.c;g.font='600 22px system-ui';g.textAlign='center';g.fillText(`${s.n} · cut ${ci+1}`,320,170);g.fillStyle='#8a8c96';g.font='14px system-ui';g.fillText('“'+s.p+'”',320,200);g.fillText('(not rendered yet — cuts already land on the beat)',320,226);g.textAlign='left'}
+ $('#pl').textContent=(rendered?'Render':'Cut preview')+' · '+s.n;$('#cutn').textContent=`cut ${ci+1}`;$('#tc').textContent=ph.toFixed(1)+'s';wave()});
+secs();insp();
+</script></body></html>

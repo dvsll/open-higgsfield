@@ -1,0 +1,14 @@
+{
+  "hooks": {
+    "SessionStart": [
+      { "matcher": "startup|resume",
+        "hooks": [ { "type": "command", "command": "git pull --rebase --autostash -q 2>&1 | tail -3; echo '--- partner commits in last 24h ---'; git log --since=24.hours --oneline --stat -15" } ] }
+    ],
+    "UserPromptSubmit": [
+      { "hooks": [ { "type": "command", "command": "git fetch -q 2>/dev/null; n=$(git rev-list --count HEAD..@{u} 2>/dev/null || echo 0); if [ \"$n\" -gt 0 ]; then echo \"Partner pushed $n new commit(s) not yet pulled:\"; git log --oneline --stat HEAD..@{u}; echo 'Pull with: git pull --rebase --autostash'; fi; exit 0" } ] }
+    ],
+    "Stop": [
+      { "hooks": [ { "type": "command", "command": "git add -A && git commit -q -m \"wip($(git config user.name)): auto-sync\" 2>/dev/null; (git pull --rebase --autostash -q || git rebase --abort) >/dev/null 2>&1; git push -q >/dev/null 2>&1; exit 0" } ] }
+    ]
+  }
+}

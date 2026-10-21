@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rescue Mockup</title>
+<style>
+:root{--app:#16171b;--panel:#1f2026;--panel2:#272830;--edge:#34353f;--txt:#d8d9de;--dim:#8a8c96;--hi:#6c8cff;--ok:#5fd18b}
+*{box-sizing:border-box}html,body{height:100%}
+body{margin:0;background:var(--app);color:var(--txt);font:13px/1.4 system-ui,sans-serif;display:flex;flex-direction:column}
+.bar{display:flex;align-items:center;gap:12px;padding:8px 14px;background:var(--panel);border-bottom:1px solid var(--edge)}
+.brand{font-weight:700}.note{color:var(--dim);font-size:12px}
+.body{flex:1;display:flex;min-height:0}
+.stage{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;gap:12px;min-width:0}
+.vid{position:relative;width:100%;max-width:880px;aspect-ratio:4/3;max-height:70vh;border-radius:8px;overflow:hidden;background:#000}
+.vid canvas{position:absolute;inset:0;width:100%;height:100%}
+#after{clip-path:inset(0 0 0 50%)}
+.wipe{position:absolute;top:0;bottom:0;left:50%;width:2px;background:#fff;cursor:ew-resize}
+.wipe::after{content:"⇆";position:absolute;top:50%;left:-14px;width:30px;height:30px;border-radius:50%;background:#fff;color:#000;display:grid;place-items:center;transform:translateY(-50%)}
+.lbl{position:absolute;bottom:10px;padding:2px 8px;background:rgba(0,0,0,.6);border-radius:4px;font-size:12px}
+.side{width:300px;background:var(--panel);border-left:1px solid var(--edge);padding:14px;display:flex;flex-direction:column;gap:8px;overflow:auto}
+.h{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin:8px 0 2px}
+.stepc{display:flex;align-items:center;gap:8px;padding:8px;border-radius:7px;background:var(--panel2);border:1px solid transparent}
+.stepc input{accent-color:var(--hi)}.stepc .st{margin-left:auto;font-size:11px;color:var(--dim)}
+.stepc.run{border-color:var(--hi)}.stepc.done .st{color:var(--ok)}
+.btnp{background:var(--hi);color:#fff;border:0;border-radius:7px;padding:10px;cursor:pointer;font:inherit;font-weight:600}
+.btng{background:none;border:1px solid var(--edge);color:var(--txt);border-radius:7px;padding:8px;cursor:pointer;font:inherit}
+.drop{border:1px dashed var(--edge);border-radius:8px;padding:10px;text-align:center;color:var(--dim)}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center}
+.card{background:#fff;color:#111;border-radius:14px;padding:14px;width:min(420px,92vw);display:flex;flex-direction:column;gap:8px}
+.card .pair{display:grid;grid-template-columns:1fr 1fr;gap:6px}.card canvas{width:100%;border-radius:6px}
+.card b{font-size:18px}.card .tags{color:#666;font-size:12px}
+@media (max-width:800px){.body{flex-direction:column;overflow:auto}.side{width:auto;border-left:0;border-top:1px solid var(--edge)}.stage{flex:none}}
+</style></head><body>
+<div class="bar"><span class="brand">✚ Rescue</span><span class="note">mockup — restoration is faked with canvas filters</span></div>
+<div class="body">
+ <div class="stage">
+  <div class="vid" id="vid"><canvas id="before"></canvas><canvas id="after"></canvas>
+   <div class="wipe" id="wipe"></div><span class="lbl" style="left:10px">1994 VHS</span><span class="lbl" style="right:10px" id="aLbl">Rescued</span></div>
+  <div class="note" id="status">Pick the repair steps, then Rescue. The wipe shows what's applied so far.</div>
+ </div>
+ <div class="side">
+  <div class="drop">📼 beach_1994.mp4 · 480i · 0:42<br><span class="note">auto-detected: compression, blur, faded B/W</span></div>
+  <div class="h">Repair chain</div>
+  <label class="stepc" data-k="decomp"><input type="checkbox" checked> Decompression<span class="st">—</span></label>
+  <label class="stepc" data-k="deblur"><input type="checkbox" checked> Deblurring<span class="st">—</span></label>
+  <label class="stepc" data-k="color"><input type="checkbox" checked> Colorization<span class="st">—</span></label>
+  <label class="stepc" data-k="up"><input type="checkbox" checked> 2× Upscale<span class="st">—</span></label>
+  <label class="stepc" data-k="hdr"><input type="checkbox"> SDR → HDR<span class="st">—</span></label>
+  <button class="btnp" id="go" style="margin-top:8px">Rescue clip · ~6 min</button>
+  <button class="btng" id="share" disabled>Make share card</button>
+  <div class="note">Each step is an LTX-2.5 IC-LoRA pass, chained in one workflow. Open weights only.</div>
+ </div>
+</div>
+<div class="modal" id="modal"><div class="card"><b>Grandpa's beach day, 1994 → 2026</b><div class="pair"><canvas id="c1" width="320" height="240"></canvas><canvas id="c2" width="320" height="240"></canvas></div>
+ <div class="tags">Restored with open models · #OpenSourceHiggsfield</div><button class="btng" style="color:#111" onclick="modal.style.display='none'">Close</button></div></div>
+<script>
+const $=s=>document.querySelector(s),W=480,H=360;const B=$('#before'),A=$('#after');[B,A].forEach(c=>{c.width=W;c.height=H});
+const done={decomp:0,deblur:0,color:0,up:0,hdr:0};let t=0;
+function raw(g,f){ // colour source scene: beach, kid with ball
+ const s=g.createLinearGradient(0,0,0,H*.5);s.addColorStop(0,'#5aa7e6');s.addColorStop(1,'#bfe2f5');g.fillStyle=s;g.fillRect(0,0,W,H);
+ g.fillStyle='#ffe9a8';g.beginPath();g.arc(390,60,26,0,7);g.fill();
+ g.fillStyle='#2e7fb0';g.fillRect(0,H*.45,W,H*.15);g.fillStyle='#fff';for(let i=0;i<6;i++){g.fillRect(((i*90+f*200)%W),H*.5+((i*13)%20),40,3)}
+ g.fillStyle='#e8cf98';g.fillRect(0,H*.6,W,H);
+ g.fillStyle='#e04a3c';g.beginPath();g.moveTo(80,H*.6);g.lineTo(140,H*.35);g.lineTo(200,H*.6);g.fill();g.fillStyle='#fff';g.fillRect(138,H*.35,3,H*.27);
+ const bx=260+Math.sin(f*6.28)*60,by=H*.62-Math.abs(Math.sin(f*12.5))*80;g.fillStyle='#ffcc33';g.beginPath();g.arc(bx,by,14,0,7);g.fill();g.fillStyle='#e0408a';g.fillRect(bx-3,by-14,6,28);
+ const kx=320;g.fillStyle='#2a6bd1';g.fillRect(kx-12,H*.62,24,40);g.fillStyle='#d9a07a';g.beginPath();g.arc(kx,H*.62-12,13,0,7);g.fill();g.fillStyle='#5b3a22';g.fillRect(kx-13,H*.62-26,26,8);
+ g.fillStyle='#3f9b49';g.fillRect(400,H*.62,10,60);g.beginPath();g.arc(405,H*.6,32,3.14,0);g.fill()}
+function damaged(g,f,fix){ // apply damage depending on which fixes are done
+ raw(g,f);const id=g.getImageData(0,0,W,H),d=id.data;const blk=fix.decomp?1:8;
+ for(let y=0;y<H;y++)for(let x=0;x<W;x++){const i=(y*W+x)*4;let r=d[i],gg=d[i+1],b=d[i+2];
+  if(!fix.decomp){const sx=(x/blk|0)*blk,sy=(y/blk|0)*blk,j=(sy*W+sx)*4;r=(r+d[j])/2;gg=(gg+d[j+1])/2;b=(b+d[j+2])/2;const n=(Math.random()-.5)*40;r+=n;gg+=n;b+=n}
+  if(!fix.color){const l=.3*r+.59*gg+.11*b;r=l*1.05+12;gg=l*.98+6;b=l*.85}
+  if(fix.hdr){r=Math.min(255,(r-128)*1.18+132);gg=Math.min(255,(gg-128)*1.18+130);b=Math.min(255,(b-128)*1.22+128)}
+  else if(!fix.color){r=r*.8+30;gg=gg*.8+30;b=b*.8+30}
+  d[i]=r;d[i+1]=gg;d[i+2]=b}
+ g.putImageData(id,0,0);
+ if(!fix.deblur){g.filter='blur(2.2px)';g.drawImage(g.canvas,0,0);g.filter='none'}
+ if(!fix.up){g.imageSmoothingEnabled=false;g.drawImage(g.canvas,0,0,W,H,0,0,W/3,H/3);g.drawImage(g.canvas,0,0,W/3,H/3,0,0,W,H);g.imageSmoothingEnabled=true}
+ if(!fix.decomp){g.fillStyle='rgba(255,255,255,.08)';const y=(f*900)%H;g.fillRect(0,y,W,6);g.fillStyle='#fff';g.font='bold 16px monospace';g.fillText('PLAY ▶  JUL 14 1994',14,H-16)}}
+const bx=B.getContext('2d',{willReadFrequently:true}),ax=A.getContext('2d',{willReadFrequently:true});
+const none={};
+// wipe
+const vid=$('#vid'),wp=$('#wipe');wp.onpointerdown=e=>{wp.setPointerCapture(e.pointerId);wp.onpointermove=ev=>{const b=vid.getBoundingClientRect();const p=Math.min(100,Math.max(0,(ev.clientX-b.left)/b.width*100));wp.style.left=p+'%';A.style.clipPath=`inset(0 0 0 ${p}%)`}};wp.onpointerup=()=>wp.onpointermove=null;
+// chain
+const names={decomp:'Decompression',deblur:'Deblurring',color:'Colorization',up:'2× Upscale',hdr:'SDR → HDR'};
+$('#go').onclick=async()=>{Object.keys(done).forEach(k=>done[k]=0);document.querySelectorAll('.stepc').forEach(s=>{s.classList.remove('done','run');s.querySelector('.st').textContent='—'});
+ const steps=[...document.querySelectorAll('.stepc')].filter(s=>s.querySelector('input').checked);$('#go').disabled=true;
+ for(const s of steps){s.classList.add('run');for(let p=0;p<=100;p+=5){s.querySelector('.st').textContent=p+'%';$('#status').textContent=`Running ${names[s.dataset.k]} on Comfy API… (${steps.indexOf(s)+1}/${steps.length})`;await new Promise(r=>setTimeout(r,45))}
+  s.classList.remove('run');s.classList.add('done');s.querySelector('.st').textContent='✓';done[s.dataset.k]=1}
+ $('#status').textContent='Done. Drag the wipe — then make a share card.';$('#go').disabled=false;$('#share').disabled=false};
+$('#share').onclick=()=>{$('#c1').getContext('2d').drawImage(B,0,0,320,240);$('#c2').getContext('2d').drawImage(A,0,0,320,240);$('#modal').style.display='flex'};
+let last=performance.now();(function loop(now){t=(t+(now-last)/8000)%1;last=now;damaged(bx,t,none);damaged(ax,t,done);requestAnimationFrame(loop)})(last);
+</script></body></html>

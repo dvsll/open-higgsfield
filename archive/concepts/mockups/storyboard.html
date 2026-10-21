@@ -1,0 +1,83 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Storyboard Mockup</title><link rel="stylesheet" href="kit.css"><style>
+.shotlist{display:flex;flex-direction:column;gap:6px;width:100%;max-width:760px}
+.shot{display:flex;gap:10px;align-items:center;padding:8px 10px;background:var(--panel);border:1px solid var(--edge);border-radius:8px;animation:in .3s}
+.shot b{color:var(--warm);min-width:70px}.shot .d{margin-left:auto;color:var(--dim)}
+@keyframes in{from{opacity:0;transform:translateY(6px)}}
+.boards{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;width:100%;max-width:1000px}
+.bd{background:var(--panel);border:1px solid var(--edge);border-radius:8px;overflow:hidden}
+.bd canvas{width:100%;display:block;aspect-ratio:16/9}
+.bd .cap{padding:6px 8px;display:flex;gap:6px;align-items:center}.bd .cap span{flex:1;font-size:12px;color:var(--dim)}
+.bd button{background:none;border:1px solid var(--edge);color:var(--txt);border-radius:5px;cursor:pointer;font:inherit;font-size:12px}
+.strip{display:flex;gap:2px;width:100%;max-width:900px;height:8px}.strip i{display:block;background:var(--edge);border-radius:2px}.strip i.on{background:var(--hi)}
+.sub{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.6);padding:3px 10px;border-radius:4px;font-size:13px}
+</style></head><body>
+<div class="bar"><a class="back" href="../index.html">←</a><span class="brand">▤ Storyboard</span><span class="note">mockup — boards & film are faked in-browser</span>
+<div class="nav"><button data-s="story" class="on">1 Story</button><button data-s="boards">2 Boards</button><button data-s="film">3 Film</button></div></div>
+<div class="body">
+ <div class="stage" id="stage">
+  <div data-p="story" class="shotlist" id="list"><div class="note">Write a story on the right and break it into shots.</div></div>
+  <div data-p="boards" class="boards hidden" id="boards"></div>
+  <div data-p="film" class="hidden" style="width:100%;max-width:900px;display:flex;flex-direction:column;gap:8px;align-items:center">
+   <div class="vid" id="fv"><canvas id="fc"></canvas><span class="sub" id="sub"></span><span class="lbl" style="right:10px" id="ftc"></span></div>
+   <div class="strip" id="strip"></div>
+  </div>
+ </div>
+ <div class="side r">
+  <div data-p="story">
+   <div class="h">Story</div>
+   <textarea class="inp" id="story" style="min-height:130px">A girl finds a broken robot in a junkyard at dusk. She carries it home, fixes it overnight. At dawn it wakes and lights up her room.</textarea>
+   <button class="btnp" id="split" style="margin-top:8px;width:100%">Break into shots (local LLM)</button>
+   <div class="h">Cast & places (locked across shots)</div>
+   <div class="chips"><span class="chip on">👧 Girl</span><span class="chip on">🤖 Robot</span><span class="chip on">🏚 Junkyard</span><span class="chip on">🛏 Room</span></div>
+  </div>
+  <div data-p="boards" class="hidden">
+   <div class="h">Style board</div>
+   <div class="chips" data-g="look"><button class="chip on" data-v="dusk">Warm dusk</button><button class="chip" data-v="pastel">Pastel</button><button class="chip" data-v="noir">Noir</button><button class="chip" data-v="neon">Neon</button></div>
+   <div class="note" style="margin:6px 0">Changing the board restyles every frame — characters stay the same.</div>
+   <button class="btnp" id="toFilm" style="width:100%">Film all shots · ~8 min</button>
+  </div>
+  <div data-p="film" class="hidden">
+   <button class="btng" id="replay" style="width:100%">▶ Replay</button>
+   <button class="btnp" style="width:100%;margin-top:6px" onclick="K.toast('mock: would export MP4')">Export film</button>
+   <div class="h">Shots</div><div id="flist" style="display:flex;flex-direction:column;gap:4px"></div>
+  </div>
+ </div>
+</div>
+<script src="kit.js"></script><script>
+const {$,$$}=K;
+const DEFAULT=[['WIDE','junkyard at dusk, girl small in frame',4,{scene:'yard',scale:.6}],['CLOSE','her hand brushes dust off robot face',3,{scene:'yard',scale:2.6,robotOnly:1}],['MED','carrying it down an empty street',4,{scene:'street',scale:1.3,carry:1}],['INSERT','tools, lamp, night',3,{scene:'room',scale:1.6,night:1}],['CLOSE','robot eyes light up, dawn',4,{scene:'room',scale:2.4,robotOnly:1,eyes:1}]];
+let shots=[],seeds=[],filmed=false,go;
+const LOOK={dusk:{sky:['#f08a5d','#ffd29a'],tint:'#ffe0c8'},pastel:{sky:['#bfe3f2','#fdf0f6'],tint:'#fff4fa',pal:K.LOOKS.pastel.pal},noir:{sky:['#222','#888'],tint:'#bbbbbb',pal:K.LOOKS.noir.pal},neon:{sky:['#12061f','#3a0f4a'],tint:'#e8b8ff',pal:K.LOOKS.neon.pal}};
+function robot(g,x,y,s,eyes){g.fillStyle='#8d949c';g.fillRect(x-14*s,y-30*s,28*s,24*s);g.fillStyle='#6d737a';g.fillRect(x-10*s,y-6*s,20*s,20*s);g.fillStyle=eyes?'#7ff':'#333';g.beginPath();g.arc(x-6*s,y-19*s,3.5*s,0,7);g.arc(x+6*s,y-19*s,3.5*s,0,7);g.fill();
+ if(eyes){const r=g.createRadialGradient(x,y-19*s,0,x,y-19*s,80*s);r.addColorStop(0,'rgba(120,255,255,.35)');r.addColorStop(1,'rgba(120,255,255,0)');g.fillStyle=r;g.fillRect(x-80*s,y-100*s,160*s,160*s)}}
+function board(g,sh,t,seed=0){const o=sh[3],look=LOOK[K.chip('look')||'dusk'];let base;
+ if(o.scene==='yard')base={...look,buildings:false,road:false,trees:false,hills:true,hill:'#5c5852',ground:'#6e655a',people:0};
+ else if(o.scene==='street')base={...look,people:0};
+ else base={sky:o.night?['#1a1d33','#2b2f4a']:['#ffe2b0','#fff4dc'],ground:'#7a5c48',horizon:.7,buildings:false,road:false,trees:false,clouds:false,people:0,tint:look.tint};
+ const s=o.scale*(1+seed*.08),W=g.canvas.width,H=g.canvas.height,cx=W*(.5+(seed%3-1)*.12);
+ K.paint(g,{...base,extra:(g,W,H,tt,k)=>{
+  if(o.scene==='room'){g.fillStyle='#4b3a30';g.fillRect(W*.1,H*.55,W*.35,H*.15);g.fillStyle='#ffd27a';g.beginPath();g.arc(W*.8,H*.3,10*k,0,7);g.fill()}
+  if(!o.robotOnly)K.walker(g,cx-(o.carry?0:30*k*s),H*.72,k*s,1,'#e07a5f');
+  robot(g,o.robotOnly?cx:cx+(o.carry?0:30*k*s),o.robotOnly?H*.75:H*(o.carry?.62:.82),k*s*(o.carry?.5:.6),o.eyes)}},t)}
+$('#split').onclick=async()=>{const txt=$('#story').value.trim();$('#list').innerHTML='';$('#split').disabled=true;
+ const sent=txt.split(/(?<=[.!?])\s+/).filter(Boolean);
+ shots=txt.startsWith('A girl finds a broken robot')?DEFAULT:sent.flatMap((x,i)=>[[['WIDE','MED','CLOSE'][i%3],x.replace(/\.$/,'').toLowerCase(),3+i%2,DEFAULT[i%5][3]]]);
+ seeds=shots.map(()=>0);
+ for(const [i,sh] of shots.entries()){await K.sleep(350);const d=document.createElement('div');d.className='shot';d.innerHTML=`<span>${i+1}</span><b>${sh[0]}</b><span>${sh[1]}</span><span class="d">${sh[2]}s</span>`;$('#list').append(d)}
+ const b=document.createElement('button');b.className='btnp';b.textContent='Generate boards →';b.onclick=async()=>{await K.render($('#stage'),['Building style board…','Drawing board 1…','Drawing boards 2–5…'],1800);go('boards')};$('#list').append(b);$('#split').disabled=false};
+function drawBoards(){const B=$('#boards');B.innerHTML='';shots.forEach((sh,i)=>{const d=document.createElement('div');d.className='bd';d.innerHTML=`<canvas width="320" height="180"></canvas><div class="cap"><span>${i+1} · ${sh[0].toLowerCase()} · ${sh[1]}</span><button title="Regenerate this board">↻</button></div>`;
+ board(d.querySelector('canvas').getContext('2d'),sh,2,seeds[i]);d.querySelector('button').onclick=async()=>{d.style.opacity=.4;await K.sleep(700);seeds[i]++;d.style.opacity=1;board(d.querySelector('canvas').getContext('2d'),sh,2,seeds[i])};B.append(d)})}
+K.chips(()=>drawBoards());
+go=K.steps(s=>{if(s==='boards'){if(!shots.length){$('#boards').innerHTML='<div class="note">Break the story into shots first.</div>'}else drawBoards()}if(s==='film')setupFilm()});
+$('#toFilm').onclick=async()=>{if(!shots.length)return K.toast('No shots yet');await K.render($('#stage'),shots.map((s,i)=>`Rendering shot ${i+1}/${shots.length} · LTX-2.5 + Ingredients (cast locked)`),3500);filmed=true;go('film')};
+const fg=K.canvas($('#fc'),640,360);let f0=0,total=0;
+function setupFilm(){total=shots.reduce((a,s)=>a+s[2],0);f0=performance.now();$('#strip').innerHTML=shots.map(s=>`<i style="flex:${s[2]}"></i>`).join('');
+ $('#flist').innerHTML=shots.map((s,i)=>`<div class="item">${i+1} · ${s[0]}<span class="r">${filmed?'✓':'—'} ${s[2]}s</span></div>`).join('')}
+$('#replay').onclick=()=>f0=performance.now();
+K.loop(t=>{if($('#fv').offsetParent===null)return;if(!filmed||!shots.length){fg.fillStyle='#111';fg.fillRect(0,0,640,360);fg.fillStyle='#777';fg.font='16px system-ui';fg.fillText('Film all shots from the Boards step first',170,180);return}
+ const e=((performance.now()-f0)/1000)%total;let acc=0,i=0;while(i<shots.length-1&&e>acc+shots[i][2]){acc+=shots[i][2];i++}
+ const local=(e-acc)/shots[i][2];fg.save();const z=1+local*.06;fg.translate(320,180);fg.scale(z,z);fg.translate(-320,-180);board(fg,shots[i],t,seeds[i]);fg.restore();
+ if(local<.08){fg.fillStyle=`rgba(0,0,0,${1-local/.08})`;fg.fillRect(0,0,640,360)}
+ $('#sub').textContent=shots[i][1];$('#ftc').textContent=`${e.toFixed(1)}s / ${total}s`;$$('#strip i').forEach((x,j)=>x.classList.toggle('on',j<=i))});
+</script></body></html>

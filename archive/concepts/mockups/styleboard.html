@@ -1,0 +1,72 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Style Board Mockup</title><link rel="stylesheet" href="kit.css"><style>
+.board{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;width:100%;max-width:900px}
+.pin{position:relative;border-radius:8px;overflow:hidden;border:1px solid var(--edge);aspect-ratio:3/2;background:#000}
+.pin canvas{width:100%;height:100%;display:block}
+.pin .role{position:absolute;left:6px;top:6px;background:rgba(0,0,0,.65);border-radius:99px;padding:2px 8px;font-size:12px;cursor:pointer;border:0;color:#fff;font:inherit}
+.pin .x{position:absolute;right:6px;top:6px;background:rgba(0,0,0,.65);border:0;color:#fff;border-radius:50%;width:22px;height:22px;cursor:pointer}
+.add{border:1px dashed var(--edge);border-radius:8px;aspect-ratio:3/2;display:grid;place-items:center;color:var(--dim);cursor:pointer;background:none;font:inherit}
+.add:hover{border-color:var(--hi);color:var(--txt)}
+.shots{display:grid;grid-template-columns:1fr 1fr;gap:12px;width:100%;max-width:960px}
+.shots .vid{max-width:none}
+.legend div{display:flex;gap:6px;align-items:center;padding:3px 0}
+</style></head><body>
+<div class="bar"><a class="back" href="../index.html">←</a><span class="brand">◧ Style Board</span><span class="note">mockup — shots are faked in-browser</span>
+<div class="nav"><button data-s="board" class="on">1 Board</button><button data-s="gen">2 Generate</button></div></div>
+<div class="body">
+ <div class="stage">
+  <div data-p="board" class="board" id="board"></div>
+  <div data-p="gen" class="shots hidden" id="shots">
+   <div><div class="vid" id="vA"><canvas id="cA"></canvas><span class="lbl" style="left:10px">Shot A</span></div></div>
+   <div><div class="vid" id="vB"><canvas id="cB"></canvas><span class="lbl" style="left:10px">Shot B — same look</span></div></div>
+  </div>
+ </div>
+ <div class="side r">
+  <div data-p="board">
+   <div class="h">What each pin controls</div>
+   <div class="legend note"><div>🎨 <b>Palette</b> — building & sky colours</div><div>💡 <b>Lighting</b> — time of day, grade</div><div>🧱 <b>Texture</b> — grain, softness</div><div>🎬 <b>Framing</b> — horizon, lens</div></div>
+   <div class="note">Click a pin's tag to change what it controls.</div>
+   <div class="h">Board strength</div><input type="range" id="str" min="0" max="100" value="80">
+   <button class="btng" id="tag" style="margin-top:8px">Auto-tag pins (local VLM)</button>
+   <div class="h">Preview of the look</div>
+   <div class="vid" style="aspect-ratio:16/9"><canvas id="prev"></canvas></div>
+  </div>
+  <div data-p="gen" class="hidden">
+   <div class="h">Prompt · Shot A</div><input class="inp" id="pA" value="a quiet street at the start of the day">
+   <div class="h">Prompt · Shot B</div><input class="inp" id="pB" value="a courier bikes through the market">
+   <div class="h">Board</div><div class="chips" data-g="on"><button class="chip on" data-v="1">On-board</button><button class="chip" data-v="0">Ignore board</button></div>
+   <button class="btnp" id="go" style="margin-top:10px">Generate on-board · ~2 min</button>
+   <div class="note">LTX-2.5 + Ingredients IC-LoRA, references = your pins.</div>
+  </div>
+ </div>
+</div>
+<script src="kit.js"></script><script>
+const {$,$$,LOOKS}=K;
+const ROLES=['🎨 Palette','💡 Lighting','🧱 Texture','🎬 Framing'];
+const POOL=['golden','neon','pastel','noir','snow','night','day','mars'];
+let pins=[{look:'pastel',role:0},{look:'golden',role:1},{look:'noir',role:2},{look:'day',role:3,horizon:.75}],str=.8,genOn=false;
+function compose(useBoard=true){
+ if(!useBoard)return {};
+ const o={};pins.forEach(p=>{const L=LOOKS[p.look];
+  if(p.role===0)Object.assign(o,{pal:L.pal||LOOKS.day.pal,sky:L.sky,ground:L.ground});
+  if(p.role===1)Object.assign(o,{tint:L.tint&&K.mix('#ffffff',L.tint,str),sun:L.sun,night:L.night,light:L.light?1-(1-L.light)*str:1});
+  if(p.role===2)o.grain=p.look==='noir'?.5:.25;
+  if(p.role===3)o.horizon=p.horizon||.5});
+ return o}
+function grain(g,k){if(!k)return;const W=g.canvas.width,H=g.canvas.height;g.fillStyle=`rgba(0,0,0,${k*.35})`;for(let i=0;i<600*k;i++)g.fillRect(Math.random()*W,Math.random()*H,1.5,1.5)}
+function draw(){const b=$('#board');b.innerHTML='';pins.forEach((p,i)=>{const d=document.createElement('div');d.className='pin';d.innerHTML=`<canvas width="300" height="200"></canvas><button class="role">${ROLES[p.role]}</button><button class="x" title="Remove">×</button>`;
+ K.paint(d.querySelector('canvas').getContext('2d'),{...LOOKS[p.look],people:0,horizon:p.horizon||LOOKS[p.look].horizon},3);
+ d.querySelector('.role').onclick=()=>{p.role=(p.role+1)%4;draw()};d.querySelector('.x').onclick=()=>{pins.splice(i,1);draw()};b.append(d)});
+ const a=document.createElement('button');a.className='add';a.innerHTML='＋ drop image<br><span class="note">(adds a random reference)</span>';a.onclick=()=>{pins.push({look:POOL[Math.random()*POOL.length|0],role:Math.random()*4|0,horizon:.45+Math.random()*.3});draw()};b.append(a)}
+$('#str').oninput=e=>str=e.target.value/100;
+$('#tag').onclick=async()=>{$('#tag').disabled=true;$('#tag').textContent='Tagging…';await K.sleep(900);pins.forEach((p,i)=>p.role=i%4);draw();$('#tag').disabled=false;$('#tag').textContent='Auto-tag pins (local VLM)';K.toast(`Tagged ${pins.length} pins`)};
+K.steps(s=>{if(s==='board')draw()});K.chips();
+const prev=K.canvas($('#prev'),320,180),gA=K.canvas($('#cA'),480,270),gB=K.canvas($('#cB'),480,270);
+$('#go').onclick=async()=>{await K.render($('#shots'),['Encoding pins as references…','LTX-2.5 + Ingredients · shot A…','LTX-2.5 + Ingredients · shot B…','Decoding…'],2600);genOn=true};
+K.loop(t=>{const o=compose();prev.clearRect(0,0,320,180);K.paint(prev,{...o,people:1},t);grain(prev,o.grain);
+ if(!$('#shots').classList.contains('hidden')){const on=K.chip('on')==='1',ob=compose(on);
+  if(!genOn){[gA,gB].forEach(g=>{g.fillStyle='#111';g.fillRect(0,0,480,270);g.fillStyle='#666';g.font='14px system-ui';g.fillText('Not generated yet',180,140)});return}
+  K.paint(gA,{...ob,people:1,trees:true},t);grain(gA,ob.grain);
+  K.paint(gB,{...ob,people:3,trees:false,road:true,walkerCol:'#2a9d8f'},t+4);grain(gB,ob.grain)}});
+draw();
+</script></body></html>

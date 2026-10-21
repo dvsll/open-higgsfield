@@ -1,0 +1,85 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Video to 3D Mockup</title><link rel="stylesheet" href="kit.css"><style>
+#vp{position:relative;width:100%;max-width:960px;aspect-ratio:16/9;border-radius:8px;overflow:hidden;background:#101114;flex:none}
+#vp canvas{display:block;width:100%!important;height:100%!important}
+.thumbs{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}.thumbs canvas{width:100%;border-radius:3px}
+.pip{position:absolute;right:10px;bottom:10px;width:30%;aspect-ratio:16/9;border:2px solid var(--warm);border-radius:6px;overflow:hidden}
+.pip canvas{width:100%!important;height:100%!important}
+</style></head><body>
+<div class="bar"><a class="back" href="../index.html">←</a><span class="brand">◎ Video → 3D</span><span class="note">mockup — the point cloud is procedural; the real app needs an open reconstruction model</span>
+<div class="nav"><button data-s="up" class="on">1 Upload</button><button data-s="scene">2 Scene</button><button data-s="shot">3 New shot</button></div></div>
+<div class="body">
+ <div class="stage" id="stage">
+  <div id="vp"><span class="lbl" style="left:10px;top:10px;bottom:auto" id="vpl">Drag to look around</span><div class="pip hidden" id="pip"></div>
+   <canvas id="final" class="hidden" style="position:absolute;inset:0"></canvas></div>
+ </div>
+ <div class="side r">
+  <div data-p="up">
+   <div class="h">Source</div><div class="drop">📱 walkaround.mp4 · 18s</div>
+   <div class="thumbs" id="thumbs"></div>
+   <button class="btnp" id="recon" style="width:100%;margin-top:10px">Reconstruct · ~4 min</button>
+   <div class="note" id="rs">Not reconstructed yet.</div>
+  </div>
+  <div data-p="scene shot" class="hidden">
+   <div class="h">Reconstruction</div><div class="note">Point cloud ✓ · <span id="npts"></span> pts</div>
+   <div class="note"><span style="color:#aaa">━ grey</span>: original camera · <span style="color:var(--warm)">━ orange</span>: your new move</div>
+   <div class="h">New camera move</div>
+   <div class="chips" data-g="move"><button class="chip on" data-v="orbit">Orbit</button><button class="chip" data-v="crane">Crane up</button><button class="chip" data-v="fly">Fly-through</button><button class="chip" data-v="low">Low dolly</button></div>
+   <label class="item" style="margin-top:6px"><input type="checkbox" id="pov"> Look through new camera</label>
+  </div>
+  <div data-p="shot" class="hidden">
+   <div class="h">Restyle (optional)</div>
+   <div class="chips" data-g="style"><button class="chip on" data-v="day">Same as filmed</button><button class="chip" data-v="snow">Winter, snow</button><button class="chip" data-v="golden">Golden hour</button><button class="chip" data-v="night">Night</button></div>
+   <button class="btnp" id="render" style="width:100%;margin-top:10px">Render new shot · ~3 min</button>
+   <button class="btng" style="width:100%;margin-top:6px" id="toggle" disabled>Show point-cloud playblast</button>
+  </div>
+ </div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="kit.js"></script><script>
+const {$,$$}=K;
+[0,1,2,3,4,5].forEach(i=>{const c=document.createElement('canvas');c.width=160;c.height=90;const g=c.getContext('2d');g.translate(-i*20,0);K.paint(g,{people:0,road:false},i);$('#thumbs').append(c)});
+const vp=$('#vp'),R=new THREE.WebGLRenderer({antialias:true});vp.prepend(R.domElement);
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x101114);
+const cam=new THREE.PerspectiveCamera(50,16/9,.1,200),shot=new THREE.PerspectiveCamera(45,16/9,.1,200);
+// procedural "scan": ground, house, tree, fence
+const P=[],C=[],col=(h)=>new THREE.Color(h);
+function add(x,y,z,c){P.push(x,y,z);const k=.85+Math.random()*.3;C.push(c.r*k,c.g*k,c.b*k)}
+for(let i=0;i<14000;i++){const x=(Math.random()-.5)*20,z=(Math.random()-.5)*20;add(x,0,z,col(Math.hypot(x,z+2)<2.5?0x8a7a66:0x4f7a3c))}
+for(let i=0;i<9000;i++){const f=Math.random()*4|0,u=Math.random(),v=Math.random();let x,y=v*3,z;if(f<2){x=-2+u*4;z=f?-6:-2}else{z=-6+u*4;x=f===2?-2:2}add(x,y,z,col(0xc9a27a))}
+for(let i=0;i<3000;i++){const u=Math.random()*4-2,w=Math.random()*4-6,h=3+Math.min(2-Math.abs(u),2)*.6;add(u,h,w,col(0x8a3b2c))}
+for(let i=0;i<5000;i++){const t=Math.random()*6.28,p=Math.acos(2*Math.random()-1),r=1.4;add(4+r*Math.sin(p)*Math.cos(t),3+r*Math.cos(p),1+r*Math.sin(p)*Math.sin(t),col(0x3e7a35))}
+for(let i=0;i<600;i++)add(4+(Math.random()-.5)*.3,Math.random()*2,1+(Math.random()-.5)*.3,col(0x5a3d26));
+for(let i=0;i<3000;i++){const x=(Math.random()-.5)*16;add(x,Math.random()*1.1,7,col(0xd8d2c4))}
+const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(P,3));geo.setAttribute('color',new THREE.Float32BufferAttribute(C,3));
+const cloud=new THREE.Points(geo,new THREE.PointsMaterial({size:.06,vertexColors:true}));scene.add(cloud);$('#npts').textContent='412k (showing '+(P.length/3/1000|0)+'k)';
+let built=0;geo.setDrawRange(0,0);
+// paths
+const orig=[];for(let i=0;i<=40;i++){const a=-.6+i/40*1.2;orig.push(new THREE.Vector3(Math.sin(a)*9,1.5,Math.cos(a)*9))}
+const origLine=new THREE.Line(new THREE.BufferGeometry().setFromPoints(orig),new THREE.LineBasicMaterial({color:0x999999}));scene.add(origLine);
+const newLine=new THREE.Line(new THREE.BufferGeometry(),new THREE.LineBasicMaterial({color:0xffb347}));scene.add(newLine);
+const camMark=new THREE.Mesh(new THREE.BoxGeometry(.4,.3,.5),new THREE.MeshBasicMaterial({color:0xffb347}));scene.add(camMark);
+const look=new THREE.Vector3(0,1.5,-3);
+const MOVES={orbit:u=>new THREE.Vector3(Math.sin(u*6.28)*8,2.5,-3+Math.cos(u*6.28)*8),crane:u=>new THREE.Vector3(3,1+u*9,6-u*2),fly:u=>new THREE.Vector3(-6+u*12,1.6,6-u*12+Math.sin(u*6)*1.5),low:u=>new THREE.Vector3(-5+u*10,.4,5)};
+function path(){const m=MOVES[K.chip('move')||'orbit'],pts=[];for(let i=0;i<=60;i++)pts.push(m(i/60));newLine.geometry.setFromPoints(pts)}path();
+let sph={th:.5,ph:1.1,r:22},drag=null;
+R.domElement.onpointerdown=e=>{drag=[e.clientX,e.clientY];R.domElement.setPointerCapture(e.pointerId)};
+R.domElement.onpointermove=e=>{if(!drag)return;sph.th-=(e.clientX-drag[0])*.008;sph.ph=Math.max(.2,Math.min(1.5,sph.ph-(e.clientY-drag[1])*.008));drag=[e.clientX,e.clientY]};
+R.domElement.onpointerup=()=>drag=null;R.domElement.onwheel=e=>{e.preventDefault();sph.r=Math.max(6,Math.min(50,sph.r*(1+e.deltaY*.001)))};
+// final "render" canvas
+const fin=$('#final'),fg=K.canvas(fin,640,360);let rendered=false,showCloud=false,step='up';
+K.chips(g=>{if(g==='move'){path();rendered=false;fin.classList.add('hidden')}});
+const go=K.steps(s=>{step=s;if(s!=='up'&&!built){built=P.length/3}upd()});
+function upd(){const showFin=step==='shot'&&rendered&&!showCloud;fin.classList.toggle('hidden',!showFin);$('#pip').classList.add('hidden');
+ $('#vpl').textContent=step==='up'?(built?'Reconstruction':'Waiting for reconstruction'):showFin?'New shot · rendered':step==='shot'?'New camera · point-cloud playblast':'Drag to look around'}
+$('#recon').onclick=async()=>{$('#recon').disabled=true;const N=P.length/3;for(let i=0;i<=40;i++){geo.setDrawRange(0,N*i/40);$('#rs').textContent=`Reconstructing… ${Math.round(i/40*412)}k pts`;await K.sleep(60)}built=N;$('#rs').textContent='Point cloud ✓ · 412k pts';$('#recon').disabled=false;await K.sleep(400);if(step==='up')go('scene')};
+$('#render').onclick=async()=>{await K.render($('#stage'),['Rendering point-cloud playblast…','LTX-2.5 + Layout to Render · Refine Details…','Decoding…'],2600);rendered=true;showCloud=false;$('#toggle').disabled=false;$('#toggle').textContent='Show point-cloud playblast';upd()};
+$('#toggle').onclick=()=>{showCloud=!showCloud;$('#toggle').textContent=showCloud?'Show rendered shot':'Show point-cloud playblast';upd()};
+function resize(){const w=vp.clientWidth,h=vp.clientHeight;R.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix()}addEventListener('resize',resize);resize();
+K.loop(t=>{geo.setDrawRange(0,built||geo.drawRange.count);const u=(t/8)%1,m=MOVES[K.chip('move')||'orbit'];shot.position.copy(m(u));shot.lookAt(look);camMark.position.copy(shot.position);camMark.lookAt(look);
+ const pov=step==='shot'||$('#pov').checked;[origLine,newLine,camMark].forEach(o=>o.visible=!pov&&step!=='up');
+ cam.position.set(sph.r*Math.sin(sph.ph)*Math.sin(sph.th),sph.r*Math.cos(sph.ph),-3+sph.r*Math.sin(sph.ph)*Math.cos(sph.th));cam.lookAt(look);
+ R.render(scene,pov?shot:cam);
+ if(!fin.classList.contains('hidden')){const st=K.chip('style')||'day';fg.save();const pan=(shot.position.x/12)*160,zoom=1+Math.max(0,(10-shot.position.distanceTo(look))/20);fg.translate(320,200);fg.scale(zoom,zoom);fg.translate(-320-pan,-200+shot.position.y*6);
+  K.paint(fg,{...K.LOOKS[st],road:false,people:0,buildings:true,pal:['#c9a27a','#c9a27a','#8a3b2c','#c9a27a'],ground:st==='snow'?'#eee':'#4f7a3c'},t);fg.restore()}});
+</script></body></html>

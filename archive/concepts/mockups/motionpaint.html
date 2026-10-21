@@ -1,0 +1,59 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Motion Paint Mockup</title><link rel="stylesheet" href="kit.css"><style>
+.tools{display:flex;gap:4px}.tools button{height:32px;padding:0 10px;border-radius:6px;border:1px solid var(--edge);background:var(--panel2);color:var(--txt);cursor:pointer;font:inherit}
+.tools button.on{border-color:var(--hi)}#cv{cursor:crosshair;touch-action:none}
+</style></head><body>
+<div class="bar"><a class="back" href="../index.html">←</a><span class="brand">➚ Motion Paint</span><span class="note">mockup — motion faked in-browser</span>
+<div class="nav"><button data-s="paint" class="on">1 Paint</button><button data-s="result">2 Result</button></div></div>
+<div class="body">
+ <div class="stage" id="stage">
+  <div class="tools" data-p="paint"><button data-t="move" class="on">➚ move</button><button data-t="pin">📌 pin still</button><button data-t="cam">🎥 camera</button><button data-t="erase">⌫ clear</button></div>
+  <div class="vid"><canvas id="cv"></canvas><span class="lbl" style="left:10px" id="lbl">Draw arrows from things that should move</span></div>
+ </div>
+ <div class="side r">
+  <div data-p="paint">
+   <div class="h">Paths</div><div id="paths" style="display:flex;flex-direction:column;gap:4px"></div>
+   <div class="h">Duration · <span id="dl">5</span>s</div><input type="range" id="dur" min="2" max="10" value="5">
+   <button class="btnp" id="go" style="margin-top:10px">Animate · ~2 min</button>
+   <div class="note">Arrows → Motion Control IC-LoRA tracks (LTX-2.5).</div>
+  </div>
+  <div data-p="result" class="hidden">
+   <label class="item"><input type="checkbox" id="showArrows"> Overlay arrows</label>
+   <button class="btnp" style="width:100%;margin-top:8px" onclick="K.toast('mock: MP4 download')">Download MP4</button>
+   <button class="btng" style="width:100%;margin-top:6px" id="back">← Edit paths</button>
+  </div>
+ </div>
+</div>
+<script src="kit.js"></script><script>
+const {$,$$}=K,W=640,H=360,hz=H*.6,g=K.canvas($('#cv'),W,H);
+const O={dog:{n:'dog',x:200,y:300},cloudA:{n:'cloud',x:160,y:70},cloudB:{n:'cloud 2',x:430,y:50},bird:{n:'bird',x:520,y:120},tree:{n:'tree',x:470,y:hz-60}};
+let paths=[{o:'dog',kind:'move',pts:[[200,300],[290,290],[380,310],[460,300]]},{o:'cloudA',kind:'move',pts:[[160,70],[300,72]]},{o:'tree',kind:'pin',pts:[[470,hz-60]]}],tool='move',cur=null,mode='paint',dur=5;
+function at(p,u){const pts=p.pts;if(pts.length<2)return pts[0];let L=0;const seg=[];for(let i=1;i<pts.length;i++){const d=Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1]);seg.push(d);L+=d}let r=u*L;for(let i=0;i<seg.length;i++){if(r<=seg[i]){const k=seg[i]?r/seg[i]:0;return[pts[i][0]+(pts[i+1][0]-pts[i][0])*k,pts[i][1]+(pts[i+1][1]-pts[i][1])*k]}r-=seg[i]}return pts[pts.length-1]}
+function pos(k,u){const p=paths.find(p=>p.o===k&&p.kind==='move');if(!p||mode!=='result')return[O[k].x,O[k].y];const q=at(p,u);return[q[0]-p.pts[0][0]+O[k].x,q[1]-p.pts[0][1]+O[k].y]}
+function scene(u,t){const cp=paths.find(p=>p.kind==='cam');let cx=0,cy=0;if(cp&&mode==='result'){const q=at(cp,u);cx=-(q[0]-cp.pts[0][0])*.5;cy=-(q[1]-cp.pts[0][1])*.5}
+ g.save();g.translate(cx,cy);g.translate(-20,-20);g.scale(1+40/W,1+40/H);
+ K.paint(g,{buildings:false,road:false,trees:false,hills:true,ground:'#7fb069',hill:'#5d8a4a',clouds:false,people:0,extra:(g)=>{
+  ['cloudA','cloudB'].forEach(k=>{const[x,y]=pos(k,u);g.fillStyle='rgba(255,255,255,.9)';g.beginPath();g.ellipse(x,y,46,12,0,0,7);g.ellipse(x+20,y-8,26,12,0,0,7);g.fill()});
+  const sway=mode==='result'&&!paths.some(p=>p.o==='tree'&&p.kind==='pin')?Math.sin(t*2)*4:0;const T=O.tree;g.fillStyle='#5a3d26';g.fillRect(T.x-5,T.y,10,60);g.fillStyle='#3f7a3a';g.beginPath();g.arc(T.x+sway,T.y-10,36,0,7);g.fill();
+  {const[x,y]=pos('bird',u);const f=Math.sin(t*12)*5;g.strokeStyle='#222';g.lineWidth=2;g.beginPath();g.moveTo(x-10,y-f);g.lineTo(x,y);g.lineTo(x+10,y-f);g.stroke()}
+  {const[x,y]=pos('dog',u);const leg=mode==='result'?Math.sin(t*14)*4:0;g.fillStyle='#a0622d';g.beginPath();g.ellipse(x,y,26,11,0,0,7);g.fill();g.beginPath();g.ellipse(x+24,y-12,10,8,0,0,7);g.fill();g.fillRect(x-18+leg,y+6,5,14);g.fillRect(x+12-leg,y+6,5,14);g.fillRect(x-30,y-8,10,4)}}},0);g.restore()}
+function arrows(){paths.forEach(p=>{g.strokeStyle=p.kind==='cam'?'#ffb347':'#6c8cff';g.fillStyle=g.strokeStyle;g.lineWidth=3;
+ if(p.kind==='pin'){g.font='20px system-ui';g.fillText('📌',p.pts[0][0]-10,p.pts[0][1]);return}
+ g.setLineDash(p.kind==='cam'?[8,5]:[]);g.beginPath();p.pts.forEach((q,i)=>i?g.lineTo(...q):g.moveTo(...q));g.stroke();g.setLineDash([]);const a=p.pts[p.pts.length-1],b=p.pts[Math.max(0,p.pts.length-4)],ang=Math.atan2(a[1]-b[1],a[0]-b[0]);
+ g.beginPath();g.moveTo(...a);g.lineTo(a[0]-12*Math.cos(ang-.5),a[1]-12*Math.sin(ang-.5));g.lineTo(a[0]-12*Math.cos(ang+.5),a[1]-12*Math.sin(ang+.5));g.fill()})}
+const nearest=(x,y)=>Object.keys(O).sort((a,b)=>Math.hypot(O[a].x-x,O[a].y-y)-Math.hypot(O[b].x-x,O[b].y-y))[0];
+function list(){$('#paths').innerHTML=paths.length?'':'<div class="note">No paths yet.</div>';paths.forEach((p,i)=>{const d=document.createElement('div');d.className='item';const verb=p.kind==='pin'?'stays still':p.kind==='cam'?'camera moves':`${p.pts[p.pts.length-1][0]>p.pts[0][0]?'moves right':'moves left'} along path`;
+ d.innerHTML=`${p.kind==='pin'?'📌':p.kind==='cam'?'🎥':'➚'} ${p.kind==='cam'?'':O[p.o].n} ${verb}<span class="r">✕</span>`;d.onclick=()=>{paths.splice(i,1);list()};$('#paths').append(d)})}
+const cv=$('#cv'),pt=e=>{const b=cv.getBoundingClientRect();return[(e.clientX-b.left)/b.width*W,(e.clientY-b.top)/b.height*H]};
+cv.onpointerdown=e=>{if(mode!=='paint')return;const p=pt(e);
+ if(tool==='pin'){const o=nearest(...p);paths=paths.filter(q=>q.o!==o);paths.push({o,kind:'pin',pts:[[O[o].x,O[o].y]]});list();return}
+ cur={o:tool==='cam'?null:nearest(...p),kind:tool==='cam'?'cam':'move',pts:[p]};if(cur.o)paths=paths.filter(q=>q.o!==cur.o);if(tool==='cam')paths=paths.filter(q=>q.kind!=='cam');paths.push(cur);cv.setPointerCapture(e.pointerId)};
+cv.onpointermove=e=>{if(!cur)return;const p=pt(e),l=cur.pts[cur.pts.length-1];if(Math.hypot(p[0]-l[0],p[1]-l[1])>8)cur.pts.push(p)};
+cv.onpointerup=()=>{if(cur&&cur.pts.length<2)paths.splice(paths.indexOf(cur),1);cur=null;list()};
+$$('.tools button').forEach(b=>b.onclick=()=>{if(b.dataset.t==='erase'){paths=[];list();return}tool=b.dataset.t;$$('.tools button').forEach(x=>x.classList.toggle('on',x===b))});
+$('#dur').oninput=e=>{dur=+e.target.value;$('#dl').textContent=dur};
+const go=K.steps(s=>{mode=s;$('#lbl').textContent=s==='paint'?'Draw arrows from things that should move':'Result · '+dur+'s loop'});
+$('#back').onclick=()=>go('paint');
+$('#go').onclick=async()=>{if(!paths.some(p=>p.kind!=='pin'))return K.toast('Draw at least one arrow');await K.render($('#stage'),['Converting arrows to motion tracks…','LTX-2.5 + Motion Control…','Decoding…'],2400);go('result')};
+K.loop(t=>{const u=mode==='result'?((t/dur)%1):0,e=u*u*(3-2*u);scene(e,t);if(mode==='paint'||$('#showArrows').checked)arrows()});list();
+</script></body></html>

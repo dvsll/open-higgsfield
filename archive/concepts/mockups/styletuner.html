@@ -1,0 +1,59 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Style Tuner Mockup</title><link rel="stylesheet" href="kit.css"><style>
+.stage{justify-content:flex-start;align-items:stretch}
+.row2{display:grid;grid-template-columns:1.4fr 1fr;gap:12px}
+.card{background:var(--panel);border:1px solid var(--edge);border-radius:8px;padding:10px}
+#chart{width:100%;height:200px;display:block}
+.log{font:12px/1.6 ui-monospace,Consolas,monospace;max-height:220px;overflow:auto}
+.log .k{color:var(--ok)}.log .x{color:var(--bad)}.log .t{color:var(--dim)}
+.best{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}.best canvas{width:100%;border-radius:5px;display:block}
+.boardt{display:grid;grid-template-columns:1fr 1fr;gap:4px}.boardt canvas{width:100%;border-radius:4px}
+@media (max-width:900px){.row2{grid-template-columns:1fr}}
+</style></head><body>
+<div class="bar"><a class="back" href="../index.html">←</a><span class="brand">⟳ Style Tuner</span><span class="note">mockup — the loop's scores are simulated</span><span style="margin-left:auto" id="runs" class="note">run 0 / 30</span></div>
+<div class="body">
+ <div class="side">
+  <div class="h">Target: style board</div><div class="boardt" id="board"></div>
+  <div class="h">Test prompts (fixed)</div><div class="note">a street at dusk · a face in close-up · a car driving past</div>
+  <div class="h">Knobs the agent may touch</div>
+  <div class="chips" data-g="knobs" data-multi><button class="chip on" data-v="suffix">prompt suffix</button><button class="chip on" data-v="cfg">CFG / steps</button><button class="chip on" data-v="adapt">adapter strengths</button><button class="chip on" data-v="ref">ref images</button><button class="chip" data-v="lora">train LoRA</button></div>
+  <div class="h">Budget</div><div class="note">30 runs · 540p · 2 s clips · $8 cap</div>
+  <button class="btnp" id="go" style="margin-top:8px">Start tuning</button>
+  <button class="btng hidden" id="stop">Stop & keep best</button>
+ </div>
+ <div class="stage">
+  <div class="row2">
+   <div class="card"><div class="h" style="margin-top:0">Style score over runs <span class="note">(kept ●, discarded ○)</span></div><canvas id="chart"></canvas></div>
+   <div class="card"><div class="h" style="margin-top:0">Best so far vs board</div><div class="best"><div><canvas id="bb" width="200" height="112"></canvas><span class="note">board</span></div><div><canvas id="b1" width="200" height="112"></canvas><span class="note" id="b1l">run #1 · —</span></div><div><canvas id="bn" width="200" height="112"></canvas><span class="note" id="bnl">best · —</span></div></div>
+    <div class="note" style="margin-top:8px">Scored by image-embedding similarity to the board (open model) + open VLM judge.</div></div>
+  </div>
+  <div class="card"><div class="h" style="margin-top:0">Experiment log</div><div class="log" id="log"><div class="t">Press Start. The agent changes one knob per run, renders 3 test clips, scores them, keeps the change only if the score goes up.</div></div></div>
+  <div class="card hidden" id="done"><b>Tuned.</b> <span class="note" id="dsum"></span><div style="display:flex;gap:6px;margin-top:8px"><button class="btnp" onclick="K.toast('Saved as style preset “Warm Halation”')">Save as my style preset</button><button class="btng" onclick="K.toast('mock: workflow_api.json')">Download tuned workflow</button></div></div>
+ </div>
+</div>
+<script src="kit.js"></script><script>
+const {$,$$}=K;K.chips();
+const TARGET={sky:['#f08a5d','#ffd29a'],tint:'#ffd9c0',pal:['#7a3b2e','#c9805a','#3d4f6b','#e0b07a']};
+['golden','pastel','day','night'].slice(0,4).forEach((l,i)=>{const c=document.createElement('canvas');c.width=160;c.height=90;K.paint(c.getContext('2d'),{...TARGET,horizon:.5+i*.06,people:i%2},i);$('#board').append(c)});
+K.paint($('#bb').getContext('2d'),{...TARGET,people:1},2);
+const IDEAS=[['ref image 2 strength','0.6 → 0.8',.05],['CFG','4 → 6',-.08],['prompt +=','"35mm, warm halation"',.03],['Refine Details adapter','0 → 0.3',.02],['steps','20 → 30',.01],['ref image 4','added',.04],['prompt +=','"teal shadows"',-.03],['adapter Ingredients','0.7 → 0.9',.03],['CFG','6 → 3.5',.02],['prompt +=','"film grain"',.02],['ref image 1','removed',-.05],['seed sweep','×3',.01]];
+let runs=[],best=0,stop=false,running=false;const N=30;
+function look(score){return {sky:[K.mix('#5d9be0',TARGET.sky[0],score),K.mix('#cfe3f2',TARGET.sky[1],score)],tint:K.mix('#ffffff',TARGET.tint,score),pal:LOOKS_PAL(score),people:1}}
+const LOOKS_PAL=s=>[0,1,2,3].map(i=>K.mix(['#b5735a','#d8c9a8','#8fa3b5','#c99b6d'][i],TARGET.pal[i],s));
+const cv=$('#chart'),cg=cv.getContext('2d');
+function chart(){const W=cv.width=cv.clientWidth*devicePixelRatio,H=cv.height=200*devicePixelRatio,p=24*devicePixelRatio;cg.clearRect(0,0,W,H);
+ cg.strokeStyle='#34353f';cg.fillStyle='#8a8c96';cg.font=`${10*devicePixelRatio}px system-ui`;[.4,.5,.6,.7,.8].forEach(v=>{const y=H-p-(v-.35)/.5*(H-2*p);cg.beginPath();cg.moveTo(p,y);cg.lineTo(W-6,y);cg.stroke();cg.fillText(v.toFixed(1),2,y+3)});
+ const X=i=>p+i/(N-1)*(W-p-10),Y=v=>H-p-(v-.35)/.5*(H-2*p);
+ cg.strokeStyle='#5fd18b';cg.lineWidth=2*devicePixelRatio;cg.beginPath();let b=0;runs.forEach((r,i)=>{b=Math.max(b,r.kept?r.s:b||r.s);i?cg.lineTo(X(i),Y(b)):cg.moveTo(X(i),Y(b))});cg.stroke();
+ runs.forEach((r,i)=>{cg.beginPath();cg.arc(X(i),Y(r.s),4*devicePixelRatio,0,7);if(r.kept){cg.fillStyle='#5fd18b';cg.fill()}else{cg.strokeStyle='#ff6b6b';cg.lineWidth=1.5*devicePixelRatio;cg.stroke()}})}
+const L=(h)=>{const d=document.createElement('div');d.innerHTML=h;$('#log').append(d);$('#log').scrollTop=1e9;return d};
+$('#go').onclick=async()=>{runs=[];best=.42;stop=false;running=true;$('#log').innerHTML='';$('#done').classList.add('hidden');$('#go').classList.add('hidden');$('#stop').classList.remove('hidden');
+ runs.push({s:best,kept:true});L(`<span class="k">#1 baseline · score ${best.toFixed(2)}</span>`);K.paint($('#b1').getContext('2d'),look(0),2);$('#b1l').textContent='run #1 · 0.42';
+ for(let i=2;i<=N&&!stop;i++){$('#runs').textContent=`run ${i} / ${N}`;const [k,v,d]=IDEAS[(i-2)%IDEAS.length],line=L(`<span class="t">#${i} trying: ${k} ${v} …</span>`);await K.sleep(380);
+  const s=Math.max(.3,Math.min(.82,best+d*(1-(best-.42)/.45)+(Math.random()-.5)*.03)),kept=s>best;
+  line.innerHTML=kept?`<span class="k">#${i} ✓ ${k} ${v} · ${best.toFixed(2)} → ${s.toFixed(2)} · kept</span>`:`<span class="x">#${i} ✗ ${k} ${v} · ${best.toFixed(2)} → ${s.toFixed(2)} · reverted</span>`;
+  runs.push({s,kept});if(kept){best=s;K.paint($('#bn').getContext('2d'),look((best-.42)/.35),2);$('#bnl').textContent=`best · run #${i} · ${best.toFixed(2)}`}chart()}
+ running=false;$('#go').classList.remove('hidden');$('#go').textContent='Run again';$('#stop').classList.add('hidden');$('#done').classList.remove('hidden');
+ $('#dsum').textContent=`Best score ${best.toFixed(2)} after ${runs.length} runs (${runs.filter(r=>r.kept).length-1} kept changes). Spent ≈ $${(runs.length*.26).toFixed(2)}.`};
+$('#stop').onclick=()=>stop=true;addEventListener('resize',chart);chart();
+</script></body></html>

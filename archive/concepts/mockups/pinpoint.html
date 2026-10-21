@@ -1,0 +1,64 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pinpoint Edit Mockup</title><link rel="stylesheet" href="kit.css"><style>
+.vid canvas{cursor:crosshair}
+.ask{position:absolute;z-index:4;display:flex;gap:4px;background:var(--panel);border:1px solid var(--hi);border-radius:8px;padding:4px;width:260px}
+.ask input{flex:1;background:none;border:0;color:var(--txt);font:inherit;outline:none}
+.tools{display:flex;gap:4px}.tools button{width:36px;height:32px;border-radius:6px;border:1px solid var(--edge);background:var(--panel2);color:var(--txt);cursor:pointer}
+.tools button.on{border-color:var(--hi)}
+.item s{color:var(--dim)}
+</style></head><body>
+<div class="bar"><a class="back" href="../index.html">←</a><span class="brand">✎ Pinpoint Edit</span><span class="note">mockup — segmentation & edits faked in-browser</span>
+<div class="nav"><button data-s="edit" class="on">1 Edit frame</button><button data-s="clip">2 Propagate to video</button></div></div>
+<div class="body">
+ <div class="stage" id="stage">
+  <div class="tools"><button data-tool="click" class="on" title="Click = auto-segment">🖱</button><button data-tool="brush" title="Brush">🖌</button><button data-tool="box" title="Box">⬚</button></div>
+  <div class="vid" id="vid"><canvas id="cv"></canvas><span class="lbl" style="left:10px" id="lbl">Frame 1 · click anything</span></div>
+  <div class="note" id="hint">Click = auto-segment (SAM-style) · Brush = paint a region · then type the change.</div>
+ </div>
+ <div class="side r">
+  <div class="h">Try</div>
+  <div class="note">tree → “hot-air balloon” · sky → “sunset” · car → “remove” or “make it blue” · building → “covered in ivy”</div>
+  <div class="h">Edit history</div><div id="hist" style="display:flex;flex-direction:column;gap:4px"><div class="note">No edits yet.</div></div>
+  <div class="h">Keep</div>
+  <div class="chips" data-g="keep" data-multi><button class="chip on">Lighting</button><button class="chip on">Perspective</button><button class="chip on">Color</button></div>
+  <button class="btnp" id="prop" style="margin-top:10px">Apply to whole clip · ~3 min</button>
+  <div class="note">Edit model: open image-edit (TBD) → LTX-2.5 In-Outpainting propagates through the clip.</div>
+ </div>
+</div>
+<script src="kit.js"></script><script>
+const {$,$$}=K,W=640,H=360,hz=H*.62,g=K.canvas($('#cv'),W,H);
+const R={sky:{n:'sky',hit:(x,y)=>y<hz},car:{n:'car',x:300,y:268,w:110,h:44},tree:{n:'tree',cx:450,cy:hz-82,r:40},
+ bL:{n:'building',x:.03*W,y:hz-.53*H,w:.19*W,h:.53*H},bR:{n:'building',x:.72*W,y:hz-.47*H,w:.17*W,h:.47*H}};
+const inRect=(r,x,y)=>x>r.x&&x<r.x+r.w&&y>r.y&&y<r.y+r.h;
+function hit(x,y){if(inRect(R.car,x,y))return'car';if(Math.hypot(x-R.tree.cx,y-R.tree.cy)<R.tree.r||(Math.abs(x-R.tree.cx)<8&&y>R.tree.cy&&y<hz))return'tree';if(inRect(R.bL,x,y))return'bL';if(inRect(R.bR,x,y))return'bR';if(y<hz)return'sky';return'ground'}
+let edits=[],sel=null,tool='click',brush=[],clip=false;
+function state(){const s={};edits.filter(e=>e.on).forEach(e=>s[e.r]=e.what);return s}
+function interpret(r,txt){const t=txt.toLowerCase();if(/remove|delete|erase/.test(t))return'remove';if(/balloon/.test(t))return'balloon';if(/sunset|dusk|golden/.test(t))return'sunset';if(/storm|cloud/.test(t))return'storm';if(/ivy|plant|green/.test(t))return'ivy';
+ const c={red:'#d33',blue:'#2d6be0',yellow:'#f2c230',green:'#3a9d4a',pink:'#ff7ab0',black:'#222',white:'#eee',gold:'#d4a017'};for(const k in c)if(t.includes(k))return c[k];return'#'+(Math.random()*0xffffff|0).toString(16).padStart(6,'0')}
+function draw(t){const s=state();const sky=s.sky==='sunset'?['#f0805d','#ffd29a']:s.sky==='storm'?['#3a4250','#7a8290']:undefined;
+ K.paint(g,{sky,trees:false,people:clip?1:0,tint:s.sky==='sunset'?'#ffe2c8':undefined,clouds:true,extra:(g)=>{
+  ['bL','bR'].forEach(b=>{if(s[b]){const r=R[b];if(s[b]==='ivy'){g.fillStyle='rgba(40,120,40,.75)';for(let i=0;i<60;i++)g.fillRect(r.x+(i*37%r.w),r.y+(i*53%r.h),12,10)}else if(s[b]==='remove'){g.fillStyle=g.createLinearGradient(0,0,0,hz);g.fillStyle=sky?sky[1]:'#bcd8ee';g.fillRect(r.x,r.y,r.w,r.h)}else{g.globalAlpha=.6;g.fillStyle=s[b];g.fillRect(r.x,r.y,r.w,r.h);g.globalAlpha=1}}});
+  const tr=s.tree;if(tr!=='remove'){if(tr==='balloon'){const by=R.tree.cy-(clip?Math.sin(t)*6+t*4%60:0);g.fillStyle='#e04a3c';g.beginPath();g.arc(R.tree.cx,by,34,0,7);g.fill();g.fillStyle='#f2c230';g.fillRect(R.tree.cx-34,by-6,68,10);g.strokeStyle='#5a3d26';g.beginPath();g.moveTo(R.tree.cx-20,by+26);g.lineTo(R.tree.cx-10,by+60);g.moveTo(R.tree.cx+20,by+26);g.lineTo(R.tree.cx+10,by+60);g.stroke();g.fillStyle='#7a5230';g.fillRect(R.tree.cx-12,by+60,24,16)}
+   else{g.fillStyle='#5a3d26';g.fillRect(R.tree.cx-4,R.tree.cy,8,hz-R.tree.cy);g.fillStyle=tr&&tr[0]==='#'?tr:'#3f7a3a';g.beginPath();g.arc(R.tree.cx,R.tree.cy,32,0,7);g.fill()}}
+  if(s.car!=='remove'){const c=R.car,dx=clip?(t*40)%(W+200)-200-c.x+50:0;g.fillStyle=s.car&&s.car[0]==='#'?s.car:'#c0392b';g.fillRect(c.x+dx,c.y+12,c.w,24);g.fillRect(c.x+dx+22,c.y,c.w-44,16);g.fillStyle='#9fd3f0';g.fillRect(c.x+dx+28,c.y+3,c.w-56,10);g.fillStyle='#222';g.beginPath();g.arc(c.x+dx+24,c.y+38,9,0,7);g.arc(c.x+dx+c.w-24,c.y+38,9,0,7);g.fill()}}},clip?t:0);
+ if(sel&&!clip){g.save();g.fillStyle='rgba(108,140,255,.35)';g.strokeStyle='#6c8cff';g.lineWidth=2;g.setLineDash([6,4]);g.lineDashOffset=-t*20;const r=R[sel];
+  if(sel==='sky'){g.fillRect(0,0,W,hz);g.strokeRect(1,1,W-2,hz-2)}else if(sel==='tree'){g.beginPath();g.arc(r.cx,r.cy,r.r,0,7);g.fill();g.stroke()}else if(sel==='brush'){g.fillStyle='rgba(108,140,255,.45)';brush.forEach(p=>{g.beginPath();g.arc(p[0],p[1],14,0,7);g.fill()})}else if(r){g.fillRect(r.x,r.y,r.w,r.h);g.strokeRect(r.x,r.y,r.w,r.h)}g.restore()}}
+const cv=$('#cv');const pt=e=>{const b=cv.getBoundingClientRect();return[(e.clientX-b.left)/b.width*W,(e.clientY-b.top)/b.height*H]};
+let painting=false;
+cv.onpointerdown=e=>{if(clip)return;const [x,y]=pt(e);$('.ask')?.remove();
+ if(tool==='brush'){painting=true;brush=[[x,y]];sel='brush';cv.setPointerCapture(e.pointerId);return}
+ if(tool==='box'){const r=hit(x,y);sel=r==='ground'?null:r}else{const r=hit(x,y);sel=r==='ground'?null:r}
+ if(sel)ask(e)};
+cv.onpointermove=e=>{if(painting)brush.push(pt(e))};
+cv.onpointerup=e=>{if(painting){painting=false;const c=brush[brush.length>>1];const r=hit(c[0],c[1]);sel=r==='ground'?'brush':r;ask(e)}};
+function ask(e){const b=$('#vid').getBoundingClientRect(),d=document.createElement('div');d.className='ask';d.style.left=Math.min(b.width-270,e.clientX-b.left+10)+'px';d.style.top=Math.min(b.height-44,e.clientY-b.top+10)+'px';
+ d.innerHTML=`<span>✨</span><input placeholder="what should the ${R[sel]?.n||'area'} become? ⏎">`;$('#vid').append(d);const i=d.querySelector('input');i.focus();
+ i.onkeydown=async ev=>{if(ev.key==='Escape'){d.remove();sel=null}if(ev.key!=='Enter'||!i.value.trim())return;const r=sel==='brush'?'bL':sel,txt=i.value;d.remove();sel=null;
+  $('#lbl').textContent='Editing…';await K.sleep(700);edits.push({r,txt,what:interpret(r,txt),on:true});hist();$('#lbl').textContent=`Frame 1 · ${edits.length} edit(s)`}}
+function hist(){$('#hist').innerHTML='';edits.forEach((e,i)=>{const d=document.createElement('label');d.className='item';d.innerHTML=`<input type="checkbox" ${e.on?'checked':''}> ${i+1} · ${R[e.r]?.n||e.r} → ${e.txt}`;d.querySelector('input').onchange=ev=>e.on=ev.target.checked;$('#hist').append(d)})}
+$$('.tools button').forEach(b=>b.onclick=()=>{tool=b.dataset.tool;$$('.tools button').forEach(x=>x.classList.toggle('on',x===b))});
+K.chips();
+const go=K.steps(s=>{clip=s==='clip';$('#lbl').textContent=clip?'Clip preview (edits tracked)':'Frame 1 · click anything';$('.tools').style.visibility=clip?'hidden':''});
+$('#prop').onclick=async()=>{if(!edits.length)return K.toast('Make an edit first');await K.render($('#stage'),['Tracking masks through 120 frames…','LTX-2.5 In-Outpainting · edited regions only…','Decoding…'],2600);go('clip')};
+K.loop(draw);
+</script></body></html>

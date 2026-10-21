@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Competition Concepts</title><style>
+:root { --bg:#f6f6f4; --fg:#222; --muted:#777; --box:#e3e3df; --line:#999; --accent:#3b6fd8;
+  --app:#16171b; --panel:#1f2026; --panel2:#272830; --edge:#34353f; --txt:#d8d9de; --dim:#8a8c96; --hi:#6c8cff; --warm:#ffb347; }
+@media (prefers-color-scheme: dark) { :root { --bg:#111214; --fg:#e8e8e8; --muted:#999; --box:#2c2c30; --line:#555; --accent:#7aa2ff; } }
+* { box-sizing:border-box; }
+body { margin:0; padding:24px 16px; background:var(--bg); color:var(--fg); font:15px/1.5 system-ui, sans-serif; }
+main { max-width:1100px; margin:0 auto; }
+a { color:var(--accent); }
+h1 { margin:0 0 4px; font-size:26px; }
+h3 { margin:28px 0 8px; }
+.sub { color:var(--muted); margin:0 0 24px; }
+.note { color:var(--muted); font-size:13px; }
+.tag { display:inline-block; font-size:12px; border:1px solid var(--line); border-radius:99px; padding:1px 8px; margin:2px 4px 2px 0; color:var(--muted); }
+.cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:16px; }
+.card { border:1px solid var(--line); border-radius:10px; padding:16px; text-decoration:none; color:inherit; display:block; }
+.card:hover { border-color:var(--accent); }
+.card h2 { margin:0 0 6px; font-size:18px; }
+.steps { padding-left:20px; }
+
+/* ---------- app mockup ---------- */
+.shot-label { font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; margin:28px 0 8px; }
+.app { background:var(--app); color:var(--txt); border-radius:12px; overflow:hidden; border:1px solid var(--edge);
+  box-shadow:0 10px 30px rgba(0,0,0,.25); font-size:13px; }
+.bar { display:flex; align-items:center; gap:10px; padding:8px 12px; background:var(--panel); border-bottom:1px solid var(--edge); }
+.dots { display:flex; gap:6px; } .dots i { width:10px; height:10px; border-radius:50%; background:#444; display:block; }
+.brand { font-weight:700; letter-spacing:.02em; }
+.steps-nav { display:flex; gap:4px; margin-left:auto; }
+.steps-nav span { padding:4px 10px; border-radius:99px; color:var(--dim); }
+.steps-nav span.on { background:var(--panel2); color:var(--txt); }
+.body { display:flex; min-height:420px; }
+.side { width:200px; background:var(--panel); border-right:1px solid var(--edge); padding:12px; display:flex; flex-direction:column; gap:8px; }
+.side.r { border-right:0; border-left:1px solid var(--edge); width:250px; }
+.stage { flex:1; display:flex; flex-direction:column; min-width:0; }
+.h { font-size:11px; color:var(--dim); text-transform:uppercase; letter-spacing:.08em; margin:6px 0 2px; }
+.tool { display:flex; align-items:center; gap:8px; padding:7px 8px; border-radius:6px; background:var(--panel2); }
+.tool .ic { width:16px; height:16px; background:#888; display:inline-block; }
+.ic.cube { border-radius:2px; } .ic.sph { border-radius:50%; } .ic.cyl { border-radius:4px/8px; width:12px; } .ic.plane { height:6px; }
+.item { padding:5px 8px; border-radius:5px; color:var(--dim); }
+.item.sel { background:rgba(108,140,255,.18); color:var(--txt); }
+.field { display:flex; justify-content:space-between; gap:6px; }
+.field b { font-weight:500; color:var(--dim); }
+.inp { background:var(--app); border:1px solid var(--edge); border-radius:5px; padding:6px 8px; color:var(--txt); }
+.inp.area { min-height:70px; }
+.btnp { background:var(--hi); color:#fff; text-align:center; font-weight:600; border-radius:7px; padding:9px; }
+.btng { border:1px solid var(--edge); text-align:center; border-radius:7px; padding:8px; }
+.chips { display:flex; flex-wrap:wrap; gap:5px; }
+.chip { padding:3px 9px; border-radius:99px; border:1px solid var(--edge); color:var(--dim); font-size:12px; }
+.chip.on { border-color:var(--hi); color:var(--txt); }
+.slider { height:4px; background:var(--edge); border-radius:2px; position:relative; margin:10px 0; }
+.slider::after { content:""; position:absolute; top:-5px; left:var(--v,50%); width:14px; height:14px; border-radius:50%; background:var(--txt); transform:translateX(-50%); }
+.msg { padding:7px 9px; border-radius:8px; background:var(--panel2); }
+.msg.me { background:rgba(108,140,255,.2); align-self:flex-end; }
+
+/* viewport */
+.vp { position:relative; flex:1; min-height:300px; overflow:hidden;
+  background:linear-gradient(#2a2c34,#1d1e24); }
+.grid { position:absolute; left:-50%; right:-50%; bottom:-10%; height:70%;
+  background-image:linear-gradient(rgba(255,255,255,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.07) 1px,transparent 1px);
+  background-size:40px 40px; transform:perspective(500px) rotateX(62deg); transform-origin:bottom; }
+.obj { position:absolute; background:#9a9ca4; box-shadow:inset -14px -10px 0 rgba(0,0,0,.18); }
+.obj.sel { outline:2px solid var(--hi); outline-offset:3px; }
+.vp-tag { position:absolute; top:10px; left:12px; color:var(--dim); font-size:12px; }
+.gizmo { position:absolute; width:2px; background:#e55; }
+.cam { position:absolute; width:26px; height:18px; background:var(--warm); border-radius:3px; }
+.cam::after { content:""; position:absolute; right:-10px; top:3px; border:6px solid transparent; border-left:10px solid var(--warm); }
+.vp svg { position:absolute; inset:0; width:100%; height:100%; }
+
+/* timeline */
+.tl { height:58px; background:var(--panel); border-top:1px solid var(--edge); display:flex; align-items:center; gap:12px; padding:0 12px; }
+.track { flex:1; height:22px; position:relative; background:var(--app); border-radius:4px;
+  background-image:repeating-linear-gradient(90deg,var(--edge) 0 1px,transparent 1px 40px); }
+.key { position:absolute; top:5px; width:12px; height:12px; background:var(--warm); transform:rotate(45deg); }
+.head { position:absolute; top:-6px; bottom:-6px; width:2px; background:var(--hi); }
+
+/* media / results */
+.media { position:relative; flex:1; min-height:300px; overflow:hidden; }
+.photo { position:absolute; inset:0; }
+.photo.day { background:linear-gradient(#8fb6e0 0 45%,#c9b28a 45% 60%,#6e7d4f 60%); }
+.photo.gold { background:linear-gradient(#f5a25d 0 45%,#c98a4f 45% 60%,#5a4a2a 60%); }
+.photo.grey { background:linear-gradient(#4a4c55 0 55%,#33353c 55%); }
+.photo.neon { background:radial-gradient(circle at 70% 40%,#ff3fa4 0 8%,transparent 30%),radial-gradient(circle at 25% 35%,#22d3ee 0 6%,transparent 28%),linear-gradient(#0d0b1e 0 55%,#1b1530 55%); }
+.photo.old { background:linear-gradient(#9d968a 0 45%,#7c7568 45%); filter:blur(1.5px) sepia(.6) contrast(.8); }
+.photo.new { background:linear-gradient(#7fb0e8 0 45%,#5f8f3e 45%); }
+.wipe { position:absolute; top:0; bottom:0; left:0; width:var(--w,50%); overflow:hidden; border-right:2px solid #fff; }
+.wipe .photo { width:calc(100% / (var(--wn,0.5))); }
+.handle { position:absolute; top:50%; left:var(--w,50%); width:30px; height:30px; margin:-15px 0 0 -15px; border-radius:50%; background:#fff; color:#222; display:flex; align-items:center; justify-content:center; font-weight:700; }
+.lbl { position:absolute; top:10px; padding:2px 8px; border-radius:4px; background:rgba(0,0,0,.55); font-size:11px; }
+.prog { height:6px; background:var(--edge); border-radius:3px; overflow:hidden; } .prog i { display:block; height:100%; width:var(--p,40%); background:var(--hi); }
+.drop { margin:auto; width:min(420px,90%); border:2px dashed var(--edge); border-radius:12px; padding:40px 20px; text-align:center; color:var(--dim); }
+.thumbs { display:flex; gap:8px; justify-content:center; margin-top:16px; } .thumbs div { width:80px; height:48px; border-radius:6px; position:relative; overflow:hidden; }
+
+/* sun sphere */
+.sphere { width:150px; height:150px; border-radius:50%; margin:6px auto; position:relative;
+  background:radial-gradient(circle at 32% 30%,#fff3d6,#e0a050 35%,#5a3a1a 75%,#1a1208); }
+.sun { position:absolute; left:22%; top:18%; width:22px; height:22px; border-radius:50%; background:#fff; box-shadow:0 0 18px 6px var(--warm); }
+.ball { position:absolute; right:12px; top:12px; width:44px; height:44px; border-radius:50%;
+  background:radial-gradient(circle at 32% 30%,#fff,#ddd 30%,#555 80%); border:1px solid #fff4; }
+
+@media (max-width:760px) {
+  .body { flex-direction:column; } .side, .side.r { width:auto; border:0; border-top:1px solid var(--edge); }
+}
+.viewsw{display:flex;align-items:center;gap:4px;margin:0 0 16px}.viewsw span{color:var(--muted);font-size:13px;margin-right:4px}
+.viewsw button{font:inherit;font-size:13px;padding:4px 12px;border-radius:99px;border:1px solid var(--line);background:none;color:var(--muted);cursor:pointer}
+.viewsw button.on{border-color:var(--accent);color:var(--fg)}
+.card .links{display:flex;gap:8px;margin-top:10px}.card .links a{flex:1;text-align:center;padding:6px;border:1px solid var(--line);border-radius:7px;text-decoration:none;font-size:13px}.card .links a:hover{border-color:var(--accent)}.card .links a.demo{font-weight:600;border-width:2px}.card .links a.demo.red{border-color:#e5484d;color:#e5484d}.card .links a.demo.yellow{border-color:#f5b301;color:#c99700}.card .links a.demo.green{border-color:#30a46c;color:#30a46c}
+.card .links a.demo::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;background:currentColor}
+.card .links a.mk{background:var(--accent);color:var(--bg);border-color:var(--accent)}
+.stars{font-size:18px;letter-spacing:2px;color:var(--line);margin-bottom:4px}.stars .f{color:#f5b301}
+</style></head>
+<body><main>
+<h1>Open Source Higgsfield — concepts</h1>
+<p class="sub">Rough wireframes, plus clickable mockups. Pick one or two on <b>Wed Oct 22</b> (also the GPU-spike go/pivot gate). Deadline Oct 30, 9am PT.</p>
+<div class="viewsw" role="group" aria-label="Sort cards"><span>Sort:</span><button data-v="num">Number</button><button data-v="rating">Rating</button></div>
+
+<div class="cards">
+  <a class="card" href="blockout.html">
+    <h2>1. Blockout</h2>
+    <p>Grey boxes + camera path in the browser → LTX-2.5 Layout to Render → finished shot.</p>
+    <span class="tag">Open Weights</span><span class="tag">Most Innovative</span><span class="tag">LTX VFX</span>
+    <p class="note">Risk: Layout to Render quality unproven.</p>
+  </a>
+  <a class="card" href="sunline.html">
+    <h2>2. Sunline</h2>
+    <p>Upload a clip, drag the sun on a sphere → Relight / Day to Night → before/after wipe.</p>
+    <span class="tag">Open Weights</span><span class="tag">Most Viral</span><span class="tag">LTX VFX</span>
+    <p class="note">Risk: relight strength on real footage.</p>
+  </a>
+  <a class="card" href="rescue.html">
+    <h2>3. Rescue</h2>
+    <p>Old home video → decompress, deblur, colorize, upscale → shareable before/after card.</p>
+    <span class="tag">Most Viral</span><span class="tag">Open Weights</span><span class="tag">LTX VFX</span>
+    <p class="note">Fallback. Least novel; use own footage only.</p>
+  </a>
+  <a class="card" href="styleboard.html">
+    <h2>4. Style Board</h2>
+    <p>Pin reference images (palette, light, texture, framing); every generated shot follows the board.</p>
+    <span class="tag">LTX VFX</span><span class="tag">Open Weights</span>
+    <p class="note">Risk: how well Ingredients transfers style.</p>
+  </a>
+  <a class="card" href="storyboard.html">
+    <h2>5. Storyboard</h2>
+    <p>Story → shot list → generated boards → consistent multi-shot film.</p>
+    <span class="tag">Best Overall</span><span class="tag">Most Innovative</span>
+    <p class="note">Risk: biggest scope; character consistency.</p>
+  </a>
+  <a class="card" href="keyframes.html">
+    <h2>6. Keyframes</h2>
+    <p>Timeline editor: images/prompts at any time, LTX fills the motion between.</p>
+    <span class="tag">Open Weights</span><span class="tag">LTX VFX</span>
+    <p class="note">Easiest new one to build.</p>
+  </a>
+  <a class="card" href="pinpoint.html">
+    <h2>7. Pinpoint Edit</h2>
+    <p>Grok-style click-and-describe edits, open weights, propagated through video.</p>
+    <span class="tag">Most Viral</span><span class="tag">Open Weights</span>
+    <p class="note">Risk: crowded space; needs an open edit model.</p>
+  </a>
+  <a class="card" href="drop3d.html">
+    <h2>8. Drop-in 3D</h2>
+    <p>Place a GLB model into real footage; it renders in with scene lighting and shadow.</p>
+    <span class="tag">Most Innovative</span><span class="tag">LTX VFX</span>
+    <p class="note">Shares the three.js viewport with Blockout.</p>
+  </a>
+  <a class="card" href="vid2scene.html">
+    <h2>9. Video → 3D</h2>
+    <p>Phone walk-around → 3D scene → fly a new camera → render angles you never filmed.</p>
+    <span class="tag">Most Innovative</span><span class="tag">Best Overall</span>
+    <p class="note">Risk: needs an open reconstruction model outside LTX.</p>
+  </a>
+  <a class="card" href="swap.html">
+    <h2>10. Swap</h2>
+    <p>Pick a person, prop or place in a video and replace it; motion stays.</p>
+    <span class="tag">Most Viral</span><span class="tag">LTX VFX</span>
+    <p class="note">Rules: no real-person likeness swaps.</p>
+  </a>
+  <a class="card" href="platekit.html">
+    <h2>11. VFX Plate Kit</h2>
+    <p>Clean Plate → Alpha Gen matte → Water Sim / Day to Night, as a layer stack with exportable passes.</p>
+    <span class="tag">LTX VFX</span><span class="tag">Open Weights</span>
+    <p class="note">Purest LTX-bonus fit. Risk: Alpha Gen is beta.</p>
+  </a>
+  <a class="card" href="motionpaint.html">
+    <h2>12. Motion Paint</h2>
+    <p>Draw arrows on a still; things move along them (Motion Control).</p>
+    <span class="tag">LTX VFX</span><span class="tag">Open Weights</span>
+    <p class="note">Less novel; maybe a feature inside Set/Keyframes.</p>
+  </a>
+  <a class="card" href="streetremix.html">
+    <h2>13. Street Remix</h2>
+    <p>Phone: snap your street, flood it or make it night, share.</p>
+    <span class="tag">Most Viral</span><span class="tag">LTX VFX</span>
+    <p class="note">Cheapest to build, lowest ceiling.</p>
+  </a>
+  <a class="card" href="adstudio.html">
+    <h2>14. Ad Studio</h2>
+    <p>Product photo → MiniMax H3 video with audio → 3 aspect ratios.</p>
+    <span class="tag">H3 bonus?</span><span class="tag">Runner-up</span>
+    <p class="note">Least novel; H3 not on the form's checkboxes.</p>
+  </a>
+  <a class="card" href="beatvideo.html">
+    <h2>15. Beat Video</h2>
+    <p>Cuts and generated shots synced to a track's beats.</p>
+    <span class="tag">Most Viral</span>
+    <p class="note">Risk: music model licensing unverified; use own track.</p>
+  </a>
+  <a class="card" href="agentdirector.html">
+    <h2>16. Agent Director</h2>
+    <p>Brief → agent builds workflows via Comfy MCP, renders, self-critiques, retries.</p>
+    <span class="tag">Most Innovative</span>
+    <p class="note">Riskiest to finish; critic must be open for Open Weights.</p>
+  </a>
+  <a class="card" href="styletuner.html">
+    <h2>17. Style Tuner</h2>
+    <p>Autoresearch loop: agent tweaks the workflow, renders a test clip, scores it against your style board, keeps what helps.</p>
+    <span class="tag">Most Innovative</span><span class="tag">LTX VFX</span>
+    <p class="note">Risk: GPU cost per run; score ≠ taste. Pairs with 4 / Director.</p>
+  </a>
+</div>
+<p class="note">"Open Popcorn" (script → shot list → keyframes → animatic) from the same list is already concept 5 / Director combo.</p>
+
+<h3>Combos worth considering</h3>
+<div class="cards">
+  <a class="card" href="combo-set.html">
+    <h2>A · Set</h2>
+    <p>1 + 8 + 9 — one 3D set app: block it with grey shapes, drop in your own models, or scan a real place, then shoot it.</p>
+    <span class="tag">Open Weights</span><span class="tag">Most Innovative</span><span class="tag">LTX VFX</span>
+    <p class="note">One three.js viewport, one render pipeline. Risk: Layout to Render quality + needs an open reconstruction model for scans.</p>
+  </a>
+  <a class="card" href="combo-director.html">
+    <h2>B · Director</h2>
+    <p>4 + 5 + 6 — style board sets the look, storyboard sets the shots, a keyframe timeline per shot sets the motion.</p>
+    <span class="tag">Best Overall</span><span class="tag">Most Innovative</span><span class="tag">LTX VFX</span>
+    <p class="note">Biggest scope; character consistency across shots. Style Tuner (17) could sit on top.</p>
+  </a>
+  <a class="card" href="combo-edit.html">
+    <h2>C · Edit Anything</h2>
+    <p>7 + 10 — click anything in your video and say what it should be; small fixes and big swaps are the same gesture.</p>
+    <span class="tag">Most Viral</span><span class="tag">Open Weights</span><span class="tag">LTX VFX</span>
+    <p class="note">Risk: needs an open segmentation/tracking model; temporal stability of edits.</p>
+  </a>
+</div>
+
+<h3>Also</h3>
+<ul>
+  <li><a href="../osh-flows.html">osh-flows.html</a> — earlier interactive flow mock of all three</li>
+  <li><a href="../CLAUDE.md">CLAUDE.md</a> — the brief (rules, prizes, plan)</li>
+</ul>
+
+<h3>Decide on Wednesday</h3>
+<ul class="steps">
+  <li>Did Layout to Render / Relight produce a clip worth posting? (GPU spike)</li>
+  <li>Which one can we demo end-to-end in under 2 min?</li>
+  <li>One entry or two? (ask Comfy Discord if each partner can submit)</li>
+</ul>
+
+<hr style="margin:36px 0 8px;border:0;border-top:1px solid var(--line)">
+<h2>Competition reminder</h2>
+<p class="note">From the brief (CLAUDE.md), checked 2026-10-19. Deadline <b>Thu Oct 30, 9:00am PT</b> — we aim to submit <b>Oct 29</b>. Winners Nov 6.
+  <a href="https://comfy.org/open-source-higgsfield/">Competition page</a> ·
+  <a href="https://form.typeform.com/to/Ayn9Cwfj">Signup</a> ·
+  <a href="https://form.typeform.com/to/V1dSQrkS">Submit form</a></p>
+
+<h3>Submission form asks for</h3>
+<ul>
+  <li><b>GitHub repo URL</b> — public at submission, open-source license, local setup instructions</li>
+  <li><b>Demo video &lt; 2 min</b> — "the build in action and how you made it" (judged on the work, not editing)</li>
+  <li><b>Social post link</b> tagged <b>#OpenSourceHiggsfield</b> (required)</li>
+  <li><b>Live link</b> (optional, not shared publicly; judges do ~5–10 runs; rate limits / spend caps OK)</li>
+  <li><b>Category checkboxes</b> — one main category + a model bonus (form lists FLUX 3 and LTX bonuses, not H3)</li>
+  <li><b>Comfy parts used</b> — Comfy API, Router, SDK, Cloud Agent, Local Agent, MCP</li>
+  <li><b>Agreements</b> — repo public + OSS license; lawful/SFW; no unlicensed IP or real people's likenesses; Comfy/partners may feature it; "this is my only submission"</li>
+</ul>
+
+<h3>Entry must be</h3>
+<ul>
+  <li>A <b>working creative app with a usable UI</b> + example outputs — not a workflow export</li>
+  <li>Built on the <b>Comfy Developer Platform</b> (API, Router and/or SDK)</li>
+  <li>Repo contains app code, workflow files, license, run instructions</li>
+</ul>
+
+<h3>Prizes</h3>
+<ul>
+  <li><b>Best Overall</b> $10k (everyone auto-considered)</li>
+  <li><b>Most Innovative</b> RTX 5090 — demo must explain why it's innovative</li>
+  <li><b>Most Viral</b> RTX 5090</li>
+  <li><b>Open Weights Only</b> RTX 5090 — every model/node/dependency open, no closed API in the critical path (rented GPUs OK)</li>
+  <li><b>10 runner-ups</b> $250 Comfy credits</li>
+  <li>Bonuses: <b>LTX VFX</b> $2k cash (LTX core) · FLUX 3 credits (FLUX 3 core; open weights not out yet) · MiniMax H3 $1k credits</li>
+</ul>
+
+<h3>Our checklist</h3>
+<ul style="list-style:none;padding-left:4px">
+  <li>☐ Sign up (first 200 get free credits)</li>
+  <li>☐ GPU spike: Layout to Render + Relight test renders (by Oct 21)</li>
+  <li>☐ Lock concept (Wed Oct 22)</li>
+  <li>☐ Build app (Oct 23–26)</li>
+  <li>☐ Freeze, clean-machine README test, record demo (Oct 27–28)</li>
+  <li>☐ Make repo public + license, post #OpenSourceHiggsfield, submit (Oct 29)</li>
+</ul>
+<p class="note">Still to confirm on Discord: two entries per team? · judging weights · H3 bonus on the form.</p>
+<script>
+// Ratings out of 5. Missing = unrated.
+const RATINGS={blockout:4,sunline:1,rescue:2,styleboard:4,storyboard:3,keyframes:5,pinpoint:3,drop3d:4,vid2scene:5,swap:5,platekit:3,motionpaint:4,streetremix:1,adstudio:3,beatvideo:3,agentdirector:3,styletuner:5,'combo-edit':4,'combo-set':4};
+// Demos: the tasteful versions, built from a mockup on request. red = planned, yellow = in progress, green = ready.
+const DEMOS={'combo-director':'yellow','combo-edit':'yellow'};
+const DEMO_FILE={'combo-director':'director.html','combo-edit':'edit.html'};
+const DEMO_LABEL={red:'planned',yellow:'in progress',green:'ready'};
+const MOCKS=['blockout','sunline','rescue','styleboard','storyboard','keyframes','pinpoint','drop3d','vid2scene','swap','platekit','motionpaint','streetremix','adstudio','beatvideo','agentdirector','styletuner','combo-set','combo-director','combo-edit'];
+// Turn each linked card into a plain card with Wireframe + Mockup buttons and a star row.
+document.querySelectorAll('.cards a.card').forEach((a,i)=>{const n=a.getAttribute('href').replace('.html',''),r=RATINGS[n]||0,d=document.createElement('div');
+ d.className='card';d.dataset.n=n;d.dataset.r=r;d.dataset.i=i;
+ d.innerHTML=`<div class="stars" title="${r?r+' / 5':'not rated yet'}">${[1,2,3,4,5].map(k=>`<span class="${k<=r?'f':''}">${k<=r?'★':'☆'}</span>`).join('')}</div>`+a.innerHTML+
+  `<div class="links"><a href="${n}.html">Wireframe</a>${MOCKS.includes(n)?`<a class="mk" href="mockups/${n}.html">Mockup</a>`:''}${DEMOS[n]?`<a class="demo ${DEMOS[n]}" href="../../studio/${DEMO_FILE[n]}" title="Demo · ${DEMO_LABEL[DEMOS[n]]}">Demo</a>`:''}</div>`;a.replaceWith(d)});
+function sortBy(v){try{localStorage.setItem('osh-sort',v)}catch(e){}
+ document.querySelectorAll('.viewsw button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
+ document.querySelectorAll('.cards').forEach(g=>[...g.children].sort((x,y)=>v==='rating'?(y.dataset.r-x.dataset.r)||(x.dataset.i-y.dataset.i):x.dataset.i-y.dataset.i).forEach(c=>g.append(c)))}
+document.querySelectorAll('.viewsw button').forEach(b=>b.onclick=()=>sortBy(b.dataset.v));
+let v='num';try{v=localStorage.getItem('osh-sort')||'num'}catch(e){}sortBy(v);
+</script>
+</main></body></html>

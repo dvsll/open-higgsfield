@@ -1,0 +1,86 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Director Combo Mockup</title><link rel="stylesheet" href="kit.css"><style>
+.stage{justify-content:flex-start}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;width:100%;max-width:960px}
+.tile{background:var(--panel);border:1px solid var(--edge);border-radius:8px;overflow:hidden;cursor:pointer;color:var(--txt);font:inherit;padding:0;text-align:left}
+.tile:hover,.tile.sel{border-color:var(--hi)}.tile canvas{width:100%;display:block;aspect-ratio:16/9}.tile div{padding:5px 8px;font-size:12px;display:flex}.tile b{margin-left:auto;font-weight:500;color:var(--dim)}
+.mini{position:relative;width:100%;max-width:900px;height:46px;background:var(--panel);border:1px solid var(--edge);border-radius:6px}
+.mk{position:absolute;top:6px;width:56px;height:32px;margin-left:-28px;border:2px solid var(--warm);border-radius:4px;overflow:hidden}.mk canvas{width:100%;height:100%}
+.mph{position:absolute;top:0;bottom:0;width:2px;background:var(--bad)}
+.layers{display:flex;gap:6px;width:100%;max-width:960px}.layers span{flex:1;padding:6px 10px;border-radius:6px;background:var(--panel);border:1px solid var(--edge);font-size:12px}
+</style></head><body>
+<div class="bar"><a class="back" href="../index.html">←</a><span class="brand">◧ Director</span><span class="note">combo B · Style Board + Storyboard + Keyframes · renders faked</span>
+<div class="nav"><button data-s="look" class="on">Look</button><button data-s="story">Story</button><button data-s="shot" id="shotTab">Shot 3</button><button data-s="film">Film</button></div></div>
+<div class="body">
+ <div class="stage" id="stage">
+  <div class="layers"><span>🎨 Look: <b id="lk">warm dusk</b></span><span>📖 Story: 5 shots</span><span>◆ Motion: <b id="rc">0</b>/5 shots rendered</span></div>
+  <div data-p="look" class="grid" id="pins"></div>
+  <div data-p="story" class="grid hidden" id="sb"></div>
+  <div data-p="shot" class="hidden" style="width:100%;max-width:900px;display:flex;flex-direction:column;gap:8px">
+   <div class="vid"><canvas id="sv"></canvas><span class="lbl" style="left:10px" id="svl"></span></div>
+   <div class="mini" id="mini"></div>
+  </div>
+  <div data-p="film" class="hidden" style="width:100%;max-width:900px;display:flex;flex-direction:column;gap:8px">
+   <div class="vid"><canvas id="fv"></canvas><span class="lbl" style="left:10px" id="fvl"></span></div>
+  </div>
+ </div>
+ <div class="side r">
+  <div data-p="look">
+   <div class="h">Pick the look for the whole film</div><div class="note" style="margin-bottom:6px">Click a board tile (or a chip). Every shot inherits it.</div>
+   <div class="chips" data-g="look"><button class="chip on" data-v="dusk">Warm dusk</button><button class="chip" data-v="pastel">Pastel</button><button class="chip" data-v="noir">Noir</button><button class="chip" data-v="neon">Neon</button></div>
+   <button class="btng" style="margin-top:8px;width:100%" id="fromStory">Generate board from story</button>
+   <div class="h">Cast & places</div><div class="chips"><span class="chip on">👧 Girl</span><span class="chip on">🤖 Robot</span><span class="chip on">🏚 Junkyard</span></div>
+   <button class="btnp" style="margin-top:10px;width:100%" data-next="story">Next: Story →</button>
+  </div>
+  <div data-p="story" class="hidden">
+   <div class="h">Story</div><textarea class="inp" style="min-height:120px">A girl finds a broken robot in a junkyard at dusk, fixes it overnight, and at dawn it lights up her room.</textarea>
+   <div class="note">Click a shot to open its keyframe timeline.</div><button class="btnp" style="margin-top:10px;width:100%" data-next="film">Skip to Film →</button>
+  </div>
+  <div data-p="shot" class="hidden">
+   <div class="note">Look: board ✓ · Cast: girl, robot ✓</div>
+   <div class="h">Key @ 00:03.0</div><div class="note">frame: from board <span id="bn"></span></div>
+   <div class="h">Motion</div><textarea class="inp" id="motion"></textarea>
+   <button class="btnp" id="rs" style="margin-top:8px;width:100%">Render shot · ~2 min</button><div style="display:flex;gap:6px;margin-top:6px"><button class="btng" id="prev" style="flex:1">← Prev shot</button><button class="btng" id="next" style="flex:1">Next shot →</button></div>
+  </div>
+  <div data-p="film" class="hidden">
+   <div class="h">Shots</div><div id="fl" style="display:flex;flex-direction:column;gap:4px"></div>
+   <button class="btnp" id="all" style="margin-top:8px;width:100%">Render remaining shots</button>
+   <button class="btng" style="margin-top:6px;width:100%" onclick="K.toast('mock: export film')">Export film</button>
+  </div>
+ </div>
+</div>
+<script src="kit.js"></script><script>
+const {$,$$}=K;
+const SH=[{n:'wide',d:4,o:{scene:'yard',scale:.6},m:'slow push toward the girl'},{n:'close',d:3,o:{scene:'yard',scale:2.6,robotOnly:1},m:'her hand brushes dust off'},{n:'med',d:4,o:{scene:'street',scale:1.3,carry:1},m:'she shifts the robot to her other arm, streetlights flicker on'},{n:'insert',d:3,o:{scene:'room',scale:1.6,night:1},m:'tools glint under the lamp'},{n:'close',d:4,o:{scene:'room',scale:2.4,robotOnly:1,eyes:1},m:'eyes flicker, then glow'}];
+SH.forEach(s=>s.r=false);let cur=2;
+const LOOK={dusk:{sky:['#f08a5d','#ffd29a'],tint:'#ffe0c8'},pastel:{sky:['#bfe3f2','#fdf0f6'],tint:'#fff4fa',pal:K.LOOKS.pastel.pal},noir:{sky:['#222','#888'],tint:'#bbbbbb',pal:K.LOOKS.noir.pal},neon:{sky:['#12061f','#3a0f4a'],tint:'#e8b8ff',pal:K.LOOKS.neon.pal}};
+function robot(g,x,y,s,eyes){g.fillStyle='#8d949c';g.fillRect(x-14*s,y-30*s,28*s,24*s);g.fillStyle='#6d737a';g.fillRect(x-10*s,y-6*s,20*s,20*s);g.fillStyle=eyes?'#7ff':'#333';g.beginPath();g.arc(x-6*s,y-19*s,3.5*s,0,7);g.arc(x+6*s,y-19*s,3.5*s,0,7);g.fill()}
+function frame(g,sh,t,u=0,moving=false){const o=sh.o,look=LOOK[K.chip('look')||'dusk'];let base;
+ if(o.scene==='yard')base={...look,buildings:false,road:false,trees:false,hills:true,hill:'#5c5852',ground:'#6e655a',people:0};
+ else if(o.scene==='street')base={...look,people:0,night:moving&&u>.6};
+ else base={sky:o.night?['#1a1d33','#2b2f4a']:['#ffe2b0','#fff4dc'],ground:'#7a5c48',horizon:.7,buildings:false,road:false,trees:false,clouds:false,people:0,tint:look.tint};
+ const s=o.scale*(1+(moving?u*.12:0)),W=g.canvas.width,H=g.canvas.height,cx=W*.5+(moving&&o.carry?(u-.5)*W*.3:0);
+ K.paint(g,{...base,extra:(g,W,H,tt,k)=>{if(o.scene==='room'){g.fillStyle='#4b3a30';g.fillRect(W*.1,H*.55,W*.35,H*.15);g.fillStyle='#ffd27a';g.beginPath();g.arc(W*.8,H*.3,10*k,0,7);g.fill()}
+  if(!o.robotOnly)K.walker(g,cx-(o.carry?0:30*k*s),H*.72,k*s,1,'#e07a5f');robot(g,o.robotOnly?cx:cx+(o.carry?(moving&&u>.5?-14*k*s:14*k*s)*.5:30*k*s),o.robotOnly?H*.75:H*(o.carry?.62:.82),k*s*(o.carry?.5:.6),o.eyes&&(!moving||u>.4))}},t)}
+function animatic(g){const d=g.getImageData(0,0,640,360),p=d.data;for(let i=0;i<p.length;i+=4){const l=(p[i]*.3+p[i+1]*.59+p[i+2]*.11);p[i]=p[i]*.35+l*.65;p[i+1]=p[i+1]*.35+l*.65;p[i+2]=p[i+2]*.35+l*.65}g.putImageData(d,0,0);g.fillStyle='rgba(0,0,0,.55)';g.fillRect(560,12,68,22);g.fillStyle='#fff';g.font='12px system-ui';g.fillText('ANIMATIC',570,27)}
+function pins(){$('#pins').innerHTML='';['dusk','pastel','noir','neon'].forEach((l,i)=>{const d=document.createElement('button');d.className='tile'+(K.chip('look')===l?' sel':'');d.innerHTML=`<canvas width="320" height="180"></canvas><div>${['🎨 palette','💡 lighting','🧱 texture','🎬 framing'][i]}<b>${l}</b></div>`;K.paint(d.firstChild.getContext('2d'),{...LOOK[l],people:0},2);d.onclick=()=>{$$('[data-g=look] .chip').forEach(c=>c.classList.toggle('on',c.dataset.v===l));refresh()};$('#pins').append(d)})}
+function story(){$('#sb').innerHTML='';SH.forEach((s,i)=>{const d=document.createElement('button');d.className='tile'+(i===cur?' sel':'');d.innerHTML=`<canvas width="320" height="180"></canvas><div>${i+1} · ${s.n} · ${s.d}s<b>${s.r?'✓ rendered':'✎ board'}</b></div>`;frame(d.firstChild.getContext('2d'),s,2);d.onclick=()=>{cur=i;go('shot')};$('#sb').append(d)})}
+function refresh(){$('#lk').textContent=$('[data-g=look] .chip.on').textContent;SH.forEach(s=>s.r=false);count();pins();story()}
+function count(){$('#rc').textContent=SH.filter(s=>s.r).length;$('#fl').innerHTML=SH.map((s,i)=>`<div class="item">${i+1} · ${s.n}<span class="r">${s.r?'✓ rendered':'animatic'}</span></div>`).join('')}
+function shotUI(){const s=SH[cur];$('#shotTab').textContent='Shot '+(cur+1);$('#bn').textContent=cur+1;$('#motion').value=s.m;
+ $('#mini').innerHTML=`<div class="mk" style="left:4%"><canvas width="112" height="64"></canvas></div><div class="mk" style="left:${3/s.d*92+4}%"><canvas width="112" height="64"></canvas></div><div class="mph" id="mph"></div>`;
+ $$('#mini canvas').forEach((c,i)=>frame(c.getContext('2d'),s,2,i?1:0,true))}
+$('#motion').oninput=e=>{SH[cur].m=e.target.value;SH[cur].r=false;count()};
+$('#rs').onclick=async()=>{await K.render($('#stage'),['Keys from board + motion prompt…',`LTX-2.5 · shot ${cur+1} · Ingredients (cast locked)…`,'Decoding…'],2200);SH[cur].r=true;count();K.toast(`Shot ${cur+1} rendered`)};
+$('#all').onclick=async()=>{const todo=SH.filter(s=>!s.r);if(!todo.length)return K.toast('All shots rendered');await K.render($('#stage'),todo.map(s=>`Rendering shot ${SH.indexOf(s)+1}…`),todo.length*700+600);SH.forEach(s=>s.r=true);count()};
+$('#fromStory').onclick=async()=>{await K.render($('#stage'),['Reading story…','Generating board pins…'],1400);pins()};
+K.chips(()=>refresh());
+$$('[data-next]').forEach(b=>b.onclick=()=>go(b.dataset.next));
+$('#prev').onclick=()=>{cur=(cur+4)%5;shotUI()};$('#next').onclick=()=>{cur=(cur+1)%5;shotUI()};
+const go=K.steps(s=>{if(s==='look')pins();if(s==='story')story();if(s==='shot')shotUI();if(s==='film')count()});
+const sg=K.canvas($('#sv'),640,360),fg=K.canvas($('#fv'),640,360);
+K.loop(t=>{if(!$('#sv').closest('[data-p]').classList.contains('hidden')){const s=SH[cur],u=(t%s.d)/s.d;frame(sg,s,t,u,true);if(!s.r)animatic(sg);$('#svl').textContent=`Shot ${cur+1} · ${(u*s.d).toFixed(1)}s · ${s.r?'rendered':'animatic preview — render for the real thing'}`;const m=$('#mph');if(m)m.style.left=(4+u*92)+'%'}
+ if(!$('#fv').closest('[data-p]').classList.contains('hidden')){const tot=SH.reduce((a,s)=>a+s.d,0),e=t%tot;let a=0,i=0;while(i<4&&e>a+SH[i].d){a+=SH[i].d;i++}const u=(e-a)/SH[i].d;frame(fg,SH[i],t,u,true);if(!SH[i].r)animatic(fg);if(u<.06){fg.fillStyle=`rgba(0,0,0,${1-u/.06})`;fg.fillRect(0,0,640,360)}
+  $('#fvl').textContent=`Short film · ${e.toFixed(1)}s / ${tot}s · shot ${i+1} ${SH[i].r?'':'(animatic)'}`}});
+pins();count();
+</script></body></html>

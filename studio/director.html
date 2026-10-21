@@ -96,7 +96,7 @@ textarea:focus{border-color:var(--faint)}
 .empty{position:absolute;inset:0;display:none;background:radial-gradient(ellipse at 40% 45%,rgba(14,14,16,.72),rgba(14,14,16,.92));z-index:2}
 .empty .msg{position:absolute;left:8%;top:30%;max-width:46%}
 .empty h3{color:var(--txt);margin:0 0 6px;font-size:22px;font-weight:600;letter-spacing:-.01em}.empty p{margin:0;color:var(--dim);font-size:13px;line-height:1.5}
-.empty svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
+.empty .arw{position:absolute;right:56px;bottom:-12px;width:56px;height:64px;pointer-events:none;overflow:visible;fill:none;stroke:#e8e3d9;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;opacity:.42}
 .view{overflow:visible!important}.view>canvas,.view>video{border-radius:12px}
 .empty{border-radius:12px}
 #gen.nudge{box-shadow:0 0 0 0 rgba(232,227,217,.55);animation:nudge 1.6s infinite}
@@ -117,8 +117,7 @@ textarea:focus{border-color:var(--faint)}
   <div class="title"><h2 id="sTitle"><span id="sNum"></span><span id="sName" contenteditable="plaintext-only" spellcheck="false" title="Click to rename (F2)"></span><span class="pen">✎</span></h2><span id="sMeta"></span><span class="sp"></span><span id="sState"></span></div>
   <div class="view"><canvas id="cv"></canvas><video id="vid" muted playsinline preload="auto"></video>
    <div class="empty" id="empty"><div class="msg"><h3 id="emT">Not generated yet</h3><p id="emP"></p></div>
-    <svg viewBox="0 0 1000 562" preserveAspectRatio="none"><defs><marker id="ah" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#e8e3d9"/></marker></defs>
-     <path id="arrow" d="M520,250 C760,240 900,380 930,590" fill="none" stroke="#e8e3d9" stroke-width="3" stroke-linecap="round" stroke-dasharray="2 9" marker-end="url(#ah)" vector-effect="non-scaling-stroke"/></svg></div><span class="tag" id="tag"></span><span class="tc" id="tc"></span>
+    <svg class="arw" viewBox="0 0 64 72" aria-hidden="true"><path d="M6,6 C34,8 50,26 49,60" /><path d="M41,52 L49,63 L57,52" /></svg></div><span class="tag" id="tag"></span><span class="tc" id="tc"></span>
    <div class="ov" id="ov"><div id="ovt"></div><div class="prog"><i id="pb"></i></div></div></div>
   <div class="row">
    <button class="play" id="play" title="Play / pause (space)">▶</button>
@@ -164,7 +163,7 @@ let cur=saved?.cur||0,selKey=null,G=saved?.G||0,playing=false,pxs=1,results=[],d
 const tot=()=>SH.reduce((a,s)=>a+s.d,0),start=i=>SH.slice(0,i).reduce((a,s)=>a+s.d,0);
 function at(g){let a=0;for(let i=0;i<SH.length;i++){if(g<a+SH[i].d||i===SH.length-1)return[i,Math.min(SH[i].d,g-a)];a+=SH[i].d}}
 // ---------- drawing ----------
-const frame=(g,sp,t,u)=>SC.frame(g,sp,t,u,look,str),mute=SC.mute;
+const frame=(g)=>SC.blank(g),mute=SC.mute;
 const off=document.createElement('canvas'),og=K.canvas(off,W,H);
 // A shot plays by easing between its keyframes; different keyframe images cross-dissolve.
 // Real keyframe images (from the local runtime) are drawn instead of the placeholder spec.
@@ -294,10 +293,10 @@ async function realShot(i,label){const s=SH[i];let step='';
 async function fake(msgs,ms){const ov=$('#ov');ov.style.display='flex';const t0=performance.now();await new Promise(res=>{(function tick(){const p=Math.min(1,(performance.now()-t0)/ms);$('#pb').style.width=p*100+'%';$('#ovt').textContent=msgs[Math.min(msgs.length-1,p*msgs.length|0)];p<1?requestAnimationFrame(tick):res()})()});ov.style.display='none'}
 $('#gen').onclick=async()=>{const s=SH[cur];if(!s.keys.length)return toast('Add at least one keyframe');
  if(OSH.online){try{const r=await realShot(cur,`Generating shot ${cur+1}`);timeline();head();toast(`Shot ${cur+1} generated in ${r.seconds}s (${r.frames} frames)`)}catch(e){toast('Generation failed: '+e.message)}return}
- await fake([`${s.keys.length} keyframes + motion prompt → LTX-2.5`,`Generating shot ${cur+1}`,'Decoding'],2200);s.r=true;timeline();head();toast(`Shot ${cur+1} generated from its keyframes`)};
+ toast('Start the local runtime (shared/runtime/serve.py + ComfyUI) to generate')};
 $('#genAll').onclick=async()=>{const todo=SH.filter(s=>!s.r&&s.keys.length);if(!todo.length)return toast('Nothing to generate');
  if(OSH.online){try{for(const s of todo){const i=SH.indexOf(s);await realShot(i,`Shot ${i+1} of ${SH.length}`);timeline();head()}toast('All shots generated')}catch(e){toast('Generation failed: '+e.message)}return}
- await fake(todo.map(s=>`Generating shot ${SH.indexOf(s)+1} of ${SH.length} from its keyframes`),todo.length*600+600);todo.forEach(s=>s.r=true);timeline();head()};
+ toast('Start the local runtime (shared/runtime/serve.py + ComfyUI) to generate')};
 // ---------- keyframe generator ----------
 const ELS=[['mia','👧 Mia',1],['bolt','🤖 Bolt',1],['yard','🏚 Junkyard',0],['street','🏙 Street',0],['room','🛏 Mia\'s room',1]],PLACES=['yard','street','room'];
 const FR=[['wide','Wide',.6],['medium','Medium',1.3],['close','Close',2.4]];let frm='medium';
@@ -311,7 +310,7 @@ $('#kgo').onclick=async()=>{const base=specFromUI();if(!base.mia&&!base.bolt)ret
  if(OSH.online){const p=$('#kp').value,prompt=keyPrompt(base,p),batch=[0,1,2,3].map(()=>({spec:base,u:.5,p,pending:true}));results=batch.concat(results).slice(0,12);res();
   try{for(const [j,v] of batch.entries()){const r=await OSH.keyframe(prompt,Math.floor(Math.random()*1e6));v.img=r.url;v.pending=false;$('#kgo').textContent=`Generating… ${j+1}/4 (${r.seconds}s)`;res()}}
   catch(e){toast('Keyframe generation failed: '+e.message);results=results.filter(v=>!v.pending);res()}
-  $('#kgo').disabled=false;$('#kgo').textContent='Generate 4 keyframes';return}await K.sleep(900);
+  $('#kgo').disabled=false;$('#kgo').textContent='Generate 4 keyframes';return}$('#kgo').disabled=false;$('#kgo').textContent='Generate 4 keyframes';toast('Start the local runtime (shared/runtime/serve.py + ComfyUI) to generate');return;await K.sleep(900);
  results=[0,1,2,3].map(i=>({spec:{...base,scale:base.scale*(1+(i-1.5)*.08),dx:(i-1.5)*.06},u:[.2,.5,.8,.4][i],p:$('#kp').value})).concat(results).slice(0,12);
  $('#kgo').disabled=false;$('#kgo').textContent='Generate 4 keyframes';res()};
 function res(){if(!results.length)return;$('#res').innerHTML='<div class="gen"></div>';results.forEach(v=>{const d=document.createElement('div');if(v.pending){d.className='v busy';d.textContent='generating…';$('#res .gen').append(d);return}d.className='v';d.draggable=true;d.title=v.p;d.innerHTML='<canvas width="256" height="144"></canvas><span>＋ add at playhead</span>';

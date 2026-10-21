@@ -131,12 +131,17 @@ $$('#keep .chip').forEach(c=>c.onclick=()=>c.classList.toggle('on'));
 function toast(t){const d=document.createElement('div');d.className='toast';d.textContent=t;document.body.append(d);setTimeout(()=>d.style.opacity=0,1700);setTimeout(()=>d.remove(),2100)}
 // ---------- draw ----------
 const g=K.canvas($('#cv'),W,H),go=K.canvas($('#orig'),W,H);
-K.loop(t=>{SHELL.select({type:hand?.type||'frame',label:hand?hand.label:'Sample frame',spec:{...base,edits:edits()},u,ref:hand?.ref});const tt=2+Math.sin(t*.3)*.5;SC.frame(go,base,tt,u,look,str);box=SC.frame(g,{...base,edits:edits()},tt,u,look,str);
+K.loop(t=>{SHELL.select({type:hand?.type||'frame',label:hand?hand.label:'Sample frame',spec:{...base,edits:edits()},u,ref:hand?.ref});const tt=2+Math.sin(t*.3)*.5;drawBase(go);drawBase(g);box={horizon:H*.45};
  const r=busy?busy.r:sel;if(r&&cmp!=='before'){g.save();g.strokeStyle='#7aa2ff';g.lineWidth=2;g.setLineDash([6,4]);g.lineDashOffset=-t*24;g.fillStyle=busy?`rgba(122,162,255,${.2+.15*Math.sin(t*10)})`:'rgba(122,162,255,.18)';
   const b=box[r];if(r==='sky'){g.fillRect(0,0,W,box.horizon);g.strokeRect(1,1,W-2,box.horizon-2)}else if(r==='place'){g.fillRect(0,box.horizon,W,H-box.horizon);g.strokeRect(1,box.horizon,W-2,H-box.horizon-1)}else if(b){g.fillRect(b.x,b.y,b.w,b.h);g.strokeRect(b.x,b.y,b.w,b.h)}g.restore()}});
 SHELL.mount({app:'edit',elementHint:'click to edit',useLabel:e=>e.kind==='cast'?'select':'move here',
  beforeOpen:app=>{if(app==='director'&&hand?.from==='director'&&hand.ref?.key!=null&&layers.length)writeBack()},
  onLook:(l,s2)=>{look=l;str=s2},
  onElement:e=>{if(e.kind==='cast')select(e.id);else apply('place',e.n.toLowerCase())}});
+// Real keyframe image if we have one, otherwise the generic tile. (Edits are listed as layers;
+// they render once the image-edit workflow is connected.)
+const baseImg=hand?.img?Object.assign(new Image(),{src:hand.img}):null;
+function drawBase(g){if(baseImg&&baseImg.complete&&baseImg.naturalWidth){const r=Math.max(W/baseImg.naturalWidth,H/baseImg.naturalHeight),w=baseImg.naturalWidth*r,h=baseImg.naturalHeight*r;g.drawImage(baseImg,(W-w)/2,(H-h)/2,w,h)}else SC.blank(g,hand?'keyframe not generated yet':'no image')}
+if(!baseImg)$('#hint').textContent='No image to edit yet: generate this keyframe in the Director first.';
 renderLayers();
 </script></body></html>

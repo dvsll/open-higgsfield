@@ -67,7 +67,8 @@ const SHELL = (() => {
     const root = document.getElementById('shared'), m = root.querySelector('.mood'); m.innerHTML = '';
     SC.LOOKS.forEach(l => {
       const d = document.createElement('div'); d.className = 'pin' + (l === look ? ' on' : ''); d.innerHTML = `<canvas width="120" height="160"></canvas><i>${l.n}</i>`;d.title = l.n;
-      K.paint(d.firstChild.getContext('2d'), { sky: l.sky, pal: l.pal, tint: l.tint, people: 0, horizon: .66 }, 2);
+      { const g = d.firstChild.getContext('2d'), W = 120, H = 160, gr = g.createLinearGradient(0, 0, 0, H * .6); gr.addColorStop(0, l.sky[0]); gr.addColorStop(1, l.sky[1]); g.fillStyle = gr; g.fillRect(0, 0, W, H * .6);
+        l.sw.forEach((c, j) => { g.fillStyle = c; g.fillRect(j * W / l.sw.length, H * .6, W / l.sw.length + 1, H * .4); }); }
       d.onclick = () => { if (l === look) return; look = l; save(); drawMood(); drawMedia(); opts.onLook?.(look, str, true); }; m.append(d);
     });
     root.querySelector('.swatches').innerHTML = look.sw.map(c => `<b style="background:${c}"></b>`).join('');
@@ -82,7 +83,7 @@ const SHELL = (() => {
     box.innerHTML = `<canvas width="320" height="180"></canvas><div class="mt"><span class="ty">${TYPES[media.type]}</span><b>${media.label}</b></div><div class="openin"></div>`;
     const cv = box.querySelector('canvas'), g = cv.getContext('2d');
     if (media.img) { const im = new Image(); im.onload = () => { const r = Math.max(cv.width / im.naturalWidth, cv.height / im.naturalHeight); g.drawImage(im, (cv.width - im.naturalWidth * r) / 2, (cv.height - im.naturalHeight * r) / 2, im.naturalWidth * r, im.naturalHeight * r); }; im.src = media.img; }
-    else SC.frame(g, media.spec, 2, media.u ?? .3, look, str);
+    else SC.blank(g);
     const list = box.querySelector('.openin');
     APPS.forEach(([id, n, href, types]) => {
       const b = document.createElement('button'), ok = types.includes(media.type), here = id === opts.app;

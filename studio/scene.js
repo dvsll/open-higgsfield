@@ -62,5 +62,16 @@ const SC = (() => {
   // Local storage wrappers (can be unavailable).
   const get = k => { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } };
   const set = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
-  return { LOOKS, SP, same, frame, mute, get, set };
+  // The one generic placeholder for anything without a real image yet.
+  function blank(g, label = 'no image') {
+    const W = g.canvas.width, H = g.canvas.height, k = Math.min(W, H) / 360;
+    g.fillStyle = '#151517'; g.fillRect(0, 0, W, H);
+    g.strokeStyle = '#1c1c1f'; g.lineWidth = 1;
+    for (let x = -H; x < W; x += 14 * k + 4) { g.beginPath(); g.moveTo(x, H); g.lineTo(x + H, 0); g.stroke(); }
+    const w = 44 * k, h = 30 * k, cx = W / 2, cy = H / 2 - (label ? 8 * k : 0);
+    g.strokeStyle = '#3a3a40'; g.lineWidth = Math.max(1, 1.5 * k); g.strokeRect(cx - w / 2, cy - h / 2, w, h);
+    g.beginPath(); g.moveTo(cx - w / 2 + 4 * k, cy + h / 2 - 5 * k); g.lineTo(cx - 4 * k, cy); g.lineTo(cx + 4 * k, cy + 6 * k); g.lineTo(cx + 10 * k, cy + 1 * k); g.lineTo(cx + w / 2 - 4 * k, cy + h / 2 - 5 * k); g.stroke();
+    if (label && H > 60) { g.fillStyle = '#4a4a52'; g.font = `${Math.max(9, 12 * k)}px Inter, system-ui, sans-serif`; g.textAlign = 'center'; g.fillText(label, cx, cy + h / 2 + 18 * k); g.textAlign = 'left'; }
+  }
+  return { LOOKS, SP, same, frame, blank, mute, get, set };
 })();

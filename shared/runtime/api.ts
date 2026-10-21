@@ -1,0 +1,290 @@
+/**
+ * Local generation API for both apps, as a Vite plugin (dev + preview).
+ *
+ *   browser → Vite (/api/*, /outputs/*) → @comfyorg/sdk → comfy-api-proxy :8189 → ComfyUI :8188
+ *
+ * Security model:
+ * - ComfyUI and comfy-api-proxy stay on 127.0.0.1; only Vite is ever exposed.
+ * - /api is open to localhost only. From any other Host (e.g. a tunnel domain) it requires
+ *   OSH_TOKEN: open the site once with ?token=… and an HttpOnly cookie is set.
+ * - Inputs are validated, bodies are size-capped, jobs run one at a time with a short queue,
+ *   and /outputs only serves files this API wrote (random hex names).
+ */
+import { Comfy } from "@comfyorg/sdk";
+import { spawn } from "node:child_process";
+import { randomBytes, timingSafeEqual } from "node:crypto";
+import { existsSync, mkdirSync, createReadStream, statSync } from "node:fs";
+import { readFile } from "node:fs/promises";
+import type { IncomingMessage, ServerResponse } from "node:http";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import type { Connect, Plugin } from "vite";
+
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
+const WORKFLOWS = join(ROOT, "shared", "workflows");
+const OUTPUTS = join(ROOT, "outputs");
+const FPS = 24;
+const MAX_BODY = 64 * 1024;
+const MAX_QUEUE = 4;
+const OUTPUT_NAME = /^[a-f0-9]{16}\.(png|webm)$/;
+
+type Env = Record<string, string | undefined>;
+type Key = { image: string; t: number; strength?: number };
+
+// ---------------- ComfyUI side ----------------
+
+let comfy: Comfy | null = null;
+function client(env: Env): Comfy {
+  process.env.COMFY_BASE_URL = env.COMFY_BASE_URL || "http://127.0.0.1:8189"; // read by the SDK
+  return (comfy ??= new Comfy());
+}
+
+async function up(url: string): Promise<boolean> {
+  try {
+    await fetch(url, { signal: AbortSignal.timeout(1500) });
+    return true; // any HTTP answer counts
+  } catch {
+    return false;
+  }
+}
+
+/** Start comfy-api-proxy (pip tool) in front of ComfyUI if it isn't running. */
+async function ensureProxy(env: Env): Promise<void> {
+  const base = env.COMFY_BASE_URL || "http://127.0.0.1:8189";
+  if (await up(base)) return;
+  const win = process.platform === "win32";
+  const candidates = [env.COMFY_API_PROXY, join(ROOT, ".venv", win ? "Scripts/comfy-api-proxy.exe" : "bin/comfy-api-proxy"), "comfy-api-proxy"];
+  const exe = candidates.find((c) => c && (c === "comfy-api-proxy" || existsSync(c)))!;
+  const port = new URL(base).port || "8189";
+  const comfyui = env.COMFYUI_URL || "http://127.0.0.1:8188";
+  console.log(`[api] starting comfy-api-proxy on 127.0.0.1:${port} -> ${comfyui}`);
+  const p = spawn(exe, ["run", "--comfyui", comfyui, "--host", "127.0.0.1", "--port", port], { stdio: "ignore", windowsHide: true });
+  p.on("error", (e) => console.warn(`[api] could not start comfy-api-proxy (${e.message}). Install it: pip install comfy-api-proxy`));
+  for (let i = 0; i < 30 && !(await up(base)); i++) await new Promise((r) => setTimeout(r, 500));
+}
+
+async function loadGraph(name: string): Promise<Record<string, any>> {
+  return JSON.parse(await readFile(join(WORKFLOWS, `${name}.json`), "utf8"));
+}
+
+function outputName(ext: string): string {
+  mkdirSync(OUTPUTS, { recursive: true });
+  return `${randomBytes(8).toString("hex")}.${ext}`;
+}
+
+async function save(job: Awaited<ReturnType<Comfy["run"]>>, node: string, ext: "png" | "webm"): Promise<string> {
+  const out = job.getOutputs(node)[0];
+  if (!out) throw new Error(`workflow produced no output on node ${node}`);
+  const name = outputName(ext);
+  await out.toFile(join(OUTPUTS, name));
+  return `/outputs/${name}`;
+}
+
+/** /outputs/<name> as returned by this API -> absolute path. Rejects anything else. */
+function outputPath(url: unknown): string {
+  const name = typeof url === "string" ? url.replace(/^\/outputs\//, "") : "";
+  if (!OUTPUT_NAME.test(name)) throw new HttpError(400, "image must be an /outputs/… file from this API");
+  const p = join(OUTPUTS, name);
+  if (!existsSync(p)) throw new HttpError(400, `missing output ${name}`);
+  return p;
+}
+
+/** Run a workflow; retry once if the proxy reports the job expired (happens right after a proxy restart). */
+async function runWf(c: Comfy, wf: Parameters<Comfy["run"]>[0]) {
+  try {
+    return await c.run(wf);
+  } catch (e: any) {
+    if (e?.code === "job_failed" && /expired/i.test(String(e.message))) return c.run(wf);
+    throw e;
+  }
+}
+
+// One job at a time on the GPU; small queue, then 429.
+let chain: Promise<unknown> = Promise.resolve();
+let queued = 0;
+function serialize<T>(fn: () => Promise<T>): Promise<T> {
+  if (queued >= MAX_QUEUE) throw new HttpError(429, "GPU busy, try again in a moment");
+  queued++;
+  const run = chain.then(fn, fn).finally(() => queued--);
+  chain = run.catch(() => {});
+  return run;
+}
+
+// ---------------- endpoints ----------------
+
+const str = (v: unknown, max: number, name: string): string => {
+  if (typeof v !== "string" || !v.trim() || v.length > max) throw new HttpError(400, `${name} must be a non-empty string (≤ ${max} chars)`);
+  return v;
+};
+const num = (v: unknown, lo: number, hi: number, dflt: number): number => {
+  const n = v === undefined ? dflt : Number(v);
+  if (!Number.isFinite(n) || n < lo || n > hi) throw new HttpError(400, `number out of range [${lo}, ${hi}]`);
+  return n;
+};
+
+/** Prompt -> image. shared/workflows/keyframe_zimage.json (Z-Image Turbo). */
+async function keyframe(body: any, env: Env) {
+  const prompt = str(body.prompt, 2000, "prompt");
+  const seed = Math.floor(num(body.seed, 0, 2 ** 32, 1));
+  const c = client(env);
+  const wf = c.workflows.fromJson(await loadGraph("keyframe_zimage"));
+  wf.setInput("5", "text", prompt);
+  wf.setInput("8", "seed", seed);
+  if (body.width) wf.setInput("7", "width", Math.round(num(body.width, 256, 1536, 768) / 16) * 16);
+  if (body.height) wf.setInput("7", "height", Math.round(num(body.height, 256, 1536, 448) / 16) * 16);
+  const t = Date.now();
+  const job = await serialize(() => runWf(c, wf));
+  return { url: await save(job, "10", "png"), seconds: +((Date.now() - t) / 1000).toFixed(1) };
+}
+
+/** shot_ltxv.json has one keyframe guide (node 8); clone image/scale/guide nodes for each extra keyframe. */
+function shotGraph(g: Record<string, any>, nKeys: number): Record<string, any> {
+  let prev = "8";
+  for (let i = 1; i < nKeys; i++) {
+    const n = String(i).padStart(2, "0"), img = `5${n}`, scale = `6${n}`, guide = `8${n}`;
+    g[img] = structuredClone(g["5"]);
+    g[scale] = structuredClone(g["6"]);
+    g[scale].inputs.image = [img, 0];
+    g[guide] = structuredClone(g["8"]);
+    Object.assign(g[guide].inputs, { positive: [prev, 0], negative: [prev, 1], latent: [prev, 2], image: [scale, 0] });
+    prev = guide;
+  }
+  Object.assign(g["11"].inputs, { positive: [prev, 0], negative: [prev, 1] });
+  g["13"].inputs.latent = [prev, 2];
+  g["14"].inputs.latent_image = [prev, 2];
+  return g;
+}
+
+/** Keyframes (images at times) + motion prompt -> video. shared/workflows/shot_ltxv.json (LTX-Video). */
+async function shot(body: any, env: Env) {
+  if (!Array.isArray(body.keys) || body.keys.length < 1 || body.keys.length > 8) throw new HttpError(400, "keys: 1–8 keyframes");
+  const duration = num(body.duration, 1, 8, 4);
+  const keys: Key[] = body.keys
+    .map((k: any) => ({ image: k.image, t: num(k.t, 0, duration, 0), strength: num(k.strength, 0, 1, 1) }))
+    .sort((a: Key, b: Key) => a.t - b.t);
+  const paths = keys.map((k) => outputPath(k.image));
+  const length = Math.max(25, Math.min(121, Math.round((duration * FPS) / 8) * 8 + 1)); // LTX wants 8n+1 frames
+  const last = length - 1;
+  const c = client(env);
+  const wf = c.workflows.fromJson(shotGraph(await loadGraph("shot_ltxv"), keys.length));
+  wf.setInput("3", "text", body.prompt ? str(body.prompt, 2000, "prompt") : "cinematic shot");
+  wf.setInput("7", "length", length);
+  wf.setInput("14", "noise_seed", Math.floor(num(body.seed, 0, 2 ** 32, 1)));
+  keys.forEach((k, i) => {
+    const n = i ? String(i).padStart(2, "0") : "";
+    const f = Math.round((k.t * FPS) / 8) * 8;
+    wf.setInput(i ? `8${n}` : "8", "frame_idx", f >= last - 4 ? -1 : Math.min(f, last - 8)); // snap to latent frames; last key = end
+    wf.setInput(i ? `8${n}` : "8", "strength", k.strength);
+    wf.setInput(i ? `5${n}` : "5", "image", c.assets.fromFile(paths[i]));
+  });
+  const t = Date.now();
+  const job = await serialize(() => runWf(c, wf));
+  return { url: await save(job, "17", "webm"), seconds: +((Date.now() - t) / 1000).toFixed(1), frames: length };
+}
+
+async function health(env: Env) {
+  return {
+    comfyui: await up((env.COMFYUI_URL || "http://127.0.0.1:8188") + "/system_stats"),
+    proxy: await up(env.COMFY_BASE_URL || "http://127.0.0.1:8189"),
+    queued,
+  };
+}
+
+// ---------------- HTTP plumbing ----------------
+
+class HttpError extends Error {
+  status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.status = status;
+  }
+}
+
+function send(res: ServerResponse, status: number, obj: unknown) {
+  const body = JSON.stringify(obj);
+  res.writeHead(status, { "Content-Type": "application/json", "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" });
+  res.end(body);
+}
+
+function readBody(req: IncomingMessage): Promise<any> {
+  return new Promise((ok, fail) => {
+    let size = 0;
+    const chunks: Buffer[] = [];
+    req.on("data", (c: Buffer) => {
+      size += c.length;
+      if (size > MAX_BODY) { fail(new HttpError(413, "request too large")); req.removeAllListeners("data"); req.resume(); }
+      else chunks.push(c);
+    });
+    req.on("end", () => { try { ok(chunks.length ? JSON.parse(Buffer.concat(chunks).toString("utf8")) : {}); } catch { fail(new HttpError(400, "invalid JSON")); } });
+    req.on("error", fail);
+  });
+}
+
+const isLocalHost = (host = "") => /^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/i.test(host);
+const cookie = (req: IncomingMessage, name: string) => (req.headers.cookie || "").split(/;\s*/).find((c) => c.startsWith(name + "="))?.slice(name.length + 1);
+function sameToken(a: string | undefined, b: string): boolean {
+  if (!a) return false;
+  const x = Buffer.from(a), y = Buffer.from(b);
+  return x.length === y.length && timingSafeEqual(x, y);
+}
+
+function middleware(env: Env): Connect.NextHandleFunction {
+  const token = env.OSH_TOKEN || "";
+  return async (req, res, next) => {
+    const url = new URL(req.url || "/", "http://x");
+    // ?token=… on any page: set the access cookie, then strip the token from the URL.
+    if (token && url.searchParams.has("token")) {
+      if (sameToken(url.searchParams.get("token") || undefined, token)) {
+        url.searchParams.delete("token");
+        res.writeHead(302, {
+          "Set-Cookie": `osh_token=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${60 * 60 * 24 * 14}`,
+          Location: url.pathname + url.search,
+        });
+        return res.end();
+      }
+      return send(res, 403, { error: "bad token" });
+    }
+    const isApi = url.pathname.startsWith("/api/"), isOut = url.pathname.startsWith("/outputs/");
+    if (!isApi && !isOut) return next();
+    // Access: localhost always; anything else needs the token cookie (or Authorization: Bearer).
+    const bearer = (req.headers.authorization || "").replace(/^Bearer\s+/i, "") || undefined;
+    if (!isLocalHost(req.headers.host) && !(token && (sameToken(cookie(req, "osh_token"), token) || sameToken(bearer, token)))) {
+      return send(res, 401, { error: token ? "locked: open the site with ?token=…" : "generation is only available on localhost" });
+    }
+    try {
+      if (isOut) {
+        const name = url.pathname.slice("/outputs/".length);
+        if (req.method !== "GET" || !OUTPUT_NAME.test(name)) return send(res, 404, { error: "not found" });
+        const p = join(OUTPUTS, name);
+        if (!existsSync(p)) return send(res, 404, { error: "not found" });
+        res.writeHead(200, { "Content-Type": name.endsWith(".png") ? "image/png" : "video/webm", "Content-Length": statSync(p).size, "Cache-Control": "private, max-age=31536000, immutable", "X-Content-Type-Options": "nosniff" });
+        return createReadStream(p).pipe(res);
+      }
+      const route = `${req.method} ${url.pathname}`;
+      if (route === "GET /api/health") return send(res, 200, await health(env));
+      if (route === "POST /api/keyframe") return send(res, 200, await keyframe(await readBody(req), env));
+      if (route === "POST /api/shot") return send(res, 200, await shot(await readBody(req), env));
+      return send(res, 404, { error: "unknown endpoint" });
+    } catch (e: any) {
+      const status = e instanceof HttpError ? e.status : 500;
+      if (status === 500) console.error(`[api] ${url.pathname} failed:`, e);
+      send(res, status, { error: status === 500 ? "generation failed (see server log)" : e.message });
+    }
+  };
+}
+
+/** Vite plugin: mounts /api + /outputs on the dev and preview servers. */
+export function comfyApi(env: Env): Plugin {
+  return {
+    name: "osh-comfy-api",
+    async configureServer(server) {
+      server.middlewares.use(middleware(env));
+      if (!(await up((env.COMFYUI_URL || "http://127.0.0.1:8188") + "/system_stats"))) console.warn("[api] ComfyUI not reachable; pages work, generation won't.");
+      else await ensureProxy(env);
+    },
+    async configurePreviewServer(server) {
+      server.middlewares.use(middleware(env));
+      await ensureProxy(env);
+    },
+  };
+}

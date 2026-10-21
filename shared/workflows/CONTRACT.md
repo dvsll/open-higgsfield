@@ -29,6 +29,6 @@ Swap to LTX-2.5 + IC-LoRAs on a rented 32 GB+ GPU for final renders.
 - **Used by:** studio (Generate shot); the same pattern works for adstudio's product shots
 - **Models:** LTX-Video 2B 0.9.8 distilled + T5-XXL fp8 (open weights)
 - **Inputs:** node `3` `text` (motion prompt) · node `7` `length` (frames, 8n+1, 24 fps) · node `14` `noise_seed` · keyframe *i*: image node `5` / `5NN`, guide node `8` / `8NN` (`frame_idx`, `strength`)
-  - The file has one keyframe guide. `serve.py` clones nodes 5/6/8 per extra keyframe (`shot_graph()`) and snaps `frame_idx` to multiples of 8 (last key = `-1`).
+  - The file has one keyframe guide. `shared/runtime/api.ts` clones nodes 5/6/8 per extra keyframe (`shotGraph()`) and snaps `frame_idx` to multiples of 8 (last key = `-1`).
 - **Outputs:** node `17`: WEBM (VP9)
 - **Render time:** ~20 s for 3 s (73 frames) from 2 keyframes; ~32 s for 4 s including generating 2 missing keyframes. 768×448, 8 steps, RTX 4070 Super (2026-10-21)

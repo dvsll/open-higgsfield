@@ -8,6 +8,7 @@ CLAUDE.local.md
 !.env.example
 
 # --- python / node ---
+dist/
 .venv/
 venv/
 __pycache__/
@@ -26,7 +27,7 @@ outputs/
 !examples/**/*.png
 shared/workflows/.shot_*.json
 
-# --- models / downloads (huge; fetch with shared/runtime/fetch_models.py) ---
+# --- models / downloads (huge; fetch with `npm run models`) ---
 *.safetensors
 *.gguf
 *.ckpt

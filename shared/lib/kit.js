@@ -130,3 +130,5 @@ const K = (() => {
   };
   return { $, $$, chips, chip, steps, render, wipe, toast, say, sleep, loop, canvas, paint, walker, LOOKS, mix, dim, rgb, hex };
 })();
+// Also usable as an ES-module side-effect import.
+globalThis.K = K;

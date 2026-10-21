@@ -21,23 +21,20 @@ Two entries for Comfy Org's **Open Source Higgsfield** competition. **Hard deadl
 - **Commit and push on your own** after each working change, using **Conventional Commits**: `feat(studio): …`, `fix(studio): …`, `style:`, `docs:`, `chore:`. Don't ask the user first; they don't want to think about commits.
 - Before ending a session (or when the user says they're switching agents), **update `notes/studio.md` → "Where we left off"** (state, what's running, next steps), then commit and push.
 - Keep the UI style: dark, Inter, **no rounded corners** (for now), tokens in each page's `:root`.
-- Check syntax after editing inline scripts. The pages are single HTML files with inline `<script>`:
-  `python -c "import re;open('t.js','w').write(';'.join(re.findall(r'<script>(.*?)</script>',open('studio/director.html',encoding='utf8').read(),re.S)))" && node --check t.js`
+- Page code lives in `studio/src/*.ts` (ES modules; most files start with `// @ts-nocheck` because they were ported from inline JS, so add types when you touch them). HTML files only hold markup + CSS.
 - Prefer small targeted edits over rewrites. The Director is one big file; read the relevant part first.
 
 ## Run it
-- Static only (placeholders): `python -m http.server 8765` → http://localhost:8765/
-- Real generation (needs ComfyUI on :8188 with the models in `shared/runtime/models.json`):
-  ```
-  .venv/Scripts/python shared/runtime/serve.py          # serves the site on :8765, starts comfy-api-proxy on :8189
-  ```
-  The Director header shows **● local ComfyUI** when connected. Outputs go to `outputs/` (gitignored).
+- `npm install`, then `npm run dev` → http://127.0.0.1:8288/ (Vite + TypeScript, hot reload). The generation API (`shared/runtime/api.ts`, a Vite plugin using `@comfyorg/sdk`) is mounted on the same server and starts `comfy-api-proxy` itself.
+- Real generation also needs ComfyUI on :8188 with the models in `shared/runtime/models.json` (`npm run models -- --models-dir …`). The Director header shows **● local ComfyUI** when connected. Outputs go to `outputs/` (gitignored).
+- Before committing: `npm run typecheck` (and `npm run build` for bigger changes).
+- Security rules in README → Security. Never expose ComfyUI/proxy, never commit `.env`.
 - Machine-specific paths (where ComfyUI lives, how to start it) are in `notes/studio.md` → "Local machine".
 
 ## Map of studio/
-- `director.html`: header · left = shared sidebar (`shell.js`) · middle = preview + motion prompt + **Generate shot** + timeline (sequence ↔ opened shot, stash tray, 🗑 trash) · right = keyframe generator.
+- `director.html` + `src/director.ts`: header · left = shared sidebar (`src/shell.ts`) · middle = preview + motion prompt + **Generate shot** + timeline (sequence ↔ opened shot, stash tray, 🗑 trash) · right = keyframe generator.
   - State lives in `localStorage['osh-director']` (`SH` shots, `STASH`, `TRASH`, `cur`, `G`). The look is in `osh-project`.
   - Shot: `{n, d, spec, m (motion), keys:[{t,u,spec,img}], r (generated), video, seed}`.
-  - `OSH.keyframe()` / `OSH.shot()` (`shared/runtime/client.js`) call `serve.py`. Video only generates when the user presses Generate.
-- `edit.html`: Edit Anything (placeholder edits; real image-edit workflow not built yet).
-- `shell.js`: shared sidebar (selected media + "open in", mood board, cast & places). `scene.js`: placeholder renderer.
+  - `OSH.keyframe()` / `OSH.shot()` (`shared/runtime/client.ts`) call `/api` (`shared/runtime/api.ts`). Video only generates when the user presses Generate.
+- `edit.html` + `src/edit.ts`: Edit Anything (placeholder edits; real image-edit workflow not built yet).
+- `src/shell.ts`: shared sidebar (selected media + "open in", mood board, cast & places). `src/scene.ts`: generic placeholder + storage helpers.

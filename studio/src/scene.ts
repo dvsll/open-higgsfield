@@ -1,3 +1,6 @@
+// @ts-nocheck  (ported from inline JS; type it as we go)
+import '../../shared/lib/kit.js';
+import '../../shared/styleboard/looks.js';
 // Shared placeholder "renderer" for the demos: draws a keyframe spec, including edits made in Edit Anything.
 // Needs ../shared/lib/kit.js and ../shared/styleboard/looks.js loaded first.
 const SC = (() => {
@@ -75,3 +78,4 @@ const SC = (() => {
   }
   return { LOOKS, SP, same, frame, blank, mute, get, set };
 })();
+export { SC };

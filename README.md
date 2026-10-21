@@ -15,28 +15,40 @@ Two apps for Comfy Org's [Open Source Higgsfield](https://comfy.org/open-source-
 **Read first:** [`DEADLINES.md`](DEADLINES.md) (dates we must hit) and [`PLAN.md`](PLAN.md) (what to build, in priority order).
 
 ## Run locally
-The apps open as static pages with placeholders. For **real generation** they need the local runtime in `shared/runtime/`:
+One Vite + TypeScript dev server runs the whole repo (studio, adstudio, archive) with hot reload, and mounts the generation API:
 
 ```
-browser  →  shared/runtime/serve.py (comfy-sdk)  →  comfy-api-proxy :8189  →  your ComfyUI :8188
+browser → Vite :8288 ─ pages (HMR)
+                      └ /api, /outputs → shared/runtime/api.ts → @comfyorg/sdk → comfy-api-proxy :8189 → ComfyUI :8188
 ```
 
-1. Run ComfyUI (any install: Desktop, portable or git) on `127.0.0.1:8188`.
-2. Fetch the dev models into its `models/` folder (skips files you already have):
+1. **Node 22.18+** and `npm install`.
+2. Run ComfyUI (any install: Desktop, portable or git) on `127.0.0.1:8188`.
+3. Fetch the dev models into its `models/` folder (skips files you already have; ~30 GB, list in `shared/runtime/models.json`):
    ```bash
-   python shared/runtime/fetch_models.py --models-dir "<ComfyUI>/models" --dry-run
+   npm run models -- --models-dir "<ComfyUI>/models" --dry-run
    ```
-   Drop `--dry-run` to actually download. Models, licenses and sizes are listed in `shared/runtime/models.json` (~30 GB total).
-3. Install the runtime and start it (it also starts `comfy-api-proxy`):
+   Drop `--dry-run` to actually download.
+4. Install the Comfy API proxy once (the only non-Node piece; it's a pip tool the dev server starts for you):
    ```bash
-   python -m venv .venv
-   .venv/Scripts/pip install -r shared/runtime/requirements.txt
-   .venv/Scripts/python shared/runtime/serve.py
+   pip install -r shared/runtime/requirements.txt
    ```
-   On macOS/Linux use `.venv/bin/` instead of `.venv/Scripts/`.
-4. Open http://localhost:8765/. The Director header shows **● local ComfyUI** when it's connected.
+   Or put it in a `.venv` at the repo root, or point `COMFY_API_PROXY` in `.env` at it.
+5. Start the dev server:
+   ```bash
+   npm run dev
+   ```
+   Open http://127.0.0.1:8288/. The Director header shows **● local ComfyUI** when generation is available.
 
+Other scripts: `npm run typecheck`, `npm run build` (to `dist/`), `npm run preview`.
 Outputs land in `outputs/` (gitignored). Workflow details and timings: `shared/workflows/CONTRACT.md`.
+
+### Security
+- ComfyUI and the proxy only listen on `127.0.0.1`. Only Vite is ever exposed.
+- `/api` works from localhost only. From any other host it needs `OSH_TOKEN` (set in `.env`, never committed). Share links as `https://<host>/?token=<OSH_TOKEN>`; that sets an HttpOnly cookie and strips the token from the URL.
+- Vite only answers hostnames listed in `OSH_ALLOWED_HOSTS` and refuses to serve `.env*`, keys, `.git`, `.venv`, `.claude`.
+- Inputs are validated, request bodies are capped at 64 KB, GPU jobs run one at a time (max 4 queued), and `/outputs` only serves files the API wrote.
+- To share: copy `.env.example` to `.env`, set `OSH_HOST=0.0.0.0`, `OSH_ALLOWED_HOSTS` and a long random `OSH_TOKEN`, then `npm run dev`.
 
 ## Rules that keep the split easy
 1. A project only loads files from **its own folder** and **`shared/`** (as `../shared/...`). Never from the other project.

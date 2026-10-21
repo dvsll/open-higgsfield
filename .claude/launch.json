@@ -2,10 +2,10 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "site",
-      "runtimeExecutable": ".venv/Scripts/python.exe",
-      "runtimeArgs": ["shared/runtime/serve.py", "--port", "8765"],
-      "port": 8765
+      "name": "dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "port": 8288
     }
   ]
 }

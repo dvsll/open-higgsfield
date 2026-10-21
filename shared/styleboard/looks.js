@@ -9,3 +9,5 @@ const STYLEBOARD = {
     { id: 'neon', prompt: 'neon night, magenta and cyan light, wet reflections', n: 'neon', sky: ['#12061f', '#3a0f4a'], tint: '#e8b8ff', pal: K.LOOKS.neon.pal, sw: ['#12061f', '#3a1050', '#ff6bd6', '#0a3a40'] },
     ],
 };
+// Also usable as an ES-module side-effect import.
+globalThis.STYLEBOARD = STYLEBOARD;

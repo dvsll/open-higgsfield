@@ -14,6 +14,7 @@ Done today:
 - Rename shots (click the title / F2)
 - Playback starts paused and stops at the end
 - No rounded corners
+- Moved to Vite + TypeScript (port 8288, HMR); Python serve.py replaced by `shared/runtime/api.ts` (TS SDK) with token-gated sharing
 
 **Next up (suggested, in order):**
 1. Versions/takes: keep every generated video per shot and every keyframe version, and pick the active one. Plus linear undo/redo (Ctrl+Z) for structural edits. (Agreed direction; not built.)
@@ -30,13 +31,13 @@ Check `DEADLINES.md`:
 - ComfyUI Desktop install: `C:\Users\dvs\AppData\Local\Comfy-Desktop\ComfyUI-Installs\ComfyUI\ComfyUI` (models in `C:\Users\dvs\AppData\Local\Comfy-Desktop\ComfyUI-Shared\models`).
 - Start it headless (if Desktop isn't open), from that folder:
   `.venv\Scripts\python.exe main.py --listen 127.0.0.1 --port 8188 --extra-model-paths-config "C:\Users\dvs\AppData\Roaming\Comfy Desktop\instance-model-paths\inst-1792339149905.yaml" --disable-auto-launch`
-- Then from the repo: `.venv\Scripts\python shared\runtime\serve.py` (port 8765).
+- Then from the repo: `npm run dev` (Vite on 8288; starts comfy-api-proxy from `.venv` automatically).
 - GPU: RTX 4070 Super 12 GB. Partner: RTX 3080.
 
 ## 2026-10-21: local generation works (RTX 4070 Super, ComfyUI 0.41.3)
 - Keyframes: Z-Image Turbo, 768×448, 8 steps → ~7 s warm (18 s cold).
 - Shots: LTX-Video 2B 0.9.8 distilled, keyframe guides → 3 s clip in ~20 s; 4 s incl. 2 missing keyframes ~32 s.
-- Path: Director → serve.py → comfy-sdk 0.5.0 → comfy-api-proxy 0.1.6 → ComfyUI. Rules-compliant (SDK + open models).
+- Path (since 2026-10-21 evening): Director → Vite /api (shared/runtime/api.ts) → @comfyorg/sdk 0.5.0 → comfy-api-proxy 0.1.6 → ComfyUI. Rules-compliant (SDK + open models).
 - Elements are prompt text only for now (no reference conditioning yet).
 
 ## Requests from partner

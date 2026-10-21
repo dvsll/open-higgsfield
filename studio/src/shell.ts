@@ -1,3 +1,5 @@
+// @ts-nocheck  (ported from inline JS; type it as we go)
+import { SC } from './scene';
 // Shared left sidebar for every demo workflow: app switcher, mood board, cast & places.
 // Project-level state (look, strength) lives in localStorage 'osh-project' so it follows you between apps.
 const SHELL = (() => {
@@ -102,3 +104,4 @@ const SHELL = (() => {
   function mark(ids) { document.querySelectorAll('#shared .el').forEach(b => b.classList.toggle('on', ids.includes(b.dataset.id))); }
   return { mount, mark, select, open, ELEMENTS, APPS };
 })();
+export { SHELL };

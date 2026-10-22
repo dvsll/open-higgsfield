@@ -4,6 +4,7 @@ import '../../shared/styleboard/looks.js';
 import { SC } from './scene';
 import { SHELL } from './shell';
 import { OSH } from '../../shared/runtime/client';
+import { localGeneration, mountModels } from './models';
 const {$,$$}=K,W=640,H=360;
 // ---------- data ----------
 const LOOKS=SC.LOOKS;
@@ -165,15 +166,15 @@ async function busy(msg,job){const ov=$('#ov');ov.style.display='flex';$('#pb').
  try{return await job()}finally{clearInterval(tick);ov.style.display='none'}}
 async function realShot(i,label){const s=SH[i];let step='';
  return busy(()=>`${label}${step}`,async()=>{
-  const miss=s.keys.filter(k=>!k.img);for(const [j,k] of miss.entries()){step=` · keyframe ${j+1}/${miss.length} (Z-Image)`;const r=await OSH.keyframe(keyPrompt(k.spec,s.m),1+j);k.img=r.url;pushHist({kind:'keyframe',url:r.url,label:`${s.n} · auto keyframe`})}
-  step=` · ${s.keys.length} keyframes → LTX-Video`;const r=await OSH.shot(s.keys.map(k=>({image:k.img,t:k.t})),shotPrompt(s),s.d,s.seed??7);s.video=r.url;s.r=true;pushHist({kind:'shot',url:r.url,label:`${s.n} · ${r.frames} frames`,shotId:shotId(s)});return r})}
+  const miss=s.keys.filter(k=>!k.img);for(const [j,k] of miss.entries()){step=` · keyframe ${j+1}/${miss.length} (Z-Image)`;const r=await localGeneration.keyframe(keyPrompt(k.spec,s.m),1+j);k.img=r.url;pushHist({kind:'keyframe',url:r.url,label:`${s.n} · auto keyframe`})}
+  step=` · ${s.keys.length} keyframes → LTX-Video`;const r=await localGeneration.shot(s.keys.map(k=>({image:k.img,t:k.t})),shotPrompt(s),s.d,s.seed??7);s.video=r.url;s.r=true;pushHist({kind:'shot',url:r.url,label:`${s.n} · ${r.frames} frames`,shotId:shotId(s)});return r})}
 async function fake(msgs,ms){const ov=$('#ov');ov.style.display='flex';const t0=performance.now();await new Promise(res=>{(function tick(){const p=Math.min(1,(performance.now()-t0)/ms);$('#pb').style.width=p*100+'%';$('#ovt').textContent=msgs[Math.min(msgs.length-1,p*msgs.length|0)];p<1?requestAnimationFrame(tick):res()})()});ov.style.display='none'}
 $('#gen').onclick=async()=>{const s=SH[cur];if(!s.keys.length)return toast('Add at least one keyframe');
  if(OSH.online){try{const r=await realShot(cur,`Generating shot ${cur+1}`);timeline();head();toast(`Shot ${cur+1} generated in ${r.seconds}s (${r.frames} frames)`)}catch(e){toast('Generation failed: '+e.message)}return}
- toast('Start the local runtime (shared/runtime/serve.py + ComfyUI) to generate')};
+ toast('Start ComfyUI on port 8188, then refresh local models')};
 $('#genAll').onclick=async()=>{const todo=SH.filter(s=>!s.r&&s.keys.length);if(!todo.length)return toast('Nothing to generate');
  if(OSH.online){try{for(const s of todo){const i=SH.indexOf(s);await realShot(i,`Shot ${i+1} of ${SH.length}`);timeline();head()}toast('All shots generated')}catch(e){toast('Generation failed: '+e.message)}return}
- toast('Start the local runtime (shared/runtime/serve.py + ComfyUI) to generate')};
+ toast('Start ComfyUI on port 8188, then refresh local models')};
 // ---------- keyframe generator ----------
 const ELS=[['mia','👧 Mia',1],['bolt','🤖 Bolt',1],['yard','🏚 Junkyard',0],['street','🏙 Street',0],['room','🛏 Mia\'s room',1]],PLACES=['yard','street','room'];
 const FR=[['wide','Wide',.6],['medium','Medium',1.3],['close','Close',2.4]];let frm='medium';
@@ -185,9 +186,9 @@ function specFromUI(){const on=k=>$(`#els [data-k=${k}]`).classList.contains('on
  return SP({mia:on('mia'),bolt:on('bolt'),scene:on('street')?'street':on('room')?'room':'yard',scale:FR.find(f=>f[0]===frm)[2],night:/night|dark|midnight/.test(p),dawn:/dawn|first light|morning|sunrise/.test(p),eyes:/glow|eyes|wake|light/.test(p),carry:/carr|holds|holding/.test(p)})}
 $('#kgo').onclick=async()=>{const base=specFromUI();if(!base.mia&&!base.bolt)return toast('Pick at least Mia or Bolt');$('#kgo').disabled=true;$('#kgo').textContent='Generating…';
  if(OSH.online){const p=$('#kp').value,prompt=keyPrompt(base,p),batch=[0,1,2,3].map(()=>({spec:base,u:.5,p,pending:true}));results=batch.concat(results).slice(0,12);res();
-  try{for(const [j,v] of batch.entries()){const r=await OSH.keyframe(prompt,Math.floor(Math.random()*1e6));v.img=r.url;v.pending=false;pushHist({kind:'keyframe',url:r.url,label:p});$('#kgo').textContent=`Generating… ${j+1}/4 (${r.seconds}s)`;res()}}
+  try{for(const [j,v] of batch.entries()){const r=await localGeneration.keyframe(prompt,Math.floor(Math.random()*1e6));v.img=r.url;v.pending=false;pushHist({kind:'keyframe',url:r.url,label:p});$('#kgo').textContent=`Generating… ${j+1}/4 (${r.seconds}s)`;res()}}
   catch(e){toast('Keyframe generation failed: '+e.message);results=results.filter(v=>!v.pending);res()}
-  $('#kgo').disabled=false;$('#kgo').textContent='Generate 4 keyframes';return}$('#kgo').disabled=false;$('#kgo').textContent='Generate 4 keyframes';toast('Start the local runtime (shared/runtime/serve.py + ComfyUI) to generate');return;await K.sleep(900);
+  $('#kgo').disabled=false;$('#kgo').textContent='Generate 4 keyframes';return}$('#kgo').disabled=false;$('#kgo').textContent='Generate 4 keyframes';toast('Start ComfyUI on port 8188, then refresh local models');return;await K.sleep(900);
  results=[0,1,2,3].map(i=>({spec:{...base,scale:base.scale*(1+(i-1.5)*.08),dx:(i-1.5)*.06},u:[.2,.5,.8,.4][i],p:$('#kp').value})).concat(results).slice(0,12);
  $('#kgo').disabled=false;$('#kgo').textContent='Generate 4 keyframes';res()};
 function res(){if(!results.length)return;$('#res').innerHTML='<div class="gen"></div>';results.forEach(v=>{const d=document.createElement('div');if(v.pending){d.className='v busy';d.textContent='generating…';$('#res .gen').append(d);return}d.className='v';d.draggable=true;d.title=v.p;d.innerHTML='<canvas width="256" height="144"></canvas><span>＋ add at playhead</span>';
@@ -220,7 +221,7 @@ async function stylemaxx(style,m,progress){
  const s=SH[m.ref?.shot],k=s?.keys[m.ref?.key];if(!k?.img)return toast('Select a generated keyframe first');
  const base=await SHELL.styleFit(k.img,style);let best={url:k.img,fit:base};const N=3;
  for(let j=0;j<N;j++){progress(`Stylemaxxing ${j+1}/${N} · best ${Math.round(best.fit*100)}%`);
-  const r=await OSH.keyframe(`${keyPrompt(k.spec,s.m)}. ${style.prompt||style.n}`,Math.floor(Math.random()*1e6));const f=await SHELL.styleFit(r.url,style);
+  const r=await localGeneration.keyframe(`${keyPrompt(k.spec,s.m)}. ${style.prompt||style.n}`,Math.floor(Math.random()*1e6));const f=await SHELL.styleFit(r.url,style);
   pushHist({kind:'keyframe',url:r.url,label:`${s.n} · stylemaxx ${style.n} · fit ${Math.round(f*100)}%`});if(f>best.fit)best={url:r.url,fit:f}}
  if(best.url!==k.img){k.img=best.url;s.r=false;timeline();head();save();toast(`Keyframe restyled: fit ${Math.round(base*100)}% → ${Math.round(best.fit*100)}% (others are in history)`)}
  else toast(`No candidate beat the current keyframe (${Math.round(base*100)}%). Tries are in history.`)}
@@ -233,5 +234,5 @@ SHELL.mount({app:'director',elementHint:'click to use in keyframe',
  onElement:e=>{const c=$(`#els [data-k=${e.id}]`);c.click();markEls();toast(`${e.n} ${c.classList.contains('on')?'added to':'removed from'} the keyframe prompt`)}});
 function markEls(){SHELL.mark($$('#els .chip.on').map(c=>c.dataset.k))}
 $('#els').addEventListener('click',()=>setTimeout(markEls));
-OSH.health().then(({online})=>{const b=$('#rt');b.classList.toggle('on',online);b.textContent=online?'● local ComfyUI':'○ placeholders';if(!online)b.title='Start shared/runtime/serve.py with ComfyUI running for real generation'});
+mountModels();
 timeline();head();markEls();histUI();save();if(!playing)$('#play').textContent='▶';

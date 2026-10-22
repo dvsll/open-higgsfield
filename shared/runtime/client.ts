@@ -6,6 +6,7 @@ export type Health = { comfyui: boolean; proxy: boolean; queued: number };
 export type KeyframeResult = { url: string; seconds: number };
 export type ShotResult = { url: string; seconds: number; frames: number };
 export type ShotKey = { image: string; t: number; strength?: number };
+export type LocalModels = { keyframe: { id: string; label: string }[]; video: { id: string; label: string }[]; inventory: { category: string; files: string[] }[] };
 
 let online = false;
 let info: Health | null = null;
@@ -36,8 +37,14 @@ async function post<T>(name: string, body: unknown): Promise<T> {
 
 export const OSH = {
   health,
+  async models(): Promise<LocalModels> {
+    const r = await fetch('/api/models', { cache: 'no-store' });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || r.statusText);
+    return data;
+  },
   get online() { return online; },
   get reason() { return reason; },
-  keyframe: (prompt: string, seed = 1, size: { width?: number; height?: number } = {}) => post<KeyframeResult>("keyframe", { prompt, seed, ...size }),
-  shot: (keys: ShotKey[], prompt: string, duration: number, seed = 1) => post<ShotResult>("shot", { keys, prompt, duration, seed }),
+  keyframe: (prompt: string, seed = 1, size: { width?: number; height?: number } = {}, model?: string) => post<KeyframeResult>("keyframe", { prompt, seed, ...size, model }),
+  shot: (keys: ShotKey[], prompt: string, duration: number, seed = 1, model?: string) => post<ShotResult>("shot", { keys, prompt, duration, seed, model }),
 };

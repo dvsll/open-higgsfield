@@ -6,6 +6,11 @@
 *{box-sizing:border-box}html,body{height:100%}
 body{margin:0;background:var(--bg);color:var(--txt);font:13px/1.45 Inter,system-ui,sans-serif;display:grid;grid-template-rows:auto 1fr;-webkit-font-smoothing:antialiased}
 button{font:inherit;color:inherit}
+.modelbar{display:flex;gap:10px;align-items:center;color:var(--dim)}
+select{font:inherit;color:var(--txt);background:var(--card);border:1px solid var(--line);padding:8px;min-width:0;max-width:100%}
+.r>select{width:100%;margin:6px 0 10px}.local-models{color:var(--dim);font-size:12px;margin-bottom:14px}
+.local-models summary{cursor:pointer;padding:5px 0}.local-models button{background:var(--card);border:1px solid var(--line);padding:5px 8px;cursor:pointer}
+#modelInventory{max-height:260px;overflow:auto}#modelInventory details div{overflow-wrap:anywhere;padding:4px 0;color:var(--txt)}
 header{display:flex;align-items:center;gap:14px;padding:12px 20px;border-bottom:1px solid var(--line)}
 header a{color:var(--faint);text-decoration:none}header h1{font-size:14px;font-weight:600;margin:0}header .proj{color:var(--dim)}header .sp{flex:1}
 .pill{border:1px solid var(--line);background:none;border-radius:99px;padding:6px 14px;cursor:pointer;color:var(--txt)}
@@ -128,6 +133,7 @@ textarea:focus{border-color:var(--faint)}
    <div class="empty" id="empty"><div class="msg"><h3 id="emT">Not generated yet</h3><p id="emP"></p><svg class="arw" viewBox="0 0 20 56" aria-hidden="true"><path d="M10,2 L10,52" /><path d="M3,44 L10,53 L17,44" /></svg></div>
     </div><span class="tag" id="tag"></span><span class="tc" id="tc"></span>
    <div class="ov" id="ov"><div id="ovt"></div><div class="prog"><i id="pb"></i></div></div></div>
+  <div class="modelbar"><label for="videoModel">Video model</label><select id="videoModel" disabled><option>Connecting…</option></select></div>
   <div class="row">
    <button class="play" id="play" title="Play / pause (space)">▶</button>
    <textarea id="motion" rows="2" placeholder="How should this shot move between its keyframes?"></textarea>
@@ -142,6 +148,8 @@ textarea:focus{border-color:var(--faint)}
  </main>
  <aside class="r">
   <div class="sec">Generate keyframe</div>
+  <label for="keyframeModel">Keyframe model</label><select id="keyframeModel" disabled><option>Connecting…</option></select>
+  <details class="local-models"><summary>Local models · <span id="modelCount">connecting</span></summary><button id="refreshModels" type="button">Refresh models</button><p id="modelStatus" role="status"></p><div id="modelInventory"></div></details>
   <textarea id="kp" rows="3">Mia holds Bolt up to the window, first light on his face</textarea>
   <div class="sec">Elements</div>
   <div class="chips" id="els"></div>

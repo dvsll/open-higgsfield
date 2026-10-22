@@ -41,8 +41,8 @@ function client(env: Env): Comfy {
 
 async function up(url: string): Promise<boolean> {
   try {
-    await fetch(url, { signal: AbortSignal.timeout(1500) });
-    return true; // any HTTP answer counts
+    const response = await fetch(url, { signal: AbortSignal.timeout(1500) });
+    return response.ok;
   } catch {
     return false;
   }
@@ -51,7 +51,7 @@ async function up(url: string): Promise<boolean> {
 /** Start comfy-api-proxy (pip tool) in front of ComfyUI if it isn't running. */
 async function ensureProxy(env: Env): Promise<void> {
   const base = env.COMFY_BASE_URL || "http://127.0.0.1:8189";
-  if (await up(base)) return;
+  if (await up(base + "/api/v2/health")) return;
   const win = process.platform === "win32";
   const candidates = [env.COMFY_API_PROXY, join(ROOT, ".venv", win ? "Scripts/comfy-api-proxy.exe" : "bin/comfy-api-proxy"), "comfy-api-proxy"];
   const exe = candidates.find((c) => c && (c === "comfy-api-proxy" || existsSync(c)))!;
@@ -60,7 +60,7 @@ async function ensureProxy(env: Env): Promise<void> {
   console.log(`[api] starting comfy-api-proxy on 127.0.0.1:${port} -> ${comfyui}`);
   const p = spawn(exe, ["run", "--comfyui", comfyui, "--host", "127.0.0.1", "--port", port], { stdio: "ignore", windowsHide: true });
   p.on("error", (e) => console.warn(`[api] could not start comfy-api-proxy (${e.message}). Install it: pip install comfy-api-proxy`));
-  for (let i = 0; i < 30 && !(await up(base)); i++) await new Promise((r) => setTimeout(r, 500));
+  for (let i = 0; i < 30 && !(await up(base + "/api/v2/health")); i++) await new Promise((r) => setTimeout(r, 500));
 }
 
 async function loadGraph(name: string): Promise<Record<string, any>> {
@@ -112,6 +112,35 @@ function serialize<T>(fn: () => Promise<T>): Promise<T> {
 
 // ---------------- endpoints ----------------
 
+async function comfyJson(env: Env, path: string): Promise<any> {
+  try {
+    const r = await fetch((env.COMFYUI_URL || "http://127.0.0.1:8188") + path, { signal: AbortSignal.timeout(5000) });
+    if (!r.ok) throw new Error(`ComfyUI returned ${r.status}`);
+    return await r.json();
+  } catch { throw new HttpError(503, "Cannot read local models. Check ComfyUI on port 8188 and refresh."); }
+}
+
+async function localModels(env: Env) {
+  const [categories, nodes] = await Promise.all([comfyJson(env, "/models"), comfyJson(env, "/object_info")]);
+  const inventory = await Promise.all((categories as string[]).filter(c => !["configs", "custom_nodes"].includes(c)).map(async category => ({ category, files: await comfyJson(env, "/models/" + encodeURIComponent(category)) as string[] })));
+  const has = (node: string, input: string, file: string) => nodes[node]?.input?.required?.[input]?.[0]?.includes(file) === true;
+  const graphReady = (graph: Record<string, any>) => Object.values(graph).every(n => Boolean(nodes[n.class_type]));
+  const [imageGraph, videoGraph] = await Promise.all([loadGraph("keyframe_zimage"), loadGraph("shot_ltxv")]);
+  const keyframe = has("UNETLoader", "unet_name", "z_image_turbo_bf16.safetensors") && has("CLIPLoader", "clip_name", "qwen_3_4b_fp8_mixed.safetensors") && has("VAELoader", "vae_name", "ae.safetensors") && graphReady(imageGraph)
+    ? [{ id: "z_image_turbo_bf16.safetensors", label: "Z-Image Turbo" }] : [];
+  const video = has("CheckpointLoaderSimple", "ckpt_name", "ltxv-2b-0.9.8-distilled.safetensors") && has("CLIPLoader", "clip_name", "t5xxl_fp8_e4m3fn_scaled.safetensors") && graphReady(videoGraph)
+    ? [{ id: "ltxv-2b-0.9.8-distilled.safetensors", label: "LTX-Video 2B · distilled" }] : [];
+  return { keyframe, video, inventory: inventory.filter(c => c.files.length > 0) };
+}
+
+async function selectedModel(body: any, env: Env, kind: "keyframe" | "video") {
+  const models = (await localModels(env))[kind];
+  const model = body.model ?? models[0]?.id;
+  if (!models.some(m => m.id === model)) throw new HttpError(400, `Selected ${kind} model is unavailable or has no compatible workflow. Refresh local models.`);
+  await ensureProxy(env);
+  return model as string;
+}
+
 const str = (v: unknown, max: number, name: string): string => {
   if (typeof v !== "string" || !v.trim() || v.length > max) throw new HttpError(400, `${name} must be a non-empty string (≤ ${max} chars)`);
   return v;
@@ -126,8 +155,10 @@ const num = (v: unknown, lo: number, hi: number, dflt: number): number => {
 async function keyframe(body: any, env: Env) {
   const prompt = str(body.prompt, 2000, "prompt");
   const seed = Math.floor(num(body.seed, 0, 2 ** 32, 1));
+  const model = await selectedModel(body, env, "keyframe");
   const c = client(env);
   const wf = c.workflows.fromJson(await loadGraph("keyframe_zimage"));
+  wf.setInput("1", "unet_name", model);
   wf.setInput("5", "text", prompt);
   wf.setInput("8", "seed", seed);
   if (body.width) wf.setInput("7", "width", Math.round(num(body.width, 256, 1536, 768) / 16) * 16);
@@ -163,10 +194,12 @@ async function shot(body: any, env: Env) {
     .map((k: any) => ({ image: k.image, t: num(k.t, 0, duration, 0), strength: num(k.strength, 0, 1, 1) }))
     .sort((a: Key, b: Key) => a.t - b.t);
   const paths = keys.map((k) => outputPath(k.image));
+  const model = await selectedModel(body, env, "video");
   const length = Math.max(25, Math.min(121, Math.round((duration * FPS) / 8) * 8 + 1)); // LTX wants 8n+1 frames
   const last = length - 1;
   const c = client(env);
   const wf = c.workflows.fromJson(shotGraph(await loadGraph("shot_ltxv"), keys.length));
+  wf.setInput("1", "ckpt_name", model);
   wf.setInput("3", "text", body.prompt ? str(body.prompt, 2000, "prompt") : "cinematic shot");
   wf.setInput("7", "length", length);
   wf.setInput("14", "noise_seed", Math.floor(num(body.seed, 0, 2 ** 32, 1)));
@@ -183,9 +216,11 @@ async function shot(body: any, env: Env) {
 }
 
 async function health(env: Env) {
+  const comfyui = await up((env.COMFYUI_URL || "http://127.0.0.1:8188") + "/system_stats");
+  if (comfyui) await ensureProxy(env);
   return {
-    comfyui: await up((env.COMFYUI_URL || "http://127.0.0.1:8188") + "/system_stats"),
-    proxy: await up(env.COMFY_BASE_URL || "http://127.0.0.1:8189"),
+    comfyui,
+    proxy: await up((env.COMFY_BASE_URL || "http://127.0.0.1:8189") + "/api/v2/health"),
     queued,
   };
 }
@@ -262,6 +297,7 @@ function middleware(env: Env): Connect.NextHandleFunction {
       }
       const route = `${req.method} ${url.pathname}`;
       if (route === "GET /api/health") return send(res, 200, await health(env));
+      if (route === "GET /api/models") return send(res, 200, await localModels(env));
       if (route === "POST /api/keyframe") return send(res, 200, await keyframe(await readBody(req), env));
       if (route === "POST /api/shot") return send(res, 200, await shot(await readBody(req), env));
       return send(res, 404, { error: "unknown endpoint" });

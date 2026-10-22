@@ -5,9 +5,15 @@ Append dated decisions, render times and requests here. Only the studio owner ed
 ## Where we left off (update this before switching agents)
 _Last updated 2026-10-21 by Codex._
 
+**Current session — local model selection:** attached to the already-running ComfyUI on 127.0.0.1:8188. Director has persistent keyframe/video selectors and a refreshable inventory (22 model files in 9 categories reported by ComfyUI). Only installed, workflow-compatible models with supporting models/nodes present can generate: currently Z-Image Turbo and LTX-Video 2B distilled. Other files are visible in the inventory; arbitrary architectures need their own workflow integration. No models or dependencies downloaded/added. Selectors apply to direct generation, missing keyframes, and Stylemaxx. New typed UI module: `studio/src/models.ts`.
+
+**Shared runtime change (2026-10-21):** `GET /api/models` reads ComfyUI `/models` + `/object_info`; optional `model` on keyframe/shot POST is validated against the installed compatible catalog and set on the workflow loader. Existing callers still use installed defaults. Proxy health now uses `/api/v2/health`, and refresh can reconnect/start the proxy when ComfyUI becomes available later. Generation still goes through SDK → proxy → ComfyUI.
+
+**Current validation/running:** Vite running at http://127.0.0.1:8288 (Codex process session 63561), ComfyUI :8188 and proxy :8189 both healthy. Typecheck/build pass (existing adstudio classic-script warning remains). Browser verified selectors and 22-file inventory count. Live selected-model API render: 256×256 keyframe in 20.7s (`outputs/c4fd937ba045c469.png`); one-second/25-frame shot in 15.9s (`outputs/553da7528965b16c.webm`). Unsupported model selection returns HTTP 400 before generation. Outputs remain gitignored.
+
 **Latest handoff:** pulled origin (main already current at Claude's `36f242a`). Claude also shipped Stylemaxxer, style selector/maker, Elements wall, and generation history. Fixed video history targeting: takes now follow stable shot IDs through reorder/stash/trash, and selecting a take updates the opened shot and clears the old keyframe selection. Existing history migrates by matching the current video URL; older ambiguous entries remain unavailable rather than targeting the wrong shot. IDs/migration persist on page initialization. No dependencies added.
 
-**Validation:** `npm run typecheck` and `npm run build` pass. Build still warns about the partner adstudio non-module kit.js script; untouched. No browser or GPU generation validation this session. No server started by Codex.
+**Previous session validation:** `npm run typecheck` and `npm run build` passed; no browser/GPU validation for the stable shot-history identity fix in that session.
 
 **Next:** finish per-shot/per-keyframe versions and structural undo/redo below; generation history is available but is not a complete version model. Older history without a recoverable shot identity cannot safely be reassigned automatically.
 

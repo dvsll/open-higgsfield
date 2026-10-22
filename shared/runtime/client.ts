@@ -45,6 +45,9 @@ export const OSH = {
   },
   get online() { return online; },
   get reason() { return reason; },
+  upload: (image: string) => post<{ url: string; width: number; height: number }>("upload", { image }),
+  exportVideo: (video: string, overlay?: string) => post<{ url: string; seconds: number }>("export", { video, overlay }),
   keyframe: (prompt: string, seed = 1, size: { width?: number; height?: number } = {}, model?: string) => post<KeyframeResult>("keyframe", { prompt, seed, ...size, model }),
-  shot: (keys: ShotKey[], prompt: string, duration: number, seed = 1, model?: string) => post<ShotResult>("shot", { keys, prompt, duration, seed, model }),
+  // Preserve Director's model argument and Ad Studio's size argument; options can combine both.
+  shot: (keys: ShotKey[], prompt: string, duration: number, seed = 1, options: string | { width?: number; height?: number; model?: string } = {}) => post<ShotResult>("shot", { keys, prompt, duration, seed, ...(typeof options === 'string' ? { model: options } : options) }),
 };

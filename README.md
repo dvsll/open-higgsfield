@@ -47,7 +47,7 @@ Outputs land in `outputs/` (gitignored). Workflow details and timings: `shared/w
 - ComfyUI and the proxy only listen on `127.0.0.1`. Only Vite is ever exposed.
 - `/api` works from localhost only. From any other host it needs `OSH_TOKEN` (set in `.env`, never committed). Share links as `https://<host>/?token=<OSH_TOKEN>`; that sets an HttpOnly cookie and strips the token from the URL.
 - Vite only answers hostnames listed in `OSH_ALLOWED_HOSTS` and refuses to serve `.env*`, keys, `.git`, `.venv`, `.claude`.
-- Inputs are validated, request bodies are capped at 64 KB, GPU jobs run one at a time (max 4 queued), and `/outputs` only serves files the API wrote.
+- Inputs are validated; generation/export JSON is capped at 64 KB. PNG upload JSON is capped at 8 MB (5 MB decoded image, dimensions at most 2048×2048). Jobs run one at a time (max 4 queued), and `/outputs` serves API-owned PNG/WebM/MP4 files. Optional Ad Studio MP4 export uses local FFmpeg with a 90-second timeout; set `FFMPEG_PATH` in `.env` if it is not on PATH.
 - To share: copy `.env.example` to `.env`, set `OSH_HOST=0.0.0.0`, `OSH_ALLOWED_HOSTS` and a long random `OSH_TOKEN`, then `npm run dev`.
 
 ## Rules that keep the split easy

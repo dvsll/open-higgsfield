@@ -14,7 +14,7 @@ import { Comfy } from "@comfyorg/sdk";
 import { spawn } from "node:child_process";
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { existsSync, mkdirSync, createReadStream, statSync } from "node:fs";
-import { readFile } from "node:fs/promises";
+import { readFile, writeFile, unlink } from "node:fs/promises";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -25,8 +25,9 @@ const WORKFLOWS = join(ROOT, "shared", "workflows");
 const OUTPUTS = join(ROOT, "outputs");
 const FPS = 24;
 const MAX_BODY = 64 * 1024;
+const MAX_UPLOAD_BODY = 8 * 1024 * 1024;
 const MAX_QUEUE = 4;
-const OUTPUT_NAME = /^[a-f0-9]{16}\.(png|webm)$/;
+const OUTPUT_NAME = /^[a-f0-9]{16}\.(png|webm|mp4)$/;
 
 type Env = Record<string, string | undefined>;
 type Key = { image: string; t: number; strength?: number };
@@ -193,13 +194,26 @@ async function shot(body: any, env: Env) {
   const keys: Key[] = body.keys
     .map((k: any) => ({ image: k.image, t: num(k.t, 0, duration, 0), strength: num(k.strength, 0, 1, 1) }))
     .sort((a: Key, b: Key) => a.t - b.t);
-  const paths = keys.map((k) => outputPath(k.image));
+  const paths = keys.map((k) => {
+    if (typeof k.image !== "string" || !/^\/outputs\/[a-f0-9]{16}\.png$/.test(k.image)) throw new HttpError(400, "keyframe image must be an API-owned PNG");
+    return outputPath(k.image);
+  });
   const model = await selectedModel(body, env, "video");
   const length = Math.max(25, Math.min(121, Math.round((duration * FPS) / 8) * 8 + 1)); // LTX wants 8n+1 frames
   const last = length - 1;
   const c = client(env);
   const wf = c.workflows.fromJson(shotGraph(await loadGraph("shot_ltxv"), keys.length));
   wf.setInput("1", "ckpt_name", model);
+  const width = Math.round(num(body.width, 256, 1024, 768) / 32) * 32;
+  const height = Math.round(num(body.height, 256, 1024, 448) / 32) * 32;
+  if (width * height > 768 * 768) throw new HttpError(400, "shot resolution too large");
+  wf.setInput("7", "width", width);
+  wf.setInput("7", "height", height);
+  keys.forEach((_, i) => {
+    const node = i ? `6${String(i).padStart(2, "0")}` : "6";
+    wf.setInput(node, "width", width);
+    wf.setInput(node, "height", height);
+  });
   wf.setInput("3", "text", body.prompt ? str(body.prompt, 2000, "prompt") : "cinematic shot");
   wf.setInput("7", "length", length);
   wf.setInput("14", "noise_seed", Math.floor(num(body.seed, 0, 2 ** 32, 1)));
@@ -225,6 +239,60 @@ async function health(env: Env) {
   };
 }
 
+/** Browser-normalized PNG only; saved under an opaque API-owned filename. */
+async function upload(body: any) {
+  if (typeof body.image !== "string" || !body.image.startsWith("data:image/png;base64,")) throw new HttpError(400, "upload must be a PNG data URL");
+  const encoded = body.image.slice(22);
+  if (!encoded || !/^[A-Za-z0-9+/]+={0,2}$/.test(encoded)) throw new HttpError(400, "invalid PNG encoding");
+  const data = Buffer.from(encoded, "base64");
+  if (data.length > 5 * 1024 * 1024) throw new HttpError(413, "PNG exceeds 5 MB");
+  if (data.length < 33 || data.subarray(0, 8).toString("hex") !== "89504e470d0a1a0a" || data.subarray(12, 16).toString() !== "IHDR") throw new HttpError(400, "invalid PNG");
+  const width = data.readUInt32BE(16), height = data.readUInt32BE(20);
+  if (!width || !height || width > 2048 || height > 2048) throw new HttpError(400, "PNG dimensions must be 1–2048 pixels");
+  const name = outputName("png");
+  await writeFile(join(OUTPUTS, name), data);
+  return { url: `/outputs/${name}`, width, height };
+}
+
+/** Local postprocessing only: FFmpeg never receives a client-supplied path or filter. */
+async function exportVideo(body: any, env: Env) {
+  if (typeof body.video !== "string" || !/^\/outputs\/[a-f0-9]{16}\.webm$/.test(body.video)) throw new HttpError(400, "video must be an API-owned WebM");
+  const video = outputPath(body.video);
+  let overlay: string | undefined;
+  if (body.overlay !== undefined) {
+    if (typeof body.overlay !== "string" || !/^\/outputs\/[a-f0-9]{16}\.png$/.test(body.overlay)) throw new HttpError(400, "overlay must be an API-owned PNG");
+    overlay = outputPath(body.overlay);
+  }
+  const name = outputName("mp4"), destination = join(OUTPUTS, name);
+  const args = ["-nostdin", "-hide_banner", "-loglevel", "error", "-n", "-i", video];
+  if (overlay) args.push("-i", overlay, "-filter_complex", "[0:v][1:v]overlay=0:0:format=auto[v]", "-map", "[v]");
+  else args.push("-map", "0:v:0");
+  args.push("-an", "-c:v", "libx264", "-preset", "fast", "-crf", "20", "-pix_fmt", "yuv420p", "-movflags", "+faststart", destination);
+  const t = Date.now();
+  try {
+    await serialize(() => new Promise<void>((ok, fail) => {
+      const p = spawn(env.FFMPEG_PATH || "ffmpeg", args, { windowsHide: true, stdio: ["ignore", "ignore", "pipe"] });
+      let stderr = "";
+      const timeout = setTimeout(() => { p.kill(); fail(new HttpError(504, "video export timed out")); }, 90_000);
+      p.stderr.on("data", (data: Buffer) => { stderr = (stderr + data.toString()).slice(-16000); });
+      p.on("error", (error) => {
+        clearTimeout(timeout);
+        console.error("[api] FFmpeg could not start:", error);
+        fail(new HttpError(503, "FFmpeg unavailable: install it and set FFMPEG_PATH, then restart Vite"));
+      });
+      p.on("close", (code) => {
+        clearTimeout(timeout);
+        if (code === 0) ok();
+        else { console.error("[api] FFmpeg export failed:", stderr); fail(new HttpError(500, "video export failed (see server log)")); }
+      });
+    }));
+  } catch (error) {
+    await unlink(destination).catch(() => {});
+    throw error;
+  }
+  return { url: `/outputs/${name}`, seconds: +((Date.now() - t) / 1000).toFixed(1) };
+}
+
 // ---------------- HTTP plumbing ----------------
 
 class HttpError extends Error {
@@ -241,13 +309,13 @@ function send(res: ServerResponse, status: number, obj: unknown) {
   res.end(body);
 }
 
-function readBody(req: IncomingMessage): Promise<any> {
+function readBody(req: IncomingMessage, limit = MAX_BODY): Promise<any> {
   return new Promise((ok, fail) => {
     let size = 0;
     const chunks: Buffer[] = [];
     req.on("data", (c: Buffer) => {
       size += c.length;
-      if (size > MAX_BODY) { fail(new HttpError(413, "request too large")); req.removeAllListeners("data"); req.resume(); }
+      if (size > limit) { fail(new HttpError(413, "request too large")); req.removeAllListeners("data"); req.resume(); }
       else chunks.push(c);
     });
     req.on("end", () => { try { ok(chunks.length ? JSON.parse(Buffer.concat(chunks).toString("utf8")) : {}); } catch { fail(new HttpError(400, "invalid JSON")); } });
@@ -292,12 +360,14 @@ function middleware(env: Env): Connect.NextHandleFunction {
         if (req.method !== "GET" || !OUTPUT_NAME.test(name)) return send(res, 404, { error: "not found" });
         const p = join(OUTPUTS, name);
         if (!existsSync(p)) return send(res, 404, { error: "not found" });
-        res.writeHead(200, { "Content-Type": name.endsWith(".png") ? "image/png" : "video/webm", "Content-Length": statSync(p).size, "Cache-Control": "private, max-age=31536000, immutable", "X-Content-Type-Options": "nosniff" });
+        res.writeHead(200, { "Content-Type": name.endsWith(".png") ? "image/png" : name.endsWith(".mp4") ? "video/mp4" : "video/webm", "Content-Length": statSync(p).size, "Cache-Control": "private, max-age=31536000, immutable", "X-Content-Type-Options": "nosniff" });
         return createReadStream(p).pipe(res);
       }
       const route = `${req.method} ${url.pathname}`;
       if (route === "GET /api/health") return send(res, 200, await health(env));
       if (route === "GET /api/models") return send(res, 200, await localModels(env));
+      if (route === "POST /api/upload") return send(res, 200, await upload(await readBody(req, MAX_UPLOAD_BODY)));
+      if (route === "POST /api/export") return send(res, 200, await exportVideo(await readBody(req), env));
       if (route === "POST /api/keyframe") return send(res, 200, await keyframe(await readBody(req), env));
       if (route === "POST /api/shot") return send(res, 200, await shot(await readBody(req), env));
       return send(res, 404, { error: "unknown endpoint" });

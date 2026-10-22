@@ -1,6 +1,7 @@
 ﻿import { OSH } from '../../shared/runtime/client';
 
 import { taglineOverlay } from './overlay';
+import { prepareReference, type Framing } from './reference';
 
 const el = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const photo = el<HTMLInputElement>('photo');
@@ -121,6 +122,7 @@ el<HTMLFormElement>('brief').addEventListener('submit', async (event) => {
   const duration = Number(el<HTMLSelectElement>('duration').value);
   const seed = Number(el<HTMLInputElement>('seed').value);
   const tagline = el<HTMLInputElement>('tagline').value.trim();
+  const framing = el<HTMLSelectElement>('framing').value as Framing;
   const prompt = `${pitch} ${vibes[el<HTMLSelectElement>('vibe').value]} Preserve the reference product appearance and branding. No added text.`;
   busy = true;
   fields.disabled = true;
@@ -131,10 +133,13 @@ el<HTMLFormElement>('brief').addEventListener('submit', async (event) => {
     await check();
     if (!OSH.online) throw new Error(OSH.reason + '. Start ComfyUI and the proxy, then check connection.');
     status.textContent = 'Uploading product reference…';
-    const uploaded = await OSH.upload(image);
+    const uploaded = framing === 'crop' ? await OSH.upload(image) : null;
     for (const ratio of ratios) {
+      status.textContent = `Preparing ${ratio} product reference…`;
+      const size = sizes[ratio];
+      const reference = uploaded || await OSH.upload(await prepareReference(image, size.width, size.height, framing));
       status.textContent = `Generating ${ratio} (${completed + 1}/${ratios.length})… This may take several minutes. Keep this tab open.`;
-      const result = await OSH.shot([{ image: uploaded.url, t: 0 }], prompt, duration, seed, sizes[ratio]);
+      const result = await OSH.shot([{ image: reference.url, t: 0 }], prompt, duration, seed, size);
       const card = document.createElement('article');
       card.className = 'out';
       const title = document.createElement('strong');
@@ -150,7 +155,7 @@ el<HTMLFormElement>('brief').addEventListener('submit', async (event) => {
       download.textContent = 'Download WebM';
       const details = document.createElement('p');
       details.className = 'note';
-      details.textContent = `Seed ${seed} · ${prompt}`;
+      details.textContent = `Seed ${seed} · ${framing === 'fit' ? 'Fit whole photo' : 'Crop to fill'} · ${prompt}`;
       const exportButton = document.createElement('button');
       exportButton.type = 'button';
       exportButton.className = 'btng';

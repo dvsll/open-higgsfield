@@ -140,6 +140,8 @@ textarea:focus{border-color:var(--faint)}
 .empty .msg{transform:translate(-50%,-65%)}.empty h3{font-size:clamp(22px,2.5vw,34px);letter-spacing:-.035em}.empty p{font-size:15px;color:#c6c2b9;margin-top:10px}
 #generateArrow{position:fixed;inset:0;width:100vw;height:100vh;z-index:12;pointer-events:none;overflow:visible;fill:none;stroke:var(--key);stroke-width:4;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 2px 5px #0009)}#generateArrow marker{stroke-width:2.5}
 @media(prefers-reduced-motion:reduce){#gen.nudge{animation:none;box-shadow:0 0 0 2px var(--key)}}
+#gen{display:flex;align-items:center;justify-content:center;gap:10px;flex:none;min-width:178px;min-height:72px;padding:16px 20px;white-space:nowrap;background:linear-gradient(135deg,#f3d99b,#dfad4f);color:#211a0d;border:1px solid #f7dfa9;font-size:14px;font-weight:650;letter-spacing:-.02em;box-shadow:inset 0 1px 0 #fff6,0 4px 18px #dfad4f20;cursor:pointer;transition:background .15s,transform .15s,box-shadow .15s}
+#gen svg{width:21px;height:21px;fill:currentColor;flex:none}#gen:hover{background:linear-gradient(135deg,#ffe9b9,#edbf68);box-shadow:inset 0 1px 0 #fff8,0 5px 24px #dfad4f35;transform:translateY(-1px)}#gen:active{transform:translateY(1px);box-shadow:inset 0 2px 5px #55360030}#gen:focus-visible{outline:2px solid #fff0c9;outline-offset:4px}#gen.nudge{animation:generateGlow 2.6s ease-in-out infinite}@keyframes generateGlow{50%{box-shadow:inset 0 1px 0 #fff6,0 0 0 3px #dfad4f18,0 5px 26px #dfad4f30}}@media(prefers-reduced-motion:reduce){#gen.nudge{animation:none}#gen{transition:none}}
 /* No rounded corners anywhere for now (overrides shell.js styles too). */
 *,*::before,*::after{border-radius:0!important}
 </style></head><body>
@@ -159,7 +161,7 @@ textarea:focus{border-color:var(--faint)}
    <button class="play" id="play" title="Play / pause (space)">▶</button>
    <div class="prompt-field" data-model-kind="video" data-model-control="shotPromptInput"><label for="shotPromptInput">Shot prompt</label><textarea id="shotPromptInput" rows="2" placeholder="Describe the scene and visual details…"></textarea></div>
    <div class="prompt-field" data-model-kind="video" data-model-control="motion"><label for="motion">Motion prompt</label><textarea id="motion" rows="2" placeholder="Describe subject and camera movement…"></textarea></div>
-   <button class="pill solid" id="gen" style="white-space:nowrap;padding:0 18px">Generate shot</button>
+   <button class="pill solid" id="gen"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m12 3 2.4 6.6L21 12l-6.6 2.4L12 21l-2.4-6.6L3 12l6.6-2.4Z"/><path d="m20 2 .6 1.4L22 4l-1.4.6L20 6l-.6-1.4L18 4l1.4-.6Z"/></svg><span>Generate video</span></button>
   </div>
   <div class="tlw">
    <div class="tlh"><span class="crumb" id="crumb"></span><span id="tot"></span><span class="sp"></span><span class="hint" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0"><span id="hintT"></span></span><button id="trashBtn" class="trashb" title="Deleted shots (restorable)"></button><button id="addKeyBtn" title="Add a keyframe at the playhead (copies the nearest one)">＋ Keyframe</button><button id="editKey" title="Open the selected keyframe in Edit Anything">✎ Edit keyframe</button><button id="delKey">Remove key</button></div>

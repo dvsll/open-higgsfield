@@ -9,10 +9,10 @@
   "containerDiskInGb": 30,
   "volumeInGb": 200,
   "volumeMountPath": "/workspace",
-  "minRAMPerGPU": 64,
+  "minRAMPerGPU": 110,
   "minVCPUPerGPU": 8,
   "minDownloadMbps": 1000,
-  "allowedCudaVersions": ["12.8", "12.9", "13.0"],
+  "allowedCudaVersions": ["12.8", "13.0"],
   "ports": ["22/tcp"],
   "env": {"PUBLIC_KEY": "REPLACE_WITH_APPROVED_SSH_PUBLIC_KEY"}
 }

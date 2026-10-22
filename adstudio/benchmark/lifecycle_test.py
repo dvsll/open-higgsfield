@@ -1,4 +1,4 @@
-import importlib.util, pathlib, unittest
+import importlib.util, json, pathlib, tempfile, unittest
 from unittest.mock import patch
 spec=importlib.util.spec_from_file_location('lifecycle',pathlib.Path(__file__).with_name('lifecycle.py'))
 life=importlib.util.module_from_spec(spec);spec.loader.exec_module(life)
@@ -7,7 +7,17 @@ class LifecycleTests(unittest.TestCase):
     def test_bounds(self):
         self.assertEqual(life.validate_lease(self.lease,1100),self.lease)
         for field,value in [('deadline',12000),('gpuRate',2),('sessionCap',10),('networkVolumeId','volume'),('podId','../other')]:
-            with self.subTest(field=field), self.assertRaises((AssertionError,KeyError)): life.validate_lease({**self.lease,field:value},1100)
+            with self.subTest(field=field), self.assertRaises((ValueError,KeyError)): life.validate_lease({**self.lease,field:value},1100)
+    def test_watchdog_heartbeat_required(self):
+        base=pathlib.Path('outputs/benchmark-preflight-20261022').resolve();base.mkdir(parents=True,exist_ok=True)
+        with tempfile.TemporaryDirectory(dir=base) as folder:
+            file=pathlib.Path(folder)/'ready.json'
+            with self.assertRaises(FileNotFoundError):life.require_armed(self.lease,file,1100)
+            proof={k:self.lease[k] for k in ['podId','created','deadline']}|{'state':'armed','checked':1090}
+            file.write_text(json.dumps(proof));self.assertTrue(life.require_armed(self.lease,file,1100))
+            for bad in [{**proof,'checked':1000},{**proof,'podId':'other'},{**proof,'state':'starting'}]:
+                file.write_text(json.dumps(bad))
+                with self.assertRaises(RuntimeError):life.require_armed(self.lease,file,1100)
     def test_early_termination(self):
         self.assertFalse(life.expired(self.lease,1100))
         self.assertTrue(life.expired(self.lease,11500))

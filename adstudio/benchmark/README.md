@@ -2,6 +2,8 @@
 
 Preparation only. No deployment, paid operation, private upload or weight download is authorized yet. Experimental assets never change production defaults. This report records readiness, commands, costs and the approval gate.
 
+**Final no-spend audit: [PREFLIGHT.md](PREFLIGHT.md). Deployment is NO-GO until its account, CPU-container validation, live-quote and explicit approval gates are satisfied.** The user selected the printed-label surrogate; private transfer is still separately gated.
+
 **Readiness: prepared for review; NOT validated on a remote GPU.** Static graph/schema checks, hash-lock tests, default no-action paths, mocked termination/identity checks and CPU artifact collection pass. Linux shell execution, remote dependency imports, A100 fit/latency, proxy SaveVideo download, real termination and settled billing remain untested. No claim that this model meets product fidelity or that a three-hour session is guaranteed to succeed.
 
 ## Proposed components and licensing (before any future installation)
@@ -15,7 +17,7 @@ Preparation only. No deployment, paid operation, private upload or weight downlo
 
 ## Selected environment and reproducibility
 
-One **on-demand Secure Cloud A100 PCIe80GB**, at least64GB RAM/8vCPU (public listing117GB/8vCPU), host supporting CUDA12.8, local SSD, 30GB container +200GB Pod volume. No network/global volume and no spot interruptions. A100 SXM80GB is an alternative only after checking the same price, RAM and availability. [Publisher requirements](https://docs.ltx.io/open-source-model/getting-started/system-requirements) recommend A10080GB/H100,64GB+RAM,200GB+SSD, CUDA12.7+, Python3.12+.
+One **on-demand Secure Cloud A100 PCIe80GB**, request at least110GB RAM/8vCPU (public listing117GB/8vCPU), host supporting CUDA12.8, local SSD, 30GB container +200GB Pod volume. Health requires100GiB actual RAM: conservative engineering headroom for loading/offloading this71GB BF16 bundle, not measured memory usage. No network/global volume and no spot interruptions. A100 SXM80GB is an alternative only after checking the same price, RAM and availability. [Publisher requirements](https://docs.ltx.io/open-source-model/getting-started/system-requirements) recommend A10080GB/H100,64GB+RAM,200GB+SSD, CUDA12.7+, Python3.12+.
 
 Use the [official Runpod prebuilt ComfyUI image](https://docs.runpod.io/tutorials/pods/comfyui), Linux/amd64 digest in `pins.json`, rather than a bare CUDA image. Metadata reports5.63GB compressed. Its [build source](https://github.com/runpod-workers/comfyui-base/blob/33dfcd67fd5dfa666bc339aae4b92cf25d292a8b/docker-bake.hcl) pins Python3.12, CUDA12.8, torch2.10.0+cu128, torchvision0.25.0+cu128, torchaudio2.10.0+cu128. It bakes **ComfyUIv0.30.0**, too old for the selected node package's declared>=0.35.0 requirement. Therefore use its preinstalled environment but a **fresh isolated pinned Comfy checkout**, not its default graph/server. No Manager auto-updates or inherited custom-node folders in the benchmark checkout.
 
@@ -71,6 +73,8 @@ Hard maximum is three hours from **Pod creation**, including initialization, dow
 
 Required before a paid action: explicit user approval of one quoted A100 session, <=3h/initial$6/total$10, selected region, storage lifecycle and exact approved input cases; user-controlled HF gated-access acceptance; SSH/public-key configuration; ephemeral Runpod termination credential and separate read-only billing credential where supported; independently hosted watchdog available for the entire session. Credentials stay out of Git/logs. A broad API key is not magically scoped to this Pod by our script; revoke ephemeral credentials after deletion.
 
+Before reserving anything, run `python adstudio/benchmark/access.py --check-head` with HF_TOKEN supplied privately. This checks all five exact files with HEAD, preserves HEAD across redirects and strips authorization on cross-host redirects. It never downloads model bytes. Missing token/access must be resolved before paying for a Pod. Also complete the free CPU-container import/schema/transport check in PREFLIGHT.md; the local machine has no Docker runtime, so that gate is currently NOT RUN.
+
 Read-only public metadata was accessed during preparation. No Runpod account resources/billing were accessed. `--approved` is a guard against accidental execution, **not a substitute for user approval**.
 
 After approval, review `pod-request.example.json` into a private `outputs/ltx25-benchmark/pod-request.approved.json`, fill session name/public SSH key, confirm the live quote. Only22/tcp is published; no ComfyUI/proxy/Jupyter/file-browser HTTP ports. The example does not itself impose a provider-enforced hourly price cap.
@@ -80,17 +84,19 @@ Local PowerShell, **after approval only** (API1 remains documented; do not mix w
 # RUNPOD_API_KEY supplied privately; do not echo it or store it in source.
 curl.exe --fail --silent --show-error --request POST https://rest.runpod.io/v1/pods --header "Authorization: Bearer $env:RUNPOD_API_KEY" --header "Content-Type: application/json" --data-binary '@outputs/ltx25-benchmark/pod-request.approved.json' --output outputs/ltx25-benchmark/pod.json
 ```
-There is deliberately **no provisioning function in the scripts**. Record exact Pod ID/name/created timestamp/live rate from response/console. Populate private `lease.json` from `lease.example.json`: UNIX creation time in seconds, deadline=created+10800, actual storageHourly (expected~.031507), no networkVolumeId. Do not reset created/deadline after a restart. The example lease with created0 is intentionally invalid.
+There is deliberately **no provisioning function in the scripts**. Save a local UNIX timestamp **immediately before** the approved POST; use it as the conservative lease start (the documented v1 response does not promise a createdAt field). Record exact Pod ID/name/live rate from response/console. Populate private `lease.json` from `lease.example.json`: saved pre-request time in seconds, deadline=created+10800, actual storageHourly (expected~.031507), no networkVolumeId. Do not reset created/deadline after a restart. The example lease with created0 is intentionally invalid.
 
 Immediately arm the external watchdog on an independent always-awake host, before waiting for SSH or installing anything:
 ```powershell
-python adstudio/benchmark/lifecycle.py watch --lease outputs/ltx25-benchmark/lease.json --approved
+python adstudio/benchmark/lifecycle.py watch --lease outputs/ltx25-benchmark/lease.json --ready-file outputs/ltx25-benchmark/watchdog-ready.json --approved
 ```
-Run this in its own retained session. Prevent host sleep/disconnection; confirm its armed message. A second watchdog must run inside the Pod as soon as SSH is available. Neither watchdog is the render worker. Do not rely on credits running out.
+Run this in its own retained session. Prevent host sleep/disconnection; confirm its armed message and fresh ready file. A second watchdog must run inside the Pod as soon as SSH is available. Neither watchdog is the render worker. A running process alone is not readiness: the file is refreshed only after successful authenticated identity/rate checks; workers require a matching heartbeat no older than45s. Do not rely on credits running out.
 
 Copy **only this public benchmark package** and private lease using authenticated SSH/SCP, after verifying the provider's SSH host identity. Use the actual direct SSH host and mapped22/tcp port from Pod Connect; no guessed host/key or disabled host-key checks:
 ```powershell
-scp -P <ssh-port> -r adstudio/benchmark root@<verified-host>:/workspace/benchmark-package
+git archive --format=tar --output=outputs/benchmark-package.tar HEAD adstudio/benchmark
+scp -P <ssh-port> outputs/benchmark-package.tar root@<verified-host>:/workspace/benchmark-package.tar
+ssh -p <ssh-port> root@<verified-host> "mkdir -p /workspace/benchmark-package && tar -xf /workspace/benchmark-package.tar --strip-components=2 -C /workspace/benchmark-package"
 scp -P <ssh-port> outputs/ltx25-benchmark/lease.json root@<verified-host>:/workspace/lease.json
 ssh -p <ssh-port> -L 28188:127.0.0.1:28188 -L 28189:127.0.0.1:28189 root@<verified-host>
 ```
@@ -99,8 +105,11 @@ No photo SCP is necessary: the approved SDK run lazily transfers only its select
 Inside the remote shell (separate persistent watchdog session first; Runpod key provided privately, never baked into image):
 ```bash
 export BENCHMARK_LEASE=/workspace/lease.json
-python3.12 /workspace/benchmark-package/lifecycle.py watch --lease "$BENCHMARK_LEASE" --approved
-# Separate shell. The external watchdog is already protecting all setup time.
+export BENCHMARK_WATCHDOG_READY=/workspace/watchdog-ready.json
+# RUNPOD_API_KEY supplied privately in this shell.
+python3.12 /workspace/benchmark-package/lifecycle.py watch --lease "$BENCHMARK_LEASE" --ready-file "$BENCHMARK_WATCHDOG_READY" --approved
+# Separate shell: export these same LEASE/READY variables and the private
+# RUNPOD_API_KEY again. Shell exports do not propagate between SSH sessions.
 bash /workspace/benchmark-package/setup.sh --approved
 # HF_TOKEN provided privately after the user accepts model terms.
 /workspace/adstudio-benchmark/venv/bin/python /workspace/benchmark-package/weights.py --approved
@@ -108,11 +117,18 @@ bash /workspace/benchmark-package/start.sh --approved
 # Separate shell after services are ready:
 /workspace/adstudio-benchmark/venv/bin/python /workspace/benchmark-package/health.py
 ```
-`start.sh` also arms a watchdog and traps service failure/exit to terminate. A manual watchdog armed before setup remains independent. It starts the fresh Comfy checkout on loopback28188 with API nodes disabled, proxy0.1.6 on28189. The official image's old default server may be idle on8188; never submit to it. If the host can't support the pinned CUDA stack, terminate rather than replacing packages during the paid session.
+`start.sh` also arms a watchdog and traps service failure/exit to terminate. A manual watchdog armed before setup remains independent. Setup checks the authenticated heartbeat, bounds source fetches/pip, and terminates on failure. Downloads check heartbeat/deadline per block and terminate on failure, including the45-minute bootstrap limit. Comfy startup must pass health within its bounded poll; an alive-but-unarmed watchdog cannot enable it. Runpod/HF secrets are removed from Comfy/proxy child environments. It starts the fresh checkout on loopback28188 with API nodes disabled, proxy0.1.6 on28189. The old default server may be idle on8188; never submit to it. If the host can't support the pinned stack, terminate rather than replacing packages during the paid session.
+
+`health.py` saves `/workspace/benchmark-health.json` after verifying the environment and all weight hashes. Copy that small report locally **before any private upload**:
+```powershell
+scp -P <ssh-port> root@<verified-host>:/workspace/benchmark-health.json outputs/ltx25-benchmark/remote-health.json
+```
 
 Locally through the SSH tunnel, using the existing npm lock installation and Node>=22.18:
 ```powershell
 $env:BENCHMARK_LEASE='outputs/ltx25-benchmark/lease.json'
+$env:BENCHMARK_WATCHDOG_READY='outputs/ltx25-benchmark/watchdog-ready.json'
+$env:BENCHMARK_HEALTH_REPORT='outputs/ltx25-benchmark/remote-health.json'
 $env:COMFY_BASE_URL='http://127.0.0.1:28189'
 $env:BENCHMARK_COMFY_URL='http://127.0.0.1:28188'
 node adstudio/benchmark/render.mjs --approved --case cookie --seed 1
@@ -120,7 +136,7 @@ node adstudio/benchmark/collect.mjs
 node adstudio/benchmark/render.mjs --approved --case printed-label --seed 1
 node adstudio/benchmark/collect.mjs
 ```
-The local SDK → remote proxy → remote ComfyUI architecture is preserved. Runner validates graph/model choices before lazy upload, records guide/graph/model hashes, exact prompt, seed, system stats, job ID, elapsed cold/warm occupied time and errors. It writes attempt ledger **before** submission and prevents duplicates. No automatic retry. Remote `health.py` verifies exact commits, Python/CUDA/PyTorch/GPU/RAM, all five weight hashes, FFmpeg, dependency consistency and service health. It never queues a render. Do not use the production `/api/shot` or modify models.json to run this benchmark.
+The local SDK → remote proxy → remote ComfyUI architecture is preserved. Runner requires a matching lease, fresh external watchdog heartbeat and remote environment/weight-hash report, then validates graph/model choices before lazy upload. It records guide/graph/model hashes, exact prompt, seed, system stats, job ID, elapsed time and errors. It writes attempt ledger **before** submission and prevents duplicates. No automatic retry. Render/download waits are bounded. Remote `health.py` verifies exact commits, Python/CUDA/PyTorch/GPU/RAM, all five weight hashes, FFmpeg, dependency consistency and service health. It never queues a render. Do not use production `/api/shot` or models.json for this benchmark.
 
 During rendering collect peak GPU state from a separate remote shell, and copy logs before termination:
 ```bash
@@ -166,7 +182,7 @@ If either first case has severe identity/label damage, stop and classify the lim
 
 ## Validation and unresolved items
 
-PASS locally: public metadata revisions/digests/LFS file hashes;109-package Linux/Python3.12 resolution and hash lock; API graph schema excluding absent weights; deterministic graph settings/AV timing, missing-node/link/cycle rejection; default runner/downloader/watchdog no-action paths; five mocked lease/cutoff/identity/DELETE verification tests; Python syntax; Node syntax; CPU fixture artifact collection/contact sheets/gallery. The collector fixture is explicitly synthetic, not an LTX output or quality comparison. Source photos were inspected/prepared locally and rehashed unchanged.
+PASS locally: public metadata revisions/digests/LFS file hashes;109-package Linux/Python3.12 resolution and hash lock; API graph schema excluding absent weights; deterministic graph settings/AV timing, missing-node/link/cycle rejection; upload lease/heartbeat/health gates; default no-action paths; six lifecycle and four downloader/HEAD redirect tests; Python/Node/Git Bash syntax and default dry runs; CPU artifact collection. A new synthetic73-frame local SDK → proxy → Comfy CreateVideo/SaveVideo → H.264 download also passes without model nodes. These synthetic tests are not LTX quality comparisons. Source photos remain private and unchanged.
 
 NOT RUN: Linux setup/start shell execution, remote import/pip-check, A100 GPU render/VRAM/latency, real SDK/proxy SaveVideo output compatibility, actual provider deletion and billing, real model video playback/quality, actual brand-logo case. Resolve any import/schema failure before uploading private photos or queueing a paid render. Latest source plus resolved dependency metadata is a **candidate compatible stack**, not a tested environment image. No costs incurred by this preparation.
 

@@ -1,5 +1,7 @@
 ﻿import { OSH } from '../../shared/runtime/client';
 
+import { taglineOverlay } from './overlay';
+
 const el = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const photo = el<HTMLInputElement>('photo');
 const product = el<HTMLImageElement>('product');
@@ -7,6 +9,10 @@ const fields = el<HTMLFieldSetElement>('fields');
 const go = el<HTMLButtonElement>('go');
 const status = el<HTMLParagraphElement>('status');
 const outs = el<HTMLDivElement>('outs');
+const exportAll = el<HTMLButtonElement>('export-all');
+type Ad = { ratio: string; seed: number; source: string; tagline: string; video: HTMLVideoElement; button: HTMLButtonElement; link: HTMLAnchorElement; message: HTMLParagraphElement; exporting: boolean; exported: boolean };
+const ads: Ad[] = [];
+let batchExporting = false;
 let image = '';
 let busy = false;
 let reading = false;
@@ -21,7 +27,51 @@ const vibes: Record<string, string> = {
   life: 'Natural daylight, lifestyle commercial, gentle cinematic camera movement.',
   ugc: 'Natural handheld camera movement, authentic product demonstration.',
 };
-function ready() { go.disabled = busy || reading || !image || !OSH.online; }
+function ready() {
+  go.disabled = busy || reading || !image || !OSH.online;
+  exportAll.disabled = busy || batchExporting || !ads.some(ad => !ad.exported && !ad.exporting);
+}
+async function exportAd(ad: Ad): Promise<boolean> {
+  if (ad.exporting || ad.exported) return ad.exported;
+  ad.exporting = true;
+  ad.button.disabled = true;
+  ad.message.textContent = 'Exporting MP4…';
+  ready();
+  try {
+    let overlay: string | undefined;
+    if (ad.tagline) {
+      const size = sizes[ad.ratio];
+      overlay = (await OSH.upload(taglineOverlay(size.width, size.height, ad.tagline))).url;
+    }
+    const result = await OSH.exportVideo(ad.source, overlay);
+    ad.link.href = result.url;
+    ad.link.download = `ad-${ad.ratio.replace(':', 'x')}-${ad.seed}.mp4`;
+    ad.link.textContent = 'Download MP4';
+    ad.link.hidden = false;
+    ad.video.src = result.url;
+    ad.message.textContent = `MP4 ready${ad.tagline ? ' with tagline' : ''} · exported in ${result.seconds} s`;
+    ad.button.textContent = 'MP4 exported';
+    ad.exported = true;
+    return true;
+  } catch (error) {
+    ad.message.textContent = (error as Error).message;
+    ad.button.textContent = 'Retry MP4 export';
+    return false;
+  } finally {
+    ad.exporting = false;
+    ad.button.disabled = ad.exported;
+    ready();
+  }
+}
+exportAll.addEventListener('click', async () => {
+  batchExporting = true;
+  ready();
+  let failed = 0;
+  for (const ad of ads.filter(ad => !ad.exported && !ad.exporting)) if (!(await exportAd(ad))) failed++;
+  batchExporting = false;
+  status.textContent = failed ? `${failed} export(s) failed. Generated WebMs remain available; retry on each card.` : 'MP4 exports ready. Preview or download each format below.';
+  ready();
+});
 async function check() {
   const h = await OSH.health();
   el('health').textContent = h.online ? '● Local ComfyUI connected' : `Offline: ${h.reason}`;
@@ -70,6 +120,7 @@ el<HTMLFormElement>('brief').addEventListener('submit', async (event) => {
   if (!pitch) { status.textContent = 'Write a motion brief.'; return; }
   const duration = Number(el<HTMLSelectElement>('duration').value);
   const seed = Number(el<HTMLInputElement>('seed').value);
+  const tagline = el<HTMLInputElement>('tagline').value.trim();
   const prompt = `${pitch} ${vibes[el<HTMLSelectElement>('vibe').value]} Preserve the reference product appearance and branding. No added text.`;
   busy = true;
   fields.disabled = true;
@@ -100,7 +151,20 @@ el<HTMLFormElement>('brief').addEventListener('submit', async (event) => {
       const details = document.createElement('p');
       details.className = 'note';
       details.textContent = `Seed ${seed} · ${prompt}`;
-      card.append(title, video, download, details);
+      const exportButton = document.createElement('button');
+      exportButton.type = 'button';
+      exportButton.className = 'btng';
+      exportButton.textContent = 'Export MP4';
+      const mp4 = document.createElement('a');
+      mp4.hidden = true;
+      const message = document.createElement('p');
+      message.className = 'note';
+      message.setAttribute('role', 'status');
+      message.textContent = tagline ? `MP4 tagline: ${tagline}` : 'MP4 export without tagline.';
+      const ad: Ad = { ratio, seed, tagline, source: result.url, video, button: exportButton, link: mp4, message, exporting: false, exported: false };
+      ads.push(ad);
+      exportButton.addEventListener('click', () => void exportAd(ad));
+      card.append(title, video, download, exportButton, mp4, message, details);
       outs.prepend(card);
       completed++;
     }

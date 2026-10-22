@@ -15,6 +15,11 @@ Export workflows from ComfyUI with **Save (API format)** and commit the JSON nex
 
 ## Workflows
 
+### Local export API (postprocessing, not a generation workflow)
+- `POST /api/export`: `{video: "/outputs/<hex>.webm", overlay?: "/outputs/<hex>.png"}` → `{url: "/outputs/<hex>.mp4", seconds}`. Only existing API-owned files are accepted, under the same localhost/token gate. Source WebM is kept.
+- Uses local FFmpeg (`FFMPEG_PATH` or PATH), H.264/libx264, yuv420p, no audio, faststart. Optional static PNG is composited at 0,0; Ad Studio creates a same-size transparent tagline PNG in the browser and uploads it. No client-provided filesystem paths, shell commands or filter expressions.
+- Shared queue, 90-second export timeout; failure removes partial MP4. No generation models or workflow JSON change. FFmpeg must be installed separately.
+
 Dev set: small + fast, for iterating locally on 12 GB cards (4070 Super; should fit a 3080 with ComfyUI offloading, untested).
 Swap to LTX-2.5 + IC-LoRAs on a rented 32 GB+ GPU for final renders.
 

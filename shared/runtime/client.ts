@@ -39,6 +39,7 @@ export const OSH = {
   get online() { return online; },
   get reason() { return reason; },
   upload: (image: string) => post<{ url: string; width: number; height: number }>("upload", { image }),
+  exportVideo: (video: string, overlay?: string) => post<{ url: string; seconds: number }>("export", { video, overlay }),
   keyframe: (prompt: string, seed = 1, size: { width?: number; height?: number } = {}) => post<KeyframeResult>("keyframe", { prompt, seed, ...size }),
   shot: (keys: ShotKey[], prompt: string, duration: number, seed = 1, size: { width?: number; height?: number } = {}) => post<ShotResult>("shot", { keys, prompt, duration, seed, ...size }),
 };

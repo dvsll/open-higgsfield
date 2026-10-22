@@ -25,10 +25,13 @@ assert.equal((await post('/api/upload', { image: 'x'.repeat(8 * 1024 * 1024) }))
 assert.equal((await post('/api/shot', { keys: [{ image: '/outputs/../../secret', t: 0 }], duration: 2 })).status, 400);
 assert.equal((await post('/api/shot', { keys: [], duration: 2 })).status, 400);
 assert.equal((await post('/api/keyframe', { prompt: '' })).status, 400);
+assert.equal((await post('/api/export', { video: '/outputs/../../secret' })).status, 400);
+assert.equal((await post('/api/export', { video: result.url })).status, 400);
+assert.equal((await post('/api/shot', { keys: [{ image: '/outputs/aaaaaaaaaaaaaaaa.mp4', t: 0 }], duration: 2 })).status, 400);
 const remoteStatus = await new Promise((resolve, reject) => {
   http.get(base + '/api/health', { headers: { host: 'untrusted.example' } }, response => {
     response.resume(); resolve(response.statusCode);
   }).on('error', reject);
 });
 assert.ok(remoteStatus === 401 || remoteStatus === 403);
-console.log('PASS: page, upload roundtrip, malformed/oversized inputs, keyframe/path validation, remote-host denial. GPU rendering not tested.');
+console.log('PASS: page, upload roundtrip, malformed/oversized inputs, keyframe/export path validation, remote-host denial. GPU rendering not tested.');

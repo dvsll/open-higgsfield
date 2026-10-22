@@ -42,3 +42,5 @@ Check `DEADLINES.md`:
 
 ## Requests from partner
 - 2026-10-21 (Ad Studio P0): adding `/api/upload` for bounded PNG product images and optional shot width/height for per-ratio generation. Existing shot defaults and Director calls stay compatible. Reusing the current SDK/proxy/LTX workflow; no studio files changed. See notes/adstudio.md for verification and blockers.
+- 2026-10-21 (Ad Studio P0 export): adding `/api/export` for API-owned WebM + optional PNG tagline overlay → local FFmpeg H.264 MP4. Adding MP4 output serving and OSH.exportVideo; generation routes unchanged. Existing installed FFmpeg GPLv3 build, no package/model changes; FFMPEG_PATH config documented. Verification tracked in notes/adstudio.md.
+- 2026-10-21 (Ad Studio verification): real SDK→proxy→LTX-Video 2B renders passed on partner RTX 3080 10 GB in all three formats. Added local FFmpeg MP4 export verified with/without transparent overlays; SDK generation defaults retained, shot image validation tightened to PNG. Build/typecheck/HTTP checks pass. No studio/ files changed. Final LTX-2.5 workflow remains pending coordination.

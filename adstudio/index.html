@@ -7,13 +7,14 @@ body{font-family:Inter,system-ui,sans-serif}button,input,textarea,select,.inp,.b
 <header class="bar"><span class="brand">Ad Studio</span><span class="note">Product photo → LTX video</span><span id="health" class="note" role="status">Checking local generation…</span></header>
 <main class="body">
 <section class="side"><label class="h" for="photo">Product photo</label><input id="photo" type="file" accept="image/png,image/jpeg,image/webp"><img id="product" alt="Selected product"><p class="note">Choose your own product photo (PNG, JPEG or WebP, up to 10 MB). Keep the product centered: each format crops the reference to fit.</p><button id="check" class="btng">Check connection</button></section>
-<section class="stage"><p id="status" role="status" aria-live="polite">Upload a product photo and write a motion brief.</p><div class="outs" id="outs"></div></section>
+<section class="stage"><p id="status" role="status" aria-live="polite">Upload a product photo and write a motion brief.</p><button class="btng" id="export-all" disabled>Export all MP4s</button><div class="outs" id="outs"></div></section>
 <form class="side r" id="brief"><fieldset id="fields"><legend>Creative brief</legend>
 <label for="pitch">Pitch / motion</label><textarea class="inp" id="pitch" maxlength="1400" required>A slow camera push toward the product, soft studio lighting, subtle reflections, premium commercial product shot.</textarea>
+<label for="tagline">Tagline (optional, added to MP4 export)</label><input class="inp" id="tagline" maxlength="80" placeholder="Made for your everyday.">
 <label for="vibe">Vibe</label><select class="inp" id="vibe"><option value="studio">Studio</option><option value="life">Lifestyle</option><option value="ugc">Handheld</option></select>
 <label for="duration">Length</label><select class="inp" id="duration"><option value="2">2 seconds · quick test</option><option value="3" selected>3 seconds</option><option value="4">4 seconds</option><option value="5">5 seconds</option></select>
 <label for="seed">Seed</label><input class="inp" id="seed" type="number" min="0" max="4294967295" step="1" value="1" required>
 <span>Formats (each runs a real generation)</span><label><input type="checkbox" name="ratio" value="16:9" checked> 16:9 · landscape</label><label><input type="checkbox" name="ratio" value="9:16"> 9:16 · vertical</label><label><input type="checkbox" name="ratio" value="1:1"> 1:1 · square</label>
 <button class="btnp" id="go" type="submit" disabled>Generate video</button></fieldset>
-<p class="note">Local development model: LTX-Video 2B. Videos are silent WebM files. Tagline / MP4 export and final LTX-2.5 workflow are still pending.</p></form>
+<p class="note">Local development model: LTX-Video 2B. Generate silent videos, then export MP4s with your tagline. Final LTX-2.5 workflow is pending.</p></form>
 </main><script type="module" src="./src/main.ts"></script></body></html>

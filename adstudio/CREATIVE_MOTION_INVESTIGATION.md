@@ -1,5 +1,7 @@
 # Creative motion investigation — 2026-10-22
 
+**Final conditioning update:** the proposed matched guide-strength comparison is complete: one new render at0.7, exact prior portrait control reused. More motion came with greater product deformation; neither configuration passed. No production change promoted. See [CONDITIONING_DECISION.md](CONDITIONING_DECISION.md) for final evidence, the bounded larger-model proposal, feature-reuse plan and main integration risks. The next-step strength test below is now historical.
+
 **Verdict: the reported failure is real. No tested change qualifies as a faithful commercial Creative-mode fix.** Portrait framing elicits movement but fine product details deform. A distilled-derived timestep schedule alone does not rescue the failed landscape case. Keep Creative's current graph as fallback; do not disguise its output with Camera Mode or enhancement.
 
 ## Provenance and running version

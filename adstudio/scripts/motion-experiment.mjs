@@ -1,6 +1,6 @@
 // Bounded, opt-in local investigation. No dataset discovery or automatic sweeps.
 // node adstudio/scripts/motion-experiment.mjs <private-manifest.json>
-// Manifest: {folder, runs:[{name,image,width,height,schedule?:'distilled',camera?:true}], prompt,seed}
+// Manifest: {folder, runs:[{name,image,width,height,strength?:number,schedule?:'distilled',camera?:true}], prompt,seed}
 import assert from 'node:assert/strict';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { resolve, join, dirname } from 'node:path';
@@ -31,6 +31,8 @@ const save = () => writeFile(join(folder,'report.json'),JSON.stringify(report,nu
 const post = async(route,body)=>{const r=await fetch(base+'/api/'+route,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const data=await r.json();assert.ok(r.ok,JSON.stringify(data));return data};
 for (const spec of manifest.runs) {
   assert.match(spec.name,/^[a-zA-Z0-9-]+$/); assert.ok(!spec.schedule || spec.schedule==='distilled');
+  const strength=spec.strength ?? 1;
+  assert.ok(typeof strength==='number' && Number.isFinite(strength) && strength>=0 && strength<=1,'Guide strength must be a number in [0,1]');
   const bytes=await readFile(spec.image),upload=await post('upload',{image:'data:image/png;base64,'+bytes.toString('base64')});
   const run={...spec,inputSha256:sha(bytes),upload,started:new Date().toISOString()};report.runs.push(run);await save();
   try {
@@ -47,8 +49,9 @@ for (const spec of manifest.runs) {
       graph['6'].inputs.width=graph['7'].inputs.width=spec.width;
       graph['6'].inputs.height=graph['7'].inputs.height=spec.height;
       graph['7'].inputs.length=73;graph['14'].inputs.noise_seed=manifest.seed;
+      graph['8'].inputs.strength=strength;
       graph['5'].inputs.image=upload.url;
-      run.request={keys:[{image:upload.url,t:0}],prompt:manifest.prompt,seed:manifest.seed,duration:3,width:spec.width,height:spec.height};
+      run.request={keys:[{image:upload.url,t:0,strength}],prompt:manifest.prompt,seed:manifest.seed,duration:3,width:spec.width,height:spec.height};
       if(spec.schedule) {
         // One-variable hypothesis, NOT the complete upstream multi-scale pipeline.
         graph['13']={class_type:'ManualSigmas',inputs:{sigmas:'1.0, 0.9937, 0.9875, 0.9812, 0.9750, 0.9094, 0.7250, 0.4219, 0.0'}};

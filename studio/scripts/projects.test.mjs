@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+const data=new Map([['osh-director',JSON.stringify({SH:[{n:'Keep this shot'}]})],['osh-elements','[{"n":"Keep this element"}]']]);
+globalThis.localStorage={getItem:key=>data.get(key)??null,setItem:(key,value)=>data.set(key,String(value)),removeItem:key=>data.delete(key)};
+const first=await import('../src/projects.ts?first');
+const original=data.get(first.projectKey('osh-director'));
+assert.equal(JSON.parse(original).SH[0].n,'Keep this shot');
+assert.ok(data.get(first.projectKey('osh-elements')));
+const list=JSON.parse(data.get('osh-projects-v1'));list.push({id:'second',name:'Second project',created:Date.now()});
+data.set('osh-projects-v1',JSON.stringify(list));data.set('osh-active-project','second');
+const second=await import('../src/projects.ts?second');
+assert.notEqual(first.projectKey('osh-director'),second.projectKey('osh-director'));
+assert.equal(data.get(second.projectKey('osh-director')),undefined);
+data.set(second.projectKey('osh-director'),'second shot');
+assert.equal(data.get(first.projectKey('osh-director')),original);
+assert.equal(data.get('osh-director'),original);
+console.log('PASS: legacy migration preserves original data and separate projects cannot overwrite each other.');

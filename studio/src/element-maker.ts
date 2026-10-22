@@ -1,9 +1,10 @@
+import { projectKey } from './projects';
 import { OSH } from '../../shared/runtime/client';
 import type { Element, PoolItem } from './shell';
 import './elements.css';
 
 export function elementLibrary(root:HTMLElement,elements:Element[],select:(e:Element)=>void,pool:()=>PoolItem[]):void {
-  const save=()=>{localStorage.setItem('osh-elements',JSON.stringify(elements));dispatchEvent(new Event('osh-elements-changed'));draw()};
+  const save=()=>{localStorage.setItem(projectKey('osh-elements'),JSON.stringify(elements));dispatchEvent(new Event('osh-elements-changed'));draw()};
   const draw=()=>{
     root.replaceChildren();
     for(const element of elements){const card=document.createElement('div');card.className='element-tile';
@@ -31,7 +32,7 @@ export function elementLibrary(root:HTMLElement,elements:Element[],select:(e:Ele
     const close=()=>dialog.close();q('[data-close]').onclick=close;q('[data-cancel]').onclick=close;dialog.onclose=()=>dialog.remove();
     q<HTMLFormElement>('form').onsubmit=e=>{e.preventDefault();if(pending)return;const n=name.value.trim(),d=description.value.trim();if(!n||!d){status.textContent='Add a name and description.';return}if(elements.some(el=>el.id!==existing?.id&&el.n.toLowerCase()===n.toLowerCase())){status.textContent='Choose a unique element name.';return}if(!/^[\p{L}\p{N} '_-]+$/u.test(n)){status.textContent='Use letters, numbers, spaces, apostrophes, dashes or underscores.';return}
       const draft:Element={id:existing?.id||crypto.randomUUID(),n,d,kind:kind.value as Element['kind'],ic:kind.value==='cast'?'👤':kind.value==='place'?'🏙':'◈',refs,user:true};
-      try{const next=elements.map(el=>el.id===draft.id?draft:el);if(!existing)next.push(draft);localStorage.setItem('osh-elements',JSON.stringify(next));elements.splice(0,elements.length,...next);save();close()}catch{status.textContent='Could not save the element. Browser storage may be full.'}
+      try{const next=elements.map(el=>el.id===draft.id?draft:el);if(!existing)next.push(draft);localStorage.setItem(projectKey('osh-elements'),JSON.stringify(next));elements.splice(0,elements.length,...next);save();close()}catch{status.textContent='Could not save the element. Browser storage may be full.'}
     };
     document.body.append(dialog);dialog.showModal();name.focus();
   };

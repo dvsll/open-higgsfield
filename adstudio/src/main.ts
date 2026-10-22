@@ -1,14 +1,17 @@
-import {OSH,type ShotResult} from '../../shared/runtime/client';
+import {OSH,type ShotResult,type LocalModels} from '../../shared/runtime/client';
 import {taglineOverlay} from './overlay';
 import {prepareReference} from './reference';
 import {Projects,openProjectDriver,memoryDriver,newProject,validName,restoredAttempt,ACTIVE_KEY,type AdProject,type Settings,type Take,type ProductAsset,type Ratio} from './projects';
 import {blobDataURL,normalizeProduct} from './assets';
+import {templates,templateSettings,resizeDimensions} from './templates';
+import {canGenerate,renderEstimate,type ApiCapabilities} from './availability';
 
 const el=<T extends HTMLElement>(id:string)=>document.getElementById(id) as T;
 const photo=el<HTMLInputElement>('photo'),product=el<HTMLImageElement>('product'),fields=el<HTMLFieldSetElement>('fields'),go=el<HTMLButtonElement>('go'),status=el('status'),outs=el('outs'),exportAll=el<HTMLButtonElement>('export-all');
 const sizes={'16:9':{width:512,height:288},'9:16':{width:288,height:512},'1:1':{width:384,height:384}};
 const vibes={studio:'Clean studio background, controlled lighting, smooth camera movement.',life:'Natural daylight, lifestyle commercial, gentle cinematic camera movement.',ugc:'Natural handheld camera movement, authentic product demonstration.'};
 let repository:Projects,project:AdProject,image='',busy=false,reading=true,exporting=0,selection=0,saving=Promise.resolve(),durable=false;
+let api:ApiCapabilities|null=null,catalog:LocalModels|null=null,checking=false;
 const projects=new Map<string,AdProject>(),pendingAssets=new Map<string,{projectId:string;asset:ProductAsset}>();
 const dirtyProjects=new Set<string>(),writeVersions=new Map<string,number>();
 type Card={take:Take;video:HTMLVideoElement;button:HTMLButtonElement;message:HTMLElement;exportLinks:HTMLElement};
@@ -26,13 +29,16 @@ async function persist(asset?:ProductAsset) {
 }
 function working(){return busy||reading||exporting>0;}
 function ready(){
- go.disabled=working()||!image||(project?.settings.mode!=='camera'&&!OSH.online);
- exportAll.disabled=working()||!cards.some(c=>!c.take.exports.length);
+ go.disabled=working()||!image||!canGenerate(project?.settings.mode,api,OSH.online,catalog);
+ exportAll.disabled=working()||!api?.ffmpeg.available||!cards.some(c=>!c.take.exports.length);
  photo.disabled=working();fields.disabled=busy||reading;
  for(const id of ['projects','new-project','rename-project','project-name'])el<HTMLInputElement>(id).disabled=working();
+ document.querySelectorAll<HTMLButtonElement>('[data-processing]').forEach(b=>b.disabled=working()||!api?.ffmpeg.available);
+ document.querySelectorAll<HTMLButtonElement>('[data-template]').forEach(b=>{b.disabled=working();b.setAttribute('aria-pressed',String(b.dataset.template===project?.settings.template));});
+ el('empty-results').hidden=cards.length>0;
 }
 function readSettings():Settings {
- return {...project.settings,mode:el<HTMLSelectElement>('mode').value as Settings['mode'],motion:el<HTMLSelectElement>('camera-motion').value as Settings['motion'],ratios:[...document.querySelectorAll<HTMLInputElement>('input[name="ratio"]:checked')].map(c=>c.value as Ratio),duration:+el<HTMLSelectElement>('duration').value,seed:Number.isFinite(el<HTMLInputElement>('seed').valueAsNumber)?el<HTMLInputElement>('seed').valueAsNumber:project.settings.seed,pitch:el<HTMLTextAreaElement>('pitch').value,tagline:el<HTMLInputElement>('tagline').value,vibe:el<HTMLSelectElement>('vibe').value as Settings['vibe'],framing:el<HTMLSelectElement>('framing').value as Settings['framing']};
+ return {...project.settings,model:el<HTMLSelectElement>('video-model').value||undefined,mode:el<HTMLSelectElement>('mode').value as Settings['mode'],motion:el<HTMLSelectElement>('camera-motion').value as Settings['motion'],ratios:[...document.querySelectorAll<HTMLInputElement>('input[name="ratio"]:checked')].map(c=>c.value as Ratio),duration:+el<HTMLSelectElement>('duration').value,seed:Number.isFinite(el<HTMLInputElement>('seed').valueAsNumber)?el<HTMLInputElement>('seed').valueAsNumber:project.settings.seed,pitch:el<HTMLTextAreaElement>('pitch').value,tagline:el<HTMLInputElement>('tagline').value,vibe:el<HTMLSelectElement>('vibe').value as Settings['vibe'],framing:el<HTMLSelectElement>('framing').value as Settings['framing']};
 }
 function updateMode(){
  const mode=el<HTMLSelectElement>('mode').value;
@@ -41,11 +47,16 @@ function updateMode(){
  el<HTMLSelectElement>('camera-motion').disabled=mode!=='camera';el<HTMLSelectElement>('framing').disabled=mode!=='creative';
  el('mode-help').textContent=mode==='camera'?'Conventional push/pan of your photo. No AI scene movement.':mode==='locked'?'A static original-photo rectangle over an LTX background. No automatic product segmentation.':'Experimental LTX generation. Product shapes, textures and lettering can change; commercial quality has not passed acceptance.';
  go.textContent=mode==='camera'?'Animate photo':'Generate experimental video';ready();
+ el<HTMLSelectElement>('video-model').disabled=mode==='camera'||!catalog?.video.length;
+ const first=sizes[project.settings.ratios[0]||'9:16'];
+ el('estimate').textContent=mode==='camera'?'Local photo animation. No GPU or model generation.':renderEstimate(catalog,el<HTMLSelectElement>('video-model').value,first.width,first.height,project.settings.duration);
 }
 function applySettings(){
  const s=project.settings;
  for(const [id,value]of Object.entries({mode:s.mode,'camera-motion':s.motion,pitch:s.pitch,tagline:s.tagline,vibe:s.vibe,framing:s.framing,duration:s.duration,seed:s.seed}))el<HTMLInputElement>(id).value=String(value);
- document.querySelectorAll<HTMLInputElement>('input[name="ratio"]').forEach(c=>c.checked=s.ratios.includes(c.value as Ratio));updateMode();
+ document.querySelectorAll<HTMLInputElement>('input[name="ratio"]').forEach(c=>c.checked=s.ratios.includes(c.value as Ratio));
+ if(s.model)el<HTMLSelectElement>('video-model').value=s.model;
+ updateMode();
 }
 function projectOptions(){
  const select=el<HTMLSelectElement>('projects');select.replaceChildren();
@@ -72,15 +83,51 @@ function renderTake(take:Take){
  const title=document.createElement('strong');title.textContent=`${take.kind==='edit'?'Adjusted · ':''}${take.mode==='camera'?'Camera':take.mode==='locked'?'Product-Locked':'Creative experimental'} · ${take.ratio} · ${(take.frames/take.fps).toFixed(2)} s`;
  const video=document.createElement('video');video.controls=true;video.playsInline=true;video.preload='metadata';video.src=take.exports.at(-1)?.url||take.source;
  const details=document.createElement('details'),summary=document.createElement('summary'),copy=document.createElement('p');summary.textContent='Generation details';copy.className='note';copy.textContent=take.mode==='camera'?`FFmpeg ${take.settings.motion}; no model, prompt or seed used.`:`${take.settings.model||'LTX-Video 2B fallback'} · seed ${take.settings.seed} · ${take.prompt}`;details.append(summary,copy);
- const button=document.createElement('button');button.type='button';button.textContent=take.exports.length?'Export another MP4':'Export MP4';
+ const button=document.createElement('button');button.type='button';button.dataset.processing='';button.textContent=take.exports.length?'Export another MP4':'Export MP4';
  const message=document.createElement('p');message.className='note';message.setAttribute('role','status');
  const links=document.createElement('div'),card={take,video,button,message,exportLinks:links};cards.push(card);exportLinks(card);
  video.addEventListener('error',()=>{message.textContent='Preview unavailable. The local API or output file may be missing. Retry loading, or generate a new variation; history is kept.';});
- const retry=document.createElement('button');retry.type='button';retry.textContent='Reload preview';retry.onclick=()=>{video.load();message.textContent='Checking the saved output…';};
+ const retry=document.createElement('button');retry.type='button';retry.textContent='Reload preview';retry.onclick=()=>{video.load();message.textContent='Checking the saved output…';void checkPreview(card);};
  button.onclick=()=>void exportTake(card);
  article.append(title,video,outputLink(take.source,'Download original WebM',`ad-${take.id}.webm`),button,links,message,retry,details);
  if(take.background)article.append(outputLink(take.background,'Inspect Creative background'));
+ if(take.parentId){const parent=project.takes.find(t=>t.id===take.parentId);if(parent){const compare=document.createElement('button');compare.type='button';compare.textContent='Compare previous version';let original=false;compare.onclick=()=>{original=!original;video.src=original?parent.source:take.source;compare.textContent=original?'Show adjusted version':'Compare previous version';};article.append(compare);}}
+ article.append(adjustPanel(take,card));
+ void checkPreview(card);
  outs.prepend(article);
+}
+async function checkPreview(card:Card){
+ const url=card.take.exports.at(-1)?.url||card.take.source;
+ try {const response=await fetch(url,{signal:AbortSignal.timeout(5000)});await response.body?.cancel();if(response.status===404){card.message.textContent='Saved output file is missing from the local runtime. History and source photo are kept. Generate a new variation.';if(url!==card.take.source){card.video.src=card.take.source;card.message.textContent+=' Trying the original WebM preview.';}}else if(!response.ok)card.message.textContent='The local API cannot serve this output. Retry the connection; your history is kept.';}
+ catch{card.message.textContent='Cannot reach the saved output. Reconnect the local API and reload this preview. Your history is kept.';}
+}
+function adjustPanel(take:Take,card:Card){
+ const panel=document.createElement('details');panel.className='adjust';
+ const summary=document.createElement('summary');summary.textContent='Adjust · trim, speed, reverse & resize';panel.append(summary);
+ function number(label:string,value:number){const wrap=document.createElement('label'),input=document.createElement('input');input.type='number';input.value=String(value);input.step='any';input.min='0';wrap.append(label,input);panel.append(wrap);return input;}
+ const duration=take.frames/take.fps,start=number('Trim start (seconds)',0),end=number('Trim end (seconds)',duration),width=number('Output width',take.width);
+ const dim=resizeDimensions(take.width,take.height,take.width);width.step=String(dim.step);width.min=String(dim.step);width.max='4096';
+ const size=document.createElement('p');size.className='note';size.textContent=`${take.width}×${take.height}. Width snaps to ${dim.step}px to keep the exact aspect ratio.`;panel.append(size);
+ width.oninput=()=>{try{const d=resizeDimensions(take.width,take.height,width.valueAsNumber);size.textContent=`Output ${d.width}×${d.height}. Original aspect ratio preserved.`;}catch(e){size.textContent=errorText(e);}};
+ const speedLabel=document.createElement('label'),speed=document.createElement('select');speedLabel.append('Playback speed',speed);for(const n of [.25,.5,1,2,4]){const o=document.createElement('option');o.value=String(n);o.textContent=n+'×';speed.append(o);}speed.value='1';panel.append(speedLabel);
+ const reverseLabel=document.createElement('label'),reverse=document.createElement('input');reverse.type='checkbox';reverseLabel.append(reverse,' Reverse');panel.append(reverseLabel);
+ const render=document.createElement('button');render.type='button';render.dataset.processing='';render.textContent='Save adjusted version';panel.append(render);
+ render.onclick=async()=>{
+  if(working())return;
+  let started=false;
+  try {
+   const from=start.valueAsNumber,to=end.valueAsNumber,rate=+speed.value;
+   if(!Number.isFinite(from)||!Number.isFinite(to)||from<0||from>=to||to>duration+.001)throw new Error('Choose a trim range inside this clip.');
+   const d=resizeDimensions(take.width,take.height,width.valueAsNumber);width.value=String(d.width);
+   const recipe={start:from,end:to,speed:rate,reverse:reverse.checked,width:d.width,height:d.height};
+   exporting++;started=true;ready();card.message.textContent='Rendering an adjusted copy. Original kept…';
+   const result=await OSH.editVideo({video:take.source,keepAudio:true,...recipe});
+   const adjusted:Take={...structuredClone(take),id:crypto.randomUUID(),created:Date.now(),source:result.url,parentId:take.id,kind:'edit',edit:recipe,width:d.width,height:d.height,fps:24,frames:Math.max(1,Math.round((to-from)/rate*24)),seconds:result.seconds,exports:[]};
+   project.takes.push(adjusted);await persist();renderTake(adjusted);card.message.textContent='Adjusted version added to history. Original unchanged.';
+  }catch(e){card.message.textContent=errorText(e)+' Original unchanged.';}
+  finally{if(started)exporting--;ready();}
+ };
+ return panel;
 }
 async function exportTake(card:Card){
  if(working())return false;
@@ -93,8 +140,28 @@ async function exportTake(card:Card){
  finally {exporting--;card.button.disabled=false;ready();}
 }
 exportAll.onclick=async()=>{if(working())return;const pending=cards.filter(c=>!c.take.exports.length);for(const card of pending)if(!await exportTake(card))break;};
-async function check(){const h=await OSH.health();el('health').textContent=h.online?'● Local ComfyUI connected':`Generation offline: ${h.reason}. Camera uses the local API and FFmpeg.`;ready();}
+async function check(){
+ if(checking)return;checking=true;el<HTMLButtonElement>('check').disabled=true;
+ try {
+  const [health,local]=await Promise.allSettled([OSH.health(),fetch('/api/capabilities',{signal:AbortSignal.timeout(4000)}).then(async r=>{if(!r.ok)throw new Error('API unavailable');return r.json() as Promise<ApiCapabilities>;})]);
+  api=local.status==='fulfilled'?local.value:null;
+  const online=health.status==='fulfilled'&&health.value.online;
+  catalog=online?await OSH.models().catch(()=>null):null;
+  el('health').textContent=!api?'Local API unavailable — drafts and history stay here.':!api.ffmpeg.available?'FFmpeg unavailable — local animation/edit/export need configuration.':online?'Local API, FFmpeg and ComfyUI connected.':'ComfyUI offline — Camera, editing and export remain available.';
+  const select=el<HTMLSelectElement>('video-model'),prior=project?.settings.model||select.value;select.replaceChildren();
+  for(const model of catalog?.video||[]){const o=document.createElement('option');o.value=model.id;o.textContent=model.label+' · experimental';select.append(o);}if(prior&&catalog?.video.some(m=>m.id===prior))select.value=prior;
+  const list=el('capabilities');list.replaceChildren();
+  const labels=[`Local API: ${api?'available':'unreachable'}`,`Camera / Adjust / MP4: ${api?.ffmpeg.available?'available through FFmpeg':'unavailable'}`,`Video models: ${catalog?.video.length?catalog.video.map(m=>m.label).join(', '):'no verified runnable model'}`,`Image API: ${api?.keyframe?'available':'unreachable'}; ${catalog?.keyframe.length?'compatible weights installed; image creation UI not connected in this milestone':'no verified runnable image weights/nodes'}`,`Audio API: ${api?.audio?'available':'unreachable'}; ${catalog?.audio?.available?'compatible weights installed; audio UI not connected in this milestone':'no verified runnable audio weights/nodes'}`];
+  for(const label of labels){const item=document.createElement('li');item.textContent=label;list.append(item);}
+ }catch(error){el('health').textContent='Connection check failed: '+errorText(error);}
+ finally {checking=false;el<HTMLButtonElement>('check').disabled=false;if(project)updateMode();else ready();}
+}
 el('check').onclick=()=>void check();
+for(const event of ['online','focus'])addEventListener(event,()=>void check());
+addEventListener('offline',()=>{api=null;el('health').textContent='Connection interrupted. Drafts and history remain here; reconnect before retrying.';ready();});
+setInterval(()=>{if(!document.hidden)void check();},8000);
+addEventListener('beforeunload',event=>{if(dirtyProjects.size){event.preventDefault();event.returnValue='';}});
+const templateList=el('templates');for(const template of templates){const button=document.createElement('button');button.type='button';button.dataset.template=template.id;const title=document.createElement('strong'),description=document.createElement('span');title.textContent=template.name;description.textContent=template.description;button.append(title,description);button.onclick=()=>{if(working())return;project.settings=templateSettings(template.id,readSettings());applySettings();void persist();};templateList.append(button);}
 photo.onchange=async()=>{
  const ticket=++selection,file=photo.files?.[0];if(!file)return;reading=true;ready();
  try {const asset=await normalizeProduct(file);const url=await blobDataURL(asset.normalized);if(ticket!==selection)return;project.assetId=asset.id;image=url;product.src=url;await persist(asset);status.textContent='Product ready. Your previous takes are kept.';}
@@ -104,6 +171,7 @@ photo.onchange=async()=>{
 el<HTMLFormElement>('brief').addEventListener('input',()=>{if(!project||busy)return;project.settings=readSettings();updateMode();void persist();});
 el<HTMLFormElement>('brief').onsubmit=async event=>{
  event.preventDefault();if(working()||!image)return;project.settings=readSettings();const settings=structuredClone(project.settings),assetId=project.assetId!;
+ if(!canGenerate(settings.mode,api,OSH.online,catalog)){status.textContent='This configuration is unavailable. Check connection and model readiness.';return;}
  if(!settings.ratios.length){status.textContent='Select at least one format.';return;}
  if(settings.mode!=='camera'&&!settings.pitch.trim()){status.textContent='Write a motion brief.';return;}
  busy=true;ready();project.attempt={id:crypto.randomUUID(),created:Date.now(),status:'running',takeIds:[]};await persist();

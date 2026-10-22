@@ -281,6 +281,17 @@ async function health(env: Env) {
   };
 }
 
+// Local postprocessing readiness must not depend on ComfyUI or model availability.
+let ffmpegCheck:Promise<boolean>|null=null,ffmpegCheckedAt=0;
+async function capabilities(env:Env){
+  if(!ffmpegCheck||Date.now()-ffmpegCheckedAt>30000){ffmpegCheckedAt=Date.now();ffmpegCheck=new Promise<boolean>(ok=>{
+    const child=spawn(env.FFMPEG_PATH||'ffmpeg',['-version'],{windowsHide:true,stdio:'ignore'});
+    const timer=setTimeout(()=>{child.kill();ok(false)},3000);
+    child.on('error',()=>{clearTimeout(timer);ok(false)});child.on('close',code=>{clearTimeout(timer);ok(code===0)});
+  });}
+  return {upload:true,shot:true,keyframe:true,audio:true,productVideo:true,editVideo:true,exportVideo:true,ffmpeg:{available:await ffmpegCheck}};
+}
+
 /** Browser-normalized PNG only; saved under an opaque API-owned filename. */
 async function upload(body: any) {
   if (typeof body.image !== "string" || !body.image.startsWith("data:image/png;base64,")) throw new HttpError(400, "upload must be a PNG data URL");
@@ -474,6 +485,7 @@ function middleware(env: Env): Connect.NextHandleFunction {
       }
       const route = `${req.method} ${url.pathname}`;
       if (route === "GET /api/health") return send(res, 200, await health(env));
+      if (route === 'GET /api/capabilities') return send(res,200,await capabilities(env));
       if (route === "GET /api/models") return send(res, 200, await localModels(env));
       if (route === "POST /api/upload") return send(res, 200, await upload(await readBody(req, MAX_UPLOAD_BODY)));
       if (route === "POST /api/export") return send(res, 200, await exportVideo(await readBody(req), env));

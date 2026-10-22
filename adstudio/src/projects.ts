@@ -21,7 +21,8 @@ export function migrateProject(value:unknown):AdProject {
  const settings={...defaults(),...p.settings};
  if(!['camera','locked','creative'].includes(settings.mode)||!Array.isArray(settings.ratios)||settings.ratios.some((r:unknown)=>!['16:9','9:16','1:1'].includes(String(r))))throw new Error('Invalid project settings. Saved data was not overwritten.');
  const takes=p.version===1?(p.outputs||[]).map((t:any,i:number)=>({...t,id:t.id||`legacy-${p.id}-${i}`,kind:t.kind||'generation',settings:t.settings||structuredClone(settings),exports:t.exports||[]})):p.takes;
- if(!Array.isArray(takes)||takes.some((t:any)=>typeof t.id!=='string'||!/^\/outputs\/[a-f0-9]{16}\.(webm|mp4)$/.test(t.source)||!Array.isArray(t.exports)))throw new Error('Invalid saved history. Saved data was not overwritten.');
+ const video=(url:unknown)=>typeof url==='string'&&/^\/outputs\/[a-f0-9]{16}\.(webm|mp4)$/.test(url);
+ if(!Array.isArray(takes)||takes.some((t:any)=>typeof t.id!=='string'||!video(t.source)||(t.background&&!video(t.background))||!Array.isArray(t.exports)||t.exports.some((e:any)=>!video(e.url))))throw new Error('Invalid saved history. Saved data was not overwritten.');
  return {...p,version:2,settings,takes} as AdProject;
 }
 export interface ProjectDriver {all():Promise<unknown[]>;put(project:AdProject,assets?:ProductAsset[]):Promise<void>;asset(id:string):Promise<ProductAsset|undefined>}

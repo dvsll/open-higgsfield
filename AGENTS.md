@@ -21,6 +21,7 @@ Two entries for Comfy Org's **Open Source Higgsfield** competition. **Hard deadl
 - **Commit and push on your own** after each working change, using **Conventional Commits**: `feat(studio): …`, `fix(studio): …`, `style:`, `docs:`, `chore:`. Don't ask the user first; they don't want to think about commits.
 - Before ending a session (or when the user says they're switching agents), **update `notes/studio.md` → "Where we left off"** (state, what's running, next steps), then commit and push.
 - Keep the UI style: dark, Inter, **no rounded corners** (for now), tokens in each page's `:root`.
+- Follow Swiss / International Typographic Style principles for Studio UI: precise shared grids, consistent spacing, clear typography and hierarchy, restrained color, and functional visual cues. Keep related media lanes adjacent; put track controls in a gutter rather than adding spacer rows. Editable numbers use consistent boxed drag-or-type controls. Prefer alignment and proportion over extra borders, panels, or decoration. This is the user's ongoing design preference.
 - Page code lives in `studio/src/*.ts` (ES modules; most files start with `// @ts-nocheck` because they were ported from inline JS, so add types when you touch them). HTML files only hold markup + CSS.
 - Prefer small targeted edits over rewrites. The Director is one big file; read the relevant part first.
 

@@ -6,6 +6,8 @@ export type Health = { comfyui: boolean; proxy: boolean; queued: number };
 export type KeyframeResult = { url: string; seconds: number };
 export type ShotResult = { url: string; seconds: number; frames: number };
 export type ShotKey = { image: string; t: number; strength?: number };
+export type ProductVideoOptions = { image: string; background?: string; mode: 'locked' | 'camera'; ratio: '16:9' | '9:16' | '1:1'; duration: number; motion?: 'push' | 'pan-left' | 'pan-right' };
+export type ProductVideoResult = ShotResult & { width: number; height: number; mode: 'locked' | 'camera'; motion: string; protectedRect: { x: number; y: number; width: number; height: number } | null };
 import type { ModelChoice } from './model-catalog';
 import type { ServerTiming } from './render-timings';
 export type LocalModels = { keyframe: ModelChoice[]; video: ModelChoice[]; timing: ServerTiming; research: { repo: string; revision: string; bytes: number }[]; inventory: { category: string; files: string[] }[] };
@@ -49,6 +51,7 @@ export const OSH = {
   get reason() { return reason; },
   upload: (image: string) => post<{ url: string; width: number; height: number }>("upload", { image }),
   exportVideo: (video: string, overlay?: string) => post<{ url: string; seconds: number }>("export", { video, overlay }),
+  productVideo: (options: ProductVideoOptions) => post<ProductVideoResult>('product-video', options),
   editVideo:(options:{video:string;start:number;end:number;speed:number;reverse:boolean;width:number;height:number})=>post<{url:string;seconds:number;width:number;height:number}>('edit-video',options),
   keyframe: (prompt: string, seed = 1, size: { width?: number; height?: number } = {}, model?: string) => post<KeyframeResult>("keyframe", { prompt, seed, ...size, model }),
   // Preserve Director's model argument and Ad Studio's size argument; options can combine both.

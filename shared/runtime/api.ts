@@ -21,6 +21,7 @@ import { fileURLToPath } from "node:url";
 import type { Connect, Plugin } from "vite";
 import { imageModel, videoModel } from './model-catalog.ts';
 import { identifyHardware, serverTiming, recordRender } from './render-timings.ts';
+import { productFormats, productPlan, renderProduct, ProductRenderError, type ProductRatio, type ProductMode, type CameraMotion } from './product-video.ts';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const WORKFLOWS = join(ROOT, "shared", "workflows");
@@ -330,6 +331,42 @@ async function exportVideo(body: any, env: Env) {
 }
 
 // ---------------- HTTP plumbing ----------------
+
+/** Original-photo compositing/camera prototypes. Existing generation/export routes are unchanged. */
+async function productVideo(body: any, env: Env) {
+  if (!body || !['locked', 'camera'].includes(body.mode)) throw new HttpError(400, 'mode must be locked or camera');
+  if (typeof body.ratio !== 'string' || !Object.hasOwn(productFormats, body.ratio)) throw new HttpError(400, 'ratio must be 16:9, 9:16 or 1:1');
+  const motion = body.motion === undefined ? 'push' : body.motion;
+  if (!['push', 'pan-left', 'pan-right'].includes(motion)) throw new HttpError(400, 'unknown camera motion');
+  if (typeof body.image !== 'string' || !/^\/outputs\/[a-f0-9]{16}\.png$/.test(body.image)) throw new HttpError(400, 'image must be an API-owned PNG');
+  const source = outputPath(body.image);
+  const png = await readFile(source);
+  if (png.length < 24 || png.subarray(0, 8).toString('hex') !== '89504e470d0a1a0a') throw new HttpError(400, 'invalid source PNG');
+  const sw = png.readUInt32BE(16), sh = png.readUInt32BE(20);
+  if (!sw || !sh || sw > 2048 || sh > 2048) throw new HttpError(400, 'invalid source dimensions');
+  const mode = body.mode as ProductMode;
+  let background: string | undefined;
+  if (mode === 'locked') {
+    if (typeof body.background !== 'string' || !/^\/outputs\/[a-f0-9]{16}\.webm$/.test(body.background)) throw new HttpError(400, 'locked mode needs an API-owned WebM background');
+    background = outputPath(body.background);
+  }
+  const duration = num(body.duration, 2, 5, 3);
+  const plan = productPlan(mode, body.ratio as ProductRatio, duration, motion as CameraMotion, sw, sh);
+  const name = outputName('webm'), destination = join(OUTPUTS, name);
+  const args = ['-nostdin', '-hide_banner', '-loglevel', 'error', '-n'];
+  if (background) args.push('-i', background);
+  args.push('-i', source, '-filter_complex', plan.filter, '-map', '[out]', '-frames:v', String(plan.frames), '-an',
+    '-c:v', 'libvpx-vp9', '-lossless', '1', '-pix_fmt', 'yuv420p', '-deadline', 'realtime', '-cpu-used', '6', destination);
+  const start = Date.now();
+  try { await serialize(() => renderProduct(env.FFMPEG_PATH || 'ffmpeg', args)); }
+  catch (error) {
+    await unlink(destination).catch(() => {});
+    if (error instanceof ProductRenderError) throw new HttpError(error.status, error.message);
+    throw error;
+  }
+  return { url: `/outputs/${name}`, seconds: +((Date.now() - start) / 1000).toFixed(1), frames: plan.frames,
+    width: plan.width, height: plan.height, mode, motion: plan.motion, protectedRect: mode === 'locked' ? plan.rect : null };
+}
 async function editVideo(body:any,env:Env){
   if(typeof body.video!=='string'||!/^\/outputs\/[a-f0-9]{16}\.(webm|mp4)$/.test(body.video))throw new HttpError(400,'Choose an API-owned video');
   const source=outputPath(body.video),start=num(body.start,0,60,0),end=num(body.end,0,60,5),speed=num(body.speed,.25,4,1);
@@ -417,6 +454,7 @@ function middleware(env: Env): Connect.NextHandleFunction {
       if (route === "GET /api/models") return send(res, 200, await localModels(env));
       if (route === "POST /api/upload") return send(res, 200, await upload(await readBody(req, MAX_UPLOAD_BODY)));
       if (route === "POST /api/export") return send(res, 200, await exportVideo(await readBody(req), env));
+      if (route === "POST /api/product-video") return send(res, 200, await productVideo(await readBody(req), env));
       if (route === 'POST /api/edit-video') return send(res,200,await editVideo(await readBody(req),env));
       if (route === "POST /api/keyframe") return send(res, 200, await keyframe(await readBody(req), env));
       if (route === "POST /api/shot") return send(res, 200, await shot(await readBody(req), env));

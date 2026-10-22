@@ -2,6 +2,8 @@
 
 Real product-image-to-video development flow using the shared Comfy SDK integration. No simulated video or closed generation APIs.
 
+Fidelity prototypes: **Creative** retains the existing LTX path; **Product-Locked** places a static original-photo rectangle over an abstract LTX background; **Camera** uses deterministic FFmpeg push/pan without model generation. Creative is still the default. The prototypes preserve a fitted photo with margins, not a segmented foreground. MP4 export is lossy. See [FIDELITY.md](FIDELITY.md) for measured results and [BROWSER_ACCEPTANCE.md](BROWSER_ACCEPTANCE.md) for the explicit uncompleted browser checks.
+
 1. Follow the root README local setup (Node 22.18+, `npm ci`, ComfyUI on 127.0.0.1:8188, models from `shared/runtime/models.json`, and comfy-api-proxy).
 2. Run `npm run dev`, then open http://127.0.0.1:8288/adstudio/.
 3. Choose a product photo (PNG/JPEG/WebP, up to 10 MB). The browser normalizes it to PNG, at most 1536 pixels per side, flattening transparency onto white.

@@ -1,6 +1,7 @@
 ﻿import { OSH } from '../../shared/runtime/client';
 
 import { taglineOverlay } from './overlay';
+import type { ShotResult } from '../../shared/runtime/client';
 import { prepareReference, type Framing } from './reference';
 
 const el = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -11,27 +12,44 @@ const go = el<HTMLButtonElement>('go');
 const status = el<HTMLParagraphElement>('status');
 const outs = el<HTMLDivElement>('outs');
 const exportAll = el<HTMLButtonElement>('export-all');
-type Ad = { ratio: string; seed: number; source: string; tagline: string; video: HTMLVideoElement; button: HTMLButtonElement; link: HTMLAnchorElement; message: HTMLParagraphElement; exporting: boolean; exported: boolean };
+const modeInput = el<HTMLSelectElement>('mode');
+type Mode = 'creative' | 'locked' | 'camera';
+type Ad = { mode: Mode; ratio: Ratio; seed: number; source: string; tagline: string; video: HTMLVideoElement; button: HTMLButtonElement; link: HTMLAnchorElement; message: HTMLParagraphElement; exporting: boolean; exported: boolean };
 const ads: Ad[] = [];
 let batchExporting = false;
 let image = '';
 let busy = false;
 let reading = false;
 let selection = 0;
-const sizes: Record<string, { width: number; height: number }> = {
+const sizes = {
   '16:9': { width: 512, height: 288 },
   '9:16': { width: 288, height: 512 },
   '1:1': { width: 384, height: 384 },
 };
+type Ratio = keyof typeof sizes;
 const vibes: Record<string, string> = {
   studio: 'Clean studio background, controlled lighting, smooth camera movement.',
   life: 'Natural daylight, lifestyle commercial, gentle cinematic camera movement.',
   ugc: 'Natural handheld camera movement, authentic product demonstration.',
 };
 function ready() {
-  go.disabled = busy || reading || !image || !OSH.online;
+  go.disabled = busy || reading || !image || (modeInput.value !== 'camera' && !OSH.online);
   exportAll.disabled = busy || batchExporting || !ads.some(ad => !ad.exported && !ad.exporting);
 }
+function updateMode() {
+  const mode = modeInput.value as Mode;
+  el<HTMLSelectElement>('camera-motion').disabled = mode !== 'camera';
+  el<HTMLSelectElement>('framing').disabled = mode !== 'creative';
+  el<HTMLSelectElement>('vibe').disabled = mode === 'camera';
+  el<HTMLInputElement>('seed').disabled = mode === 'camera';
+  el<HTMLTextAreaElement>('pitch').disabled = mode === 'camera';
+  el('mode-help').textContent = mode === 'creative' ? 'Creative can reinterpret product textures and lettering.' : mode === 'locked' ?
+    'A static rectangle from your original photo covers the generated background. The photo is fitted with a margin; no automatic segmentation.' :
+    'Conventional push/pan of the original photo. No prompt, seed, GPU generation or invented scene movement. Margins keep the source inside the frame.';
+  go.textContent = mode === 'camera' ? 'Animate photo' : 'Generate video';
+  ready();
+}
+modeInput.addEventListener('change', updateMode);
 async function exportAd(ad: Ad): Promise<boolean> {
   if (ad.exporting || ad.exported) return ad.exported;
   ad.exporting = true;
@@ -46,7 +64,7 @@ async function exportAd(ad: Ad): Promise<boolean> {
     }
     const result = await OSH.exportVideo(ad.source, overlay);
     ad.link.href = result.url;
-    ad.link.download = `ad-${ad.ratio.replace(':', 'x')}-${ad.seed}.mp4`;
+    ad.link.download = `ad-${ad.mode}-${ad.ratio.replace(':', 'x')}-${ad.seed}.mp4`;
     ad.link.textContent = 'Download MP4';
     ad.link.hidden = false;
     ad.video.src = result.url;
@@ -115,14 +133,16 @@ photo.addEventListener('change', async () => {
 el<HTMLFormElement>('brief').addEventListener('submit', async (event) => {
   event.preventDefault();
   if (busy || reading || !image) return;
-  const ratios = Array.from(document.querySelectorAll<HTMLInputElement>('input[name="ratio"]:checked')).map(x => x.value);
+  const ratios = Array.from(document.querySelectorAll<HTMLInputElement>('input[name="ratio"]:checked')).map(x => x.value as Ratio);
   if (!ratios.length) { status.textContent = 'Select at least one format.'; return; }
   const pitch = el<HTMLTextAreaElement>('pitch').value.trim();
-  if (!pitch) { status.textContent = 'Write a motion brief.'; return; }
+  const mode = modeInput.value as Mode;
+  if (mode !== 'camera' && !pitch) { status.textContent = 'Write a motion brief.'; return; }
   const duration = Number(el<HTMLSelectElement>('duration').value);
   const seed = Number(el<HTMLInputElement>('seed').value);
   const tagline = el<HTMLInputElement>('tagline').value.trim();
   const framing = el<HTMLSelectElement>('framing').value as Framing;
+  const motion = el<HTMLSelectElement>('camera-motion').value as 'push' | 'pan-left' | 'pan-right';
   const prompt = `${pitch} ${vibes[el<HTMLSelectElement>('vibe').value]} Preserve the reference product appearance and branding. No added text.`;
   busy = true;
   fields.disabled = true;
@@ -131,19 +151,33 @@ el<HTMLFormElement>('brief').addEventListener('submit', async (event) => {
   let completed = 0;
   try {
     await check();
-    if (!OSH.online) throw new Error(OSH.reason + '. Start ComfyUI and the proxy, then check connection.');
+    if (mode !== 'camera' && !OSH.online) throw new Error(OSH.reason + '. Start ComfyUI and the proxy, then check connection.');
     status.textContent = 'Uploading product reference…';
-    const uploaded = framing === 'crop' ? await OSH.upload(image) : null;
+    const original = mode !== 'creative' ? await OSH.upload(image) : null;
+    const uploaded = mode === 'creative' && framing === 'crop' ? await OSH.upload(image) : null;
     for (const ratio of ratios) {
       status.textContent = `Preparing ${ratio} product reference…`;
       const size = sizes[ratio];
-      const reference = uploaded || await OSH.upload(await prepareReference(image, size.width, size.height, framing));
-      status.textContent = `Generating ${ratio} (${completed + 1}/${ratios.length})… This may take several minutes. Keep this tab open.`;
-      const result = await OSH.shot([{ image: reference.url, t: 0 }], prompt, duration, seed, size);
+      let result: ShotResult;
+      let background: ShotResult | undefined;
+      if (mode === 'camera') {
+        status.textContent = `Animating ${ratio} (${completed + 1}/${ratios.length}) with FFmpeg…`;
+        result = await OSH.productVideo({ image: original!.url, mode, ratio, duration, motion });
+      } else {
+        const reference = uploaded || await OSH.upload(await prepareReference(image, size.width, size.height, mode === 'creative' ? framing : 'fit'));
+        status.textContent = `Generating ${ratio} (${completed + 1}/${ratios.length})… This may take several minutes. Keep this tab open.`;
+        result = await OSH.shot([{ image: reference.url, t: 0 }], prompt, duration, seed, size);
+        if (mode === 'locked') {
+          background = result;
+          status.textContent = `Protecting original photo in ${ratio}…`;
+          result = await OSH.productVideo({ image: original!.url, background: background.url, mode, ratio, duration });
+        }
+      }
       const card = document.createElement('article');
       card.className = 'out';
       const title = document.createElement('strong');
-      title.textContent = `${ratio} · ${(result.frames / 24).toFixed(1)} s · rendered in ${result.seconds} s`;
+      const modeLabel = mode === 'creative' ? 'Creative' : mode === 'locked' ? 'Product-Locked' : `Camera ${motion}`;
+      title.textContent = `${modeLabel} · ${ratio} · ${(result.frames / 24).toFixed(1)} s · ${+(result.seconds + (background?.seconds || 0)).toFixed(1)} s processing`;
       const video = document.createElement('video');
       video.controls = true;
       video.playsInline = true;
@@ -151,11 +185,12 @@ el<HTMLFormElement>('brief').addEventListener('submit', async (event) => {
       video.src = result.url;
       const download = document.createElement('a');
       download.href = result.url;
-      download.download = `ad-${ratio.replace(':', 'x')}-${seed}.webm`;
+      download.download = `ad-${mode}-${ratio.replace(':', 'x')}-${seed}.webm`;
       download.textContent = 'Download WebM';
       const details = document.createElement('p');
       details.className = 'note';
-      details.textContent = `Seed ${seed} · ${framing === 'fit' ? 'Fit whole photo' : 'Crop to fill'} · ${prompt}`;
+      details.textContent = mode === 'camera' ? `FFmpeg ${motion} · no model/seed/prompt · fitted photo with safety margin` :
+        `LTX-Video 2B · Seed ${seed} · ${mode === 'locked' ? 'Static original photo over LTX background' : framing === 'fit' ? 'Fit whole photo' : 'Crop to fill'} · ${prompt}`;
       const exportButton = document.createElement('button');
       exportButton.type = 'button';
       exportButton.className = 'btng';
@@ -166,10 +201,18 @@ el<HTMLFormElement>('brief').addEventListener('submit', async (event) => {
       message.className = 'note';
       message.setAttribute('role', 'status');
       message.textContent = tagline ? `MP4 tagline: ${tagline}` : 'MP4 export without tagline.';
-      const ad: Ad = { ratio, seed, tagline, source: result.url, video, button: exportButton, link: mp4, message, exporting: false, exported: false };
+      const ad: Ad = { mode, ratio, seed, tagline, source: result.url, video, button: exportButton, link: mp4, message, exporting: false, exported: false };
       ads.push(ad);
       exportButton.addEventListener('click', () => void exportAd(ad));
       card.append(title, video, download, exportButton, mp4, message, details);
+      if (background) {
+        const sourceLink = document.createElement('a');
+        sourceLink.href = background.url;
+        sourceLink.textContent = 'Inspect Creative background';
+        sourceLink.target = '_blank';
+        sourceLink.rel = 'noopener';
+        card.append(sourceLink);
+      }
       outs.prepend(card);
       completed++;
     }
@@ -180,7 +223,8 @@ el<HTMLFormElement>('brief').addEventListener('submit', async (event) => {
     busy = false;
     fields.disabled = false;
     photo.disabled = false;
-    ready();
+    updateMode();
   }
 });
+updateMode();
 void check();

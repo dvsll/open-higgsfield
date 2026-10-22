@@ -15,6 +15,12 @@ Export workflows from ComfyUI with **Save (API format)** and commit the JSON nex
 
 ## Workflows
 
+### Fidelity postprocessing API (2026-10-22, additive)
+- `POST /api/product-video`: `{image: "/outputs/<hex>.png", mode: "locked"|"camera", ratio: "16:9"|"9:16"|"1:1", duration: 2..5, background?: "/outputs/<hex>.webm", motion?: "push"|"pan-left"|"pan-right"}`. Locked requires a background from the existing SDK shot path. Camera uses only the source photograph and FFmpeg.
+- Returns API-owned lossless VP9/yuv420p WebM plus seconds, frames, width/height, mode/motion and protectedRect (locked only). Fixed development sizes: 512×288, 288×512, 384×384. Frame count follows 8n+1 at 24 fps. Existing `/api/export` can add a PNG tagline and encode MP4; MP4 is lossy.
+- Locked overlays an ~82%-fit static original-photo rectangle over blurred/dimmed LTX footage. This is not product segmentation. Four-pixel-inset core measurements on the cookie test prove resized/color-converted WebM preservation only; no universal strict-fidelity claim.
+- Camera push/pan recipes and protection bounds are fixed in `shared/runtime/product-video.ts`; no client filter expressions/paths are accepted. Existing access gate, opaque outputs and shared four-job queue apply. 90-second FFmpeg timeout, partial-output cleanup; no changes to existing generation/model/Director signatures.
+
 ### Local model discovery and selection
 - `GET /api/models`: returns `keyframe`/`video` arrays of `{id, label}` for installed workflow-compatible models, plus `inventory` groups `{category, files}` from the connected ComfyUI. Config/custom-node source files are excluded from model inventory. Supporting models and workflow node classes must exist before a choice is offered.
 - 2026-10-22 additive metadata: choices also include `family`, `description`, `capabilities` (`name`, `status`, `detail`, optional UI `control`) and `timing` (baseline range/workload/provenance). Capability statuses describe the connected app workflow, not theoretical model support. `research` lists completed local LoRA-lab model bundles from their manifest; these are not runnable choices. Old ID/label consumers remain compatible.

@@ -1,6 +1,9 @@
 import { OSH, type LocalModels, type ShotKey } from '../../shared/runtime/client';
 import { estimatedSeconds, type TimingSample } from './model-estimates';
 import type { ModelChoice } from '../../shared/runtime/model-catalog';
+import { SHELL } from './shell';
+import { attachElementMentions } from './element-mentions';
+import { expandMentions } from './mention-matching';
 
 type Kind = 'keyframe' | 'video';
 const select = (kind: Kind) => document.getElementById(`${kind}Model`) as HTMLSelectElement;
@@ -35,7 +38,7 @@ const usage: Record<string, string> = {
   'Text to image': 'Write your prompt in Generate keyframe, choose Elements and Framing, then Generate 4 keyframes.',
   'Keyframe-guided video': 'Double-click a shot, add or drag in keyframes, position them on its timeline, then Generate shot.',
   'Motion prompt': 'Describe movement in the motion box next to Generate shot, for example: slow camera push toward the robot.',
-  'Elements': 'Click cast/place chips in Generate keyframe. Their descriptions enter the prompt; this does not lock character identity.',
+  'Elements': 'Type @ in Image, Shot or Motion prompt, then search and choose an element. Mentions expand into descriptions; this does not lock character identity.',
   'JSON posing': 'There is no pose JSON input yet. A pose-control workflow and parser must be connected before you can use it.',
   'LoRA stylization': 'LoRA loading is not wired up yet. Training assets are in the local LoRA lab; they are not active style adapters.',
   'Reference image editing': 'Editing from a source image needs a separate image-edit workflow. The current image model generates a new image from text.',
@@ -92,7 +95,7 @@ function renderModelInfo(kind: Kind, entry: ModelChoice, el: HTMLElement): void 
     attachHelp(timing, 'Estimated generation time', `${explanation} ${entry.timing.width}×${entry.timing.height}. ${est.measured ? est.measured + ' local observations; approximate.' : entry.timing.basis} Queue and model loading can add time.`);
     const label = document.createElement('span'); label.className = 'cap-label'; label.textContent = 'Capabilities';
     const badges = document.createElement('div'); badges.className = 'cap-badges';
-    for (const capability of entry.capabilities) {
+    for (const capability of entry.capabilities.filter(capability => capability.status !== 'unavailable')) {
       const badge = document.createElement('button'); badge.type = 'button'; badge.className = capability.status;
       const state = capability.status === 'ready' ? 'Available' : capability.status === 'prompt' ? 'Prompt only' : 'Not connected';
       badge.textContent = capability.name;
@@ -149,11 +152,11 @@ function chooseModel(kind: Kind): void {
 // The same selections apply to direct generation, automatic keyframes, and stylization.
 export const localGeneration = {
   async keyframe(prompt: string, seed = 1) {
-    const id = model('keyframe'); const result = await OSH.keyframe(prompt, seed, {}, id);
+    const id = model('keyframe'); const result = await OSH.keyframe(expandMentions(prompt, SHELL.ELEMENTS), seed, {}, id);
     remember(id, result.seconds); return result;
   },
   async shot(keys: ShotKey[], prompt: string, duration: number, seed = 1) {
-    const id = model('video'); const result = await OSH.shot(keys, prompt, duration, seed, id);
+    const id = model('video'); const result = await OSH.shot(keys, expandMentions(prompt, SHELL.ELEMENTS), duration, seed, id);
     remember(id, result.seconds, duration); return result;
   },
 };
@@ -223,6 +226,9 @@ export async function refreshModels(): Promise<void> {
 }
 
 export function mountModels(): void {
+  for (const [id, kind] of [['kp','keyframe'],['shotPromptInput','video'],['motion','video']] as const) {
+    attachElementMentions(document.getElementById(id) as HTMLTextAreaElement, SHELL.ELEMENTS, () => !!catalog?.[kind].find(m => m.id === select(kind).value)?.capabilities.some(c => c.name === 'Elements' && c.status !== 'unavailable'));
+  }
   for (const kind of ['keyframe', 'video'] as const) {
     const control = select(kind); control.classList.add('model-native'); control.tabIndex = -1; control.setAttribute('aria-hidden', 'true');
     const button = document.createElement('button'); button.type = 'button'; button.className = 'model-picker'; button.id = `${kind}ModelPicker`;

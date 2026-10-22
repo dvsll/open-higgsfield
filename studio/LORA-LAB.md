@@ -19,4 +19,6 @@ Compare fixed seeds and prompts with the base model and adapter strengths 0, 0.5
 
 Image and video model choices display the selected model, a generation range, workload assumptions, and explicit app capability states. JSON posing and LoRA loading are currently **not connected**; Elements are **prompt only**. Research downloads appear in local inventory after a completed model bundle is recorded, but cannot be selected for generation. No capabilities are inferred merely from filenames.
 
+The compact chooser/main rows show only available or prompt-supported capabilities. Hover/focus explains usage, and clicking a supported chip focuses its input or timeline. Separate Shot and Motion prompt inputs are combined for LTX. `@` autocomplete resolves named Elements to descriptions in Image/Shot/Motion prompts; it does not add visual identity conditioning.
+
 Initial estimates come from recorded 4070 Super sessions. They adapt to successful default-resolution generations in this browser, scale video estimates by the actual workflow's frame count (including its 121-frame cap), and include a separate allowance for missing keyframes. They are not countdowns or training-time estimates. Queue/load variation and other hardware change real times. Timings are local browser data, not a shared benchmark database.

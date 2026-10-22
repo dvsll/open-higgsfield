@@ -47,6 +47,7 @@ main{display:flex;flex-direction:column;min-width:0;padding:16px 22px;gap:12px;o
 .play{width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:none;cursor:pointer;flex:none;align-self:center}
 textarea{width:100%;background:var(--col);border:1px solid var(--line);border-radius:10px;padding:9px 12px;color:var(--txt);font:inherit;outline:none;resize:none}
 textarea:focus{border-color:var(--faint)}
+.element-mentions{position:fixed;z-index:200;max-height:270px;overflow-y:auto;background:var(--card);border:1px solid #40404a;box-shadow:0 8px 24px #0009;padding:4px;font-size:12px}.element-mentions[hidden]{display:none}.mentions-heading{color:var(--dim);padding:5px 7px;font-size:10px;text-transform:uppercase;letter-spacing:.05em}.element-mentions button{display:flex;align-items:center;gap:9px;width:100%;border:0;background:none;text-align:left;padding:7px;color:var(--txt);cursor:pointer}.element-mentions button.active{background:#293041}.element-mentions strong{font-weight:500;display:block}.element-mentions small{display:block;font-size:10px;color:var(--dim)}.mention-icon{font-size:20px}.mentions-empty{padding:12px 8px;color:var(--dim)}
 .tlw{background:var(--col);border:1px solid var(--line);border-radius:12px;padding:8px 10px 10px;user-select:none}
 .tlh{display:flex;align-items:center;gap:10px;font-size:11px;color:var(--dim);margin-bottom:4px}
 .tlh .sp{flex:1}.tlh .hint{color:var(--faint)}.tlh button{background:none;border:1px solid var(--line);border-radius:6px;padding:2px 8px;cursor:pointer;color:var(--dim)}
@@ -56,6 +57,10 @@ textarea:focus{border-color:var(--faint)}
 .trk.scene{height:96px}
 .clip{position:relative;height:100%;border-radius:7px;background:var(--clip);border:1px solid #2c3550;margin-right:3px;cursor:pointer;flex:none;overflow:hidden}
 .clip.on{border-color:#5a6fa8}.clip.drop{border-color:var(--key);border-style:dashed}
+.clip.on{box-shadow:inset 0 0 0 1px #91a8df;background:var(--clipOn)}.clip.dragging,.stash .it.dragging{opacity:.35}.clip:focus-visible{outline:1px solid var(--acc);outline-offset:-3px}
+.clip,.stash .it{touch-action:none}.shot-drag{cursor:grabbing}.shot-ghost{position:fixed;z-index:100;pointer-events:none;border:1px solid #91a8df;background:#26304ae8;color:#e4e8f2;padding:9px 14px;font-size:12px;box-shadow:0 5px 16px #0008}
+.insert-line{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--key);z-index:9;pointer-events:none}.insert-line::before{content:'';position:absolute;top:-5px;left:-4px;border-left:5px solid transparent;border-right:5px solid transparent;border-top:6px solid var(--key)}.insert-line::after{content:attr(data-hint);position:absolute;bottom:calc(100% + 7px);left:4px;font-size:10px;padding:3px 6px;background:#282218;color:var(--key);white-space:nowrap;border:1px solid #6f5827}
+.shot-drag .stash{border:1px dashed #59677b;background:#181e28}.shot-drag .stash.drop{border:1px solid var(--key);background:#292315}.shot-drag .stash.drop::after{content:'Move to stash';margin-left:auto;color:var(--key);font-size:11px}.trk.dropzone{background:#1b202b}
 .clip .strip{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
 .trk.scene .clip .strip{opacity:.35}
 .clip .lbl{position:absolute;left:0;right:0;top:0;padding:4px 6px;font-size:11px;color:#e4e8f2;white-space:nowrap;overflow:hidden;display:flex;gap:6px;align-items:center;background:linear-gradient(rgba(10,12,20,.85),rgba(10,12,20,0));pointer-events:none}
@@ -149,7 +154,7 @@ textarea:focus{border-color:var(--faint)}
   </div>
   <div class="tlw">
    <div class="tlh"><span class="crumb" id="crumb"></span><span id="tot"></span><span class="sp"></span><span class="hint" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0"><span id="hintT"></span></span><button id="trashBtn" class="trashb" title="Deleted shots (restorable)"></button><button id="addKeyBtn" title="Add a keyframe at the playhead (copies the nearest one)">＋ Keyframe</button><button id="editKey" title="Open the selected keyframe in Edit Anything">✎ Edit keyframe</button><button id="delKey">Remove key</button></div>
-   <div class="tl" id="tl"><div class="ruler" id="ruler"></div><div class="trk" id="trk"></div><div class="gph" id="gph"></div></div>
+   <div class="tl" id="tl"><div class="ruler" id="ruler"></div><div class="trk" id="trk"></div><div class="gph" id="gph" role="img" aria-label="Playhead"></div></div>
    <div class="stash" id="stash"></div><div class="trashpop" id="trashpop"></div>
   </div>
   <div class="hist" id="hist"></div>
@@ -165,7 +170,7 @@ textarea:focus{border-color:var(--faint)}
   <div class="chips" id="frm"></div>
   <div style="color:var(--faint);font-size:12px">Look: <span id="lookUse"></span>, from Stylization</div>
   <button class="pill solid" id="kgo" style="width:100%">Generate 4 keyframes</button>
-  <div class="sec">Results <span>click = add at playhead<br>or drag onto a clip</span></div>
+  <div class="sec">Results <span>click = add to selected shot<br>or drag onto a clip</span></div>
   <div id="res"><div class="empty">Generated keyframes show up here.</div></div>
  </aside>
 </div>

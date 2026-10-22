@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import { insertionIndex, movedIndex } from '../src/timeline-interaction.ts';
+const durations = [4, 3, 4];
+assert.equal(insertionIndex(durations, -1), 0);
+assert.equal(insertionIndex(durations, 1), 0);
+assert.equal(insertionIndex(durations, 3), 1);
+assert.equal(insertionIndex(durations, 5), 1);
+assert.equal(insertionIndex(durations, 6), 2);
+assert.equal(insertionIndex(durations, 50), 3);
+assert.equal(movedIndex(0, 3), 2);
+assert.equal(movedIndex(2, 0), 0);
+assert.equal(movedIndex(1, 1), 1);
+assert.equal(movedIndex(1, 2), 1);
+console.log('PASS: clip midpoint insertion and forward/backward/no-op reorder boundaries.');

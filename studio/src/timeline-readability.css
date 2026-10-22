@@ -1,0 +1,18 @@
+:root{--timeline-type:clamp(12px,.3vw + 7px,14px);--timeline-icon:clamp(16px,.7vw,20px);--track-header-width:clamp(144px,8vw,172px)}
+.tl{grid-template-columns:var(--track-header-width) minmax(0,1fr)}
+.track-toggle{width:var(--track-header-width);display:flex;align-items:center;gap:8px;font-size:var(--timeline-type);min-height:34px;padding:8px;line-height:1.3}
+.track-toggle svg,.audio-clip svg{width:var(--timeline-icon);height:var(--timeline-icon);flex:none;fill:none;stroke:currentColor;stroke-width:2.25;stroke-linecap:round;stroke-linejoin:round}
+.track-toggle svg{transition:transform .12s}.track-toggle[aria-expanded=true] svg{transform:rotate(90deg)}
+.audio-clip{height:34px!important;min-height:34px;font-size:var(--timeline-type)}.audio-track{min-height:34px!important}
+.audio-clip:not(.ready) span{display:flex;align-items:center;justify-content:center;gap:7px;white-space:nowrap;overflow:hidden;font-size:var(--timeline-type)}
+.audio-clip:hover{background:#244237}.clip .lbl{font-size:var(--timeline-type);height:22px;padding:2px 5px}
+#videoTrackAttributes,#audioTrackAttributes{grid-column:1/-1;width:100%;min-width:0}
+.selection-properties{width:100%;margin:0;padding:10px 12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:8px 14px;border:0;border-top:1px solid #3a414b;border-bottom:1px solid #3a414b;background:#191c22}
+.selection-properties>strong{font-size:var(--timeline-type);grid-column:1/-1}.selection-properties label{font-size:var(--timeline-type);justify-content:flex-start;gap:10px}.selection-properties input{font-size:var(--timeline-type)!important;width:80px;margin-left:auto}.selection-properties>button{grid-column:auto;justify-self:start;font-size:var(--timeline-type);padding:8px 14px;min-height:32px;max-width:220px}.selection-properties>small{font-size:var(--timeline-type);line-height:1.5}
+#audioTrackToggle{min-height:34px}.viewer-tools button{font-size:clamp(12px,.5vw + 5px,16px);min-height:32px}.viewer-tools #play{font-size:16px;width:36px;height:32px}
+@media(pointer:coarse){.track-toggle,.audio-clip{min-height:44px!important}.audio-track{min-height:44px!important}}
+@media(prefers-reduced-motion:reduce){.track-toggle svg{transition:none}}
+
+#audioTrackAttributes .selection-properties:not(:has(input)){grid-template-columns:minmax(60px,auto) minmax(0,1fr) auto;align-items:center}
+#audioTrackAttributes .selection-properties:not(:has(input))>strong,#audioTrackAttributes .selection-properties:not(:has(input))>small,#audioTrackAttributes .selection-properties:not(:has(input))>button{grid-column:auto;margin:0}
+@container(max-width:450px){#audioTrackAttributes .selection-properties:not(:has(input)){grid-template-columns:1fr auto}#audioTrackAttributes .selection-properties:not(:has(input))>small{grid-column:1/-1;grid-row:2}}

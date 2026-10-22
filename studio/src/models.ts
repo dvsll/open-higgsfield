@@ -29,7 +29,7 @@ export function estimateContext(duration: number, missingKeys: number): void {
 const usage: Record<string, string> = {
   'Shot prompt': 'Use Shot prompt to describe the scene. Use the separate Motion prompt box for camera and subject movement. Both are sent together to the video model.',
   'Text to image': 'Write your prompt in Generate keyframe, choose Elements and Framing, then Generate 4 keyframes.',
-  'Keyframe-guided video': 'Double-click a shot, add or drag in keyframes, position them on its timeline, then Generate shot.',
+  'Keyframe-guided video': 'Optional: double-click a shot, add image guides and drag them to the clip edges for start/end frames or into the middle for timed guidance. Generate shot also works with no guides.',
   'Motion prompt': 'Describe movement in the motion box next to Generate shot, for example: slow camera push toward the robot.',
   'Elements': 'Type @ in Image, Shot or Motion prompt, then search and choose an element. Mentions expand into descriptions; this does not lock character identity.',
   'JSON posing': 'There is no pose JSON input yet. A pose-control workflow and parser must be connected before you can use it.',

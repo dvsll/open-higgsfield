@@ -200,6 +200,12 @@ async function keyframe(body: any, env: Env) {
 
 /** shot_ltxv.json has one keyframe guide (node 8); clone image/scale/guide nodes for each extra keyframe. */
 function shotGraph(g: Record<string, any>, nKeys: number): Record<string, any> {
+  if (!nKeys) {
+    delete g['5']; delete g['6']; delete g['8']; delete g['15'];
+    Object.assign(g['11'].inputs,{positive:['3',0],negative:['4',0]});
+    g['13'].inputs.latent=['7',0];g['14'].inputs.latent_image=['7',0];g['16'].inputs.samples=['14',0];
+    return g;
+  }
   let prev = "8";
   for (let i = 1; i < nKeys; i++) {
     const n = String(i).padStart(2, "0"), img = `5${n}`, scale = `6${n}`, guide = `8${n}`;
@@ -218,7 +224,8 @@ function shotGraph(g: Record<string, any>, nKeys: number): Record<string, any> {
 
 /** Keyframes (images at times) + motion prompt -> video. shared/workflows/shot_ltxv.json (LTX-Video). */
 async function shot(body: any, env: Env) {
-  if (!Array.isArray(body.keys) || body.keys.length < 1 || body.keys.length > 8) throw new HttpError(400, "keys: 1–8 keyframes");
+  if (body.keys === undefined) body.keys = [];
+  if (!Array.isArray(body.keys) || body.keys.length > 8) throw new HttpError(400, "keys: 0–8 keyframes");
   const duration = num(body.duration, 1, 8, 4);
   const keys: Key[] = body.keys
     .map((k: any) => ({ image: k.image, t: num(k.t, 0, duration, 0), strength: num(k.strength, 0, 1, 1) }))

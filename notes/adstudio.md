@@ -68,3 +68,6 @@ _Last updated 2026-10-21 by Codex, on feat/adstudio-p0._
 
 ## Shared runtime coordination — 2026-10-22 (Codex / studio)
 Additive server timing metadata on GET /api/models, persisted by actual GPU and excluding cached sampler runs. Exact integer generation sizes now pad internally and crop decoded output to requested dimensions; aligned Ad Studio presets retain their behavior. New POST /api/edit-video and OSH.editVideo provide bounded local FFmpeg trim/speed/reverse/Lanczos resize for API-owned videos, preserve sources, share queue/gate, 90s timeout. See shared/workflows/CONTRACT.md. No new models/dependencies or adstudio app edits. Build/typecheck, client compatibility, HTTP smoke, real exact-size generation and local video edit checks pass.
+
+### Shared runtime coordination — 2026-10-22, optional video guides
+POST /api/shot now accepts 0–8 keys (omission means empty). Zero-key generation bypasses image loading, LTXVAddGuide and guide cropping, linking conditioning and empty video latent directly into the existing sampler. Existing 1–8-guide behavior is retained. Real unguided SDK/proxy/LTX render passed (25 frames, 256×256, 10.5s); no models/dependencies or Ad Studio app changes.

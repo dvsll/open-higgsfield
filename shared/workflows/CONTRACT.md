@@ -50,3 +50,6 @@ Swap to LTX-2.5 + IC-LoRAs on a rented 32 GB+ GPU for final renders.
   - The file has one keyframe guide. `shared/runtime/api.ts` clones nodes 5/6/8 per extra keyframe (`shotGraph()`) and snaps `frame_idx` to multiples of 8 (last key = `-1`).
 - **Outputs:** node `17`: WEBM (VP9)
 - **Render time:** ~20 s for 3 s (73 frames) from 2 keyframes; ~32 s for 4 s including generating 2 missing keyframes. 768×448, 8 steps, RTX 4070 Super (2026-10-21)
+
+### Optional shot guides (2026-10-22)
+`POST /api/shot` accepts `keys: []` or omitted keys for text-to-video; up to eight image guides remain optional. Zero-key graph removes LoadImage/ImageScale/LTXVAddGuide/LTXVCropGuides and connects text conditioning plus EmptyLTXVLatentVideo directly to the existing scheduler/sampler/decode. Same SDK/proxy path, model, dimensions, frame cap and output. Studio sends only keys with actual images and never silently generates missing images. Start/end UI anchors send t=0 / current shot duration; regular keys send their timed position. Guidance remains approximate, not an exact reproduction promise.

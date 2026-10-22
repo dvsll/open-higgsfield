@@ -1,6 +1,7 @@
 import { projectKey } from './projects';
 export type GenerationKind = 'keyframe'|'video';
 export type FrameSize = {width:number;height:number};
+export function videoTiming(){const frames=document.getElementById('videoFrames') as HTMLInputElement,fps=document.getElementById('videoFPS') as HTMLInputElement;if(!frames.reportValidity()||!fps.reportValidity())throw new Error('Choose valid frames and FPS');return {frames:+frames.value,fps:+fps.value}}
 export function frameSize(kind:GenerationKind,report=true):FrameSize {
   const width=document.getElementById(`${kind}Width`) as HTMLInputElement;
   const height=document.getElementById(`${kind}Height`) as HTMLInputElement;
@@ -22,6 +23,10 @@ export function mountFrameSizes(change:()=>void):void {
     const panel=document.createElement('details');panel.className='frame-properties';panel.open=kind==='video';const summary=document.createElement('summary');summary.textContent=kind==='video'?'Video attributes':'Image properties';panel.append(summary);
     if(kind==='video'){panel.id='videoAttributes';const info=document.createElement('p');info.id='selectedVideoAttributes';info.className='selected-video-attributes';info.textContent='Select a clip to see its video size.';const heading=document.createElement('p');heading.className='attributes-caption';heading.textContent='Generate at';panel.append(info,heading)}
     panel.append(row);
+    if(kind==='video'){
+      const timing=document.createElement('div');timing.className='frame-controls video-timing';timing.innerHTML='<label>Frames<input id="videoFrames" aria-label="Video frames" type="number" min="9" max="121" step="8" value="97" required></label><label>FPS<input id="videoFPS" aria-label="Video FPS" type="number" min="1" max="120" step="0.01" value="24" required></label><output id="videoDuration"></output><small>LTX: 9, 17, 25…121 frames (8n+1). Local workflow limit: 121.</small>';
+      timing.oninput=()=>{const frames=timing.querySelector<HTMLInputElement>('#videoFrames')!,fps=timing.querySelector<HTMLInputElement>('#videoFPS')!;if(frames.checkValidity()&&fps.checkValidity())dispatchEvent(new CustomEvent('osh-video-timing',{detail:{frames:+frames.value,fps:+fps.value}}))};panel.append(timing);
+    }
     if(kind==='video')document.querySelector('aside.r')!.prepend(panel);else document.getElementById(`${kind}ModelDetails`)!.closest('.modelbar')!.after(panel);
     presets.value=sizes.some(([w,h])=>`${w}x${h}`===`${saved[kind]?.width||768}x${saved[kind]?.height||448}`)?`${saved[kind]?.width||768}x${saved[kind]?.height||448}`:'custom';
   }

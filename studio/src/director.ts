@@ -19,8 +19,9 @@ SH.forEach(s=>{s.r=false;s.keys=[]});
 // Restore state (survives the round trip to Edit Anything).
 const saved=SC.get('osh-director');if(saved&&saved.SH){SH.length=0;saved.SH.forEach(x=>SH.push(x));}
 let STASH=saved?.STASH||[],TRASH=saved?.TRASH||[],HISTORY=saved?.HISTORY||[];const workshop=SC.get('osh-workspace')||{};
+let keyframeBatch=[1,2,4].includes(workshop.keyframeCount)?workshop.keyframeCount:4;
 let workspaceMode=workshop.mode||'video',imageDraft=workshop.image||{prompt:'',url:null},cinema=SH.length>1;
-function saveWorkshop(){SC.set('osh-workspace',{mode:workspaceMode,image:imageDraft})}
+function saveWorkshop(){SC.set('osh-workspace',{mode:workspaceMode,image:imageDraft,keyframeCount:keyframeBatch})}
 function syncWorkspace(){document.body.dataset.workflow=workspaceMode;document.body.classList.toggle('single-scene',!cinema);document.querySelectorAll('[data-workflow]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.workflow===workspaceMode)));$('#imageHero').src=imageDraft.url||'';$('#imageHero').hidden=!imageDraft.url;$('#imageWelcome').hidden=!!imageDraft.url;$('#nextImage').hidden=!imageDraft.url;$('#nextVideo').hidden=!SH[cur]?.r;}
 // Stable identities keep takes attached when shots move, including through stash/trash.
 function shotId(s: {id?: string}): string {return s.id??=crypto.randomUUID()}
@@ -88,12 +89,12 @@ function timeline(){stashUI();const trk=$('#trk'),W0=$('#tl').clientWidth;$('#ad
  trk.setAttribute('role',open==null?'listbox':'group');trk.setAttribute('aria-label',open==null?'Sequence clips':'Shot keyframes');
  if(open!=null&&!SH[open])open=null;
  if(open==null){ // ---- sequence: shots act as videos
-  const T=tot();pxs=(W0-50)/T;$('#tot').textContent=`${SH.length} shots · ${T}s`;$('#crumb').innerHTML='<b>Sequence</b>';
+  const T=tot();pxs=(W0-50)/T;$('#tot').textContent=`${SH.length} shots · ${+T.toFixed(3)}s`;$('#crumb').innerHTML='<b>Sequence</b>';
   $('#hintT').textContent='click to select · double-click to open · drag to reorder · scrub the ruler';
   $('#ruler').innerHTML=[...Array(Math.floor(T)+1)].map((_,k)=>`<span style="left:${k*pxs}px">${k}s</span>`).join('');
   SH.forEach((s,i)=>{const c=document.createElement('div');c.className='clip'+(i===cur&&clipSelected?' on':'');c.style.width=(s.d*pxs-3)+'px';
    c.setAttribute('role','option');c.setAttribute('aria-label',`Shot ${i+1}: ${s.n}`);c.setAttribute('aria-selected',String(i===cur&&clipSelected));c.tabIndex=i===cur?0:-1;
-   c.innerHTML=`<canvas class="strip" width="${Math.max(10,s.d*pxs|0)}" height="80"></canvas><span class="lbl"><i class="${s.r?'ok':''}"></i>${i+1} · ${s.n} · ${s.d}s<span class="act"><button class="tw" title="Open this shot">Open ▸</button><button data-a="stash" title="Move to stash">⇣</button><button data-a="del" title="Delete (goes to trash)">✕</button></span></span><div class="grip" title="Drag to trim"></div>`;
+   c.innerHTML=`<canvas class="strip" width="${Math.max(10,s.d*pxs|0)}" height="80"></canvas><span class="lbl"><i class="${s.r?'ok':''}"></i>${i+1} · ${s.n} · ${+s.d.toFixed(3)}s<span class="act"><button class="tw" title="Open this shot">Open ▸</button><button data-a="stash" title="Move to stash">⇣</button><button data-a="del" title="Delete (goes to trash)">✕</button></span></span><div class="grip" title="Drag to trim"></div>`;
    strip(c,s);
    c.querySelector('.tw').onclick=ev=>{ev.stopPropagation();openShot(i)};
    c.querySelector('[data-a=stash]').onclick=ev=>{ev.stopPropagation();removeShot(i,'stash')};
@@ -110,7 +111,7 @@ function timeline(){stashUI();const trk=$('#trk'),W0=$('#tl').clientWidth;$('#ad
   trk.ondrop=ev=>{if(!dragShot)return;ev.preventDefault();const r=trk.getBoundingClientRect();insertDraggedShot(insertionIndex(SH.map(s=>s.d),(ev.clientX-r.left)/pxs))};
   return}
  // ---- one shot opened
- const i=open,s=SH[i];pxs=(W0-6)/s.d;$('#tot').textContent=`${s.d}s · ${s.keys.length} keyframe${s.keys.length===1?'':'s'}`;
+ const i=open,s=SH[i];pxs=(W0-6)/s.d;$('#tot').textContent=`${+s.d.toFixed(3)}s · ${s.keys.length} keyframe${s.keys.length===1?'':'s'}`;
  $('#crumb').innerHTML=`<a id="toSeq">Sequence</a> › <b>Shot ${i+1} · ${s.n}</b>`;$('#toSeq').onclick=closeShot;
  $('#hintT').textContent='drag keys to retime · double-click a key to edit it · double-click the track or Esc to go back';
  $('#ruler').innerHTML=[...Array(Math.floor(s.d*2)+1)].map((_,k)=>`<span style="left:${k/2*pxs}px">${k%2?'·':(k/2)+'s'}</span>`).join('');
@@ -159,13 +160,16 @@ $('#ruler').onpointerdown=e=>{const seek=ev=>{const r=$('#ruler').getBoundingCli
 $('#ruler').onpointerup=()=>$('#ruler').onpointermove=null;
 addEventListener('keydown',e=>{if(!e.defaultPrevented&&e.key==='Escape'&&open!=null&&!/TEXTAREA|INPUT/.test(e.target.tagName))closeShot()});
 function media(){if(workspaceMode==='image')return{type:'keyframe',label:'Image workshop',img:imageDraft.url,spec:SP({}),u:.5};const s=SH[cur];if(selKey&&s.keys.includes(selKey))return{type:'keyframe',label:`Shot ${cur+1} · keyframe @ ${selKey.t.toFixed(1)}s`,spec:selKey.spec,u:selKey.u,img:selKey.img,ref:{shot:cur,key:s.keys.indexOf(selKey)}};
- return{type:'shot',label:`Shot ${cur+1} · ${s.n} · ${s.d}s`,spec:(s.keys[0]||s).spec,u:.3,video:s.r?s.video:undefined,duration:s.d,ref:{shot:cur,shotId:shotId(s)}}}
-function head(){const s=SH[cur];document.getElementById("play").title=clipSelected?"Play selected scene / pause (space)":"Play sequence / pause (space)";cinema=SH.length>1;document.body.classList.toggle("single-scene",!cinema);document.body.classList.toggle('has-guides',s.keys.some(k=>k.img));SHELL.select(media());$('#sNum').textContent=`Shot ${cur+1} — `;if(document.activeElement!==$('#sName'))$('#sName').textContent=s.n;$('#sMeta').textContent=`${s.d}s · ${s.keys.length} keyframe${s.keys.length===1?'':'s'}`;
- estimateContext(s.d,0);
- const attributes=$('#selectedVideoAttributes');if(attributes){attributes.textContent=s.video?'Reading selected video…':`${s.n} · ${s.d}s · not generated`;if(s.video){const url=s.video;videoFrames(url).then(info=>{if(SH[cur]===s&&s.video===url)attributes.textContent=`${s.n} · ${info.width} × ${info.height} px · ${info.duration.toFixed(2)}s`}).catch(()=>{if(SH[cur]===s)attributes.textContent=`${s.n} · video unavailable`})}}
+ return{type:'shot',label:`Shot ${cur+1} · ${s.n} · ${+s.d.toFixed(3)}s`,spec:(s.keys[0]||s).spec,u:.3,video:s.r?s.video:undefined,duration:s.d,ref:{shot:cur,shotId:shotId(s)}}}
+function head(){const s=SH[cur];document.getElementById("play").title=clipSelected?"Play selected scene / pause (space)":"Play sequence / pause (space)";cinema=SH.length>1;document.body.classList.toggle("single-scene",!cinema);document.body.classList.toggle('has-guides',s.keys.some(k=>k.img));SHELL.select(media());$('#sNum').textContent=`Shot ${cur+1} — `;if(document.activeElement!==$('#sName'))$('#sName').textContent=s.n;$('#sMeta').textContent=`${+s.d.toFixed(3)}s · ${s.keys.length} keyframe${s.keys.length===1?'':'s'}`;
+ const fps=s.fps||24,frames=s.renderFrames||Math.max(9,Math.min(121,Math.round(s.d*fps/8)*8+1));
+ if($('#videoFrames')){$('#videoFrames').value=String(frames);$('#videoFPS').value=String(fps);$('#videoDuration').textContent=`${frames} frames / ${fps} FPS = ${(frames/fps).toFixed(3)} seconds`}
+ estimateContext(frames/fps,0,frames);
+ const attributes=$('#selectedVideoAttributes');if(attributes){attributes.textContent=s.video?'Reading selected video…':`${s.n} · ${+s.d.toFixed(3)}s · not generated`;if(s.video){const url=s.video;videoFrames(url).then(info=>{if(SH[cur]===s&&s.video===url)attributes.textContent=`${s.n} · ${info.width} × ${info.height} px · ${info.duration.toFixed(2)}s`}).catch(()=>{if(SH[cur]===s)attributes.textContent=`${s.n} · video unavailable`})}}
  if(document.activeElement!==$('#shotPromptInput'))$('#shotPromptInput').value=s.prompt||'';
  $('#sState').innerHTML=s.r?'<span style="color:var(--ok)">● generated</span>':'<span style="color:var(--dim)">○ keyframes only</span>';if(document.activeElement!==$('#motion'))$('#motion').value=s.m;dispatchEvent(new Event('osh-prompt-values'))}
 function addKey(i,t,v){const s=SH[i],k={t,u:v.u,spec:v.spec,img:v.img};open=i;s.keys.push(k);selKey=k;cur=i;s.r=false;G=start(i)+Math.min(t,s.d-.01);playing=false;$('#play').textContent='▶';timeline();head();toast(`Keyframe added to shot ${i+1} at ${t.toFixed(1)}s`)}
+addEventListener('osh-video-timing',e=>{if(playing)setPlaying(false);const s=SH[cur];s.renderFrames=e.detail.frames;s.fps=e.detail.fps;s.d=s.renderFrames/s.fps;s.keys.forEach(k=>{k.t=k.anchor==='end'?s.d:Math.min(k.t,s.d)});G=Math.max(0,Math.min(G,tot()-.01));timeline();head();save()});
 function delKey(){if(!selKey&&!clipSelected)return;if(!selKey&&open==null)return removeShot(cur,'trash');if(!selKey)return toast('Select a keyframe first');SH.forEach(s=>{const j=s.keys.indexOf(selKey);if(j>=0){s.keys.splice(j,1);s.r=false}});selKey=null;timeline();head()}
 $('#delKey').onclick=delKey;
 // Rename the current shot: click the title (or ✎ / F2), Enter to save, Esc to cancel.
@@ -198,9 +202,10 @@ async function busy(msg,job){const ov=$('#ov');ov.style.display='flex';$('#pb').
  try{return await job()}finally{clearInterval(tick);ov.style.display='none'}}
 async function realShot(i,label){const s=SH[i];let step='';
  return busy(()=>`${label}${step}`,async()=>{
-  const guides=s.keys.filter(k=>k.img);step=guides.length?` · ${guides.length} keyframes → LTX-Video`:' · text → LTX-Video';const r=await localGeneration.shot(guides.map(k=>({image:k.img,t:k.anchor==='end'?s.d:k.anchor==='start'?0:k.t})),shotPrompt(s),s.d,s.seed??7);s.video=r.url;s.r=true;pushHist({kind:'shot',url:r.url,label:`${s.n} · ${r.frames} frames`,shotId:shotId(s),duration:s.d});return r})}
+  const guides=s.keys.filter(k=>k.img);step=guides.length?` · ${guides.length} keyframes → LTX-Video`:' · text → LTX-Video';const r=await localGeneration.shot(guides.map(k=>({image:k.img,t:k.anchor==='end'?s.d:k.anchor==='start'?0:k.t})),shotPrompt(s),s.d,s.seed??7,{frames:s.renderFrames||Math.max(9,Math.min(121,Math.round(s.d*(s.fps||24)/8)*8+1)),fps:s.fps||24});s.video=r.url;s.d=r.duration||s.d;s.fps=r.fps||s.fps||24;s.renderFrames=r.frames;s.keys.forEach(k=>k.t=k.anchor==="end"?s.d:Math.min(k.t,s.d));s.r=true;pushHist({kind:'shot',url:r.url,label:`${s.n} · ${r.frames} frames`,shotId:shotId(s),duration:s.d});return r})}
 async function fake(msgs,ms){const ov=$('#ov');ov.style.display='flex';const t0=performance.now();await new Promise(res=>{(function tick(){const p=Math.min(1,(performance.now()-t0)/ms);$('#pb').style.width=p*100+'%';$('#ovt').textContent=msgs[Math.min(msgs.length-1,p*msgs.length|0)];p<1?requestAnimationFrame(tick):res()})()});ov.style.display='none'}
 $('#gen').onclick=async()=>{const s=SH[cur];
+ if(!$('#videoFrames').reportValidity()||!$('#videoFPS').reportValidity())return;
  if(OSH.online){try{const r=await realShot(cur,`Generating shot ${cur+1}`);timeline();head();toast(`Shot ${cur+1} generated in ${r.seconds}s (${r.frames} frames)`)}catch(e){toast('Generation failed: '+e.message)}return}
  toast('Start ComfyUI on port 8188, then refresh local models')};
 $('#genAll').onclick=async()=>{const todo=SH.filter(s=>!s.r);if(!todo.length)return toast('Nothing to generate');
@@ -216,12 +221,12 @@ $('#frm').onclick=e=>{const c=e.target.closest('.chip');if(!c)return;frm=c.datas
 function specFromUI(){const on=k=>$(`#els [data-k=${k}]`).classList.contains('on'),p=$('#kp').value.toLowerCase();
  return SP({mia:on('mia'),bolt:on('bolt'),scene:on('street')?'street':on('room')?'room':'yard',scale:FR.find(f=>f[0]===frm)[2],night:/night|dark|midnight/.test(p),dawn:/dawn|first light|morning|sunrise/.test(p),eyes:/glow|eyes|wake|light/.test(p),carry:/carr|holds|holding/.test(p)})}
 $('#kgo').onclick=async()=>{const base=specFromUI();$('#kgo').disabled=true;$('#kgo').textContent='Generating…';
- if(OSH.online){const p=$('#kp').value,prompt=workspaceMode==='image'?p:keyPrompt(base,p),batch=(workspaceMode==='image'?[0]:[0,1,2,3]).map(()=>({spec:base,u:.5,p,pending:true}));results=batch.concat(results).slice(0,12);res();
-  try{for(const [j,v] of batch.entries()){const r=await localGeneration.keyframe(prompt,Math.floor(Math.random()*1e6));v.img=r.url;v.pending=false;if(workspaceMode==='image'){imageDraft={prompt:p,url:r.url,spec:base};saveWorkshop();syncWorkspace()}pushHist({kind:'keyframe',url:r.url,label:p});$('#kgo').textContent=`Generating… ${j+1}/4 (${r.seconds}s)`;res()}}
+ if(OSH.online){const p=$('#kp').value,prompt=workspaceMode==='image'?p:keyPrompt(base,p),batch=Array.from({length:workspaceMode==='image'?1:keyframeBatch}).map(()=>({spec:base,u:.5,p,pending:true}));results=batch.concat(results).slice(0,12);res();
+  try{for(const [j,v] of batch.entries()){const r=await localGeneration.keyframe(prompt,Math.floor(Math.random()*1e6));v.img=r.url;v.pending=false;if(workspaceMode==='image'){imageDraft={prompt:p,url:r.url,spec:base};saveWorkshop();syncWorkspace()}pushHist({kind:'keyframe',url:r.url,label:p});$('#kgo').textContent=`Generating… ${j+1}/${batch.length} (${r.seconds}s)`;res()}}
   catch(e){toast('Keyframe generation failed: '+e.message);results=results.filter(v=>!v.pending);res()}
-  $('#kgo').disabled=false;$('#kgo').textContent=workspaceMode==='image'?'Generate image':'Generate 4 keyframes';return}$('#kgo').disabled=false;$('#kgo').textContent=workspaceMode==='image'?'Generate image':'Generate 4 keyframes';toast('Start ComfyUI on port 8188, then refresh local models');return;await K.sleep(900);
+  $('#kgo').disabled=false;$('#kgo').textContent=workspaceMode==='image'?'Generate image':'Generate '+keyframeBatch+' keyframe'+(keyframeBatch===1?'':'s');return}$('#kgo').disabled=false;$('#kgo').textContent=workspaceMode==='image'?'Generate image':'Generate '+keyframeBatch+' keyframe'+(keyframeBatch===1?'':'s');toast('Start ComfyUI on port 8188, then refresh local models');return;await K.sleep(900);
  results=[0,1,2,3].map(i=>({spec:{...base,scale:base.scale*(1+(i-1.5)*.08),dx:(i-1.5)*.06},u:[.2,.5,.8,.4][i],p:$('#kp').value})).concat(results).slice(0,12);
- $('#kgo').disabled=false;$('#kgo').textContent='Generate 4 keyframes';res()};
+ $('#kgo').disabled=false;$('#kgo').textContent='Generate '+keyframeBatch+' keyframe'+(keyframeBatch===1?'':'s');res()};
 function res(){if(!results.length)return;$('#res').innerHTML='<div class="gen"></div>';results.forEach(v=>{const d=document.createElement('div');if(v.pending){d.className='v busy';d.textContent='generating…';$('#res .gen').append(d);return}d.className='v';d.draggable=true;d.title=v.p;d.innerHTML='<canvas width="256" height="144"></canvas><span>＋ add to selected shot</span>';
  drawKey(d.firstChild.getContext('2d'),v,2,0);d.ondragstart=e=>{dragV=v;e.dataTransfer.setData('text/plain','keyframe');e.dataTransfer.effectAllowed='copy'};d.ondragend=()=>dragV=null;
  d.onclick=()=>{if(workspaceMode==='image'){imageDraft={...imageDraft,url:v.img};saveWorkshop();syncWorkspace();return}const[i,lt]=keyTarget();addKey(i,lt,v)};$('#res .gen').append(d)})}
@@ -236,7 +241,7 @@ K.loop(t=>{const now=performance.now(),dt=(now-last)/1000;last=now;if(playing){c
  else{if(vid.style.display!=='none'){vid.pause();vid.style.display='none'}}
  shotFrame(g,s,lt,t);if(!s.r)mute(g);
  const em=workspaceMode==='video'&&!s.r;$('#empty').style.display=em?'block':'none';$('#tag').style.visibility=$('#tc').style.visibility=em?'hidden':'visible';$('#gen').classList.toggle('nudge',em);const arrow=$('#generateArrow'),button=$('#gen').getBoundingClientRect(),message=$('#empty .msg').getBoundingClientRect();if($("#nextVideo"))$("#nextVideo").hidden=workspaceMode!=='video'||!SH[cur].r;const showArrow=em&&$('#ov').style.display!=='flex'&&message.bottom>58&&button.top<innerHeight&&button.top>message.bottom;arrow.style.display=showArrow?'block':'none';if(showArrow){const x=message.left+message.width*.72,y=message.bottom+14,ex=button.left+button.width*.65,ey=button.top-12;$('#generateArrowCurve').setAttribute('d',`M ${x} ${y} C ${x+75} ${y+8}, ${ex+15} ${y+25}, ${ex} ${ey}`)}if(lt<.2&&i>0&&playing&&open==null){g.fillStyle=`rgba(0,0,0,${1-lt/.2})`;g.fillRect(0,0,W,H)}
- $('#tag').textContent=s.r?`Shot ${i+1} · generated${s.video?' · LTX-Video':''}`:`Shot ${i+1} · keyframe preview — generate for real motion`;$('#tc').textContent=`${G.toFixed(1)} / ${tot()}s`;
+ $('#tag').textContent=s.r?`Shot ${i+1} · generated${s.video?' · LTX-Video':''}`:`Shot ${i+1} · keyframe preview — generate for real motion`;$('#tc').textContent=`${G.toFixed(1)} / ${+tot().toFixed(3)}s`;
  $('#gph').style.left=((open!=null?G-start(open):G)*pxs)+'px';$('#gph').setAttribute('aria-label',`Playhead ${G.toFixed(1)} seconds`);SHELL.select(media())});
 // Coming back from Edit Anything with an edited keyframe
 const videoBack=SC.get('osh-video-edit-return');SC.set('osh-video-edit-return',null);
@@ -270,6 +275,8 @@ function markEls(){SHELL.mark($$('#els .chip.on').map(c=>c.dataset.k))}
 $('#els').addEventListener('click',()=>setTimeout(markEls));
 mountModels();
 mountProjects();
+const batchSlider=$('#keyframeBatch');batchSlider.value=String([1,2,4].indexOf(keyframeBatch));
+const updateBatch=()=>{keyframeBatch=[1,2,4][+batchSlider.value];$('#keyframeBatchValue').textContent=String(keyframeBatch);batchSlider.setAttribute('aria-valuetext',`${keyframeBatch} keyframe${keyframeBatch===1?'':'s'}`);if(!$('#kgo').disabled)$('#kgo').textContent=workspaceMode==='image'?'Generate image':`Generate ${keyframeBatch} keyframe${keyframeBatch===1?'':'s'}`;saveWorkshop()};batchSlider.oninput=updateBatch;updateBatch();
 const workflowBar=document.createElement('div');workflowBar.className='workflow-switch';workflowBar.innerHTML='<button data-workflow="video">Video</button><button data-workflow="image">Image</button><button id="showVideoAttributes">Video attributes ↗</button>';
 document.querySelector('main').prepend(workflowBar);
 $('#showVideoAttributes').onclick=()=>{const panel=$('#videoAttributes');panel.open=true;document.querySelector('aside.r').scrollTop=0;panel.scrollIntoView({block:'nearest'});$('#videoWidth').focus({preventScroll:true})};
@@ -277,11 +284,11 @@ const imageStage=document.createElement('section');imageStage.className='image-s
 document.querySelector('.view').before(imageStage);
 const videoNext=document.createElement('div');videoNext.id='nextVideo';videoNext.className='next-step';videoNext.hidden=true;videoNext.innerHTML='<div><strong>There’s a story here.</strong><p>Add another scene and start building your film.</p></div><button id="growFilm">Create the next scene →</button>';
 document.querySelector('main>.row').after(videoNext);
-function setWorkflow(mode){if(document.getElementById("kgo").disabled||document.getElementById("ov").style.display==="flex")return;if(playing)setPlaying(false);workspaceMode=mode;$('#kp').value=imageDraft.prompt||'';$('#kgo').textContent=mode==='image'?'Generate image':'Generate 4 keyframes';saveWorkshop();syncWorkspace();head()}
+function setWorkflow(mode){if(document.getElementById("kgo").disabled||document.getElementById("ov").style.display==="flex")return;if(playing)setPlaying(false);workspaceMode=mode;$('#kp').value=imageDraft.prompt||'';$('#kgo').textContent=mode==='image'?'Generate image':'Generate '+keyframeBatch+' keyframe'+(keyframeBatch===1?'':'s');saveWorkshop();syncWorkspace();head()}
 workflowBar.onclick=e=>{const mode=e.target.closest('[data-workflow]')?.dataset.workflow;if(mode)setWorkflow(mode)};
 $('#kp').value=imageDraft.prompt||'';$('#kp').addEventListener('input',()=>{imageDraft.prompt=$('#kp').value;saveWorkshop()});
 $('#animateImage').onclick=()=>{setWorkflow('video');const spec=SP({mia:false,bolt:false,scene:''});SH[cur].prompt=imageDraft.prompt;SH[cur].spec=spec;const existing=SH[cur].keys.find(k=>k.anchor==='start'||k.t===0);if(existing){existing.img=imageDraft.url;existing.spec=spec;existing.anchor='start';SH[cur].r=false;selKey=existing;open=cur}else{addKey(cur,0,{img:imageDraft.url,spec,u:.5});SH[cur].keys.at(-1).anchor='start'}timeline();head();save();syncWorkspace();$('#motion').focus()};
 $('#editWorkshopImage').textContent='Download image';$('#editWorkshopImage').onclick=()=>{const link=document.createElement('a');link.href=imageDraft.url;link.download='image.png';link.click()};
 $('#growFilm').onclick=()=>{cinema=true;SH.push({n:`Scene ${SH.length+1}`,d:4,spec:SP({mia:false,bolt:false,scene:''}),m:'',keys:[],r:false});cur=SH.length-1;shotId(SH[cur]);open=null;G=start(cur);selKey=null;syncWorkspace();timeline();head();save();$('#shotPromptInput').focus()};
-syncWorkspace();$('#kgo').textContent=workspaceMode==='image'?'Generate image':'Generate 4 keyframes';
+syncWorkspace();$('#kgo').textContent=workspaceMode==='image'?'Generate image':'Generate '+keyframeBatch+' keyframe'+(keyframeBatch===1?'':'s');
 timeline();head();markEls();histUI();save();if(!playing)$('#play').textContent='▶';

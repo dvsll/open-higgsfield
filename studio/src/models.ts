@@ -1,6 +1,6 @@
 import { OSH, type LocalModels, type ShotKey } from '../../shared/runtime/client';
 import { serverEstimate } from './model-estimates';
-import { frameSize, mountFrameSizes } from './frame-size';
+import { frameSize, mountFrameSizes, videoTiming } from './frame-size';
 import type { ModelChoice } from '../../shared/runtime/model-catalog';
 import { SHELL } from './shell';
 import { attachElementMentions } from './element-mentions';
@@ -11,7 +11,7 @@ const select = (kind: Kind) => document.getElementById(`${kind}Model`) as HTMLSe
 const storageKey = 'osh-local-models';
 let chosen: Partial<Record<Kind, string>> = {};
 let catalog: LocalModels | null = null;
-let context = { duration: 4, missingKeys: 0 };
+let context = { duration: 4, missingKeys: 0, frames:97 };
 try { chosen = JSON.parse(localStorage.getItem(storageKey) || '{}') || {}; } catch { /* Use installed defaults. */ }
 
 function model(kind: Kind): string {
@@ -20,9 +20,9 @@ function model(kind: Kind): string {
   return control.value;
 }
 
-export function estimateContext(duration: number, missingKeys: number): void {
-  if (context.duration === duration && context.missingKeys === missingKeys) return;
-  context = { duration, missingKeys };
+export function estimateContext(duration: number, missingKeys: number,frames=97): void {
+  if (context.duration === duration && context.missingKeys === missingKeys&&context.frames===frames) return;
+  context = { duration, missingKeys,frames };
   renderDetails();
 }
 
@@ -70,7 +70,7 @@ function renderDetails(): void {
       picker.textContent = `${entry?.label || 'Choose model'} ▾`; picker.disabled = !catalog;
       picker.setAttribute('aria-label', `${kind === 'video' ? 'Video' : 'Image'} model: ${entry?.label || 'unavailable'}. Choose model`);
     }
-    if (!entry) { el.textContent = 'Est: unavailable'; continue; }
+    if (!entry) {if(kind==='video'){el.replaceChildren();const estimate=document.getElementById('videoGenerationEstimate');if(estimate)estimate.textContent='Est: unavailable'}else el.textContent='Est: unavailable';continue; }
     renderModelInfo(kind, entry, el);
   }
 }
@@ -79,7 +79,7 @@ function renderModelInfo(kind: Kind, entry: ModelChoice, el: HTMLElement): void 
     const step=kind==='video'?32:16, width=Math.ceil(size.width/step)*step,height=Math.ceil(size.height/step)*step;
     const timingServer=catalog?.timing;
     const videoServer=kind==='video'&&context.missingKeys&&timingServer?{...timingServer,activeModel:select('keyframe').value}:timingServer;
-    const estimate=serverEstimate(entry,context.duration,width,height,videoServer);
+    const estimate=serverEstimate(entry,context.duration,width,height,videoServer,kind==='video'?context.frames:undefined);
     let total=estimate.seconds,extra=0;
     if(kind==='video'&&context.missingKeys){const image=catalog?.keyframe.find(m=>m.id===select('keyframe').value);if(image){const imageSize=frameSize('keyframe',false);const iw=Math.ceil(imageSize.width/16)*16,ih=Math.ceil(imageSize.height/16)*16;const first=serverEstimate(image,1,iw,ih,timingServer);const rest=serverEstimate(image,1,iw,ih,timingServer?{...timingServer,activeModel:image.id}:undefined);if(first.seconds!==null&&rest.seconds!==null){extra=first.seconds+(context.missingKeys-1)*rest.seconds;total=total===null?null:total+extra;}}}
     const timing=document.createElement('button');timing.type='button';timing.className='model-time';timing.textContent=total===null?'Est: benchmark needed':`Est: ~${total}s`;
@@ -105,7 +105,7 @@ function renderModelInfo(kind: Kind, entry: ModelChoice, el: HTMLElement): void 
       };
       badges.append(badge);
     }
-    el.append(timing, label, badges);
+    if(kind==='video'&&el.id==='videoModelDetails'){document.getElementById('videoGenerationEstimate')?.replaceChildren(timing);el.append(label,badges)}else el.append(timing, label, badges);
 }
 let chooser: HTMLDialogElement | null = null;
 function chooseModel(kind: Kind): void {
@@ -145,8 +145,8 @@ export const localGeneration = {
     const id = model('keyframe'); const result = await OSH.keyframe(expandMentions(prompt, SHELL.ELEMENTS), seed, frameSize('keyframe'), id);
     catalog=await OSH.models().catch(()=>catalog);renderDetails();return result;
   },
-  async shot(keys: ShotKey[], prompt: string, duration: number, seed = 1) {
-    const id = model('video'); const result = await OSH.shot(keys, expandMentions(prompt, SHELL.ELEMENTS), duration, seed, {...frameSize('video'),model:id});
+  async shot(keys: ShotKey[], prompt: string, duration: number, seed = 1,timing=videoTiming()) {
+    const id = model('video'); const result = await OSH.shot(keys, expandMentions(prompt, SHELL.ELEMENTS), duration, seed, {...frameSize('video'),...timing,model:id});
     catalog=await OSH.models().catch(()=>catalog);renderDetails();return result;
   },
 };

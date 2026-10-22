@@ -226,7 +226,10 @@ function shotGraph(g: Record<string, any>, nKeys: number): Record<string, any> {
 async function shot(body: any, env: Env) {
   if (body.keys === undefined) body.keys = [];
   if (!Array.isArray(body.keys) || body.keys.length > 8) throw new HttpError(400, "keys: 0–8 keyframes");
-  const duration = num(body.duration, 1, 8, 4);
+  const fps=num(body.fps,1,120,FPS);
+  const length=body.frames===undefined?Math.max(25,Math.min(121,Math.round(num(body.duration,1,8,4)*fps/8)*8+1)):num(body.frames,9,121,97);
+  if(!Number.isInteger(length)||(length-1)%8!==0)throw new HttpError(400,'frames must be 8n+1 (9, 17, 25…121)');
+  const duration = body.frames===undefined?num(body.duration,1,8,4):length/fps;
   const keys: Key[] = body.keys
     .map((k: any) => ({ image: k.image, t: num(k.t, 0, duration, 0), strength: num(k.strength, 0, 1, 1) }))
     .sort((a: Key, b: Key) => a.t - b.t);
@@ -235,7 +238,6 @@ async function shot(body: any, env: Env) {
     return outputPath(k.image);
   });
   const model = await selectedModel(body, env, "video");
-  const length = Math.max(25, Math.min(121, Math.round((duration * FPS) / 8) * 8 + 1)); // LTX wants 8n+1 frames
   const last = length - 1;
   const c = client(env);
   const width = dimension(body.width,1024,768,32);
@@ -252,17 +254,19 @@ async function shot(body: any, env: Env) {
   });
   wf.setInput("3", "text", body.prompt ? str(body.prompt, 2000, "prompt") : "cinematic shot");
   wf.setInput("7", "length", length);
+  wf.setInput('11','frame_rate',fps);
+  wf.setInput('17','fps',fps);
   wf.setInput("14", "noise_seed", Math.floor(num(body.seed, 0, 2 ** 32, 1)));
   keys.forEach((k, i) => {
     const n = i ? String(i).padStart(2, "0") : "";
-    const f = Math.round((k.t * FPS) / 8) * 8;
+    const f = Math.round((k.t * fps) / 8) * 8;
     wf.setInput(i ? `8${n}` : "8", "frame_idx", f >= last - 4 ? -1 : Math.min(f, last - 8)); // snap to latent frames; last key = end
     wf.setInput(i ? `8${n}` : "8", "strength", k.strength);
     wf.setInput(i ? `5${n}` : "5", "image", c.assets.fromFile(paths[i]));
   });
   const t = Date.now();
   const {job} = await timedRun(c,wf,env,model,rw,rh,length);
-  return { url: await save(job, "17", "webm"), seconds: +((Date.now() - t) / 1000).toFixed(1), frames: length };
+  return { url: await save(job, "17", "webm"), seconds: +((Date.now() - t) / 1000).toFixed(1), frames: length, fps, duration:length/fps };
 }
 
 async function health(env: Env) {

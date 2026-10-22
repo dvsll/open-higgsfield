@@ -71,3 +71,6 @@ Additive server timing metadata on GET /api/models, persisted by actual GPU and 
 
 ### Shared runtime coordination — 2026-10-22, optional video guides
 POST /api/shot now accepts 0–8 keys (omission means empty). Zero-key generation bypasses image loading, LTXVAddGuide and guide cropping, linking conditioning and empty video latent directly into the existing sampler. Existing 1–8-guide behavior is retained. Real unguided SDK/proxy/LTX render passed (25 frames, 256×256, 10.5s); no models/dependencies or Ad Studio app changes.
+
+### Shared runtime coordination — 2026-10-22, explicit frames and FPS
+POST /api/shot and OSH.shot options add frames? / fps?. Explicit frames accept 9–121 in 8n+1 steps; FPS1–120. Duration derives from frames/FPS; guide placement, LTX conditioning and SaveWEBM use chosen FPS. Legacy omitted fields retain 24fps / existing duration conversion. Results additionally include fps and duration. Live SDK17-frame12FPS render verified exactly with ffprobe; invalid timing rejection, client compatibility and HTTP smoke pass. No Ad Studio app changes or dependencies.

@@ -1,5 +1,17 @@
 # Shared API review: Ad Studio P0
 
+## Current integration review — feat/adstudio-workspace, 2026-10-22
+
+Supersedes the historical fidelity audit below. Latest fetched main remains `9921282`. Integration commit `74fd500` reconciles it with `d46e789` through a union of audio and product-video services; no whole stale shared-file replacements. Persistence `7210bad`, workspace `115755c`, and saved-history hardening `3fb7600` are separate reviewable commits. Studio source and production shot_ltxv JSON exactly match integrated main. No merge into main or default-model change.
+
+Review shared diff with `git diff origin/main...feat/adstudio-workspace -- shared/runtime shared/workflows/CONTRACT.md`. Preserve both audio and product routes, FLAC serving, AAC/Opus preservation, keepAudio, frame/FPS controls, model-string/options SDK signatures, model catalog and timed connection health. Additive `GET /api/capabilities` in the workspace commit probes FFmpeg independently of ComfyUI, without queueing work or starting the proxy. The response distinguishes API support from `/api/models` runnable weights/nodes. Existing endpoints are unchanged.
+
+PASS: build/typecheck, both app regression suites, client calling conventions, live silent/audio trim/speed/reverse/resize/export, all Product-Locked/Camera formats, FLAC serving, malformed-input/decode recovery and unchanged source hashes. Isolated offline-Comfy API also produced all three Camera template recipes and adjusted MP4 exports. No new GPU renders; Creative workflow unchanged and commercial quality still FAIL. Browser/actual IndexedDB/playback/layout acceptance NOT RUN due to unavailable Computer Use Node runtime. See WORKSPACE.md for exact tests and remaining manual checks.
+
+Separate `adstudio/benchmark/` package is preparation only, absent from production imports/runtime model catalog. No cloud resources, model downloads or private uploads occurred. A100 execution/deletion/billing remain explicitly approval-gated and untested. Generic printed-label input is not proof of brand-logo fidelity.
+
+## Historical review before integration
+
 ## Current review — feat/adstudio-fidelity, 2026-10-22
 
 Final readiness audit against main `3ab79dc`: one API route conflict (retain **audio AND product-video**), two client declaration conflicts (retain product types/method, audio, keepAudio, frame/FPS and timed health), one contract append conflict, plus both notes files. Preserve main's FLAC handling, audio readiness, audio-aware edit/export and model/audio workflow bundle. Do not replace services with branch-old files. Current branch remains compatible with its Director; an integrated main candidate is not tested/merged. Full resolution matrix and required coexistence tests: [CONDITIONING_DECISION.md](CONDITIONING_DECISION.md). No shared production code changed during the final strength test.

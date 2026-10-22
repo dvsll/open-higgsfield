@@ -1,0 +1,25 @@
+import assert from 'node:assert/strict';
+import {readFile,writeFile,mkdir} from 'node:fs/promises';
+import {createHash} from 'node:crypto';
+import {execFile} from 'node:child_process';
+import {promisify} from 'node:util';
+import {benchmarkGraph,validateGraph} from './graph.mjs';
+const exec=promisify(execFile),pins=JSON.parse(await readFile('adstudio/benchmark/pins.json','utf8')),sha=b=>createHash('sha256').update(b).digest('hex');
+assert.equal(sha(await readFile('adstudio/benchmark/requirements.lock')),pins.requirementsSha256);
+assert.equal(pins.weights.length,5);assert.equal(pins.weights.reduce((s,w)=>s+w.bytes,0),71114917404);
+assert.ok(pins.weights.every(w=>/^[a-f0-9]{64}$/.test(w.sha256)&&w.bytes>0));
+assert.match(pins.image,/@sha256:[a-f0-9]{64}$/);assert.equal(sha(await readFile('adstudio/benchmark/workflow_api.json')),pins.apiWorkflowSha256);
+const graph=benchmarkGraph({prompt:'benchmark',seed:1});assert.equal(graph[3059].inputs.length,73);assert.equal(graph[3059].inputs.width*2,1088);assert.equal(graph[3980].inputs.frame_rate,24);assert.equal(graph[1241].inputs.frame_rate,24);assert.equal(graph[4849].inputs.fps,24);assert.equal(graph[3159].inputs.strength,.7);assert.equal(graph[4970].inputs.strength,1);
+assert.equal(Object.values(graph).filter(n=>n.class_type==='SamplerCustomAdvanced').length,2);
+assert.ok(Object.values(graph).every(n=>!/API|Prompt|Switch/.test(n.class_type)));
+assert.throws(()=>benchmarkGraph({prompt:'benchmark',frames:72}));
+const nodes={};for(const n of Object.values(graph)){nodes[n.class_type]={input:{required:Object.fromEntries(Object.keys(n.inputs).map(k=>[k,['ANY',{}]]))},output:['ANY','ANY']};}
+assert.equal(validateGraph(graph,nodes),true);
+assert.throws(()=>validateGraph({...graph,123:{class_type:'missing',inputs:{}}},nodes));
+assert.throws(()=>validateGraph({...graph,123:{class_type:'LoadImage',inputs:{image:['no-node',0]}}},nodes));
+assert.throws(()=>validateGraph({...graph,2004:{class_type:'LoadImage',inputs:{image:['2004',0]}}},nodes));
+for(const [program,args]of [[process.execPath,['adstudio/benchmark/render.mjs']],['python',['adstudio/benchmark/weights.py']]])assert.match((await exec(program,args)).stdout,/DRY RUN/);
+await mkdir('outputs/benchmark-prep',{recursive:true});
+const created=Math.floor(Date.now()/1000);await writeFile('outputs/benchmark-prep/fake-lease.json',JSON.stringify({version:1,podId:'test',name:'adstudio-ltx25-test',created,deadline:created+10800,gpuRate:1.79,storageHourly:.032,sessionCap:6,networkVolumeId:null}));
+assert.match((await exec('python',['adstudio/benchmark/lifecycle.py','watch','--lease','outputs/benchmark-prep/fake-lease.json'])).stdout,/DRY RUN/);
+console.log('PASS: pinned file hashes, bounded graph, synchronized AV frames/FPS, missing nodes/links/cycles rejected; default runner/download/watchdog perform no network actions.');

@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "podId": "REPLACE_ONLY_AFTER_APPROVAL",
+  "name": "adstudio-ltx25-REPLACE_SESSION",
+  "created": 0,
+  "deadline": 10800,
+  "gpuRate": 1.79,
+  "storageHourly": 0.031507,
+  "sessionCap": 6,
+  "networkVolumeId": null
+}

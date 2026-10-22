@@ -12,6 +12,7 @@ if(!projects.length){
 let current=projects.find(p=>p.id===localStorage.getItem(active))||projects[0];
 export const projectKey=(key:string)=>`osh:${current.id}:${key}`;
 export function mountProjects():void{
+ const onboarding=document.getElementById('testOnboarding');if(onboarding)onboarding.onclick=()=>{if(document.querySelector<HTMLButtonElement>('#kgo')?.disabled||document.querySelector<HTMLElement>('#ov')?.style.display==='flex')return;const project={id:crypto.randomUUID(),name:`Onboarding test ${projects.filter(p=>p.name.startsWith('Onboarding test')).length+1}`,created:Date.now()};projects.push(project);localStorage.setItem(registry,JSON.stringify(projects));localStorage.setItem(active,project.id);location.href='director.html'};
  const label=document.querySelector<HTMLElement>('.proj')!;label.replaceChildren();
  const button=document.createElement('button');button.className='project-picker';button.textContent=current.name+' ▾';button.onclick=()=>{
   if(document.querySelector<HTMLButtonElement>('#kgo')?.disabled||document.querySelector<HTMLElement>('#ov')?.style.display==='flex')return;

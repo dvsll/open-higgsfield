@@ -8,7 +8,7 @@ export type ShotResult = { url: string; seconds: number; frames: number;fps?:num
 export type ShotKey = { image: string; t: number; strength?: number };
 import type { ModelChoice } from './model-catalog';
 import type { ServerTiming } from './render-timings';
-export type LocalModels = { keyframe: ModelChoice[]; video: ModelChoice[]; timing: ServerTiming; research: { repo: string; revision: string; bytes: number }[]; inventory: { category: string; files: string[] }[] };
+export type LocalModels = { keyframe: ModelChoice[]; video: ModelChoice[]; audio?:{available:boolean;model:string}; timing: ServerTiming; research: { repo: string; revision: string; bytes: number }[]; inventory: { category: string; files: string[] }[] };
 
 let online = false;
 let info: Health | null = null;
@@ -38,6 +38,7 @@ async function post<T>(name: string, body: unknown): Promise<T> {
 }
 
 export const OSH = {
+  audio:(prompt:string,duration:number,seed=1,video?:string)=>post<{audio:string;video?:string;duration:number;seconds:number}>('audio',{prompt,duration,seed,video}),
   health,
   async models(): Promise<LocalModels> {
     const r = await fetch('/api/models', { cache: 'no-store' });
@@ -49,7 +50,7 @@ export const OSH = {
   get reason() { return reason; },
   upload: (image: string) => post<{ url: string; width: number; height: number }>("upload", { image }),
   exportVideo: (video: string, overlay?: string) => post<{ url: string; seconds: number }>("export", { video, overlay }),
-  editVideo:(options:{video:string;start:number;end:number;speed:number;reverse:boolean;width:number;height:number})=>post<{url:string;seconds:number;width:number;height:number}>('edit-video',options),
+  editVideo:(options:{video:string;keepAudio?:boolean;start:number;end:number;speed:number;reverse:boolean;width:number;height:number})=>post<{url:string;seconds:number;width:number;height:number}>('edit-video',options),
   keyframe: (prompt: string, seed = 1, size: { width?: number; height?: number } = {}, model?: string) => post<KeyframeResult>("keyframe", { prompt, seed, ...size, model }),
   // Preserve Director's model argument and Ad Studio's size argument; options can combine both.
   shot: (keys: ShotKey[], prompt: string, duration: number, seed = 1, options: string | { width?: number; height?: number; model?: string;frames?:number;fps?:number } = {}) => post<ShotResult>("shot", { keys, prompt, duration, seed, ...(typeof options === 'string' ? { model: options } : options) }),

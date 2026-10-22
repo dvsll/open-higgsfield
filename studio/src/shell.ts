@@ -7,7 +7,7 @@ import { elementLibrary } from './element-maker';
 declare const STYLEBOARD: { looks: Style[] };
 
 export type MediaType = 'shot' | 'keyframe' | 'frame';
-export type Media = { type: MediaType; label: string; spec?: unknown; u?: number; img?: string; video?:string;duration?:number;ref?: { shot: number; key?: number;shotId?:string } };
+export type Media = { type: MediaType; label: string; spec?: unknown; u?: number; img?: string; video?:string;audio?:string;audioLinked?:boolean;duration?:number;ref?: { shot: number; key?: number;shotId?:string } };
 export type Style = { id: string; n: string; prompt: string; sw: string[]; sky?: [string, string]; refs?: string[]; tint?: string; user?: boolean };
 export type Element = { id: string; ic: string; n: string; d: string; kind: 'cast' | 'place' | 'object'; refs?:string[];user?:boolean };
 export type PoolItem = { url: string; label: string };

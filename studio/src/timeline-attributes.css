@@ -16,3 +16,9 @@
 .track-toggle{min-width:0;width:64px;margin:3px 0 0;padding:8px 3px;border:0;background:transparent;font-size:9px;letter-spacing:.04em;height:31px;z-index:8}
 .track-toggle:hover{background:#24262c}.track-toggle:focus-visible{outline:1px solid #e9c46a;outline-offset:-1px}
 .track-attributes{min-width:0}.track-attributes[hidden]{display:none}
+
+.tl{grid-template-columns:136px minmax(0,1fr);overscroll-behavior:contain}
+.track-toggle{width:136px;min-height:34px;height:auto;border:1px solid #3e444e;background:#1b1e25;font-size:11px;letter-spacing:0;padding:8px;text-align:left;line-height:16px;color:#d5dbe7;box-shadow:inset 2px 0 #5b6780}
+.track-toggle:hover{border-color:#8b96aa;background:#292f3b;color:#fff}.track-toggle[aria-expanded=true]{background:#252b36;border-color:#68768f}
+.audio-toggle{border-color:#35544a;box-shadow:inset 2px 0 #477d6c;color:#9bc7ba;background:#15231e}
+#audioTrackToggle{margin-top:3px;min-height:34px}

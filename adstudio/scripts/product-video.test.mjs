@@ -8,8 +8,8 @@ for (const ratio of Object.keys(productFormats)) for (const duration of [2, 3, 5
     assert.ok(r.width > 0 && r.height > 0 && r.x >= 0 && r.y >= 0);
     const centers = [];
     for (let f = 0; f < plan.frames; f++) {
-      const p = f / (plan.frames - 1), z = motion === 'push' ? 1 + .08*p : 1.06;
-      const pan = motion === 'push' ? 0 : (motion === 'pan-right' ? 1 : -1)*(p-.5)*plan.width*.04;
+      const t = f / (plan.frames - 1), p=t*t*(3-2*t), z = motion === 'push' ? 1 + .04*p : 1.04;
+      const pan = motion === 'push' ? 0 : (motion === 'pan-right' ? 1 : -1)*(p-.5)*plan.width*.024;
       const x = (r.x - (plan.width/2-plan.width/z/2+pan))*z;
       const y = (r.y - (plan.height/2-plan.height/z/2))*z;
       assert.ok(x >= -1e-9 && y >= -1e-9 && x+r.width*z <= plan.width+1e-9 && y+r.height*z <= plan.height+1e-9, 'source must remain in frame');

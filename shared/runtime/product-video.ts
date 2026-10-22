@@ -21,12 +21,15 @@ export function productPlan(mode: ProductMode, ratio: ProductRatio, duration: nu
       `[1:v]scale=${fw}:${fh}:flags=lanczos,format=rgb24[photo];` +
       `[bg][photo]overlay=${rect.x}:${rect.y}:format=rgb,format=yuv420p[out]`;
   } else {
-    const progress = `on/${frames - 1}`;
-    const zoom = motion === 'push' ? `1+0.08*${progress}` : '1.06';
-    const pan = motion === 'push' ? '' : `${motion === 'pan-right' ? '+' : '-'}(${progress}-0.5)*iw*0.04`;
-    // Work at 4x resolution before sampling to reduce integer crop-step jitter.
-    filter = `[0:v]scale=${fw * 4}:${fh * 4}:flags=lanczos,pad=${width * 4}:${height * 4}:${rect.x * 4}:${rect.y * 4}:color=0x16171b,` +
-      `zoompan=z='${zoom}':x='iw/2-iw/zoom/2${pan}':y='ih/2-ih/zoom/2':d=${frames}:s=${width}x${height}:fps=24,format=yuv420p[out]`;
+    const t = `(on/${frames - 1})`;
+    const progress = `(${t}*${t}*(3-2*${t}))`;
+    const zoom = motion === 'push' ? `1+0.04*${progress}` : '1.04';
+    const pan = motion === 'push' ? '' : `${motion === 'pan-right' ? '+' : '-'}(${progress}-0.5)*iw*0.024`;
+    // Keep RGB and supersample the OUTPUT too: zoompan otherwise rounds its
+    // crop/scale at final resolution, causing visible alternating frame steps.
+    // Convert to subsampled YUV only after the final Lanczos downsample.
+    filter = `[0:v]scale=${fw * 8}:${fh * 8}:flags=lanczos,format=gbrp,pad=${width * 8}:${height * 8}:${rect.x * 8}:${rect.y * 8}:color=0x16171b,` +
+      `zoompan=z='${zoom}':x='iw/2-iw/zoom/2${pan}':y='ih/2-ih/zoom/2':d=${frames}:s=${width * 4}x${height * 4}:fps=24,scale=${width}:${height}:flags=lanczos,setsar=1,format=yuv420p[out]`;
   }
   return { width, height, frames, rect, filter, mode, motion: mode === 'camera' ? motion : 'static-protected-photo' };
 }

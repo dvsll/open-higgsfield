@@ -1,6 +1,6 @@
 import type {Settings,Ratio} from './projects';
 export const templates=[
- {id:'portrait-push',name:'Portrait push',description:'Vertical photo animation · gentle 8% push in',ratio:'9:16',motion:'push'},
+ {id:'portrait-push',name:'Portrait push',description:'Vertical photo animation · eased 4% push in',ratio:'9:16',motion:'push'},
  {id:'landscape-pan',name:'Landscape pan',description:'Wide photo animation · camera pans right',ratio:'16:9',motion:'pan-right'},
  {id:'square-pan',name:'Square pan',description:'Square photo animation · camera pans left',ratio:'1:1',motion:'pan-left'},
 ] as const;

@@ -1,6 +1,8 @@
 # PR #2 — persistent workspace browser acceptance
 
-**Status: NOT RUN. Keep [PR #2](https://github.com/dvsll/open-higgsfield/pull/2) draft.** These are instructions for a person to execute, not completed results. Previous Computer Use initialization failed with a missing Node runtime; an earlier session was interrupted by physical Escape. Neither was bypassed. API/media and memory-driver tests do not establish real IndexedDB, browser playback or download acceptance.
+**Status: NOT RUN. Keep [PR #2](https://github.com/dvsll/open-higgsfield/pull/2) draft.** These are instructions for a person to execute, not completed results. Latest Computer Use initialized, then stopped because Chrome's current URL could not be determined confidently. Earlier failures/interruption were not bypassed. API/media and memory-driver tests do not establish real IndexedDB, browser playback or download acceptance.
+
+**Camera review first:** open private `outputs/camera-motion-20261022/index.html`, play baseline/revised pairs at normal speed, then generate fresh takes of all three templates in the app. Revised push is eased 4%; pans use eased 2.4% travel. Check for shaking, abrupt endpoints, repeated-frame stutter and tiny-letter shimmer through full playback. Existing history keeps its old videos. Record any remaining problem with template, source, output filename and player/browser; see `CAMERA_MOTION.md` for measured evidence/limits.
 
 ## Before starting
 

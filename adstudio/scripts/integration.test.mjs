@@ -37,13 +37,20 @@ for(const audio of [false,true]) {
 }
 const input=(await exec(ffmpeg,['-v','error','-f','lavfi','-i','color=c=orange:size=96x128','-frames:v','1','-f','image2pipe','-c:v','png','-'],{windowsHide:true,encoding:'buffer'})).stdout;
 const upload=await post('upload',{image:'data:image/png;base64,'+input.toString('base64')});assert.equal(upload.status,200);
-for(const mode of ['locked','camera'])for(const ratio of ['16:9','9:16','1:1']) {
- const r=await post('product-video',{mode,ratio,image:upload.data.url,background:original[0].url,duration:2,motion:'push'});assert.equal(r.status,200,JSON.stringify(r));
+for(const mode of ['locked','camera'])for(const ratio of ['16:9','9:16','1:1'])for(const motion of mode==='camera'?['push','pan-left','pan-right']:['push']) {
+ const r=await post('product-video',{mode,ratio,image:upload.data.url,background:original[0].url,duration:2,motion});assert.equal(r.status,200,JSON.stringify(r));
  const p=await probe(r.data.url);assert.equal(p.streams[0].nb_read_frames,'49');assert.equal((await post('export',{video:r.data.url})).status,200);
 }
 assert.equal(sha(await readFile('.'+upload.data.url)),sha(input));
 for(const src of original)assert.equal(sha(await readFile('.'+src.url)),src.hash);
-const models=await(await fetch(base+'/api/models')).json();assert.equal(typeof models.audio.available,'boolean');
+const modelResponse=await fetch(base+'/api/models'),models=await modelResponse.json();
+if(modelResponse.ok)assert.equal(typeof models.audio.available,'boolean');
+else {
+ assert.equal(modelResponse.status,503,'offline model discovery must fail explicitly');
+ assert.equal(typeof models.error,'string');
+ const caps=await(await fetch(base+'/api/capabilities')).json();assert.equal(caps.ffmpeg.available,true);
+ console.log('PASS offline Comfy: model discovery explicitly unavailable; local FFmpeg product/edit/export tests succeeded.');
+}
 const flac='/outputs/'+randomBytes(8).toString('hex')+'.flac';
 await exec(ffmpeg,['-v','error','-i',resolve('.'+original[1].url),'-vn','-c:a','flac',resolve('.'+flac)],{windowsHide:true});
 const response=await fetch(base+flac);assert.equal(response.headers.get('content-type'),'audio/flac');assert.equal(sha(Buffer.from(await response.arrayBuffer())),sha(await readFile('.'+flac)));

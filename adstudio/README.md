@@ -13,3 +13,5 @@ Development dimensions: landscape 512×288, vertical 288×512, square 384×384. 
 Checks: `npm run typecheck`, `npm run build`, and (with dev server running) `node adstudio/scripts/smoke.mjs`. Smoke checks validate real HTTP upload/storage and rejection paths without requiring a GPU; they do not establish video generation success.
 
 Current model is the shared LTX-Video 2B 0.9.8 distilled development workflow. Final LTX-2.5 migration, tagline compositing and MP4 export remain required P0 work. See `notes/adstudio.md` for local verification and blockers.
+
+Verified locally on RTX 3080 10 GB / ComfyUI 0.42.4: real SDK/proxy renders of an original synthetic bottle in all three formats, 49 frames at 24 fps. Landscape first run 20.6 s; vertical and square warm runs 6.7 s each. This verifies infrastructure, not real-product fidelity. Optional GPU check: `node adstudio/scripts/render-smoke.mjs <your-normalized-photo.png> 16:9` (also 9:16 or 1:1). It writes diagnostics under outputs/ and generates a real video.

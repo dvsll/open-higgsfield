@@ -136,6 +136,10 @@ textarea:focus{border-color:var(--faint)}
 .hist .none{font-size:12px;color:var(--faint)}
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--card);border:1px solid var(--line);padding:8px 16px;border-radius:99px;transition:opacity .3s;z-index:20}
 @media (max-width:1000px){.app{grid-template-columns:1fr}aside.l,aside.r{border:0;border-top:1px solid var(--line)}aside.l{order:2}main{order:1}aside.r{order:3}}
+.view canvas{object-fit:contain;background:#111}.view video{object-fit:contain}
+.empty .msg{transform:translate(-50%,-65%)}.empty h3{font-size:clamp(22px,2.5vw,34px);letter-spacing:-.035em}.empty p{font-size:15px;color:#c6c2b9;margin-top:10px}
+#generateArrow{position:fixed;inset:0;width:100vw;height:100vh;z-index:12;pointer-events:none;overflow:visible;fill:none;stroke:var(--key);stroke-width:4;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 2px 5px #0009)}#generateArrow marker{stroke-width:2.5}
+@media(prefers-reduced-motion:reduce){#gen.nudge{animation:none;box-shadow:0 0 0 2px var(--key)}}
 /* No rounded corners anywhere for now (overrides shell.js styles too). */
 *,*::before,*::after{border-radius:0!important}
 </style></head><body>
@@ -147,7 +151,7 @@ textarea:focus{border-color:var(--faint)}
  <main>
   <div class="title"><h2 id="sTitle"><span id="sNum"></span><span id="sName" contenteditable="plaintext-only" spellcheck="false" title="Click to rename (F2)"></span><span class="pen">✎</span></h2><span id="sMeta"></span><span class="sp"></span><span id="sState"></span></div>
   <div class="view"><canvas id="cv"></canvas><video id="vid" muted playsinline preload="auto"></video>
-   <div class="empty" id="empty"><div class="msg"><h3 id="emT">Not generated yet</h3><p id="emP"></p><svg class="arw" viewBox="0 0 20 56" aria-hidden="true"><path d="M10,2 L10,52" /><path d="M3,44 L10,53 L17,44" /></svg></div>
+   <div class="empty" id="empty"><div class="msg"><h3 id="emT">Bring your scene to life</h3><p id="emP">Press Generate to get started.</p></div>
     </div><span class="tag" id="tag"></span><span class="tc" id="tc"></span>
    <div class="ov" id="ov"><div id="ovt"></div><div class="prog"><i id="pb"></i></div></div></div>
   <div class="modelbar"><label for="videoModel">Video</label><select id="videoModel" disabled><option>Connecting…</option></select><div id="videoModelDetails" class="model-card" aria-live="polite"></div></div>
@@ -179,4 +183,4 @@ textarea:focus{border-color:var(--faint)}
   <div id="res"><div class="empty">Generated keyframes show up here.</div></div>
  </aside>
 </div>
-<script type="module" src="./src/director.ts"></script></body></html>
+<svg id="generateArrow" aria-hidden="true"><defs><marker id="generateArrowTip" viewBox="0 0 20 20" refX="16" refY="10" markerWidth="7" markerHeight="7" orient="auto"><path d="M3 3 L17 10 L3 17" /></marker></defs><path id="generateArrowCurve" marker-end="url(#generateArrowTip)" /></svg><script type="module" src="./src/director.ts"></script></body></html>

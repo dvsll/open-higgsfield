@@ -27,6 +27,11 @@ Export workflows from ComfyUI with **Save (API format)** and commit the JSON nex
 - Uses local FFmpeg (`FFMPEG_PATH` or PATH), H.264/libx264, yuv420p, no audio, faststart. Optional static PNG is composited at 0,0; Ad Studio creates a same-size transparent tagline PNG in the browser and uploads it. No client-provided filesystem paths, shell commands or filter expressions.
 - Shared queue, 90-second export timeout; failure removes partial MP4. No generation models or workflow JSON change. FFmpeg must be installed separately.
 
+### Video editing and exact sizes (2026-10-22)
+- `POST /api/edit-video`: `{video, start?, end?, speed?, reverse?, width?, height?}` → `{url, seconds, width, height}`. `OSH.editVideo` mirrors this. Only API-owned WebM/MP4 sources; original is kept. Trim bounds 0–60 seconds, end after start; speed 0.25–4; whole-pixel dimensions 16–4096, at most 4096×2160 total pixels. Local FFmpeg trims, optionally reverses, changes speed, resamples to 24 fps and scales with Lanczos to VP9 WebM without audio. Same gate/queue, 90-second timeout, no client filter/shell strings, partial output cleanup. This is conventional resizing, not learned super-resolution.
+- Generation accepts exact whole-pixel dimensions. Image bounds 256–1536; video 256–1024 and at most 768×768 pixels after padding. Internal latents round up to 16 pixels (image) or 32 (video); a core `ImageCrop` after decoding returns the exact requested output size. Existing aligned defaults are unchanged.
+- `GET /api/models` additionally returns top-level `timing`: actual ComfyUI GPU identity/VRAM, hardware-specific measured render samples, last observed model and queue depth. Successful uncached SDK executions are saved in gitignored `outputs/render-timings.json`; cached sampler executions are excluded. UI uses nearby measured workloads, actual padded dimensions/frame count, model-switch overhead and missing-keyframe work. Unknown hardware without samples needs a benchmark. Queue wait is separate; another Comfy client can change model residency.
+
 Dev set: small + fast, for iterating locally on 12 GB cards (4070 Super; should fit a 3080 with ComfyUI offloading, untested).
 Swap to LTX-2.5 + IC-LoRAs on a rented 32 GB+ GPU for final renders.
 

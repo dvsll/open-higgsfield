@@ -3,6 +3,10 @@ import '../../shared/lib/kit.js';
 import '../../shared/styleboard/looks.js';
 import { SC } from './scene';
 import { SHELL } from './shell';
+import { mountVideoEditor } from './video-editor';
+const incoming=new URLSearchParams(location.search).get('from')?SC.get('osh-handoff'):null;
+if(incoming?.video)mountVideoEditor(incoming);else legacyEditor();
+function legacyEditor(){
 const {$,$$}=K,W=640,H=360;
 // Source: a keyframe handed over from Director, or a sample frame.
 // Media handed over from another workflow (via the shared "Selected media" card), or a sample frame.
@@ -60,7 +64,7 @@ K.loop(t=>{SHELL.select({type:hand?.type||'frame',label:hand?hand.label:'Sample 
 SHELL.mount({app:'edit',elementHint:'click to edit',useLabel:e=>e.kind==='cast'?'select':'move here',
  beforeOpen:app=>{if(app==='director'&&hand?.from==='director'&&hand.ref?.key!=null&&layers.length)writeBack()},
  onLook:(l,s2)=>{look=l;str=s2},
- onElement:e=>{if(e.kind==='cast')select(e.id);else apply('place',e.n.toLowerCase())}});
+ onElement:e=>{if(REG[e.id])select(e.id);else toast(`Use @${e.n} in a Director prompt to include this element.`)}});
 // Real keyframe image if we have one, otherwise the generic tile. (Edits are listed as layers;
 // they render once the image-edit workflow is connected.)
 var baseImg=hand?.img?Object.assign(new Image(),{src:hand.img}):null;
@@ -68,3 +72,4 @@ function drawBase(g){if(baseImg&&baseImg.complete&&baseImg.naturalWidth){const r
 if(!baseImg)$('#hint').textContent='No image to edit yet: generate this keyframe in the Director first.';
 renderLayers();
 document.addEventListener('click',e=>{const t=e.target.closest('[data-toast]');if(t)toast(t.dataset.toast)});
+}

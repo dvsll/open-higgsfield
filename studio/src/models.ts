@@ -1,5 +1,6 @@
 import { OSH, type LocalModels, type ShotKey } from '../../shared/runtime/client';
-import { estimatedSeconds, type TimingSample } from './model-estimates';
+import { serverEstimate } from './model-estimates';
+import { frameSize, mountFrameSizes } from './frame-size';
 import type { ModelChoice } from '../../shared/runtime/model-catalog';
 import { SHELL } from './shell';
 import { attachElementMentions } from './element-mentions';
@@ -11,20 +12,12 @@ const storageKey = 'osh-local-models';
 let chosen: Partial<Record<Kind, string>> = {};
 let catalog: LocalModels | null = null;
 let context = { duration: 4, missingKeys: 0 };
-let samples: TimingSample[] = [];
-try { const saved = JSON.parse(localStorage.getItem('osh-model-timings') || '[]'); if (Array.isArray(saved)) samples = saved; } catch { /* Initial estimates. */ }
 try { chosen = JSON.parse(localStorage.getItem(storageKey) || '{}') || {}; } catch { /* Use installed defaults. */ }
 
 function model(kind: Kind): string {
   const control = select(kind);
   if (control.disabled || !control.value) throw new Error(`Refresh local models and select a ${kind} model first`);
   return control.value;
-}
-
-function remember(id: string, seconds: number, duration?: number) {
-  samples = [...samples, { id, seconds, duration }].slice(-40);
-  try { localStorage.setItem('osh-model-timings', JSON.stringify(samples)); } catch { /* Timings are optional. */ }
-  renderDetails();
 }
 
 export function estimateContext(duration: number, missingKeys: number): void {
@@ -62,6 +55,7 @@ function attachHelp(button: HTMLButtonElement, heading: string, description: str
   button.onkeydown = e => { if (e.key === 'Escape') hide(); };
 }
 function renderDetails(): void {
+  dispatchEvent(new Event('osh-models-changed'));
   if (tooltip) tooltip.hidden = true;
   for (const kind of ['keyframe', 'video'] as const) {
     const el = document.getElementById(`${kind}ModelDetails`);
@@ -81,19 +75,15 @@ function renderDetails(): void {
   }
 }
 function renderModelInfo(kind: Kind, entry: ModelChoice, el: HTMLElement): void {
-    const est = estimatedSeconds(entry, context.duration, samples);
-    let low = est.low, high = est.high;
-    let explanation = kind === 'keyframe' ? `Per image. Batch of four: ~${low * 4}–${high * 4} s.` : `For the current ${context.duration} s clip.${context.duration > 5 ? ' This development workflow outputs at most about five seconds of video.' : ''}`;
-    if (kind === 'video' && context.missingKeys) {
-      const image = catalog?.keyframe.find(m => m.id === select('keyframe').value);
-      const extra = image && estimatedSeconds(image, context.duration, samples);
-      if (extra) { low += extra.low * context.missingKeys; high += extra.high * context.missingKeys; }
-      explanation += ` Includes ${context.missingKeys} missing keyframe(s)${extra ? '' : ' but image timing is unavailable'}. Video alone: ~${est.low}–${est.high} s.`;
-    }
-    const timing = document.createElement('button'); timing.type = 'button'; timing.className = 'model-time';
-    timing.textContent = `Est: ${low}–${high}s`;
-    attachHelp(timing, 'Estimated generation time', `${explanation} ${entry.timing.width}×${entry.timing.height}. ${est.measured ? est.measured + ' local observations; approximate.' : entry.timing.basis} Queue and model loading can add time.`);
-    const label = document.createElement('span'); label.className = 'cap-label'; label.textContent = 'Capabilities';
+    let size; try { size=frameSize(kind,false); } catch { el.textContent='Enter valid dimensions';return; }
+    const step=kind==='video'?32:16, width=Math.ceil(size.width/step)*step,height=Math.ceil(size.height/step)*step;
+    const timingServer=catalog?.timing;
+    const videoServer=kind==='video'&&context.missingKeys&&timingServer?{...timingServer,activeModel:select('keyframe').value}:timingServer;
+    const estimate=serverEstimate(entry,context.duration,width,height,videoServer);
+    let total=estimate.seconds,extra=0;
+    if(kind==='video'&&context.missingKeys){const image=catalog?.keyframe.find(m=>m.id===select('keyframe').value);if(image){const imageSize=frameSize('keyframe',false);const iw=Math.ceil(imageSize.width/16)*16,ih=Math.ceil(imageSize.height/16)*16;const first=serverEstimate(image,1,iw,ih,timingServer);const rest=serverEstimate(image,1,iw,ih,timingServer?{...timingServer,activeModel:image.id}:undefined);if(first.seconds!==null&&rest.seconds!==null){extra=first.seconds+(context.missingKeys-1)*rest.seconds;total=total===null?null:total+extra;}}}
+    const timing=document.createElement('button');timing.type='button';timing.className='model-time';timing.textContent=total===null?'Est: benchmark needed':`Est: ~${total}s`;
+    attachHelp(timing,'Server-based estimate',`${timingServer?.hardware?.name||'GPU unavailable'} · ${timingServer?.hardware?.vramGB||'?'} GB VRAM. ${size.width}×${size.height}${kind==='video'?` · ${context.duration}s clip`: ' per image'}. ${estimate.basis}. ${estimate.render??'?'}s rendering + ${estimate.load}s observed model-switch overhead${extra?` + ${extra}s for ${context.missingKeys} missing keyframes`:''}. ${timingServer?.queued?`${timingServer.queued} queued jobs; waiting is additional.`:'Queue empty at last refresh.'} Resolution/frame scaling is approximate; measured samples improve the estimate.`);    const label = document.createElement('span'); label.className = 'cap-label'; label.textContent = 'Capabilities';
     const badges = document.createElement('div'); badges.className = 'cap-badges';
     for (const capability of entry.capabilities.filter(capability => capability.status !== 'unavailable')) {
       const badge = document.createElement('button'); badge.type = 'button'; badge.className = capability.status;
@@ -152,12 +142,12 @@ function chooseModel(kind: Kind): void {
 // The same selections apply to direct generation, automatic keyframes, and stylization.
 export const localGeneration = {
   async keyframe(prompt: string, seed = 1) {
-    const id = model('keyframe'); const result = await OSH.keyframe(expandMentions(prompt, SHELL.ELEMENTS), seed, {}, id);
-    remember(id, result.seconds); return result;
+    const id = model('keyframe'); const result = await OSH.keyframe(expandMentions(prompt, SHELL.ELEMENTS), seed, frameSize('keyframe'), id);
+    catalog=await OSH.models().catch(()=>catalog);renderDetails();return result;
   },
   async shot(keys: ShotKey[], prompt: string, duration: number, seed = 1) {
-    const id = model('video'); const result = await OSH.shot(keys, expandMentions(prompt, SHELL.ELEMENTS), duration, seed, id);
-    remember(id, result.seconds, duration); return result;
+    const id = model('video'); const result = await OSH.shot(keys, expandMentions(prompt, SHELL.ELEMENTS), duration, seed, {...frameSize('video'),model:id});
+    catalog=await OSH.models().catch(()=>catalog);renderDetails();return result;
   },
 };
 
@@ -226,6 +216,7 @@ export async function refreshModels(): Promise<void> {
 }
 
 export function mountModels(): void {
+  mountFrameSizes(()=>{const size=frameSize('video',false);const canvas=document.getElementById('cv') as HTMLCanvasElement;canvas.width=size.width;canvas.height=size.height;(canvas.parentElement as HTMLElement).style.aspectRatio=String(size.width/size.height);renderDetails()});
   for (const [id, kind] of [['kp','keyframe'],['shotPromptInput','video'],['motion','video']] as const) {
     attachElementMentions(document.getElementById(id) as HTMLTextAreaElement, SHELL.ELEMENTS, () => !!catalog?.[kind].find(m => m.id === select(kind).value)?.capabilities.some(c => c.name === 'Elements' && c.status !== 'unavailable'));
   }

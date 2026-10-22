@@ -2,13 +2,14 @@
 //   selected media (+ open in another workflow) · Stylemaxxer (style, fit meter, Stylemaxx) · Elements wall.
 // Project-level state (selected style, user styles) lives in localStorage 'osh-project' so it follows you between apps.
 import { SC } from './scene';
+import { elementLibrary } from './element-maker';
 
 declare const STYLEBOARD: { looks: Style[] };
 
 export type MediaType = 'shot' | 'keyframe' | 'frame';
-export type Media = { type: MediaType; label: string; spec?: unknown; u?: number; img?: string; ref?: { shot: number; key?: number } };
+export type Media = { type: MediaType; label: string; spec?: unknown; u?: number; img?: string; video?:string;duration?:number;ref?: { shot: number; key?: number;shotId?:string } };
 export type Style = { id: string; n: string; prompt: string; sw: string[]; sky?: [string, string]; refs?: string[]; tint?: string; user?: boolean };
-export type Element = { id: string; ic: string; n: string; d: string; kind: 'cast' | 'place' };
+export type Element = { id: string; ic: string; n: string; d: string; kind: 'cast' | 'place' | 'object'; refs?:string[];user?:boolean };
 export type PoolItem = { url: string; label: string };
 type Opts = {
   app: 'director' | 'edit';
@@ -24,7 +25,7 @@ type Opts = {
 
 const APPS: [string, string, string, MediaType[]][] = [
   ['director', 'Director', 'director.html', ['shot', 'keyframe']],
-  ['edit', 'Edit Anything', 'edit.html', ['keyframe', 'frame']],
+  ['edit', 'Edit Anything', 'edit.html', ['keyframe', 'frame','shot']],
 ];
 const TYPES: Record<MediaType, string> = { shot: 'Shot', keyframe: 'Keyframe', frame: 'Frame' };
 const ELEMENTS: Element[] = [
@@ -34,6 +35,12 @@ const ELEMENTS: Element[] = [
   { id: 'street', ic: '🏙', n: 'Street', d: 'empty, lamplit', kind: 'place' },
   { id: 'room', ic: '🛏', n: "Mia's room", d: 'desk, lamp, window', kind: 'place' },
 ];
+const storedElements=SC.get('osh-elements');
+if(Array.isArray(storedElements))for(const element of storedElements){
+ if(!element||typeof element.n!=='string'||typeof element.d!=='string'||typeof element.id!=='string'||!['cast','place','object'].includes(element.kind))continue;
+ const item={...element,refs:Array.isArray(element.refs)?element.refs.filter((url:unknown)=>typeof url==='string'&&/^\/outputs\/[a-f0-9]{16}\.png$/.test(url)).slice(0,4):[]};
+ const index=ELEMENTS.findIndex(e=>e.id===item.id);if(index<0)ELEMENTS.push(item);else ELEMENTS[index]=item;
+}
 
 const css = `
 #shared{display:flex;flex-direction:column;gap:12px}
@@ -174,8 +181,7 @@ function mount(o: Opts) {
     <div class="sec">Elements <span>${o.elementHint || ''}</span></div><div class="wall"></div>`;
   ($('.style', root) as HTMLButtonElement).onclick = () => selector();
   ($('.maxx', root) as HTMLButtonElement).onclick = () => maxx();
-  $('.wall', root).innerHTML = ELEMENTS.map((e) => `<button class="el" data-id="${e.id}" title="${e.n}: ${e.d}"><span class="av">${e.ic}</span><span>${e.n}</span></button>`).join('');
-  root.querySelectorAll<HTMLButtonElement>('.el').forEach((b) => (b.onclick = () => o.onElement?.(ELEMENTS.find((e) => e.id === b.dataset.id)!)));
+  elementLibrary($('.wall',root),ELEMENTS,e=>o.onElement?.(e),()=>o.mediaPool?.()||[]);
   drawSelected(); drawMedia();
   o.onLook?.(style, str, false);
   return { look: style, str };
@@ -285,7 +291,7 @@ function maker(edit?: Style) {
 
 // ---------- selected media: what's selected in this app, and which workflows can open it ----------
 function select(m: Media | null) {
-  const key = m ? JSON.stringify([m.type, m.label, m.spec, m.u, m.img]) : '';
+  const key = m ? JSON.stringify([m.type, m.label, m.spec, m.u, m.img,m.video]) : '';
   if (key === mediaKey) return;
   mediaKey = key; media = m; drawMedia();
 }
@@ -299,7 +305,7 @@ function drawMedia() {
   else SC.blank(g);
   const list = $('.openin', box);
   for (const [id, n, , types] of APPS) {
-    const b = document.createElement('button'), ok = types.includes(media.type), here = id === opts.app;
+    const b = document.createElement('button'), ok = types.includes(media.type)&&!(id==='edit'&&media.type==='shot'&&!media.video), here = id === opts.app;
     b.innerHTML = `<span>${here ? '● ' : ''}${n}</span><small>${here ? 'open here' : ok ? 'open in →' : `can't edit a ${media.type}`}</small>`;
     b.disabled = here || !ok; b.onclick = () => open(id); list.append(b);
   }

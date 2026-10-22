@@ -1,6 +1,22 @@
-import { mentionAt, matchingElements, type MentionElement } from './mention-matching';
+import { mentionAt, matchingElements, mentionRanges, type MentionElement } from './mention-matching';
 
 export function attachElementMentions(input: HTMLTextAreaElement, elements: MentionElement[], enabled: () => boolean): void {
+  const editor = document.createElement('div'); editor.className = 'mention-editor'; input.before(editor); editor.append(input);
+  const backdrop = document.createElement('div'); backdrop.className = 'mention-backdrop'; backdrop.setAttribute('aria-hidden','true');
+  const content = document.createElement('div'); backdrop.append(content); editor.prepend(backdrop);
+  const highlightMentions = () => {
+    content.replaceChildren(); let end = 0;
+    for (const range of enabled() ? mentionRanges(input.value,elements) : []) {
+      content.append(document.createTextNode(input.value.slice(end,range.start)));
+      const mark = document.createElement('mark'); mark.textContent = input.value.slice(range.start,range.end); content.append(mark); end = range.end;
+    }
+    content.append(document.createTextNode(input.value.slice(end)+'\n'));
+    content.style.transform = `translate(${-input.scrollLeft}px,${-input.scrollTop}px)`;
+  };
+  input.addEventListener('input', highlightMentions); input.addEventListener('scroll', highlightMentions);
+  addEventListener('osh-elements-changed', highlightMentions); addEventListener('osh-models-changed', highlightMentions);
+  addEventListener('osh-prompt-values',highlightMentions);
+  highlightMentions();
   const menu = document.createElement('div'); menu.className = 'element-mentions'; menu.id = `${input.id}-mentions`;
   menu.setAttribute('role', 'listbox'); menu.setAttribute('aria-label', 'Elements'); menu.hidden = true; document.body.append(menu);
   input.setAttribute('role', 'combobox'); input.setAttribute('aria-autocomplete', 'list'); input.setAttribute('aria-controls', menu.id); input.setAttribute('aria-expanded', 'false');
@@ -36,9 +52,9 @@ export function attachElementMentions(input: HTMLTextAreaElement, elements: Ment
     }
     matches.forEach((element,i) => {
       const row = document.createElement('button'); row.type = 'button'; row.id = `${menu.id}-${i}`; row.setAttribute('role', 'option');
-      const icon = document.createElement('span'); icon.className = 'mention-icon'; icon.textContent = element.ic;
+      const icon = element.refs?.[0]?document.createElement('img'):document.createElement('span'); icon.className = 'mention-icon';if(icon instanceof HTMLImageElement){icon.src=element.refs![0];icon.alt=''}else icon.textContent = element.ic;
       const text = document.createElement('span'); const name = document.createElement('strong'); name.textContent = element.n;
-      const detail = document.createElement('small'); detail.textContent = `${element.kind === 'cast' ? 'Character' : 'Place'} · ${element.d}`; text.append(name, detail); row.append(icon, text);
+      const detail = document.createElement('small'); detail.textContent = `${element.kind === 'cast' ? 'Character' : element.kind==='object'?'Object':'Place'} · ${element.d}`; text.append(name, detail); row.append(icon, text);
       row.onpointerdown = e => e.preventDefault(); row.onclick = () => choose(i); row.onmouseenter = () => { active = i; highlight(); }; menu.append(row);
     });
     menu.hidden = false; input.setAttribute('aria-expanded', 'true'); position(); if (matches.length) highlight();

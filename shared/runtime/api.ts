@@ -20,6 +20,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Connect, Plugin } from "vite";
 import { imageModel, videoModel } from './model-catalog.ts';
+import { identifyHardware, serverTiming, recordRender } from './render-timings.ts';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const WORKFLOWS = join(ROOT, "shared", "workflows");
@@ -137,7 +138,8 @@ async function localModels(env: Env) {
     const lab = JSON.parse(await readFile(join(OUTPUTS, 'lora-lab', 'manifest.json'), 'utf8'));
     research = lab.models.map((m: any) => ({ repo: m.repo, revision: m.revision, bytes: m.files.reduce((sum: number, f: any) => sum + f.bytes, 0) }));
   } catch { /* Training assets are optional and not generation choices. */ }
-  return { keyframe, video, research, inventory: inventory.filter(c => c.files.length > 0) };
+  const hardware = identifyHardware(await comfyJson(env,'/system_stats').catch(()=>null));
+  return { keyframe, video, research, timing: await serverTiming(OUTPUTS,hardware,queued), inventory: inventory.filter(c => c.files.length > 0) };
 }
 
 async function selectedModel(body: any, env: Env, kind: "keyframe" | "video") {
@@ -157,21 +159,42 @@ const num = (v: unknown, lo: number, hi: number, dflt: number): number => {
   if (!Number.isFinite(n) || n < lo || n > hi) throw new HttpError(400, `number out of range [${lo}, ${hi}]`);
   return n;
 };
+function dimension(value: unknown, max: number, fallback: number, step: number) {
+  const n=num(value,256,max,fallback);
+  if (!Number.isInteger(n)) throw new HttpError(400,`Dimensions must be whole pixels (256–${max}).`);
+  return n;
+}
+function cropOutput(graph:Record<string,any>,decode:string,output:string,width:number,height:number,step:number){
+  const rw=Math.ceil(width/step)*step,rh=Math.ceil(height/step)*step;
+  if(rw!==width||rh!==height){graph['exact_size']={class_type:'ImageCrop',inputs:{image:[decode,0],width,height,x:Math.floor((rw-width)/2),y:Math.floor((rh-height)/2)}};graph[output].inputs.images=['exact_size',0]}
+  return {rw,rh};
+}
+async function timedRun(c: Comfy, wf: Parameters<Comfy['run']>[0], env: Env, model: string, width: number, height: number, frames: number) {
+  const hardware=identifyHardware(await comfyJson(env,'/system_stats').catch(()=>null));
+  let executionSeconds=0;
+  const job=await serialize(async()=>{const start=Date.now();const result=await runWf(c,wf);const ms=result.metrics?.execution_ms;executionSeconds=typeof ms==='number'?ms/1000:(Date.now()-start)/1000;
+    const history=await comfyJson(env,'/history/'+encodeURIComponent(result.id)).catch(()=>null);
+    const messages=history?.[result.id]?.status?.messages;
+    const cached=Array.isArray(messages)&&messages.some(([event,data]:[string,any])=>event==='execution_cached'&&data.nodes?.includes(frames===1?'8':'14'));
+    if(!cached&&history)await recordRender(OUTPUTS,hardware,{model,width,height,frames,seconds:executionSeconds,jobId:result.id});return result});
+  return {job,executionSeconds};
+}
 
 /** Prompt -> image. shared/workflows/keyframe_zimage.json (Z-Image Turbo). */
 async function keyframe(body: any, env: Env) {
   const prompt = str(body.prompt, 2000, "prompt");
   const seed = Math.floor(num(body.seed, 0, 2 ** 32, 1));
+  const width=dimension(body.width,1536,768,16),height=dimension(body.height,1536,448,16);
   const model = await selectedModel(body, env, "keyframe");
   const c = client(env);
-  const wf = c.workflows.fromJson(await loadGraph("keyframe_zimage"));
+  const graph=await loadGraph('keyframe_zimage');const {rw,rh}=cropOutput(graph,'9','10',width,height,16);
+  const wf = c.workflows.fromJson(graph);
   wf.setInput("1", "unet_name", model);
   wf.setInput("5", "text", prompt);
   wf.setInput("8", "seed", seed);
-  if (body.width) wf.setInput("7", "width", Math.round(num(body.width, 256, 1536, 768) / 16) * 16);
-  if (body.height) wf.setInput("7", "height", Math.round(num(body.height, 256, 1536, 448) / 16) * 16);
+  wf.setInput('7','width',rw);wf.setInput('7','height',rh);
   const t = Date.now();
-  const job = await serialize(() => runWf(c, wf));
+  const {job} = await timedRun(c,wf,env,model,rw,rh,1);
   return { url: await save(job, "10", "png"), seconds: +((Date.now() - t) / 1000).toFixed(1) };
 }
 
@@ -208,17 +231,17 @@ async function shot(body: any, env: Env) {
   const length = Math.max(25, Math.min(121, Math.round((duration * FPS) / 8) * 8 + 1)); // LTX wants 8n+1 frames
   const last = length - 1;
   const c = client(env);
-  const wf = c.workflows.fromJson(shotGraph(await loadGraph("shot_ltxv"), keys.length));
-  wf.setInput("1", "ckpt_name", model);
-  const width = Math.round(num(body.width, 256, 1024, 768) / 32) * 32;
-  const height = Math.round(num(body.height, 256, 1024, 448) / 32) * 32;
-  if (width * height > 768 * 768) throw new HttpError(400, "shot resolution too large");
-  wf.setInput("7", "width", width);
-  wf.setInput("7", "height", height);
+  const width = dimension(body.width,1024,768,32);
+  const height = dimension(body.height,1024,448,32);
+  const graph=shotGraph(await loadGraph('shot_ltxv'),keys.length);const {rw,rh}=cropOutput(graph,'16','17',width,height,32);
+  if (rw * rh > 768 * 768) throw new HttpError(400, "shot resolution too large");
+  const wf=c.workflows.fromJson(graph);wf.setInput('1','ckpt_name',model);
+  wf.setInput("7", "width", rw);
+  wf.setInput("7", "height", rh);
   keys.forEach((_, i) => {
     const node = i ? `6${String(i).padStart(2, "0")}` : "6";
-    wf.setInput(node, "width", width);
-    wf.setInput(node, "height", height);
+    wf.setInput(node, "width", rw);
+    wf.setInput(node, "height", rh);
   });
   wf.setInput("3", "text", body.prompt ? str(body.prompt, 2000, "prompt") : "cinematic shot");
   wf.setInput("7", "length", length);
@@ -231,7 +254,7 @@ async function shot(body: any, env: Env) {
     wf.setInput(i ? `5${n}` : "5", "image", c.assets.fromFile(paths[i]));
   });
   const t = Date.now();
-  const job = await serialize(() => runWf(c, wf));
+  const {job} = await timedRun(c,wf,env,model,rw,rh,length);
   return { url: await save(job, "17", "webm"), seconds: +((Date.now() - t) / 1000).toFixed(1), frames: length };
 }
 
@@ -300,6 +323,19 @@ async function exportVideo(body: any, env: Env) {
 }
 
 // ---------------- HTTP plumbing ----------------
+async function editVideo(body:any,env:Env){
+  if(typeof body.video!=='string'||!/^\/outputs\/[a-f0-9]{16}\.(webm|mp4)$/.test(body.video))throw new HttpError(400,'Choose an API-owned video');
+  const source=outputPath(body.video),start=num(body.start,0,60,0),end=num(body.end,0,60,5),speed=num(body.speed,.25,4,1);
+  if(end<=start)throw new HttpError(400,'Trim end must be after start');
+  const width=num(body.width,16,4096,768),height=num(body.height,16,4096,448);
+  if(!Number.isInteger(width)||!Number.isInteger(height)||width*height>4096*2160)throw new HttpError(400,'Choose whole-pixel dimensions up to 4096×2160 total pixels');
+  if(body.reverse!==undefined&&typeof body.reverse!=='boolean')throw new HttpError(400,'reverse must be true or false');
+  const name=outputName('webm'),destination=join(OUTPUTS,name),filters=[...(body.reverse?['reverse']:[]),`setpts=(PTS-STARTPTS)/${speed}`,'fps=24',`scale=${width}:${height}:flags=lanczos`, 'setsar=1'];
+  const args=['-nostdin','-hide_banner','-loglevel','error','-n','-ss',String(start),'-t',String(end-start),'-i',source,'-map','0:v:0','-an','-vf',filters.join(','),'-c:v','libvpx-vp9','-deadline','good','-cpu-used','4','-crf','25','-b:v','0',destination];
+  const t=Date.now();
+  try{await serialize(()=>new Promise<void>((ok,fail)=>{const child=spawn(env.FFMPEG_PATH||'ffmpeg',args,{windowsHide:true,stdio:['ignore','ignore','pipe']});let error='';const timeout=setTimeout(()=>{child.kill();fail(new HttpError(504,'Video edit timed out'))},90000);child.stderr.on('data',(chunk:Buffer)=>error=(error+chunk.toString()).slice(-8000));child.on('error',()=>{clearTimeout(timeout);fail(new HttpError(503,'FFmpeg is unavailable'))});child.on('close',code=>{clearTimeout(timeout);if(code===0)ok();else{console.error('[api] edit failed:',error);fail(new HttpError(500,'Video edit failed; source is unchanged'))}})}))}catch(error){await unlink(destination).catch(()=>{});throw error}
+  return {url:'/outputs/'+name,seconds:(Date.now()-t)/1000,width,height};
+}
 
 class HttpError extends Error {
   status: number;
@@ -374,6 +410,7 @@ function middleware(env: Env): Connect.NextHandleFunction {
       if (route === "GET /api/models") return send(res, 200, await localModels(env));
       if (route === "POST /api/upload") return send(res, 200, await upload(await readBody(req, MAX_UPLOAD_BODY)));
       if (route === "POST /api/export") return send(res, 200, await exportVideo(await readBody(req), env));
+      if (route === 'POST /api/edit-video') return send(res,200,await editVideo(await readBody(req),env));
       if (route === "POST /api/keyframe") return send(res, 200, await keyframe(await readBody(req), env));
       if (route === "POST /api/shot") return send(res, 200, await shot(await readBody(req), env));
       return send(res, 404, { error: "unknown endpoint" });

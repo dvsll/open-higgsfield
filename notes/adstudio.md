@@ -77,3 +77,6 @@ POST /api/shot and OSH.shot options add frames? / fps?. Explicit frames accept 9
 
 ### Shared runtime coordination — 2026-10-22, local audio
 Added built-in Stable Audio Open workflow and POST /api/audio + OSH.audio(prompt,duration,seed,video?). Strict prompt/duration/API-owned media validation; SDK/proxy execution and shared queue; opaque FLAC and optional WebM mux. GET/api/models adds audio readiness. models.json adds community-license Stable Audio Open1.0 and Apache2 T5-base, documented in studio notes before download. FFmpeg export now preserves optional audio; edit-video preserves/trims/reverses/retimes audio unless keepAudio:false (optional, boolean). Existing silent edits/exports retained. Live audible source/stereo mux, trim/reverse/speed, MP4 sound, and video-only edit verified; build/typecheck/client compatibility/HTTP smoke pass. No Ad Studio app changes or npm/Python dependencies.
+
+
+Studio coordination — 2026-10-22: shared/runtime/client.ts health fetch now has a 5-second AbortSignal timeout so connection monitoring cannot hang indefinitely. No endpoint/signature/generation changes. Ad Studio client-compat test passes. Studio-only popup lives in its shell.

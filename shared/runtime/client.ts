@@ -16,7 +16,7 @@ let reason = "";
 
 async function health(): Promise<{ online: boolean; info: Health | null; reason: string }> {
   try {
-    const r = await fetch("/api/health", { cache: "no-store" });
+    const r = await fetch("/api/health", { cache: "no-store", signal: AbortSignal.timeout(5000) });
     const j = await r.json();
     if (!r.ok) throw new Error(j.error || r.statusText);
     info = j as Health;

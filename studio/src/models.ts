@@ -234,3 +234,4 @@ export function mountModels(): void {
 }
 
 addEventListener('osh-audio-prompt',()=>renderDetails());
+addEventListener('osh-reconnected',()=>{if(document.getElementById('refreshModels'))void refreshModels()});

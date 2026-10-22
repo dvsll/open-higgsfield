@@ -3,6 +3,7 @@
 // Project-level state (selected style, user styles) lives in localStorage 'osh-project' so it follows you between apps.
 import { SC } from './scene';
 import { elementLibrary } from './element-maker';
+import { mountConnection } from './connection';
 
 declare const STYLEBOARD: { looks: Style[] };
 
@@ -166,6 +167,7 @@ const allStyles = (): Style[] => [...STYLEBOARD.looks, ...userStyles()];
 function save(extra: Partial<ProjectState> = {}) { SC.set('osh-project', { ...state(), style: style.id, str, ...extra }); }
 
 function mount(o: Opts) {
+  mountConnection();
   opts = o;
   const st = state();
   style = allStyles().find((l) => l.id === (st.style || st.look)) || STYLEBOARD.looks[0];

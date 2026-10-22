@@ -14,7 +14,7 @@ import { Comfy } from "@comfyorg/sdk";
 import { spawn } from "node:child_process";
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { existsSync, mkdirSync, createReadStream, statSync } from "node:fs";
-import { readFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -25,6 +25,7 @@ const WORKFLOWS = join(ROOT, "shared", "workflows");
 const OUTPUTS = join(ROOT, "outputs");
 const FPS = 24;
 const MAX_BODY = 64 * 1024;
+const MAX_UPLOAD_BODY = 8 * 1024 * 1024;
 const MAX_QUEUE = 4;
 const OUTPUT_NAME = /^[a-f0-9]{16}\.(png|webm)$/;
 
@@ -167,6 +168,16 @@ async function shot(body: any, env: Env) {
   const last = length - 1;
   const c = client(env);
   const wf = c.workflows.fromJson(shotGraph(await loadGraph("shot_ltxv"), keys.length));
+  const width = Math.round(num(body.width, 256, 1024, 768) / 32) * 32;
+  const height = Math.round(num(body.height, 256, 1024, 448) / 32) * 32;
+  if (width * height > 768 * 768) throw new HttpError(400, "shot resolution too large");
+  wf.setInput("7", "width", width);
+  wf.setInput("7", "height", height);
+  keys.forEach((_, i) => {
+    const node = i ? `6${String(i).padStart(2, "0")}` : "6";
+    wf.setInput(node, "width", width);
+    wf.setInput(node, "height", height);
+  });
   wf.setInput("3", "text", body.prompt ? str(body.prompt, 2000, "prompt") : "cinematic shot");
   wf.setInput("7", "length", length);
   wf.setInput("14", "noise_seed", Math.floor(num(body.seed, 0, 2 ** 32, 1)));
@@ -190,6 +201,21 @@ async function health(env: Env) {
   };
 }
 
+/** Browser-normalized PNG only; saved under an opaque API-owned filename. */
+async function upload(body: any) {
+  if (typeof body.image !== "string" || !body.image.startsWith("data:image/png;base64,")) throw new HttpError(400, "upload must be a PNG data URL");
+  const encoded = body.image.slice(22);
+  if (!encoded || !/^[A-Za-z0-9+/]+={0,2}$/.test(encoded)) throw new HttpError(400, "invalid PNG encoding");
+  const data = Buffer.from(encoded, "base64");
+  if (data.length > 5 * 1024 * 1024) throw new HttpError(413, "PNG exceeds 5 MB");
+  if (data.length < 33 || data.subarray(0, 8).toString("hex") !== "89504e470d0a1a0a" || data.subarray(12, 16).toString() !== "IHDR") throw new HttpError(400, "invalid PNG");
+  const width = data.readUInt32BE(16), height = data.readUInt32BE(20);
+  if (!width || !height || width > 2048 || height > 2048) throw new HttpError(400, "PNG dimensions must be 1–2048 pixels");
+  const name = outputName("png");
+  await writeFile(join(OUTPUTS, name), data);
+  return { url: `/outputs/${name}`, width, height };
+}
+
 // ---------------- HTTP plumbing ----------------
 
 class HttpError extends Error {
@@ -206,13 +232,13 @@ function send(res: ServerResponse, status: number, obj: unknown) {
   res.end(body);
 }
 
-function readBody(req: IncomingMessage): Promise<any> {
+function readBody(req: IncomingMessage, limit = MAX_BODY): Promise<any> {
   return new Promise((ok, fail) => {
     let size = 0;
     const chunks: Buffer[] = [];
     req.on("data", (c: Buffer) => {
       size += c.length;
-      if (size > MAX_BODY) { fail(new HttpError(413, "request too large")); req.removeAllListeners("data"); req.resume(); }
+      if (size > limit) { fail(new HttpError(413, "request too large")); req.removeAllListeners("data"); req.resume(); }
       else chunks.push(c);
     });
     req.on("end", () => { try { ok(chunks.length ? JSON.parse(Buffer.concat(chunks).toString("utf8")) : {}); } catch { fail(new HttpError(400, "invalid JSON")); } });
@@ -262,6 +288,7 @@ function middleware(env: Env): Connect.NextHandleFunction {
       }
       const route = `${req.method} ${url.pathname}`;
       if (route === "GET /api/health") return send(res, 200, await health(env));
+      if (route === "POST /api/upload") return send(res, 200, await upload(await readBody(req, MAX_UPLOAD_BODY)));
       if (route === "POST /api/keyframe") return send(res, 200, await keyframe(await readBody(req), env));
       if (route === "POST /api/shot") return send(res, 200, await shot(await readBody(req), env));
       return send(res, 404, { error: "unknown endpoint" });

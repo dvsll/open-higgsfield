@@ -27,6 +27,7 @@ Swap to LTX-2.5 + IC-LoRAs on a rented 32 GB+ GPU for final renders.
 
 ### `shot_ltxv.json`
 - **Used by:** studio (Generate shot); the same pattern works for adstudio's product shots
+- **Ad Studio integration (2026-10-21):** `/api/upload` accepts a PNG data URL (5 MB decoded, max 2048×2048) and returns an API-owned `/outputs/<hex>.png` for the existing keyframe input. `/api/shot` optionally accepts width/height (256–1024, snapped to 32, max 768×768 pixels); sets both latent and guide scale sizes. Omitted dimensions retain the Director's 768×448 default. Ad Studio uses 512×288, 288×512, 384×384 and generates each format separately through the SDK. No workflow JSON or model changes.
 - **Models:** LTX-Video 2B 0.9.8 distilled + T5-XXL fp8 (open weights)
 - **Inputs:** node `3` `text` (motion prompt) · node `7` `length` (frames, 8n+1, 24 fps) · node `14` `noise_seed` · keyframe *i*: image node `5` / `5NN`, guide node `8` / `8NN` (`frame_idx`, `strength`)
   - The file has one keyframe guide. `shared/runtime/api.ts` clones nodes 5/6/8 per extra keyframe (`shotGraph()`) and snaps `frame_idx` to multiples of 8 (last key = `-1`).

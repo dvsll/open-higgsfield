@@ -41,3 +41,4 @@ Check `DEADLINES.md`:
 - Elements are prompt text only for now (no reference conditioning yet).
 
 ## Requests from partner
+- 2026-10-21 (Ad Studio P0): adding `/api/upload` for bounded PNG product images and optional shot width/height for per-ratio generation. Existing shot defaults and Director calls stay compatible. Reusing the current SDK/proxy/LTX workflow; no studio files changed. See notes/adstudio.md for verification and blockers.

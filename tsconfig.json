@@ -13,6 +13,6 @@
     "allowImportingTsExtensions": true,
     "types": ["node", "vite/client"]
   },
-  "include": ["vite.config.ts", "shared/**/*.ts", "studio/**/*.ts"],
+  "include": ["vite.config.ts", "shared/**/*.ts", "studio/**/*.ts", "adstudio/**/*.ts"],
   "exclude": ["node_modules", "dist", "archive"]
 }

@@ -6,7 +6,8 @@ export type Health = { comfyui: boolean; proxy: boolean; queued: number };
 export type KeyframeResult = { url: string; seconds: number };
 export type ShotResult = { url: string; seconds: number; frames: number };
 export type ShotKey = { image: string; t: number; strength?: number };
-export type LocalModels = { keyframe: { id: string; label: string }[]; video: { id: string; label: string }[]; inventory: { category: string; files: string[] }[] };
+import type { ModelChoice } from './model-catalog';
+export type LocalModels = { keyframe: ModelChoice[]; video: ModelChoice[]; research: { repo: string; revision: string; bytes: number }[]; inventory: { category: string; files: string[] }[] };
 
 let online = false;
 let info: Health | null = null;

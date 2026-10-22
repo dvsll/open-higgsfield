@@ -19,6 +19,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Connect, Plugin } from "vite";
+import { imageModel, videoModel } from './model-catalog.ts';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const WORKFLOWS = join(ROOT, "shared", "workflows");
@@ -128,10 +129,15 @@ async function localModels(env: Env) {
   const graphReady = (graph: Record<string, any>) => Object.values(graph).every(n => Boolean(nodes[n.class_type]));
   const [imageGraph, videoGraph] = await Promise.all([loadGraph("keyframe_zimage"), loadGraph("shot_ltxv")]);
   const keyframe = has("UNETLoader", "unet_name", "z_image_turbo_bf16.safetensors") && has("CLIPLoader", "clip_name", "qwen_3_4b_fp8_mixed.safetensors") && has("VAELoader", "vae_name", "ae.safetensors") && graphReady(imageGraph)
-    ? [{ id: "z_image_turbo_bf16.safetensors", label: "Z-Image Turbo" }] : [];
+    ? [imageModel] : [];
   const video = has("CheckpointLoaderSimple", "ckpt_name", "ltxv-2b-0.9.8-distilled.safetensors") && has("CLIPLoader", "clip_name", "t5xxl_fp8_e4m3fn_scaled.safetensors") && graphReady(videoGraph)
-    ? [{ id: "ltxv-2b-0.9.8-distilled.safetensors", label: "LTX-Video 2B · distilled" }] : [];
-  return { keyframe, video, inventory: inventory.filter(c => c.files.length > 0) };
+    ? [videoModel] : [];
+  let research: { repo: string; revision: string; bytes: number }[] = [];
+  try {
+    const lab = JSON.parse(await readFile(join(OUTPUTS, 'lora-lab', 'manifest.json'), 'utf8'));
+    research = lab.models.map((m: any) => ({ repo: m.repo, revision: m.revision, bytes: m.files.reduce((sum: number, f: any) => sum + f.bytes, 0) }));
+  } catch { /* Training assets are optional and not generation choices. */ }
+  return { keyframe, video, research, inventory: inventory.filter(c => c.files.length > 0) };
 }
 
 async function selectedModel(body: any, env: Env, kind: "keyframe" | "video") {

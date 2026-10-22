@@ -4,7 +4,7 @@ import '../../shared/styleboard/looks.js';
 import { SC } from './scene';
 import { SHELL } from './shell';
 import { OSH } from '../../shared/runtime/client';
-import { localGeneration, mountModels } from './models';
+import { localGeneration, mountModels, estimateContext } from './models';
 const {$,$$}=K,W=640,H=360;
 // ---------- data ----------
 const LOOKS=SC.LOOKS;
@@ -58,6 +58,7 @@ function shotFrame(g,s,lt,t){const k=[...s.keys].sort((a,b)=>a.t-b.t);if(!k.leng
 let open=null;
 function openShot(i){open=i;cur=i;selKey=null;G=start(i);timeline();head()}
 function closeShot(){const i=open;open=null;selKey=null;if(i!=null)G=start(i);timeline();head()}
+addEventListener('osh-model-control',e=>{if(e.detail==='timeline'){openShot(cur);$('#addKeyBtn').focus();$('#tl').scrollIntoView({block:'nearest'})}});
 function timeline(){stashUI();const trk=$('#trk'),W0=$('#tl').clientWidth;$('#addKeyBtn').style.display=open==null?'none':'';trk.innerHTML='';trk.classList.toggle('scene',open!=null);
  if(open!=null&&!SH[open])open=null;
  if(open==null){ // ---- sequence: shots act as videos
@@ -133,6 +134,8 @@ addEventListener('keydown',e=>{if(e.key==='Escape'&&open!=null&&!/TEXTAREA|INPUT
 function media(){const s=SH[cur];if(selKey&&s.keys.includes(selKey))return{type:'keyframe',label:`Shot ${cur+1} · keyframe @ ${selKey.t.toFixed(1)}s`,spec:selKey.spec,u:selKey.u,img:selKey.img,ref:{shot:cur,key:s.keys.indexOf(selKey)}};
  return{type:'shot',label:`Shot ${cur+1} · ${s.n} · ${s.d}s`,spec:(s.keys[0]||s).spec,u:.3,ref:{shot:cur}}}
 function head(){const s=SH[cur];SHELL.select(media());$('#sNum').textContent=`Shot ${cur+1} — `;if(document.activeElement!==$('#sName'))$('#sName').textContent=s.n;$('#sMeta').textContent=`${s.d}s · ${s.keys.length} keyframe${s.keys.length===1?'':'s'}`;
+ estimateContext(s.d,s.keys.filter(k=>!k.img).length);
+ if(document.activeElement!==$('#shotPromptInput'))$('#shotPromptInput').value=s.prompt||'';
  $('#sState').innerHTML=s.r?'<span style="color:var(--ok)">● generated</span>':'<span style="color:var(--dim)">○ keyframes only</span>';if(document.activeElement!==$('#motion'))$('#motion').value=s.m}
 function addKey(i,t,v){const s=SH[i],k={t,u:v.u,spec:v.spec,img:v.img};open=i;s.keys.push(k);selKey=k;cur=i;s.r=false;G=start(i)+Math.min(t,s.d-.01);playing=false;$('#play').textContent='▶';timeline();head();toast(`Keyframe added to shot ${i+1} at ${t.toFixed(1)}s`)}
 function delKey(){if(!selKey&&open==null)return removeShot(cur,'trash');if(!selKey)return toast('Select a keyframe first');SH.forEach(s=>{const j=s.keys.indexOf(selKey);if(j>=0){s.keys.splice(j,1);s.r=false}});selKey=null;timeline();head()}
@@ -148,7 +151,8 @@ $('#addKeyBtn').onclick=()=>{if(open==null)return toast('Open a shot first (doub
 function editKey(){if(!selKey)return toast('Select a keyframe first');head();SHELL.open('edit')}
 $('#editKey').onclick=editKey;
 addEventListener('keydown',e=>{if(/TEXTAREA|INPUT/.test(e.target.tagName))return;if(e.key==='Backspace'||e.key==='Delete')delKey();if(e.code==='Space'){e.preventDefault();$('#play').click()}});
-$('#motion').oninput=e=>{SH[cur].m=e.target.value;if(SH[cur].r){SH[cur].r=false;timeline()}head()};
+$('#motion').oninput=e=>{SH[cur].m=e.target.value;if(SH[cur].r){SH[cur].r=false;timeline()}head();save()};
+$('#shotPromptInput').oninput=e=>{SH[cur].prompt=e.target.value;if(SH[cur].r){SH[cur].r=false;timeline()}head();save()};
 // Starts paused. Play runs to the end (of the sequence, or of the opened shot) and stops; pressing play at the end restarts.
 const span=()=>open!=null?[start(open),start(open)+SH[open].d]:[0,tot()];
 function setPlaying(v){playing=v;$('#play').textContent=v?'❚❚':'▶'}
@@ -160,7 +164,7 @@ const framing=sc=>sc<1?'wide shot':sc<2?'medium shot':'close-up';
 function specWords(sp){const w=[];if(sp.mia)w.push(EL_P.mia);if(sp.bolt)w.push(EL_P.bolt);w.push(EL_P[sp.scene]||'');if(sp.night)w.push('at night');if(sp.dawn)w.push('at dawn, first light');if(sp.eyes)w.push("Bolt's eyes glowing cyan");return w.filter(Boolean).join(', ')}
 const lookWords=()=>look.prompt||look.n;
 const keyPrompt=(sp,what)=>`${framing(sp.scale)}, ${what?what+'. ':''}${specWords(sp)}. ${lookWords()}. cinematic film still, 35mm`;
-const shotPrompt=s=>`${s.m||'subtle camera movement'}. ${specWords((s.keys[0]||s).spec)}. ${lookWords()}. cinematic, smooth natural motion`;
+const shotPrompt=s=>`${s.prompt?s.prompt+'. ':''}${s.m||'subtle camera movement'}. ${specWords((s.keys[0]||s).spec)}. ${lookWords()}. cinematic, smooth natural motion`;
 // Busy overlay with elapsed time (real jobs have no known duration).
 async function busy(msg,job){const ov=$('#ov');ov.style.display='flex';$('#pb').style.width='100%';const t0=performance.now();const tick=setInterval(()=>$('#ovt').textContent=`${typeof msg==='function'?msg():msg} · ${((performance.now()-t0)/1000).toFixed(0)}s`,200);
  try{return await job()}finally{clearInterval(tick);ov.style.display='none'}}

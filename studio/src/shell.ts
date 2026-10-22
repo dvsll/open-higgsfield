@@ -167,10 +167,10 @@ function mount(o: Opts) {
   const root = $('#shared');
   root.innerHTML = `<div class="sec">Selected media</div><div class="media"></div>
     <div class="apps">${APPS.map(([id, n, href]) => `<a data-app="${id}" href="${href}" class="${id === o.app ? 'on' : ''}">${n}</a>`).join('')}</div>
-    <div class="sec">Stylemaxxer</div>
+    <div class="sec">Stylization</div>
     <button class="style" title="Change style"><canvas width="480" height="160"></canvas><div><span class="sn"></span><small>change ▸</small></div></button>
-    <div class="fit"><div class="row"><span>Style fit · selected media</span><b class="fv">—</b></div><div class="meter"><i style="left:0"></i></div></div>
-    <button class="maxx" title="Regenerate the selected media to match the selected style">Stylemaxx</button>
+    <div class="fit"><div class="row"><span>Palette match · selected media</span><b class="fv">—</b></div><div class="meter"><i style="left:0"></i></div></div>
+    <button class="maxx" title="Try three prompt-based variations and keep the closest palette. This does not train or apply a LoRA.">Try style variations</button>
     <div class="sec">Elements <span>${o.elementHint || ''}</span></div><div class="wall"></div>`;
   ($('.style', root) as HTMLButtonElement).onclick = () => selector();
   ($('.maxx', root) as HTMLButtonElement).onclick = () => maxx();
@@ -210,7 +210,7 @@ async function maxx() {
   const btn = $('#shared .maxx') as HTMLButtonElement;
   btn.disabled = true; btn.classList.add('run');
   try { await opts.onStylemaxx(style, media, (m) => (btn.textContent = m)); }
-  finally { btn.classList.remove('run'); btn.textContent = 'Stylemaxx'; btn.disabled = false; updateFit(); }
+  finally { btn.classList.remove('run'); btn.textContent = 'Try style variations'; btn.disabled = false; updateFit(); }
 }
 
 // ---------- modals: style selector + style maker ----------

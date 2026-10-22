@@ -1,9 +1,15 @@
 import { OSH, type LocalModels, type ShotKey } from '../../shared/runtime/client';
+import { estimatedSeconds, type TimingSample } from './model-estimates';
+import type { ModelChoice } from '../../shared/runtime/model-catalog';
 
 type Kind = 'keyframe' | 'video';
 const select = (kind: Kind) => document.getElementById(`${kind}Model`) as HTMLSelectElement;
 const storageKey = 'osh-local-models';
 let chosen: Partial<Record<Kind, string>> = {};
+let catalog: LocalModels | null = null;
+let context = { duration: 4, missingKeys: 0 };
+let samples: TimingSample[] = [];
+try { const saved = JSON.parse(localStorage.getItem('osh-model-timings') || '[]'); if (Array.isArray(saved)) samples = saved; } catch { /* Initial estimates. */ }
 try { chosen = JSON.parse(localStorage.getItem(storageKey) || '{}') || {}; } catch { /* Use installed defaults. */ }
 
 function model(kind: Kind): string {
@@ -12,10 +18,144 @@ function model(kind: Kind): string {
   return control.value;
 }
 
-// The same selections apply to direct generation, automatic keyframes, and Stylemaxx.
+function remember(id: string, seconds: number, duration?: number) {
+  samples = [...samples, { id, seconds, duration }].slice(-40);
+  try { localStorage.setItem('osh-model-timings', JSON.stringify(samples)); } catch { /* Timings are optional. */ }
+  renderDetails();
+}
+
+export function estimateContext(duration: number, missingKeys: number): void {
+  if (context.duration === duration && context.missingKeys === missingKeys) return;
+  context = { duration, missingKeys };
+  renderDetails();
+}
+
+const usage: Record<string, string> = {
+  'Shot prompt': 'Use Shot prompt to describe the scene. Use the separate Motion prompt box for camera and subject movement. Both are sent together to the video model.',
+  'Text to image': 'Write your prompt in Generate keyframe, choose Elements and Framing, then Generate 4 keyframes.',
+  'Keyframe-guided video': 'Double-click a shot, add or drag in keyframes, position them on its timeline, then Generate shot.',
+  'Motion prompt': 'Describe movement in the motion box next to Generate shot, for example: slow camera push toward the robot.',
+  'Elements': 'Click cast/place chips in Generate keyframe. Their descriptions enter the prompt; this does not lock character identity.',
+  'JSON posing': 'There is no pose JSON input yet. A pose-control workflow and parser must be connected before you can use it.',
+  'LoRA stylization': 'LoRA loading is not wired up yet. Training assets are in the local LoRA lab; they are not active style adapters.',
+  'Reference image editing': 'Editing from a source image needs a separate image-edit workflow. The current image model generates a new image from text.',
+};
+let tooltip: HTMLDivElement | null = null;
+function attachHelp(button: HTMLButtonElement, heading: string, description: string): void {
+  const show = () => {
+    tooltip ??= Object.assign(document.createElement('div'), { id: 'model-tooltip', className: 'model-tooltip' });
+    tooltip.setAttribute('role', 'tooltip');
+    const title = document.createElement('strong'); title.textContent = heading;
+    const text = document.createElement('div'); text.textContent = description;
+    tooltip.replaceChildren(title, text); (chooser?.open ? chooser : document.body).append(tooltip); tooltip.hidden = false;
+    button.setAttribute('aria-describedby', tooltip.id);
+    const r = button.getBoundingClientRect();
+    tooltip.style.left = `${Math.max(8, Math.min(r.left, innerWidth - tooltip.offsetWidth - 8))}px`;
+    tooltip.style.top = `${r.bottom + tooltip.offsetHeight + 8 > innerHeight ? Math.max(8, r.top - tooltip.offsetHeight - 8) : r.bottom + 8}px`;
+  };
+  const hide = () => { if (tooltip) tooltip.hidden = true; button.removeAttribute('aria-describedby'); };
+  button.onmouseenter = show; button.onmouseleave = hide;
+  button.onfocus = show; button.onblur = hide; button.onclick = show;
+  button.onkeydown = e => { if (e.key === 'Escape') hide(); };
+}
+function renderDetails(): void {
+  if (tooltip) tooltip.hidden = true;
+  for (const kind of ['keyframe', 'video'] as const) {
+    const el = document.getElementById(`${kind}ModelDetails`);
+    if (!el) continue;
+    el.replaceChildren();
+    const entry = catalog?.[kind].find(m => m.id === select(kind).value);
+    if (catalog) document.querySelectorAll<HTMLElement>(`[data-model-kind="${kind}"][data-model-control]`).forEach(field => {
+      field.hidden = !entry?.capabilities.some(capability => capability.control === field.dataset.modelControl && capability.status !== 'unavailable');
+    });
+    const picker = document.getElementById(`${kind}ModelPicker`) as HTMLButtonElement | null;
+    if (picker) {
+      picker.textContent = `${entry?.label || 'Choose model'} ▾`; picker.disabled = !catalog;
+      picker.setAttribute('aria-label', `${kind === 'video' ? 'Video' : 'Image'} model: ${entry?.label || 'unavailable'}. Choose model`);
+    }
+    if (!entry) { el.textContent = 'Est: unavailable'; continue; }
+    renderModelInfo(kind, entry, el);
+  }
+}
+function renderModelInfo(kind: Kind, entry: ModelChoice, el: HTMLElement): void {
+    const est = estimatedSeconds(entry, context.duration, samples);
+    let low = est.low, high = est.high;
+    let explanation = kind === 'keyframe' ? `Per image. Batch of four: ~${low * 4}–${high * 4} s.` : `For the current ${context.duration} s clip.${context.duration > 5 ? ' This development workflow outputs at most about five seconds of video.' : ''}`;
+    if (kind === 'video' && context.missingKeys) {
+      const image = catalog?.keyframe.find(m => m.id === select('keyframe').value);
+      const extra = image && estimatedSeconds(image, context.duration, samples);
+      if (extra) { low += extra.low * context.missingKeys; high += extra.high * context.missingKeys; }
+      explanation += ` Includes ${context.missingKeys} missing keyframe(s)${extra ? '' : ' but image timing is unavailable'}. Video alone: ~${est.low}–${est.high} s.`;
+    }
+    const timing = document.createElement('button'); timing.type = 'button'; timing.className = 'model-time';
+    timing.textContent = `Est: ${low}–${high}s`;
+    attachHelp(timing, 'Estimated generation time', `${explanation} ${entry.timing.width}×${entry.timing.height}. ${est.measured ? est.measured + ' local observations; approximate.' : entry.timing.basis} Queue and model loading can add time.`);
+    const label = document.createElement('span'); label.className = 'cap-label'; label.textContent = 'Capabilities';
+    const badges = document.createElement('div'); badges.className = 'cap-badges';
+    for (const capability of entry.capabilities) {
+      const badge = document.createElement('button'); badge.type = 'button'; badge.className = capability.status;
+      const state = capability.status === 'ready' ? 'Available' : capability.status === 'prompt' ? 'Prompt only' : 'Not connected';
+      badge.textContent = capability.name;
+      badge.setAttribute('aria-label', `${capability.name}: ${state}`);
+      attachHelp(badge, `${capability.name} · ${state}`, `${capability.detail} ${usage[capability.name] || ''}${capability.control ? ' Click to open this control.' : ''}`);
+      if (capability.control && capability.status !== 'unavailable') badge.onclick = () => {
+        select(kind).value = entry.id; chosen[kind] = entry.id;
+        localStorage.setItem(storageKey, JSON.stringify(chosen)); renderDetails(); chooser?.close();
+        requestAnimationFrame(() => {
+          if (tooltip) tooltip.hidden = true;
+          if (capability.control === 'timeline') dispatchEvent(new CustomEvent('osh-model-control', { detail: 'timeline' }));
+          const target = document.getElementById(capability.control!)!;
+          target?.scrollIntoView({ block: 'nearest' });
+          const focus = target?.matches('textarea,input,button') ? target : target?.querySelector<HTMLElement>('button');
+          (focus as HTMLElement | undefined)?.focus();
+        });
+      };
+      badges.append(badge);
+    }
+    el.append(timing, label, badges);
+}
+let chooser: HTMLDialogElement | null = null;
+function chooseModel(kind: Kind): void {
+  chooser?.remove();
+  chooser = document.createElement('dialog'); chooser.className = 'model-chooser';
+  chooser.setAttribute('aria-label', kind === 'video' ? 'Choose video model' : 'Choose image model');
+  const heading = document.createElement('header');
+  const title = document.createElement('h2'); title.textContent = kind === 'video' ? 'Choose video model' : 'Choose image model';
+  const close = document.createElement('button'); close.textContent = 'Close'; close.onclick = () => chooser?.close();
+  heading.append(title, close); chooser.append(heading);
+  const hint = document.createElement('small'); hint.textContent = 'Select a model name. Hover or focus capabilities for explanations and usage.'; chooser.append(hint);
+  for (const entry of catalog?.[kind] || []) {
+    const row = document.createElement('div'); row.className = `model-choice${entry.id === select(kind).value ? ' active' : ''}`;
+    const button = document.createElement('button'); button.type = 'button';
+    button.setAttribute('aria-pressed', String(entry.id === select(kind).value));
+    const name = document.createElement('b'); name.textContent = entry.label;
+    const description = document.createElement('small'); description.textContent = entry.description;
+    button.append(name, description);
+    button.onclick = () => {
+      select(kind).value = entry.id; chosen[kind] = entry.id;
+      localStorage.setItem(storageKey, JSON.stringify(chosen)); renderDetails(); chooser?.close();
+    };
+    const info = document.createElement('div'); info.className = 'model-card'; renderModelInfo(kind, entry, info);
+    row.append(button, info); chooser.append(row);
+  }
+  for (const research of kind === 'keyframe' ? catalog?.research || [] : []) {
+    const row = document.createElement('div'); row.className = 'model-research';
+    row.textContent = `${research.repo} · downloaded for LoRA training · generation workflow not connected · estimate unavailable`;
+    chooser.append(row);
+  }
+  chooser.onclose = () => { if (tooltip) tooltip.hidden = true; };
+  document.body.append(chooser); chooser.showModal();
+}
+// The same selections apply to direct generation, automatic keyframes, and stylization.
 export const localGeneration = {
-  keyframe: (prompt: string, seed = 1) => OSH.keyframe(prompt, seed, {}, model('keyframe')),
-  shot: (keys: ShotKey[], prompt: string, duration: number, seed = 1) => OSH.shot(keys, prompt, duration, seed, model('video')),
+  async keyframe(prompt: string, seed = 1) {
+    const id = model('keyframe'); const result = await OSH.keyframe(prompt, seed, {}, id);
+    remember(id, result.seconds); return result;
+  },
+  async shot(keys: ShotKey[], prompt: string, duration: number, seed = 1) {
+    const id = model('video'); const result = await OSH.shot(keys, prompt, duration, seed, id);
+    remember(id, result.seconds, duration); return result;
+  },
 };
 
 export async function refreshModels(): Promise<void> {
@@ -27,6 +167,7 @@ export async function refreshModels(): Promise<void> {
   for (const kind of ['keyframe', 'video'] as const) select(kind).disabled = true;
   try {
     const data: LocalModels = await OSH.models();
+    catalog = data;
     for (const kind of ['keyframe', 'video'] as const) {
       const control = select(kind);
       control.replaceChildren();
@@ -38,9 +179,11 @@ export async function refreshModels(): Promise<void> {
       control.onchange = () => {
         chosen[kind] = control.value;
         localStorage.setItem(storageKey, JSON.stringify(chosen));
+        renderDetails();
       };
     }
     localStorage.setItem(storageKey, JSON.stringify(chosen));
+    renderDetails();
     const inventory = document.getElementById('modelInventory')!;
     inventory.replaceChildren();
     for (const group of data.inventory) {
@@ -55,13 +198,20 @@ export async function refreshModels(): Promise<void> {
       }
       inventory.append(section);
     }
+    for (const item of data.research || []) {
+      const row = document.createElement('p');
+      row.textContent = `${item.repo} · ${(item.bytes / 1e9).toFixed(2)} GB downloaded · LoRA lab only; generation workflow not connected`;
+      inventory.append(row);
+    }
     count.textContent = `${data.inventory.reduce((n, group) => n + group.files.length, 0)} installed`;
     status.textContent = 'Connected to local ComfyUI. Selectors show models with a compatible app workflow and installed supporting models. All other local models are listed below.';
   } catch (error) {
+    catalog = null;
     count.textContent = 'offline';
     status.textContent = (error as Error).message;
     document.getElementById('modelInventory')!.replaceChildren();
     for (const kind of ['keyframe', 'video'] as const) select(kind).replaceChildren(new Option('ComfyUI unavailable', ''));
+    renderDetails();
   } finally {
     button.disabled = false;
     const { online, reason } = await OSH.health();
@@ -73,6 +223,13 @@ export async function refreshModels(): Promise<void> {
 }
 
 export function mountModels(): void {
+  for (const kind of ['keyframe', 'video'] as const) {
+    const control = select(kind); control.classList.add('model-native'); control.tabIndex = -1; control.setAttribute('aria-hidden', 'true');
+    const button = document.createElement('button'); button.type = 'button'; button.className = 'model-picker'; button.id = `${kind}ModelPicker`;
+    button.textContent = 'Connecting…'; button.disabled = true; button.setAttribute('aria-haspopup', 'dialog');
+    button.setAttribute('aria-label', kind === 'video' ? 'Choose video model' : 'Choose image model');
+    button.onclick = () => chooseModel(kind); control.after(button);
+  }
   document.getElementById('refreshModels')!.onclick = () => { void refreshModels(); };
   void refreshModels();
 }

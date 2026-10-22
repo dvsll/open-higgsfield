@@ -4,6 +4,7 @@
 import { SC } from './scene';
 import { elementLibrary } from './element-maker';
 import { mountConnection } from './connection';
+import { mountNumberControls } from './number-controls';
 
 declare const STYLEBOARD: { looks: Style[] };
 
@@ -168,6 +169,7 @@ function save(extra: Partial<ProjectState> = {}) { SC.set('osh-project', { ...st
 
 function mount(o: Opts) {
   mountConnection();
+  mountNumberControls();
   opts = o;
   const st = state();
   style = allStyles().find((l) => l.id === (st.style || st.look)) || STYLEBOARD.looks[0];

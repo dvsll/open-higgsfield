@@ -146,7 +146,7 @@ export const localGeneration = {
     const id = model('keyframe'); const result = await OSH.keyframe(expandMentions(prompt, SHELL.ELEMENTS), seed, frameSize('keyframe'), id);
     catalog=await OSH.models().catch(()=>catalog);renderDetails();return result;
   },
-  async shot(keys: ShotKey[], prompt: string, duration: number, seed = 1,timing=videoTiming()) {
+  async shot(keys: ShotKey[], prompt: string, duration: number, seed = 1,timing:{frames:number;fps:number;width?:number;height?:number}=videoTiming()) {
     const id = model('video'); const result = await OSH.shot(keys, expandMentions(prompt, SHELL.ELEMENTS), duration, seed, {...frameSize('video'),...timing,model:id});
     catalog=await OSH.models().catch(()=>catalog);renderDetails();return result;
   },

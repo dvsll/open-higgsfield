@@ -4,7 +4,7 @@ Preparation only. No deployment, paid operation, private upload or weight downlo
 
 **Final no-spend audit: [PREFLIGHT.md](PREFLIGHT.md). Deployment is NO-GO until its account, CPU-container validation, live-quote and explicit approval gates are satisfied.** The user selected the printed-label surrogate; private transfer is still separately gated.
 
-**Readiness: free CPU preflight PASS; NOT validated on a remote GPU.** Actual pinned Linux container build/imports/pip-check, workflow schema and authenticated SDK/proxy SaveVideo MP4 pass. See PREFLIGHT.md for the reproduced proxy-bind failure and fix, logs and remaining CUDA/hardware risks. Authenticated HF file access, A100 fit/latency, real termination and settled billing remain untested. No claim that this model meets product fidelity or that a three-hour session is guaranteed to succeed.
+**Readiness: free CPU preflight and authenticated HF HEAD access PASS; NOT validated on a remote GPU.** Actual pinned Linux container build/imports/pip-check, workflow schema and authenticated SDK/proxy SaveVideo MP4 pass. All five pinned model files return HTTP200 with expected sizes using HEAD only. See PREFLIGHT.md for logs and remaining CUDA/hardware risks. A100 fit/latency, downloaded-file hashes, real termination and settled billing remain untested. No claim that this model meets product fidelity or that a three-hour session is guaranteed to succeed.
 
 ## Proposed components and licensing (before any future installation)
 
@@ -73,7 +73,7 @@ Hard maximum is three hours from **Pod creation**, including initialization, dow
 
 Required before a paid action: explicit user approval of one quoted A100 session, <=3h/initial$6/total$10, selected region, storage lifecycle and exact approved input cases; user-controlled HF gated-access acceptance; SSH/public-key configuration; ephemeral Runpod termination credential and separate read-only billing credential where supported; independently hosted watchdog available for the entire session. Credentials stay out of Git/logs. A broad API key is not magically scoped to this Pod by our script; revoke ephemeral credentials after deletion.
 
-Before reserving anything, run `python adstudio/benchmark/access.py --check-head` with HF_TOKEN supplied privately. This checks all five exact files with HEAD, preserves HEAD across redirects and strips authorization on cross-host redirects. It never downloads model bytes. Terms acceptance is complete; token/access checks remain pending. The free CPU-container import/schema/transport check now passes; exact evidence and remaining gates are in PREFLIGHT.md.
+`python adstudio/benchmark/access.py --check-head` now passes for all five exact files with HF_TOKEN supplied privately. It preserves HEAD across redirects and strips authorization on cross-host redirects; no model bytes downloaded. Terms acceptance/token access and the free CPU-container import/schema/transport gate are complete. Repeat access checks before an approved deployment; exact evidence and remaining gates are in PREFLIGHT.md.
 
 Read-only public metadata was accessed during preparation. No Runpod account resources/billing were accessed. `--approved` is a guard against accidental execution, **not a substitute for user approval**.
 

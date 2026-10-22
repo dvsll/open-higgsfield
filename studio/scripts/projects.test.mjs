@@ -13,4 +13,7 @@ assert.equal(data.get(second.projectKey('osh-director')),undefined);
 data.set(second.projectKey('osh-director'),'second shot');
 assert.equal(data.get(first.projectKey('osh-director')),original);
 assert.equal(data.get('osh-director'),original);
+const {seedOnboarding}=await import('../src/onboarding-starter.ts');seedOnboarding('tour');
+const starter=JSON.parse(data.get('osh:tour:osh-director')),tour=JSON.parse(data.get('osh:tour:osh-onboarding')),workshop=JSON.parse(data.get('osh:tour:osh-workspace'));
+assert.equal(starter.SH.length,1);assert.deepEqual(starter.SH[0].keys,[]);assert.equal(tour.shotId,starter.SH[0].id);assert.equal(tour.step,'prompt');assert.ok(starter.SH[0].prompt.includes('greenhouse'));assert.equal(workshop.keyframeCount,2);assert.equal(data.get(first.projectKey('osh-director')),original);
 console.log('PASS: legacy migration preserves original data and separate projects cannot overwrite each other.');

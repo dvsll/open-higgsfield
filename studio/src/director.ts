@@ -18,6 +18,13 @@ SH.forEach(s=>{s.r=false;s.keys=[{t:0,u:0,spec:s.spec},{t:+(s.d*.75).toFixed(1),
 // Restore state (survives the round trip to Edit Anything).
 const saved=SC.get('osh-director');if(saved&&saved.SH){SH.length=0;saved.SH.forEach(x=>SH.push(x));}
 let STASH=saved?.STASH||[],TRASH=saved?.TRASH||[],HISTORY=saved?.HISTORY||[];
+// Stable identities keep takes attached when shots move, including through stash/trash.
+function shotId(s: {id?: string}): string {return s.id??=crypto.randomUUID()}
+const storedShots=[...SH,...STASH.map(it=>it.shot),...TRASH.map(it=>it.shot)];
+storedShots.forEach(shotId);
+// Old history only stored a sequence index. Match the current video first;
+// unresolved entries stay unavailable rather than risking another shot's take.
+HISTORY.forEach(h=>{if(h.kind==='shot'&&!h.shotId){const s=storedShots.find(s=>s.video===h.url);if(s)h.shotId=shotId(s)}});
 function save(){SC.set('osh-director',{SH,cur,G,STASH,TRASH,HISTORY})}
 // Generation history: every keyframe/shot the GPU made, newest first. Click to reuse.
 function pushHist(e){HISTORY.unshift({...e,at:Date.now()});HISTORY=HISTORY.slice(0,80);histUI();save()}
@@ -27,7 +34,7 @@ function histUI(){const el=$('#hist');if(!el)return;el.innerHTML=`<div class="hh
  HISTORY.forEach(h=>{const b=document.createElement('button');b.className='hc';b.title=h.label;
   b.innerHTML=(h.kind==='shot'?`<video src="${h.url}#t=0.5" muted preload="metadata"></video>`:`<img src="${h.url}" loading="lazy">`)+`<div><span class="kind">${h.kind}</span><small>${h.label}</small><small>${ago(h.at)}</small></div>`;
   if(h.kind==='shot'){const v=b.querySelector('video');b.onmouseenter=()=>v.play().catch(()=>{});b.onmouseleave=()=>{v.pause();v.currentTime=.5}}
-  b.onclick=()=>{if(h.kind==='shot'){const s=SH[h.shot];if(!s)return toast('That shot no longer exists');s.video=h.url;s.r=true;cur=h.shot;G=start(cur);timeline();head();save();toast(`Using this take for ${s.n}`)}
+  b.onclick=()=>{if(h.kind==='shot'){const i=SH.findIndex(s=>s.id===h.shotId);if(i<0)return toast('Restore the original shot to the sequence to use this take');const s=SH[i];s.video=h.url;s.r=true;cur=i;open=open==null?null:i;selKey=null;G=start(cur);timeline();head();save();toast(`Using this take for ${s.n}`)}
    else{const[i,lt]=at(G);addKey(i,Math.round(lt*10)/10,{spec:(SH[i].keys[0]||SH[i]).spec,u:.5,img:h.url})}};hs.append(b)})}
 let cur=saved?.cur||0,selKey=null,G=saved?.G||0,playing=false,pxs=1,results=[],dragV=null;
 const tot=()=>SH.reduce((a,s)=>a+s.d,0),start=i=>SH.slice(0,i).reduce((a,s)=>a+s.d,0);
@@ -159,7 +166,7 @@ async function busy(msg,job){const ov=$('#ov');ov.style.display='flex';$('#pb').
 async function realShot(i,label){const s=SH[i];let step='';
  return busy(()=>`${label}${step}`,async()=>{
   const miss=s.keys.filter(k=>!k.img);for(const [j,k] of miss.entries()){step=` · keyframe ${j+1}/${miss.length} (Z-Image)`;const r=await OSH.keyframe(keyPrompt(k.spec,s.m),1+j);k.img=r.url;pushHist({kind:'keyframe',url:r.url,label:`${s.n} · auto keyframe`})}
-  step=` · ${s.keys.length} keyframes → LTX-Video`;const r=await OSH.shot(s.keys.map(k=>({image:k.img,t:k.t})),shotPrompt(s),s.d,s.seed??7);s.video=r.url;s.r=true;pushHist({kind:'shot',url:r.url,label:`${s.n} · ${r.frames} frames`,shot:i});return r})}
+  step=` · ${s.keys.length} keyframes → LTX-Video`;const r=await OSH.shot(s.keys.map(k=>({image:k.img,t:k.t})),shotPrompt(s),s.d,s.seed??7);s.video=r.url;s.r=true;pushHist({kind:'shot',url:r.url,label:`${s.n} · ${r.frames} frames`,shotId:shotId(s)});return r})}
 async function fake(msgs,ms){const ov=$('#ov');ov.style.display='flex';const t0=performance.now();await new Promise(res=>{(function tick(){const p=Math.min(1,(performance.now()-t0)/ms);$('#pb').style.width=p*100+'%';$('#ovt').textContent=msgs[Math.min(msgs.length-1,p*msgs.length|0)];p<1?requestAnimationFrame(tick):res()})()});ov.style.display='none'}
 $('#gen').onclick=async()=>{const s=SH[cur];if(!s.keys.length)return toast('Add at least one keyframe');
  if(OSH.online){try{const r=await realShot(cur,`Generating shot ${cur+1}`);timeline();head();toast(`Shot ${cur+1} generated in ${r.seconds}s (${r.frames} frames)`)}catch(e){toast('Generation failed: '+e.message)}return}
@@ -227,4 +234,4 @@ SHELL.mount({app:'director',elementHint:'click to use in keyframe',
 function markEls(){SHELL.mark($$('#els .chip.on').map(c=>c.dataset.k))}
 $('#els').addEventListener('click',()=>setTimeout(markEls));
 OSH.health().then(({online})=>{const b=$('#rt');b.classList.toggle('on',online);b.textContent=online?'● local ComfyUI':'○ placeholders';if(!online)b.title='Start shared/runtime/serve.py with ComfyUI running for real generation'});
-timeline();head();markEls();histUI();if(!playing)$('#play').textContent='▶';
+timeline();head();markEls();histUI();save();if(!playing)$('#play').textContent='▶';

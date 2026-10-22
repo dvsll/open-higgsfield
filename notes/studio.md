@@ -3,7 +3,13 @@
 Append dated decisions, render times and requests here. Only the studio owner edits this file; the partner adds requests at the bottom.
 
 ## Where we left off (update this before switching agents)
-_Last updated 2026-10-21 by Claude Code._
+_Last updated 2026-10-21 by Codex._
+
+**Latest handoff:** pulled origin (main already current at Claude's `36f242a`). Claude also shipped Stylemaxxer, style selector/maker, Elements wall, and generation history. Fixed video history targeting: takes now follow stable shot IDs through reorder/stash/trash, and selecting a take updates the opened shot and clears the old keyframe selection. Existing history migrates by matching the current video URL; older ambiguous entries remain unavailable rather than targeting the wrong shot. IDs/migration persist on page initialization. No dependencies added.
+
+**Validation:** `npm run typecheck` and `npm run build` pass. Build still warns about the partner adstudio non-module kit.js script; untouched. No browser or GPU generation validation this session. No server started by Codex.
+
+**Next:** finish per-shot/per-keyframe versions and structural undo/redo below; generation history is available but is not a complete version model. Older history without a recoverable shot identity cannot safely be reassigned automatically.
 
 **State:** the Director runs real generation locally. Z-Image keyframes take ~7 s; LTX-Video 2B shots take ~20–30 s on the 4070 Super.
 Done today:

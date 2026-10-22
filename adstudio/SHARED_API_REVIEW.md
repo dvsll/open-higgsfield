@@ -2,6 +2,8 @@
 
 ## Current integration review — feat/adstudio-workspace, 2026-10-22
 
+Draft review: https://github.com/dvsll/open-higgsfield/pull/2 . Keep draft pending browser acceptance; no auto-merge. GitHub connector lacked write permission; the existing authenticated CLI created the draft successfully.
+
 Supersedes the historical fidelity audit below. Latest fetched main remains `9921282`. Integration commit `74fd500` reconciles it with `d46e789` through a union of audio and product-video services; no whole stale shared-file replacements. Persistence `7210bad`, workspace `115755c`, and saved-history hardening `3fb7600` are separate reviewable commits. Studio source and production shot_ltxv JSON exactly match integrated main. No merge into main or default-model change.
 
 Review shared diff with `git diff origin/main...feat/adstudio-workspace -- shared/runtime shared/workflows/CONTRACT.md`. Preserve both audio and product routes, FLAC serving, AAC/Opus preservation, keepAudio, frame/FPS controls, model-string/options SDK signatures, model catalog and timed connection health. Additive `GET /api/capabilities` in the workspace commit probes FFmpeg independently of ComfyUI, without queueing work or starting the proxy. The response distinguishes API support from `/api/models` runnable weights/nodes. Existing endpoints are unchanged.

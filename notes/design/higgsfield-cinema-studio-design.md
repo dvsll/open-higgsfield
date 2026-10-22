@@ -2,6 +2,8 @@
 
 Research date: October 22, 2026. Scope: Higgsfield Cinema Studio, translated into our local Studio. This is a design and original UI-copy specification, not a request to implement everything immediately.
 
+Implementation update: P0 foundations are now implemented; see [the checklist](cinema-studio-backlog.md). Explore [the wireframe/mockup](../../studio/design-lab.html) and [51-feature coverage](cinema-studio-feature-coverage.md). Advanced feature concepts remain separate from working local backend support.
+
 ## Key takeaways to implement in our app
 
 | Priority | Change | Concrete implementation | Acceptance criterion |

@@ -21,6 +21,7 @@ export default defineConfig(({ mode }) => {
           studio: "studio/index.html",
           director: "studio/director.html",
           edit: "studio/edit.html",
+          designLab: "studio/design-lab.html",
           adstudio: "adstudio/index.html",
         },
       },

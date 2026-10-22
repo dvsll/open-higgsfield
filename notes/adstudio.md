@@ -80,3 +80,6 @@ Added built-in Stable Audio Open workflow and POST /api/audio + OSH.audio(prompt
 
 
 Studio coordination — 2026-10-22: shared/runtime/client.ts health fetch now has a 5-second AbortSignal timeout so connection monitoring cannot hang indefinitely. No endpoint/signature/generation changes. Ad Studio client-compat test passes. Studio-only popup lives in its shell.
+
+
+Studio coordination — 2026-10-22: vite.config.ts now includes studio/design-lab.html as a production entry for the requested wireframe/mockup. No runtime API changes or new dependencies. Build and Ad Studio client compatibility pass.

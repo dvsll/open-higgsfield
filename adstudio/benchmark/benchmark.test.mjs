@@ -33,7 +33,7 @@ assert.throws(()=>validateRunGate(lease,watch,{...health,podId:'other'},'pins',1
 assert.throws(()=>validateRunGate(lease,watch,health,'changed-pins',1100),/health/);
 assert.throws(()=>validateRunGate({...lease,sessionCap:10},watch,health,'pins',1100),/lease/);
 assert.throws(()=>validateRunGate(lease,watch,health,'pins',11000),/lease/);
-for(const [program,args]of [[process.execPath,['adstudio/benchmark/render.mjs']],[process.execPath,['adstudio/benchmark/transport-smoke.mjs']],['python',['adstudio/benchmark/weights.py']],['python',['adstudio/benchmark/access.py']]])assert.match((await exec(program,args)).stdout,/DRY RUN/);
+for(const [program,args]of [[process.execPath,['adstudio/benchmark/render.mjs']],[process.execPath,['adstudio/benchmark/transport-smoke.mjs']],[process.execPath,['adstudio/benchmark/cpu-preflight.mjs']],['python',['adstudio/benchmark/weights.py']],['python',['adstudio/benchmark/access.py']]])assert.match((await exec(program,args)).stdout,/DRY RUN/);
 await mkdir('outputs/benchmark-prep',{recursive:true});
 const created=Math.floor(Date.now()/1000);await writeFile('outputs/benchmark-prep/fake-lease.json',JSON.stringify({version:1,podId:'test',name:'adstudio-ltx25-test',created,deadline:created+10800,gpuRate:1.79,storageHourly:.032,sessionCap:6,networkVolumeId:null}));
 assert.match((await exec('python',['adstudio/benchmark/lifecycle.py','watch','--lease','outputs/benchmark-prep/fake-lease.json'])).stdout,/DRY RUN/);

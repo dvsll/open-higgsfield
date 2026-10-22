@@ -1,5 +1,7 @@
 # Browser acceptance handoff — fidelity prototype
 
+2026-10-22 Creative investigation: fresh Computer Use initialization and one retry both failed before any input: `failed to start Node runtime: The system cannot find the path specified. (os error 3)`. No interrupted session was bypassed. Full-playback review remains **NOT RUN**. Open private `outputs/motion-investigation/controlled/gallery.html`, restart/play all five clips twice at normal speed, then seek each start/middle/end. Record browser/version and per-clip motion direction, chip/foil deformation, texture crawl, cropping and overall ad quality. A is the exact failed MP4 replay; D is conventional camera motion, not AI success. Complete the original browser upload/progress/export/tagline/download/retry checks below separately. Detailed measurements and limitations: [CREATIVE_MOTION_INVESTIGATION.md](CREATIVE_MOTION_INVESTIGATION.md).
+
 Status: **NOT RUN on this branch**. The earlier Computer Use session ended on physical Escape; no attempt was made to bypass or resume that interruption. The checks below require a fresh authorized browser session or a person at the computer. API/media tests are separate evidence, not substitutes for these checks.
 
 Current isolated server: http://127.0.0.1:8294/adstudio/ . A normal fresh start can use `npm run dev` on 8288. Use one server consistently. ComfyUI/proxy stay on loopback :8188/:8189; FFmpeg is configured locally with `FFMPEG_PATH`.

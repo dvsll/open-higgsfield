@@ -12,11 +12,13 @@ await OSH.shot(keys, 'motion', 2, 7, 'ltxv-model');
 await OSH.shot(keys, 'motion', 2, 7, { width: 288, height: 512 });
 await OSH.shot(keys, 'motion', 2, 7, { width: 384, height: 384, model: 'ltxv-model' });
 await OSH.keyframe('still', 7, { width: 256 }, 'z-image-model');
+await OSH.shot(keys, 'timed', 3, 1, { frames: 73, fps: 24 });
 assert.deepEqual(requests.map(r => r.body), [
   { keys, prompt: 'motion', duration: 2, seed: 7 },
   { keys, prompt: 'motion', duration: 2, seed: 7, model: 'ltxv-model' },
   { keys, prompt: 'motion', duration: 2, seed: 7, width: 288, height: 512 },
   { keys, prompt: 'motion', duration: 2, seed: 7, width: 384, height: 384, model: 'ltxv-model' },
   { prompt: 'still', seed: 7, width: 256, model: 'z-image-model' },
+  { keys, prompt: 'timed', duration: 3, seed: 1, frames: 73, fps: 24 },
 ]);
-console.log('PASS: default, Director model, Ad Studio size, combined model/size, keyframe model calls.');
+console.log('PASS: default, Director model, Ad Studio size, combined model/size, keyframe model, explicit frame/FPS calls.');

@@ -4,7 +4,7 @@
 
 export type Health = { comfyui: boolean; proxy: boolean; queued: number };
 export type KeyframeResult = { url: string; seconds: number };
-export type ShotResult = { url: string; seconds: number; frames: number };
+export type ShotResult = { url: string; seconds: number; frames: number; fps?: number; duration?: number };
 export type ShotKey = { image: string; t: number; strength?: number };
 export type ProductVideoOptions = { image: string; background?: string; mode: 'locked' | 'camera'; ratio: '16:9' | '9:16' | '1:1'; duration: number; motion?: 'push' | 'pan-left' | 'pan-right' };
 export type ProductVideoResult = ShotResult & { width: number; height: number; mode: 'locked' | 'camera'; motion: string; protectedRect: { x: number; y: number; width: number; height: number } | null };
@@ -55,5 +55,5 @@ export const OSH = {
   editVideo:(options:{video:string;start:number;end:number;speed:number;reverse:boolean;width:number;height:number})=>post<{url:string;seconds:number;width:number;height:number}>('edit-video',options),
   keyframe: (prompt: string, seed = 1, size: { width?: number; height?: number } = {}, model?: string) => post<KeyframeResult>("keyframe", { prompt, seed, ...size, model }),
   // Preserve Director's model argument and Ad Studio's size argument; options can combine both.
-  shot: (keys: ShotKey[], prompt: string, duration: number, seed = 1, options: string | { width?: number; height?: number; model?: string } = {}) => post<ShotResult>("shot", { keys, prompt, duration, seed, ...(typeof options === 'string' ? { model: options } : options) }),
+  shot: (keys: ShotKey[], prompt: string, duration: number, seed = 1, options: string | { width?: number; height?: number; model?: string; frames?: number; fps?: number } = {}) => post<ShotResult>("shot", { keys, prompt, duration, seed, ...(typeof options === 'string' ? { model: options } : options) }),
 };

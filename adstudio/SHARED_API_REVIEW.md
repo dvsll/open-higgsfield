@@ -1,5 +1,9 @@
 # Shared API review: Ad Studio P0
 
+## Current review — feat/adstudio-fidelity, 2026-10-22
+
+Creative motion findings are in [CREATIVE_MOTION_INVESTIGATION.md](CREATIVE_MOTION_INVESTIGATION.md). The current milestone selectively ports main `f604c8d`'s shared frame/FPS controls into the existing fidelity branch: optional `frames`/`fps`, response timing metadata, frame-rate conditioning/output and guide snapping. Existing model-string/size-object calls and default duration mapping remain supported; product-video additions remain intact. Review the milestone commit's `shared/runtime/api.ts`, `shared/runtime/client.ts` and `shared/workflows/CONTRACT.md`; no existing workflow JSON, Studio source or production sampler changes. Separate main audio/projects work was intentionally not imported. Typecheck/build, client/Director tests and live rejection/export/product checks pass; browser/playback acceptance remains pending. Do not merge automatically. The P0 review below is historical.
+
 Integration update (2026-10-21): user explicitly requested merging this branch into main. Shared conflicts resolved to retain local model selection alongside upload/dimensions/export. Fifth `OSH.shot` argument accepts a model ID or `{width?, height?, model?}`. Typecheck/build, shared-client compatibility regression, live HTTP smoke, model discovery and real FFmpeg export pass on the merged checkout. Quality/browser acceptance limitations below remain outstanding; this integration does not claim acceptance.
 
 Branch: `feat/adstudio-p0`. Existing draft: https://github.com/dvsll/open-higgsfield/pull/1 . Keep it draft until product/browser acceptance is evaluated. Do not merge automatically.

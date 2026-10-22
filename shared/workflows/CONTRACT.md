@@ -59,3 +59,6 @@ Swap to LTX-2.5 + IC-LoRAs on a rented 32 GB+ GPU for final renders.
 
 ### Optional shot guides (2026-10-22)
 `POST /api/shot` accepts `keys: []` or omitted keys for text-to-video; up to eight image guides remain optional. Zero-key graph removes LoadImage/ImageScale/LTXVAddGuide/LTXVCropGuides and connects text conditioning plus EmptyLTXVLatentVideo directly to the existing scheduler/sampler/decode. Same SDK/proxy path, model, dimensions, frame cap and output. Studio sends only keys with actual images and never silently generates missing images. Start/end UI anchors send t=0 / current shot duration; regular keys send their timed position. Guidance remains approximate, not an exact reproduction promise.
+
+### Explicit frame timing (2026-10-22)
+Optional shot fields `frames` (integer9–121, `(frames-1)%8=0`) and `fps` (1–120, float) set latent length, conditioning node11 frame_rate, output node17 fps and guide frame snapping. Explicit duration is frames/fps; response adds fps and duration. Omitted frames retains existing 1–8s duration mapping/cap and omitted FPS retains24. OSH.shot fifth options argument accepts both fields. 121 is the current app workload cap; installed ComfyUI node exposes a larger theoretical maximum. No workflow JSON/model changes.

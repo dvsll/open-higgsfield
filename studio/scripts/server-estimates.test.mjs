@@ -10,4 +10,6 @@ assert.ok(serverEstimate(videoModel,1,768,448,server).seconds<12);
 assert.equal(serverEstimate(videoModel,4,768,448,{...server,samples:[]}).seconds,null);
 assert.equal(serverEstimate(imageModel,1,768,448,{...server,samples:[],hardware:{...hardware,name:'NVIDIA RTX 4070 SUPER'}}).seconds,7);
 assert.equal(serverEstimate(videoModel,4,384,224,server).seconds,3);
+assert.equal(serverEstimate(videoModel,17/12,768,448,server,17).seconds,serverEstimate(videoModel,17/60,768,448,server,17).seconds);
+assert.ok(serverEstimate(videoModel,1,768,448,server,17).seconds<serverEstimate(videoModel,1,768,448,server,97).seconds);
 console.log('PASS: actual-server matching, warm medians, cold-switch overhead, workload scaling and unknown-hardware fallback.');

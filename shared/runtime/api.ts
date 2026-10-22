@@ -30,7 +30,7 @@ const FPS = 24;
 const MAX_BODY = 64 * 1024;
 const MAX_UPLOAD_BODY = 8 * 1024 * 1024;
 const MAX_QUEUE = 4;
-const OUTPUT_NAME = /^[a-f0-9]{16}\.(png|webm|mp4)$/;
+const OUTPUT_NAME = /^[a-f0-9]{16}\.(png|webm|mp4|flac)$/;
 
 type Env = Record<string, string | undefined>;
 type Key = { image: string; t: number; strength?: number };
@@ -76,7 +76,7 @@ function outputName(ext: string): string {
   return `${randomBytes(8).toString("hex")}.${ext}`;
 }
 
-async function save(job: Awaited<ReturnType<Comfy["run"]>>, node: string, ext: "png" | "webm"): Promise<string> {
+async function save(job: Awaited<ReturnType<Comfy["run"]>>, node: string, ext: "png" | "webm" | "flac"): Promise<string> {
   const out = job.getOutputs(node)[0];
   if (!out) throw new Error(`workflow produced no output on node ${node}`);
   const name = outputName(ext);
@@ -140,7 +140,8 @@ async function localModels(env: Env) {
     research = lab.models.map((m: any) => ({ repo: m.repo, revision: m.revision, bytes: m.files.reduce((sum: number, f: any) => sum + f.bytes, 0) }));
   } catch { /* Training assets are optional and not generation choices. */ }
   const hardware = identifyHardware(await comfyJson(env,'/system_stats').catch(()=>null));
-  return { keyframe, video, research, timing: await serverTiming(OUTPUTS,hardware,queued), inventory: inventory.filter(c => c.files.length > 0) };
+  const audio=has('CheckpointLoaderSimple','ckpt_name','stable-audio-open-1.0.safetensors')&&has('CLIPLoader','clip_name','t5_base.safetensors')&&graphReady(await loadGraph('audio_stable'));
+  return { keyframe, video, audio:{available:audio,model:'Stable Audio Open 1.0'}, research, timing: await serverTiming(OUTPUTS,hardware,queued), inventory: inventory.filter(c => c.files.length > 0) };
 }
 
 async function selectedModel(body: any, env: Env, kind: "keyframe" | "video") {
@@ -308,7 +309,7 @@ async function exportVideo(body: any, env: Env) {
   const args = ["-nostdin", "-hide_banner", "-loglevel", "error", "-n", "-i", video];
   if (overlay) args.push("-i", overlay, "-filter_complex", "[0:v][1:v]overlay=0:0:format=auto[v]", "-map", "[v]");
   else args.push("-map", "0:v:0");
-  args.push("-an", "-c:v", "libx264", "-preset", "fast", "-crf", "20", "-pix_fmt", "yuv420p", "-movflags", "+faststart", destination);
+  args.push('-map','0:a?','-c:a','aac', "-c:v", "libx264", "-preset", "fast", "-crf", "20", "-pix_fmt", "yuv420p", "-movflags", "+faststart", destination);
   const t = Date.now();
   try {
     await serialize(() => new Promise<void>((ok, fail) => {
@@ -332,6 +333,21 @@ async function exportVideo(body: any, env: Env) {
     throw error;
   }
   return { url: `/outputs/${name}`, seconds: +((Date.now() - t) / 1000).toFixed(1) };
+}
+
+async function generateAudio(body:any,env:Env){
+  const prompt=str(body.prompt,1500,'audio prompt'),duration=num(body.duration,.1,47,4),seed=Math.floor(num(body.seed,0,2**32,1));
+  let source:string|undefined;
+  if(body.video!==undefined){if(typeof body.video!=='string'||!/^\/outputs\/[a-f0-9]{16}\.(webm|mp4)$/.test(body.video))throw new HttpError(400,'Choose an API-owned video');source=outputPath(body.video)}
+  if(!(await localModels(env)).audio.available)throw new HttpError(400,'Install Stable Audio Open 1.0 and T5-base, then refresh local models');
+  await ensureProxy(env);const c=client(env),wf=c.workflows.fromJson(await loadGraph('audio_stable'));
+  wf.setInput('3','text',prompt);wf.setInput('5','seconds_total',Math.max(1,duration));wf.setInput('6','seconds',Math.max(1,duration));wf.setInput('7','seed',seed);
+  const t=Date.now(),job=await serialize(async()=>{const started=Date.now(),result=await runWf(c,wf),hardware=identifyHardware(await comfyJson(env,'/system_stats').catch(()=>null));await recordRender(OUTPUTS,hardware,{model:'stable-audio-open-1.0.safetensors',width:1,height:1,frames:Math.round(Math.max(1,duration)*44100),seconds:(Date.now()-started)/1000,jobId:result.id});return result}),audio=await save(job,'9','flac');
+  let video:string|undefined;
+  if(source){const name=outputName('webm'),destination=join(OUTPUTS,name),videoCodec=source.endsWith('.webm')?['-c:v','copy']:['-c:v','libvpx-vp9','-deadline','good','-cpu-used','4','-crf','25','-b:v','0'],args=['-nostdin','-hide_banner','-loglevel','error','-n','-i',source,'-i',outputPath(audio),'-map','0:v:0','-map','1:a:0',...videoCodec,'-c:a','libopus','-af','apad','-t',String(duration),destination];
+    try{await serialize(()=>new Promise<void>((ok,fail)=>{const child=spawn(env.FFMPEG_PATH||'ffmpeg',args,{windowsHide:true,stdio:['ignore','ignore','pipe']});let error='';const timer=setTimeout(()=>{child.kill();fail(new HttpError(504,'Audio mux timed out'))},90000);child.stderr.on('data',(b:Buffer)=>error=(error+b.toString()).slice(-4000));child.on('error',()=>{clearTimeout(timer);fail(new HttpError(503,'FFmpeg unavailable'))});child.on('close',code=>{clearTimeout(timer);if(code===0)ok();else{console.error('[api] audio mux:',error);fail(new HttpError(500,'Could not combine audio and video; originals kept'))}})}));video='/outputs/'+name}catch(e){await unlink(destination).catch(()=>{});throw e}
+  }
+  return{audio,video,duration,seconds:(Date.now()-t)/1000};
 }
 
 // ---------------- HTTP plumbing ----------------
@@ -379,7 +395,10 @@ async function editVideo(body:any,env:Env){
   if(!Number.isInteger(width)||!Number.isInteger(height)||width*height>4096*2160)throw new HttpError(400,'Choose whole-pixel dimensions up to 4096×2160 total pixels');
   if(body.reverse!==undefined&&typeof body.reverse!=='boolean')throw new HttpError(400,'reverse must be true or false');
   const name=outputName('webm'),destination=join(OUTPUTS,name),filters=[...(body.reverse?['reverse']:[]),`setpts=(PTS-STARTPTS)/${speed}`,'fps=24',`scale=${width}:${height}:flags=lanczos`, 'setsar=1'];
-  const args=['-nostdin','-hide_banner','-loglevel','error','-n','-ss',String(start),'-t',String(end-start),'-i',source,'-map','0:v:0','-an','-vf',filters.join(','),'-c:v','libvpx-vp9','-deadline','good','-cpu-used','4','-crf','25','-b:v','0',destination];
+  const audioFilters=[...(body.reverse?['areverse']:[]),'asetpts=PTS-STARTPTS',`atempo=${Math.sqrt(speed)}`,`atempo=${Math.sqrt(speed)}`];
+  if(body.keepAudio!==undefined&&typeof body.keepAudio!=='boolean')throw new HttpError(400,'keepAudio must be true or false');
+  const audioArgs=body.keepAudio===false?['-an']:['-map','0:a?','-af',audioFilters.join(','),'-c:a','libopus'];
+  const args=['-nostdin','-hide_banner','-loglevel','error','-n','-ss',String(start),'-t',String(end-start),'-i',source,'-map','0:v:0',...audioArgs,'-vf',filters.join(','),'-c:v','libvpx-vp9','-deadline','good','-cpu-used','4','-crf','25','-b:v','0',destination];
   const t=Date.now();
   try{await serialize(()=>new Promise<void>((ok,fail)=>{const child=spawn(env.FFMPEG_PATH||'ffmpeg',args,{windowsHide:true,stdio:['ignore','ignore','pipe']});let error='';const timeout=setTimeout(()=>{child.kill();fail(new HttpError(504,'Video edit timed out'))},90000);child.stderr.on('data',(chunk:Buffer)=>error=(error+chunk.toString()).slice(-8000));child.on('error',()=>{clearTimeout(timeout);fail(new HttpError(503,'FFmpeg is unavailable'))});child.on('close',code=>{clearTimeout(timeout);if(code===0)ok();else{console.error('[api] edit failed:',error);fail(new HttpError(500,'Video edit failed; source is unchanged'))}})}))}catch(error){await unlink(destination).catch(()=>{});throw error}
   return {url:'/outputs/'+name,seconds:(Date.now()-t)/1000,width,height};
@@ -450,7 +469,7 @@ function middleware(env: Env): Connect.NextHandleFunction {
         if (req.method !== "GET" || !OUTPUT_NAME.test(name)) return send(res, 404, { error: "not found" });
         const p = join(OUTPUTS, name);
         if (!existsSync(p)) return send(res, 404, { error: "not found" });
-        res.writeHead(200, { "Content-Type": name.endsWith(".png") ? "image/png" : name.endsWith(".mp4") ? "video/mp4" : "video/webm", "Content-Length": statSync(p).size, "Cache-Control": "private, max-age=31536000, immutable", "X-Content-Type-Options": "nosniff" });
+        res.writeHead(200, { "Content-Type": name.endsWith(".flac") ? "audio/flac" : name.endsWith(".png") ? "image/png" : name.endsWith(".mp4") ? "video/mp4" : "video/webm", "Content-Length": statSync(p).size, "Cache-Control": "private, max-age=31536000, immutable", "X-Content-Type-Options": "nosniff" });
         return createReadStream(p).pipe(res);
       }
       const route = `${req.method} ${url.pathname}`;
@@ -459,6 +478,7 @@ function middleware(env: Env): Connect.NextHandleFunction {
       if (route === "POST /api/upload") return send(res, 200, await upload(await readBody(req, MAX_UPLOAD_BODY)));
       if (route === "POST /api/export") return send(res, 200, await exportVideo(await readBody(req), env));
       if (route === "POST /api/product-video") return send(res, 200, await productVideo(await readBody(req), env));
+      if (route === 'POST /api/audio') return send(res,200,await generateAudio(await readBody(req),env));
       if (route === 'POST /api/edit-video') return send(res,200,await editVideo(await readBody(req),env));
       if (route === "POST /api/keyframe") return send(res, 200, await keyframe(await readBody(req), env));
       if (route === "POST /api/shot") return send(res, 200, await shot(await readBody(req), env));

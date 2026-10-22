@@ -52,6 +52,13 @@ input.t:focus{border-color:var(--faint)}
 @media (max-width:1000px){.app{grid-template-columns:1fr}aside.l,aside.r{border:0;border-top:1px solid var(--line)}aside.l{order:2}main{order:1}aside.r{order:3}}
 /* No rounded corners anywhere for now (overrides shell.js styles too). */
 *,*::before,*::after{border-radius:0!important}
+/* The viewport owns the workspace; only its panels scroll. */
+html,body{width:100%;height:100%;overflow:hidden;overscroll-behavior:none}
+body{height:100dvh;grid-template-rows:auto minmax(0,1fr)}
+.app{min-width:0;min-height:0;overflow:hidden;grid-template-rows:minmax(0,1fr)}
+main,aside{min-height:0;min-width:0;overscroll-behavior:contain}
+main{overflow-x:hidden;overflow-y:auto}main>*{flex-shrink:0}
+@media(max-width:1000px){.app{overflow-y:auto;grid-template-rows:none;grid-auto-rows:max-content;align-content:start;overscroll-behavior:contain}main,aside{overflow:visible;max-height:none}}
 </style></head><body>
 <header><a href="../index.html" id="backLink">←</a><h1>Edit Anything</h1><span class="src" id="src"></span><span class="from hidden" id="from" style="display:none">from Director</span><span class="sp"></span>
  <span id="acts"></span></header>

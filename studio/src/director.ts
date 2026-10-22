@@ -2,6 +2,12 @@
 import '../../shared/lib/kit.js';
 import '../../shared/styleboard/looks.js';
 import { SC } from './scene';
+import { mountProjects } from './projects';
+import { videoFrames, paintFilmstrip } from './video-frames';
+import { drawAudioTrack } from './audio-track';
+import { drawTimelineAttributes } from './timeline-attributes';
+import './viewer.css';
+import './timeline-readability.css';
 import { SHELL } from './shell';
 import { OSH } from '../../shared/runtime/client';
 import { localGeneration, mountModels, estimateContext } from './models';
@@ -12,15 +18,20 @@ let lastPrompt='kp';addEventListener('focusin',e=>{if(['kp','motion','shotPrompt
 const LOOKS=SC.LOOKS;
 let look=LOOKS[0],str=.8;
 const SP=SC.SP;
-const SH=[{n:'Wide',d:4,spec:SP({scene:'yard',scale:.6}),m:'slow push toward Mia as she spots Bolt in the scrap'},
- {n:'Close',d:3,spec:SP({scene:'yard',scale:2.6,mia:false}),m:'her hand brushes the dust off Bolt\'s face'},
- {n:'Medium',d:4,spec:SP({scene:'street',scale:1.3,carry:true}),m:'she shifts Bolt to her other arm, streetlights flicker on'},
- {n:'Insert',d:3,spec:SP({scene:'room',scale:1.6,night:true}),m:'tools glint under the desk lamp'},
- {n:'Close',d:4,spec:SP({scene:'room',scale:2.4,mia:false,eyes:true}),m:'Bolt\'s eyes flicker, then glow'}];
+const SH=[{n:'First scene',d:4,spec:SP({mia:false,bolt:false,scene:''}),m:''}];
 SH.forEach(s=>{s.r=false;s.keys=[]});
 // Restore state (survives the round trip to Edit Anything).
 const saved=SC.get('osh-director');if(saved&&saved.SH){SH.length=0;saved.SH.forEach(x=>SH.push(x));}
-let STASH=saved?.STASH||[],TRASH=saved?.TRASH||[],HISTORY=saved?.HISTORY||[];
+let expandedVideo=false,expandedAudio=false;
+let onboarding=SC.get('osh-onboarding');
+const touring=()=>onboarding&&!onboarding.dismissed&&onboarding.step!=='done';
+function advanceTour(step){if(!onboarding||onboarding.dismissed)return;onboarding.step=step;SC.set('osh-onboarding',onboarding);renderTour()}
+function renderTour(){const root=document.getElementById('onboardingGuide');if(!root)return;root.hidden=!onboarding||onboarding.dismissed;if(root.hidden)return;const steps=['prompt','keyframes','add','regenerate','done'],index=steps.indexOf(onboarding.step);const copy=[['Make your first video','Start with the prompt we prepared, or make it your own. Press Generate video to bring this little moment to life.','Go to video prompt','shotPromptInput'],['Give your scene a little direction','Now create two keyframes. We’ve prepared a matching image prompt on the right. Press Generate 2 keyframes.','Go to keyframes','kgo'],['Choose where your video begins and ends','Click two different generated keyframes on the right. The first becomes your START frame; the second becomes your END frame.','Choose your frames','res'],['See what your keyframes change','Your start and end frames are in the scene. Press Generate video again to guide a new take with them.','Go to Generate video','gen'],['You just directed your first scene','You’ve gone from a prompt to a video, then shaped another take with keyframes. Both takes are in your history.','Keep creating',null]][index];root.replaceChildren();const top=document.createElement('div');top.className='tour-progress';top.textContent=index<4?`YOUR FIRST SCENE · ${index+1} / 4`:'YOUR FIRST SCENE · COMPLETE';const skip=document.createElement('button');skip.textContent='Skip tour';skip.onclick=()=>{onboarding.dismissed=true;SC.set('osh-onboarding',onboarding);renderTour()};top.append(skip);const title=document.createElement('h2');title.textContent=copy[0];const text=document.createElement('p');text.textContent=copy[1];const action=document.createElement('button');action.className='tour-action';action.textContent=copy[2];action.onclick=()=>{if(!copy[3]){onboarding.dismissed=true;SC.set('osh-onboarding',onboarding);renderTour();return}const target=document.getElementById(copy[3]);target?.scrollIntoView({block:'center',behavior:'smooth'});target?.focus({preventScroll:true})};root.append(top,title,text,action);}
+let STASH=saved?.STASH||[],TRASH=saved?.TRASH||[],HISTORY=saved?.HISTORY||[];const workshop=SC.get('osh-workspace')||{};
+let keyframeBatch=[1,2,4].includes(workshop.keyframeCount)?workshop.keyframeCount:4;
+let workspaceMode=workshop.mode||'video',imageDraft=workshop.image||{prompt:'',url:null},cinema=SH.length>1;
+function saveWorkshop(){SC.set('osh-workspace',{mode:workspaceMode,image:imageDraft,keyframeCount:keyframeBatch})}
+function syncWorkspace(){document.body.dataset.workflow=workspaceMode;document.body.classList.toggle('single-scene',!cinema);document.querySelectorAll('[data-workflow]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.workflow===workspaceMode)));$('#imageHero').src=imageDraft.url||'';$('#imageHero').hidden=!imageDraft.url;$('#imageWelcome').hidden=!!imageDraft.url;$('#nextImage').hidden=!imageDraft.url;$('#nextVideo').hidden=!SH[cur]?.r||touring();}
 // Stable identities keep takes attached when shots move, including through stash/trash.
 function shotId(s: {id?: string}): string {return s.id??=crypto.randomUUID()}
 const storedShots=[...SH,...STASH.map(it=>it.shot),...TRASH.map(it=>it.shot)];
@@ -37,10 +48,14 @@ function histUI(){const el=$('#hist');if(!el)return;el.innerHTML=`<div class="hh
  HISTORY.forEach(h=>{const b=document.createElement('button');b.className='hc';b.title=h.label;
   b.innerHTML=(h.kind==='shot'?`<video src="${h.url}#t=0.5" muted preload="metadata"></video>`:`<img src="${h.url}" loading="lazy">`)+`<div><span class="kind">${h.kind}</span><small>${h.label}</small><small>${ago(h.at)}</small></div>`;
   if(h.kind==='shot'){const v=b.querySelector('video');b.onmouseenter=()=>v.play().catch(()=>{});b.onmouseleave=()=>{v.pause();v.currentTime=.5}}
-  b.onclick=()=>{if(h.kind==='shot'){const i=SH.findIndex(s=>s.id===h.shotId);if(i<0)return toast('Restore the original shot to the sequence to use this take');const s=SH[i];s.video=h.url;if(h.duration){s.d=h.duration;s.keys.forEach(k=>k.t=Math.min(k.t,s.d))}s.r=true;cur=i;open=open==null?null:i;selKey=null;G=start(cur);timeline();head();save();toast(`Using this take for ${s.n}`)}
-   else{const[i,lt]=keyTarget();addKey(i,lt,{spec:(SH[i].keys[0]||SH[i]).spec,u:.5,img:h.url})}};hs.append(b)})}
-let cur=saved?.cur||0,selKey=null,G=saved?.G||0,playing=false,pxs=1,results=[],dragV=null;
-const tot=()=>SH.reduce((a,s)=>a+s.d,0),start=i=>SH.slice(0,i).reduce((a,s)=>a+s.d,0);
+  b.onclick=()=>{if(h.kind==='shot'){const i=SH.findIndex(s=>s.id===h.shotId);if(i<0)return toast('Restore the original shot to the sequence to use this take');const s=SH[i];s.video=h.url;s.audio=h.audio;s.audioMuted=false;if(h.duration){s.d=h.duration;s.keys.forEach(k=>k.t=Math.min(k.t,s.d))}s.r=true;cur=i;open=open==null?null:i;selKey=null;G=start(cur);timeline();head();save();toast(`Using this take for ${s.n}`)}
+   else{if(workspaceMode==='image'){imageDraft={...imageDraft,url:h.url};saveWorkshop();syncWorkspace();return}const[i,lt]=keyTarget();addKey(i,lt,{spec:(SH[i].keys[0]||SH[i]).spec,u:.5,img:h.url})}};hs.append(b)})}
+let viewerTrimShot='',viewerIn=0,viewerOut=0;
+function viewerTrimLabel(){if($('#viewerTrimLabel'))$('#viewerTrimLabel').textContent=`In ${viewerIn.toFixed(2)}s · Out ${viewerOut.toFixed(2)}s`}
+function viewerSeek(t){setPlaying(false);G=start(cur)+Math.max(0,Math.min(SH[cur].d-.001,t));head()}
+function updateViewer(){if(!$('#viewerTime'))return;const s=SH[cur];if(viewerTrimShot!==s.id){viewerTrimShot=s.id;viewerIn=0;viewerOut=s.d;viewerTrimLabel()}$('#viewerTime').max=String(s.d);for(const id of ['previousFrame','nextFrame','viewerTime','markIn','markOut','trimViewer','editViewer'])$('#'+id).disabled=!s.video}
+let selectedTrack="video";let clipSelected=true;let cur=saved?.cur||0,selKey=null,G=saved?.G||0,playing=false,pxs=1,results=[],dragV=null;
+const tot=()=>Math.max(SH.reduce((a,s)=>a+s.d,0),...SH.filter(s=>s.audio&&s.audioLinked===false).map(s=>(s.audioStart||0)+(s.audioDuration||s.d))),start=i=>SH.slice(0,i).reduce((a,s)=>a+s.d,0);
 function at(g){let a=0;for(let i=0;i<SH.length;i++){if(g<a+SH[i].d||i===SH.length-1)return[i,Math.min(SH[i].d,g-a)];a+=SH[i].d}}
 function keyTarget(){const i=open??cur;return[i,Math.round(Math.min(SH[i].d,Math.max(0,G-start(i)))*10)/10]}
 // ---------- drawing ----------
@@ -59,7 +74,8 @@ function shotFrame(g,s,lt,t){const k=[...s.keys].sort((a,b)=>a.t-b.t);if(!k.leng
 // After Effects-style: in the sequence every shot is just a video clip. Open one (double-click / "Open")
 // and the timeline becomes that shot alone: it loops by itself and shows only its keyframes.
 let open=null;
-function selectClip(i){cur=i;selKey=null;$$('#trk>.clip').forEach((el,j)=>{el.classList.toggle('on',j===i);el.setAttribute('aria-selected',String(j===i));el.tabIndex=j===i?0:-1});head();save()}
+function selectClip(i){selectedTrack="video";clipSelected=true;cur=i;selKey=null;$$('#trk>.clip').forEach((el,j)=>{el.classList.toggle('on',j===i);el.setAttribute('aria-selected',String(j===i));el.tabIndex=j===i?0:-1});head();save()}
+addEventListener('pointerdown',e=>{if(e.target.closest('.clip,.k,button,a,input,textarea,select,summary,aside,header,dialog,[contenteditable]'))return;clipSelected=false;selKey=null;$$('#trk>.clip,.k,.audio-clip').forEach(el=>{el.classList.remove('on');if(el.hasAttribute('aria-selected'))el.setAttribute('aria-selected','false')});$('#play').title='Play sequence / pause (space)';head()});
 let suppressClipClickUntil=0,cancelShotDrag=null;
 function clearDragFeedback(){document.body.classList.remove('shot-drag');$$('.dragging,.dropzone,.drop').forEach(el=>el.classList.remove('dragging','dropzone','drop'));$('#trk').querySelector('.insert-line')?.remove();$('.shot-ghost')?.remove()}
 function endShotDrag(){dragShot=null;clearDragFeedback()}
@@ -78,20 +94,21 @@ function shotPointerDrag(el,from,i){el.draggable=false;el.onpointerdown=ev=>{
  };el.onpointerup=stop;el.onpointercancel=stop;cancelShotDrag=()=>stop({type:'pointercancel',clientX:x,clientY:y});
 }}
 addEventListener('keydown',e=>{if(e.key==='Escape'&&cancelShotDrag){e.preventDefault();cancelShotDrag()}});
-function openShot(i){open=i;cur=i;selKey=null;G=start(i);timeline();head()}
+function openShot(i){clipSelected=true;open=i;cur=i;selKey=null;G=start(i);timeline();head()}
 function closeShot(){const i=open;open=null;selKey=null;if(i!=null)G=start(i);timeline();head()}
 addEventListener('osh-model-control',e=>{if(e.detail==='timeline'){openShot(cur);$('#addKeyBtn').focus();$('#tl').scrollIntoView({block:'nearest'})}});
-function timeline(){stashUI();const trk=$('#trk'),W0=$('#tl').clientWidth;$('#addKeyBtn').style.display=open==null?'none':'';trk.innerHTML='';trk.classList.toggle('scene',open!=null);
+function trackAttributes(){const indices=open==null?SH:[SH[open]],offset=open??0;$('#ruler').style.width=(indices.reduce((n,s)=>n+s.d,0)*pxs)+'px';drawTimelineAttributes({selected:cur,shots:indices,pixels:pxs,offset,start:start(offset),size:{width:+$('#videoWidth')?.value||768,height:+$('#videoHeight')?.value||448},select:(i,audio)=>{cur=i;selKey=null;clipSelected=true;selectedTrack=audio?'audio':'video';head()},change:()=>{SH.forEach(s=>s.keys.forEach(k=>k.t=k.anchor==='end'?s.d:Math.min(k.t,s.d)));G=Math.min(G,tot()-.01);timeline();head();save()},generate:()=>$('#gen').click(),audio:()=>{if(SH[cur].audio)$('#editAudio').click();else{$('#audioPrompt').scrollIntoView({block:'center'});$('#audioPrompt').focus()}}})}
+function timeline(){stashUI();const trk=$('#trk'),W0=$('#tl').clientWidth-parseFloat(getComputedStyle($('#tl')).gridTemplateColumns)-24;$('#addKeyBtn').style.display=open==null?'none':'';trk.innerHTML='';trk.classList.toggle('scene',open!=null);
  trk.ondragover=trk.ondragleave=trk.ondrop=null;
  trk.setAttribute('role',open==null?'listbox':'group');trk.setAttribute('aria-label',open==null?'Sequence clips':'Shot keyframes');
  if(open!=null&&!SH[open])open=null;
  if(open==null){ // ---- sequence: shots act as videos
-  const T=tot();pxs=(W0-50)/T;$('#tot').textContent=`${SH.length} shots · ${T}s`;$('#crumb').innerHTML='<b>Sequence</b>';
+  const T=tot();pxs=(W0-50)/T;$('#tot').textContent=`${SH.length} shots · ${+T.toFixed(3)}s`;$('#crumb').innerHTML='<b>Sequence</b>';
   $('#hintT').textContent='click to select · double-click to open · drag to reorder · scrub the ruler';
   $('#ruler').innerHTML=[...Array(Math.floor(T)+1)].map((_,k)=>`<span style="left:${k*pxs}px">${k}s</span>`).join('');
-  SH.forEach((s,i)=>{const c=document.createElement('div');c.className='clip'+(i===cur?' on':'');c.style.width=(s.d*pxs-3)+'px';
-   c.setAttribute('role','option');c.setAttribute('aria-label',`Shot ${i+1}: ${s.n}`);c.setAttribute('aria-selected',String(i===cur));c.tabIndex=i===cur?0:-1;
-   c.innerHTML=`<canvas class="strip" width="${Math.max(10,s.d*pxs|0)}" height="80"></canvas><span class="lbl"><i class="${s.r?'ok':''}"></i>${i+1} · ${s.n} · ${s.d}s<span class="act"><button class="tw" title="Open this shot">Open ▸</button><button data-a="stash" title="Move to stash">⇣</button><button data-a="del" title="Delete (goes to trash)">✕</button></span></span><div class="grip" title="Drag to trim"></div>`;
+  SH.forEach((s,i)=>{const c=document.createElement('div');c.className='clip'+(i===cur&&clipSelected?' on':'');c.style.width=(s.d*pxs-3)+'px';
+   c.setAttribute('role','option');c.setAttribute('aria-label',`Shot ${i+1}: ${s.n}`);c.setAttribute('aria-selected',String(i===cur&&clipSelected));c.tabIndex=i===cur?0:-1;
+   c.innerHTML=`<canvas class="strip" width="${Math.max(10,s.d*pxs|0)}" height="80"></canvas><span class="lbl"><i class="${s.r?'ok':''}"></i>${i+1} · ${s.n} · ${+s.d.toFixed(3)}s<span class="act"><button class="tw" title="Open this shot">Open ▸</button><button data-a="stash" title="Move to stash">⇣</button><button data-a="del" title="Delete (goes to trash)">✕</button></span></span><div class="grip" title="Drag to trim"></div>`;
    strip(c,s);
    c.querySelector('.tw').onclick=ev=>{ev.stopPropagation();openShot(i)};
    c.querySelector('[data-a=stash]').onclick=ev=>{ev.stopPropagation();removeShot(i,'stash')};
@@ -106,13 +123,13 @@ function timeline(){stashUI();const trk=$('#trk'),W0=$('#tl').clientWidth;$('#ad
   trk.ondragover=ev=>{if(!dragShot)return;ev.preventDefault();ev.dataTransfer.dropEffect='move';insertionCue(ev.clientX)};
   trk.ondragleave=ev=>{if(!trk.contains(ev.relatedTarget)){trk.classList.remove('dropzone');trk.querySelector('.insert-line')?.remove()}};
   trk.ondrop=ev=>{if(!dragShot)return;ev.preventDefault();const r=trk.getBoundingClientRect();insertDraggedShot(insertionIndex(SH.map(s=>s.d),(ev.clientX-r.left)/pxs))};
-  return}
+  drawAudioTrack($('#audioTrack'),SH,pxs,i=>{selectClip(i);selectedTrack='audio';timeline();head();$('#audioPrompt').focus()},clipSelected&&(selectedTrack==='audio'||SH[cur].audioLinked!==false)?cur:-1);trackAttributes();return}
  // ---- one shot opened
- const i=open,s=SH[i];pxs=(W0-6)/s.d;$('#tot').textContent=`${s.d}s · ${s.keys.length} keyframe${s.keys.length===1?'':'s'}`;
+ const i=open,s=SH[i];pxs=(W0-6)/s.d;$('#tot').textContent=`${+s.d.toFixed(3)}s · ${s.keys.length} keyframe${s.keys.length===1?'':'s'}`;
  $('#crumb').innerHTML=`<a id="toSeq">Sequence</a> › <b>Shot ${i+1} · ${s.n}</b>`;$('#toSeq').onclick=closeShot;
  $('#hintT').textContent='drag keys to retime · double-click a key to edit it · double-click the track or Esc to go back';
  $('#ruler').innerHTML=[...Array(Math.floor(s.d*2)+1)].map((_,k)=>`<span style="left:${k/2*pxs}px">${k%2?'·':(k/2)+'s'}</span>`).join('');
- const c=document.createElement('div');c.className='clip on';c.style.width=(s.d*pxs-3)+'px';
+ const c=document.createElement('div');c.className='clip'+(clipSelected?' on':'');c.style.width=(s.d*pxs-3)+'px';
  c.innerHTML=`<canvas class="strip" width="${Math.max(10,s.d*pxs|0)}" height="96"></canvas><span class="lbl"><button class="tw" title="Back to the sequence">◂ Sequence</button><i class="${s.r?'ok':''}"></i>${i+1} · ${s.n}${s.r?' · generated':' · keyframes only'}</span><div class="grip" title="Drag to trim"></div>`;
  strip(c,s);c.querySelector('.tw').onclick=ev=>{ev.stopPropagation();closeShot()};
  const w=s.d*pxs-3,px=t=>Math.max(44,Math.min(w-44,t*pxs));
@@ -124,10 +141,10 @@ function timeline(){stashUI();const trk=$('#trk'),W0=$('#tl').clientWidth;$('#ad
    e.onpointermove=m=>{if(Math.abs(m.clientX-xs)<3&&!mv)return;mv=true;const raw=t0+(m.clientX-xs)/pxs,edge=Math.min(.15,18/pxs);k.anchor=raw<=edge?'start':raw>=s.d-edge?'end':undefined;k.t=k.anchor==='start'?0:k.anchor==='end'?s.d:Math.round(Math.min(s.d,Math.max(0,raw))*10)/10;position()};
    e.onpointerup=()=>{e.onpointermove=null;if(mv){if(k.anchor)for(const other of s.keys)if(other!==k&&other.anchor===k.anchor){delete other.anchor;other.t=k.anchor==='start'?Math.min(.2,s.d/2):Math.max(0,s.d-.2)}s.r=false;timeline()}head();save()};e.onpointercancel=()=>{e.onpointermove=null;timeline();head();save()}};c.append(e)}); c.onclick=ev=>{if(ev.target.closest('.k,.grip,.tw'))return;selKey=null;$$('.k').forEach(k=>k.classList.remove('on'));head()};
  c.ondblclick=ev=>{if(ev.target.closest('.k,.grip,.tw'))return;closeShot()};
- trim(c,s);dropTarget(c,i);trk.append(c)}
+ trim(c,s);dropTarget(c,i);trk.append(c);drawAudioTrack($('#audioTrack'),[s],pxs,()=>{selectedTrack='audio';clipSelected=true;timeline();head();$('#audioPrompt').focus()},clipSelected?0:-1,start(open));trackAttributes()}
 // ---------- stash (visible parking tray) and trash (discreet, restorable) ----------
 let dragShot=null;
-function removeShot(i,where){if(SH.length<=1)return toast('Keep at least one shot in the sequence');const selected=SH[cur],opened=open==null?null:SH[open];const [sh]=SH.splice(i,1);(where==='stash'?STASH:TRASH).unshift({shot:sh,from:i,at:Date.now()});
+function removeShot(i,where){if(SH[i].audio&&SH[i].audioLinked===false)return toast('Link or remove the separate audio before removing its scene');if(SH.length<=1)return toast('Keep at least one shot in the sequence');const selected=SH[cur],opened=open==null?null:SH[open];const [sh]=SH.splice(i,1);(where==='stash'?STASH:TRASH).unshift({shot:sh,from:i,at:Date.now()});
  open=opened&&opened!==sh?SH.indexOf(opened):null;cur=SH.includes(selected)?SH.indexOf(selected):Math.min(i,SH.length-1);selKey=null;G=Math.min(G,tot()-.01);timeline();head();save();
  toast(where==='stash'?`${sh.n} moved to the stash`:`${sh.n} deleted — restore it from 🗑 in the timeline header`)}
 function restore(list,j){const opened=open==null?null:SH[open],it=list.splice(j,1)[0],idx=Math.min(it.from,SH.length);SH.splice(idx,0,it.shot);cur=idx;if(opened){open=SH.indexOf(opened);cur=open}timeline();head();save();toast(`${it.shot.n} restored`)}
@@ -146,24 +163,35 @@ function trashUI(){const p=$('#trashpop');p.innerHTML='';TRASH.forEach((it,j)=>{
  f.querySelector('button').onclick=()=>{if(confirm(`Permanently remove ${TRASH.length} deleted shot(s)? This can't be undone.`)){TRASH=[];save();stashUI()}};p.append(f)}
 $('#trashBtn').onclick=e=>{e.stopPropagation();const p=$('#trashpop');const on=p.style.display!=='block';p.style.display=on?'block':'none';if(on)trashUI()};
 addEventListener('click',e=>{if(!e.target.closest('#trashpop,#trashBtn'))$('#trashpop').style.display='none'});
-function strip(c,s){const cv=c.querySelector('.strip'),sg=cv.getContext('2d'),h=cv.height,tw=h*16/9;for(let x=0;x<cv.width;x+=tw){shotFrame(og,s,Math.min(s.d,(x+tw/2)/pxs),2);if(!s.r)mute(og);sg.drawImage(off,x,0,tw,h)}}
+function strip(c,s){const cv=c.querySelector('.strip'),sg=cv.getContext('2d'),h=cv.height,tw=h*16/9;for(let x=0;x<cv.width;x+=tw){shotFrame(og,s,Math.min(s.d,(x+tw/2)/pxs),2);if(!s.r)mute(og);sg.drawImage(off,x,0,tw,h)}if(s.video){const url=s.video;videoFrames(url).then(frames=>{if(cv.isConnected&&s.video===url)paintFilmstrip(cv,frames)}).catch(()=>{})}}
 function trim(c,s){const gr=c.querySelector('.grip');gr.onpointerdown=ev=>{ev.preventDefault();ev.stopPropagation();gr.setPointerCapture(ev.pointerId);const x0=ev.clientX,d0=s.d,p0=pxs;
   gr.onpointermove=m=>{s.d=Math.max(1,Math.min(8,Math.round(d0+(m.clientX-x0)/p0)));c.style.width=(s.d*p0-3)+'px'};
   gr.onpointerup=()=>{gr.onpointermove=null;s.keys.forEach(k=>k.t=Math.min(k.t,s.d));if(s.d!==d0)s.r=false;G=Math.min(G,tot()-.01);timeline();head()}}}
 function dropTarget(el,i){const s=SH[i];el.ondragover=ev=>{if(!dragV)return;ev.preventDefault();el.classList.add('drop')};el.ondragleave=()=>el.classList.remove('drop');
  el.ondrop=ev=>{ev.preventDefault();el.classList.remove('drop');if(!dragV)return;const r=el.getBoundingClientRect();addKey(i,Math.round(Math.min(s.d,Math.max(0,(ev.clientX-r.left)/pxs))*10)/10,dragV)}}
+for(const kind of ['video','audio']){const toggle=$('#'+kind+'TrackToggle');toggle.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg><span>'+ (kind==='video'?'Video properties':'Audio properties')+'</span>';toggle.onclick=()=>{if(kind==='video')expandedVideo=!expandedVideo;else expandedAudio=!expandedAudio;const expanded=kind==='video'?expandedVideo:expandedAudio;$('#'+kind+'TrackToggle').setAttribute('aria-expanded',String(expanded));$('#'+kind+'TrackToggle').title=(expanded?'Collapse ':'Expand ')+kind+' properties';$('#'+kind+'TrackAttributes').hidden=!expanded;timeline()}};
+$('#tl').addEventListener('pointerdown',e=>{if(e.target.closest('.clip,.k,.audio-clip,button,input,textarea,select,label,#ruler'))return;const rect=$('#ruler').getBoundingClientRect(),t=Math.max(0,(e.clientX-rect.left)/pxs);G=open==null?Math.min(tot()-.01,t):start(open)+Math.min(SH[open].d-.01,t);clipSelected=false;selKey=null;head()});
 $('#ruler').onpointerdown=e=>{const seek=ev=>{const r=$('#ruler').getBoundingClientRect(),x=Math.max(0,(ev.clientX-r.left)/pxs);
   if(open!=null){G=start(open)+Math.min(SH[open].d-.01,x)}else{G=Math.min(tot()-.01,x)}head()};seek(e);$('#ruler').setPointerCapture(e.pointerId);$('#ruler').onpointermove=seek};
 $('#ruler').onpointerup=()=>$('#ruler').onpointermove=null;
 addEventListener('keydown',e=>{if(!e.defaultPrevented&&e.key==='Escape'&&open!=null&&!/TEXTAREA|INPUT/.test(e.target.tagName))closeShot()});
-function media(){const s=SH[cur];if(selKey&&s.keys.includes(selKey))return{type:'keyframe',label:`Shot ${cur+1} · keyframe @ ${selKey.t.toFixed(1)}s`,spec:selKey.spec,u:selKey.u,img:selKey.img,ref:{shot:cur,key:s.keys.indexOf(selKey)}};
- return{type:'shot',label:`Shot ${cur+1} · ${s.n} · ${s.d}s`,spec:(s.keys[0]||s).spec,u:.3,video:s.r?s.video:undefined,duration:s.d,ref:{shot:cur,shotId:shotId(s)}}}
-function head(){const s=SH[cur];SHELL.select(media());$('#sNum').textContent=`Shot ${cur+1} — `;if(document.activeElement!==$('#sName'))$('#sName').textContent=s.n;$('#sMeta').textContent=`${s.d}s · ${s.keys.length} keyframe${s.keys.length===1?'':'s'}`;
- estimateContext(s.d,0);
+function media(){if(workspaceMode==='image')return{type:'keyframe',label:'Image workshop',img:imageDraft.url,spec:SP({}),u:.5};const s=SH[cur];if(selKey&&s.keys.includes(selKey))return{type:'keyframe',label:`Shot ${cur+1} · keyframe @ ${selKey.t.toFixed(1)}s`,spec:selKey.spec,u:selKey.u,img:selKey.img,ref:{shot:cur,key:s.keys.indexOf(selKey)}};
+ return{type:'shot',label:`Shot ${cur+1} · ${s.n} · ${+s.d.toFixed(3)}s`,spec:(s.keys[0]||s).spec,u:.3,video:s.r?s.video:undefined,audio:s.audio,audioPrompt:s.audioPrompt,audioLinked:s.audioLinked,duration:s.d,ref:{shot:cur,shotId:shotId(s)}}}
+function head(){const s=SH[cur];if(expandedVideo||expandedAudio)trackAttributes();$('#trk').classList.toggle('has-selection',clipSelected);updateViewer();document.getElementById("play").title=clipSelected?"Play selected scene / pause (space)":"Play sequence / pause (space)";cinema=SH.length>1;document.body.classList.toggle("single-scene",!cinema);document.body.classList.toggle('has-guides',s.keys.some(k=>k.img));SHELL.select(media());$('#sNum').textContent=`Shot ${cur+1} — `;if(document.activeElement!==$('#sName'))$('#sName').textContent=s.n;$('#sMeta').textContent=`${+s.d.toFixed(3)}s · ${s.keys.length} keyframe${s.keys.length===1?'':'s'}`;
+ if(s.renderWidth)$('#videoWidth').value=String(s.renderWidth);if(s.renderHeight)$('#videoHeight').value=String(s.renderHeight);
+ const fps=s.fps||24,frames=s.renderFrames||Math.max(9,Math.min(121,Math.round(s.d*fps/8)*8+1));
+ if($('#videoFrames')){$('#videoFrames').value=String(frames);$('#videoFPS').value=String(fps);$('#videoDuration').textContent=`${frames} frames / ${fps} FPS = ${(frames/fps).toFixed(3)} seconds`}
+ estimateContext(frames/fps,0,frames);
+ if(document.activeElement!==$('#audioPrompt'))$('#audioPrompt').value=s.audioPrompt||'';$('#audioMute').checked=!!s.audioMuted;
+ const audioSelected=clipSelected&&selectedTrack==='audio',independent=audioSelected&&s.audioLinked===false;$('#audioLink').disabled=!audioSelected||!s.audio;$('#audioLink').textContent=s.audioLinked===false?'Link to video':'Unlink audio';$('#generateAudio').hidden=!s.video||!!s.audio;$('#generateAudio').disabled=!s.audioPrompt?.trim();$('#editAudio').hidden=!s.video||!s.audio;$('#audioSelectionControls').hidden=!audioSelected||!s.audio;$('#audioMute').disabled=!independent;$('#audioStart').disabled=!independent;$('#audioStart').value=String(s.audioLinked===false?s.audioStart??start(cur):start(cur));$('#audioPrompt').readOnly=false;$('#audioEditHint').textContent=s.audio?'New video takes use this prompt. Change existing sound in Edit.':'Optional · generated with your video.';
+ [...$('#audioTrack').children].forEach((el,i)=>el.classList.toggle('on',clipSelected&&(audioSelected||s.audioLinked!==false)&&i===(open==null?cur:0)));
+ [...$$('#trk>.clip')].forEach((el,i)=>{const selected=clipSelected&&i===(open==null?cur:0)&&(!audioSelected||s.audioLinked!==false);el.classList.toggle('on',selected);el.setAttribute('aria-selected',String(selected))});
+ const attributes=$('#selectedVideoAttributes');if(attributes){attributes.textContent=s.video?'Reading selected video…':`${s.n} · ${+s.d.toFixed(3)}s · not generated`;if(s.video){const url=s.video;videoFrames(url).then(info=>{if(SH[cur]===s&&s.video===url)attributes.textContent=`Current take · ${info.width} × ${info.height} px · ${info.duration.toFixed(2)}s`}).catch(()=>{if(SH[cur]===s)attributes.textContent=`${s.n} · video unavailable`})}}
  if(document.activeElement!==$('#shotPromptInput'))$('#shotPromptInput').value=s.prompt||'';
  $('#sState').innerHTML=s.r?'<span style="color:var(--ok)">● generated</span>':'<span style="color:var(--dim)">○ keyframes only</span>';if(document.activeElement!==$('#motion'))$('#motion').value=s.m;dispatchEvent(new Event('osh-prompt-values'))}
-function addKey(i,t,v){const s=SH[i],k={t,u:v.u,spec:v.spec,img:v.img};open=i;s.keys.push(k);selKey=k;cur=i;s.r=false;G=start(i)+Math.min(t,s.d-.01);playing=false;$('#play').textContent='▶';timeline();head();toast(`Keyframe added to shot ${i+1} at ${t.toFixed(1)}s`)}
-function delKey(){if(!selKey&&open==null)return removeShot(cur,'trash');if(!selKey)return toast('Select a keyframe first');SH.forEach(s=>{const j=s.keys.indexOf(selKey);if(j>=0){s.keys.splice(j,1);s.r=false}});selKey=null;timeline();head()}
+function addKey(i,t,v){const s=SH[i],guided=touring()&&onboarding.step==='add'&&s.id===onboarding.shotId;if(guided){if(s.keys.some(k=>k.img===v.img))return toast('Choose a different image for the other frame');t=s.keys.some(k=>k.img)?s.d:0;v={...v,spec:s.spec}}const k={t,u:v.u,spec:v.spec,img:v.img};if(guided)k.anchor=t===0?'start':'end';open=i;s.keys.push(k);selKey=k;cur=i;s.r=false;G=start(i)+Math.min(t,s.d-.01);playing=false;$('#play').textContent='▶';timeline();head();if(guided&&s.keys.filter(k=>k.img).length>=2)advanceTour('regenerate');toast(`Keyframe added to shot ${i+1} at ${t.toFixed(1)}s`)}
+addEventListener('osh-video-timing',e=>{if(playing)setPlaying(false);const s=SH[cur];s.renderFrames=e.detail.frames;s.fps=e.detail.fps;s.d=s.renderFrames/s.fps;s.keys.forEach(k=>{k.t=k.anchor==='end'?s.d:Math.min(k.t,s.d)});G=Math.max(0,Math.min(G,tot()-.01));timeline();head();save()});
+function delKey(){if(!selKey&&!clipSelected)return;if(selectedTrack==='audio'){const s=SH[cur];if(s.audioLinked!==false)return toast('Unlink audio to remove it separately');delete s.audio;timeline();head();save();return}if(!selKey&&open==null)return removeShot(cur,'trash');if(!selKey)return toast('Select a keyframe first');SH.forEach(s=>{const j=s.keys.indexOf(selKey);if(j>=0){s.keys.splice(j,1);s.r=false}});selKey=null;timeline();head()}
 $('#delKey').onclick=delKey;
 // Rename the current shot: click the title (or ✎ / F2), Enter to save, Esc to cancel.
 const nm=$('#sName');let nm0='';
@@ -179,7 +207,7 @@ addEventListener('keydown',e=>{if(/TEXTAREA|INPUT/.test(e.target.tagName))return
 $('#motion').oninput=e=>{SH[cur].m=e.target.value;if(SH[cur].r){SH[cur].r=false;timeline()}head();save()};
 $('#shotPromptInput').oninput=e=>{SH[cur].prompt=e.target.value;if(SH[cur].r){SH[cur].r=false;timeline()}head();save()};
 // Starts paused. Play runs to the end (of the sequence, or of the opened shot) and stops; pressing play at the end restarts.
-const span=()=>open!=null?[start(open),start(open)+SH[open].d]:[0,tot()];
+const span=()=>clipSelected&&selectedTrack==="audio"&&SH[cur].audioLinked===false?[SH[cur].audioStart??start(cur),(SH[cur].audioStart??start(cur))+(SH[cur].audioDuration||SH[cur].d)]:clipSelected?[start(cur),start(cur)+SH[cur].d]:open!=null?[start(open),start(open)+SH[open].d]:[0,tot()];
 function setPlaying(v){playing=v;$('#play').textContent=v?'❚❚':'▶'}
 $('#play').onclick=()=>{if(!playing){const[a,b]=span();if(G>=b-.06||G<a)G=a}setPlaying(!playing)};setPlaying(false);
 // ---------- generate video from keyframes ----------
@@ -190,15 +218,22 @@ function specWords(sp){const w=[];if(sp.mia)w.push(EL_P.mia);if(sp.bolt)w.push(E
 const lookWords=()=>look.prompt||look.n;
 const keyPrompt=(sp,what)=>`${framing(sp.scale)}, ${what?what+'. ':''}${specWords(sp)}. ${lookWords()}. cinematic film still, 35mm`;
 const shotPrompt=s=>`${s.prompt?s.prompt+'. ':''}${s.m||'subtle camera movement'}. ${specWords((s.keys[0]||s).spec)}. ${lookWords()}. cinematic, smooth natural motion`;
+$('#audioPrompt').oninput=e=>{SH[cur].audioPrompt=e.target.value;$('#generateAudio').disabled=!e.target.value.trim();save();dispatchEvent(new Event('osh-audio-prompt'))};$('#audioMute').onchange=e=>{SH[cur].audioMuted=e.target.checked;timeline();save()};
+$('#audioLink').onclick=()=>{const s=SH[cur];if(selectedTrack!=='audio'||!clipSelected)return;if(s.audioLinked===false){s.audioLinked=true;s.audioStart=start(cur)}else{s.audioLinked=false;s.audioStart=start(cur);s.audioDuration=s.audioDuration||s.d}G=Math.min(G,tot()-.01);timeline();head();save();dispatchEvent(new Event('osh-audio-prompt'))};
+$('#audioStart').onchange=e=>{const s=SH[cur];if(selectedTrack!=='audio'||s.audioLinked!==false||!e.target.reportValidity())return;s.audioStart=+e.target.value;timeline();save()};
+async function renderAudio(s){if(!s.audioPrompt?.trim())throw new Error('Describe the sound in Audio prompt first');const linked=s.audioLinked!==false,duration=linked?s.d:s.audioDuration||s.d;if(duration>47)throw new Error('Audio currently supports clips up to 47 seconds');const result=await OSH.audio(s.audioPrompt,duration,Math.floor(Math.random()*1e9),linked?s.video:undefined);s.audio=result.audio;s.audioDuration=duration;s.audioMuted=false;if(result.video){s.video=result.video;s.r=true;pushHist({kind:'shot',url:s.video,audio:s.audio,label:s.n+' · with audio',shotId:shotId(s),duration:s.d})}save();timeline();head();return result}
+$('#editAudio').onclick=()=>{const s=SH[cur];if(!s.video||!s.audio)return;SC.set('osh-handoff',{type:'shot',label:s.n,ref:{shot:cur,shotId:shotId(s)},duration:s.d,video:s.video,audio:s.audio,audioLinked:s.audioLinked,audioPrompt:s.audioPrompt||'',editTarget:'audio',from:'director'});location.href='edit.html?from=director'};
+$('#generateAudio').onclick=async()=>{const s=SH[cur];if(!s.video||s.audio||$('#ov').style.display==='flex'||$('#kgo').disabled)return;s.audioLinked=true;const button=$('#generateAudio');button.disabled=true;try{await busy('Generating audio locally',()=>renderAudio(s));toast('Audio ready')}catch(e){toast('Audio failed: '+e.message)}finally{head()}};
 // Busy overlay with elapsed time (real jobs have no known duration).
 async function busy(msg,job){const ov=$('#ov');ov.style.display='flex';$('#pb').style.width='100%';const t0=performance.now();const tick=setInterval(()=>$('#ovt').textContent=`${typeof msg==='function'?msg():msg} · ${((performance.now()-t0)/1000).toFixed(0)}s`,200);
  try{return await job()}finally{clearInterval(tick);ov.style.display='none'}}
 async function realShot(i,label){const s=SH[i];let step='';
  return busy(()=>`${label}${step}`,async()=>{
-  const guides=s.keys.filter(k=>k.img);step=guides.length?` · ${guides.length} keyframes → LTX-Video`:' · text → LTX-Video';const r=await localGeneration.shot(guides.map(k=>({image:k.img,t:k.anchor==='end'?s.d:k.anchor==='start'?0:k.t})),shotPrompt(s),s.d,s.seed??7);s.video=r.url;s.r=true;pushHist({kind:'shot',url:r.url,label:`${s.n} · ${r.frames} frames`,shotId:shotId(s),duration:s.d});return r})}
+  const guides=s.keys.filter(k=>k.img);step=guides.length?` · ${guides.length} keyframes → LTX-Video`:' · text → LTX-Video';const r=await localGeneration.shot(guides.map(k=>({image:k.img,t:k.anchor==='end'?s.d:k.anchor==='start'?0:k.t})),shotPrompt(s),s.d,s.seed??7,{frames:s.renderFrames||Math.max(9,Math.min(121,Math.round(s.d*(s.fps||24)/8)*8+1)),fps:s.fps||24,...(s.renderWidth||s.renderHeight?{width:s.renderWidth||+$('#videoWidth').value,height:s.renderHeight||+$('#videoHeight').value}:{})});s.video=r.url;if(s.audioLinked!==false){delete s.audio;delete s.audioDuration}s.d=r.duration||s.d;s.fps=r.fps||s.fps||24;s.renderFrames=r.frames;s.keys.forEach(k=>k.t=k.anchor==="end"?s.d:Math.min(k.t,s.d));s.r=true;pushHist({kind:'shot',url:r.url,label:`${s.n} · ${r.frames} frames`,shotId:shotId(s),duration:s.d});if(s.audioLinked!==false&&s.audioPrompt?.trim()){step=' · generating audio';try{await renderAudio(s)}catch(e){r.audioError=e.message;toast('Video ready; audio failed: '+e.message)}}if(touring()&&s.id===onboarding.shotId){if(onboarding.step==='prompt'&&!guides.length){onboarding.firstVideo=s.video;advanceTour('keyframes')}else if(onboarding.step==='regenerate'&&guides.length>=2)advanceTour('done')}return r})}
 async function fake(msgs,ms){const ov=$('#ov');ov.style.display='flex';const t0=performance.now();await new Promise(res=>{(function tick(){const p=Math.min(1,(performance.now()-t0)/ms);$('#pb').style.width=p*100+'%';$('#ovt').textContent=msgs[Math.min(msgs.length-1,p*msgs.length|0)];p<1?requestAnimationFrame(tick):res()})()});ov.style.display='none'}
-$('#gen').onclick=async()=>{const s=SH[cur];
- if(OSH.online){try{const r=await realShot(cur,`Generating shot ${cur+1}`);timeline();head();toast(`Shot ${cur+1} generated in ${r.seconds}s (${r.frames} frames)`)}catch(e){toast('Generation failed: '+e.message)}return}
+$('#gen').onclick=async()=>{if($('#ov').style.display==='flex'||$('#kgo').disabled)return;const s=SH[cur];
+ if(!$('#videoFrames').reportValidity()||!$('#videoFPS').reportValidity())return;
+ if(OSH.online){try{const r=await realShot(cur,`Generating shot ${cur+1}`);timeline();head();toast(r.audioError?`Video ready; audio failed: ${r.audioError}`:`Shot ${cur+1} generated${s.audio?" with audio":""}`)}catch(e){toast('Generation failed: '+e.message)}return}
  toast('Start ComfyUI on port 8188, then refresh local models')};
 $('#genAll').onclick=async()=>{const todo=SH.filter(s=>!s.r);if(!todo.length)return toast('Nothing to generate');
  if(OSH.online){try{for(const s of todo){const i=SH.indexOf(s);await realShot(i,`Shot ${i+1} of ${SH.length}`);timeline();head()}toast('All shots generated')}catch(e){toast('Generation failed: '+e.message)}return}
@@ -212,18 +247,19 @@ $('#els').onclick=e=>{const c=e.target.closest('.chip');if(!c)return;if(PLACES.i
 $('#frm').onclick=e=>{const c=e.target.closest('.chip');if(!c)return;frm=c.dataset.k;$$('#frm .chip').forEach(x=>x.classList.toggle('on',x===c))};
 function specFromUI(){const on=k=>$(`#els [data-k=${k}]`).classList.contains('on'),p=$('#kp').value.toLowerCase();
  return SP({mia:on('mia'),bolt:on('bolt'),scene:on('street')?'street':on('room')?'room':'yard',scale:FR.find(f=>f[0]===frm)[2],night:/night|dark|midnight/.test(p),dawn:/dawn|first light|morning|sunrise/.test(p),eyes:/glow|eyes|wake|light/.test(p),carry:/carr|holds|holding/.test(p)})}
-$('#kgo').onclick=async()=>{const base=specFromUI();$('#kgo').disabled=true;$('#kgo').textContent='Generating…';
- if(OSH.online){const p=$('#kp').value,prompt=keyPrompt(base,p),batch=[0,1,2,3].map(()=>({spec:base,u:.5,p,pending:true}));results=batch.concat(results).slice(0,12);res();
-  try{for(const [j,v] of batch.entries()){const r=await localGeneration.keyframe(prompt,Math.floor(Math.random()*1e6));v.img=r.url;v.pending=false;pushHist({kind:'keyframe',url:r.url,label:p});$('#kgo').textContent=`Generating… ${j+1}/4 (${r.seconds}s)`;res()}}
+$('#kgo').onclick=async()=>{const base=touring()?SP({mia:false,bolt:false,scene:''}):specFromUI();$('#kgo').disabled=true;$('#kgo').textContent='Generating…';
+ if(OSH.online){const p=$('#kp').value,prompt=workspaceMode==='image'||touring()?p:keyPrompt(base,p),batch=Array.from({length:workspaceMode==='image'?1:keyframeBatch}).map(()=>({spec:base,u:.5,p,pending:true}));results=batch.concat(results).slice(0,12);res();
+  try{for(const [j,v] of batch.entries()){const r=await localGeneration.keyframe(prompt,Math.floor(Math.random()*1e6));v.img=r.url;v.pending=false;if(touring()&&['keyframes','add'].includes(onboarding.step)){onboarding.images.push(r.url);SC.set('osh-onboarding',onboarding);if(onboarding.images.length>=2)advanceTour('add')}if(workspaceMode==='image'){imageDraft={prompt:p,url:r.url,spec:base};saveWorkshop();syncWorkspace()}pushHist({kind:'keyframe',url:r.url,label:p});$('#kgo').textContent=`Generating… ${j+1}/${batch.length} (${r.seconds}s)`;res()}}
   catch(e){toast('Keyframe generation failed: '+e.message);results=results.filter(v=>!v.pending);res()}
-  $('#kgo').disabled=false;$('#kgo').textContent='Generate 4 keyframes';return}$('#kgo').disabled=false;$('#kgo').textContent='Generate 4 keyframes';toast('Start ComfyUI on port 8188, then refresh local models');return;await K.sleep(900);
+  $('#kgo').disabled=false;$('#kgo').textContent=workspaceMode==='image'?'Generate image':'Generate '+keyframeBatch+' keyframe'+(keyframeBatch===1?'':'s');return}$('#kgo').disabled=false;$('#kgo').textContent=workspaceMode==='image'?'Generate image':'Generate '+keyframeBatch+' keyframe'+(keyframeBatch===1?'':'s');toast('Start ComfyUI on port 8188, then refresh local models');return;await K.sleep(900);
  results=[0,1,2,3].map(i=>({spec:{...base,scale:base.scale*(1+(i-1.5)*.08),dx:(i-1.5)*.06},u:[.2,.5,.8,.4][i],p:$('#kp').value})).concat(results).slice(0,12);
- $('#kgo').disabled=false;$('#kgo').textContent='Generate 4 keyframes';res()};
+ $('#kgo').disabled=false;$('#kgo').textContent='Generate '+keyframeBatch+' keyframe'+(keyframeBatch===1?'':'s');res()};
 function res(){if(!results.length)return;$('#res').innerHTML='<div class="gen"></div>';results.forEach(v=>{const d=document.createElement('div');if(v.pending){d.className='v busy';d.textContent='generating…';$('#res .gen').append(d);return}d.className='v';d.draggable=true;d.title=v.p;d.innerHTML='<canvas width="256" height="144"></canvas><span>＋ add to selected shot</span>';
  drawKey(d.firstChild.getContext('2d'),v,2,0);d.ondragstart=e=>{dragV=v;e.dataTransfer.setData('text/plain','keyframe');e.dataTransfer.effectAllowed='copy'};d.ondragend=()=>dragV=null;
- d.onclick=()=>{const[i,lt]=keyTarget();addKey(i,lt,v)};$('#res .gen').append(d)})}
+ d.onclick=()=>{if(workspaceMode==='image'){imageDraft={...imageDraft,url:v.img};saveWorkshop();syncWorkspace();return}const[i,lt]=keyTarget();addKey(i,lt,v)};$('#res .gen').append(d)})}
 function toast(t){const d=document.createElement('div');d.className='toast';d.textContent=t;document.body.append(d);setTimeout(()=>d.style.opacity=0,1700);setTimeout(()=>d.remove(),2100)}
 // ---------- loop: one playhead across the whole sequence ----------
+const audioPlayers=new Map();
 const g=K.canvas($('#cv'),W,H);let last=performance.now();
 addEventListener('resize',()=>timeline());
 K.loop(t=>{const now=performance.now(),dt=(now-last)/1000;last=now;if(playing){const[a,b]=span();if(G<a)G=a;G+=dt;if(G>=b-.01){G=b-.01;setPlaying(false)}}
@@ -231,13 +267,15 @@ K.loop(t=>{const now=performance.now(),dt=(now-last)/1000;last=now;if(playing){c
  const vid=$('#vid');if(s.r&&s.video){if(!vid.src.endsWith(s.video)){vid.src=s.video;vid.currentTime=lt}vid.style.display='block';
   if(playing){if(vid.paused)vid.play().catch(()=>{});if(Math.abs(vid.currentTime-lt)>.35)vid.currentTime=lt}else{vid.pause();if(Math.abs(vid.currentTime-lt)>.05)vid.currentTime=lt}}
  else{if(vid.style.display!=='none'){vid.pause();vid.style.display='none'}}
+ for(const [index,shot] of SH.entries()){const id=shotId(shot),begin=shot.audioLinked===false?shot.audioStart??start(index):start(index),duration=shot.audioLinked===false?shot.audioDuration||shot.d:shot.d,local=G-begin;let player=audioPlayers.get(id);if(!player&&shot.audio){player=new Audio();player.preload='auto';audioPlayers.set(id,player)}if(!player)continue;if(playing&&workspaceMode==='video'&&shot.audio&&!shot.audioMuted&&local>=0&&local<duration){if(!player.src.endsWith(shot.audio)){player.src=shot.audio;player.currentTime=local}if(Math.abs(player.currentTime-local)>.2)player.currentTime=local;if(player.paused)player.play().catch(()=>{})}else player.pause()}for(const[id,player]of audioPlayers)if(!SH.some(shot=>shot.id===id)){player.pause();audioPlayers.delete(id)}
  shotFrame(g,s,lt,t);if(!s.r)mute(g);
- const em=!s.r;$('#empty').style.display=em?'block':'none';$('#tag').style.visibility=$('#tc').style.visibility=em?'hidden':'visible';$('#gen').classList.toggle('nudge',em);const arrow=$('#generateArrow'),button=$('#gen').getBoundingClientRect(),message=$('#empty .msg').getBoundingClientRect();const showArrow=em&&$('#ov').style.display!=='flex'&&message.bottom>58&&button.top<innerHeight&&button.top>message.bottom;arrow.style.display=showArrow?'block':'none';if(showArrow){const x=message.left+message.width*.72,y=message.bottom+14,ex=button.left+button.width*.65,ey=button.top-12;$('#generateArrowCurve').setAttribute('d',`M ${x} ${y} C ${x+75} ${y+8}, ${ex+15} ${y+25}, ${ex} ${ey}`)}if(lt<.2&&i>0&&playing&&open==null){g.fillStyle=`rgba(0,0,0,${1-lt/.2})`;g.fillRect(0,0,W,H)}
- $('#tag').textContent=s.r?`Shot ${i+1} · generated${s.video?' · LTX-Video':''}`:`Shot ${i+1} · keyframe preview — generate for real motion`;$('#tc').textContent=`${G.toFixed(1)} / ${tot()}s`;
- $('#gph').style.left=((open!=null?G-start(open):G)*pxs)+'px';$('#gph').setAttribute('aria-label',`Playhead ${G.toFixed(1)} seconds`);SHELL.select(media())});
+ const em=workspaceMode==='video'&&!s.r;$('#empty').style.display=em?'block':'none';$('#tag').style.visibility=$('#tc').style.visibility=em?'hidden':'visible';$('#gen').classList.toggle('nudge',em);const arrow=$('#generateArrow'),button=$('#gen').getBoundingClientRect(),message=$('#empty .msg').getBoundingClientRect();if($("#nextVideo"))$("#nextVideo").hidden=workspaceMode!=='video'||!SH[cur].r||touring();const showArrow=em&&$('#ov').style.display!=='flex'&&message.bottom>58&&button.top<innerHeight&&button.top>message.bottom;arrow.style.display=showArrow?'block':'none';if(showArrow){const x=message.left+message.width*.72,y=message.bottom+14,ex=button.left+button.width*.65,ey=button.top-12;$('#generateArrowCurve').setAttribute('d',`M ${x} ${y} C ${x+75} ${y+8}, ${ex+15} ${y+25}, ${ex} ${ey}`)}if(lt<.2&&i>0&&playing&&open==null){g.fillStyle=`rgba(0,0,0,${1-lt/.2})`;g.fillRect(0,0,W,H)}
+ $('#tag').textContent=s.r?`Shot ${i+1} · generated${s.video?' · LTX-Video':''}`:`Shot ${i+1} · keyframe preview — generate for real motion`;$('#tc').textContent=`${G.toFixed(1)} / ${+tot().toFixed(3)}s`;
+ if($('#viewerTime')&&document.activeElement!==$('#viewerTime'))$('#viewerTime').value=Math.min(SH[cur].d,Math.max(0,G-start(cur))).toFixed(3);
+ $('#gph').style.left=((open!=null?G-start(open):G)*pxs+$('#ruler').offsetLeft)+'px';$('#gph').setAttribute('aria-label',`Playhead ${G.toFixed(1)} seconds`);SHELL.select(media())});
 // Coming back from Edit Anything with an edited keyframe
 const videoBack=SC.get('osh-video-edit-return');SC.set('osh-video-edit-return',null);
-if(videoBack){const i=SH.findIndex(s=>s.id===videoBack.ref?.shotId);if(i>=0&&SH[i].video===videoBack.original){const s=SH[i];s.video=videoBack.video;s.d=Math.max(.1,Math.min(60,+videoBack.duration||s.d));s.keys.forEach(k=>k.t=Math.min(k.t,s.d));s.r=true;cur=i;G=Math.min(G,tot()-.01);pushHist({kind:'shot',url:s.video,label:s.n+' · edited video',shotId:s.id,duration:s.d})}else toast('Original shot changed; edited video is still available in Edit Anything.')}
+if(videoBack){const i=SH.findIndex(s=>s.id===videoBack.ref?.shotId);if(i>=0&&SH[i].video===videoBack.original){const s=SH[i];s.video=videoBack.video;if(videoBack.audioEdited){s.audio=videoBack.audio;s.audioPrompt=videoBack.audioPrompt;s.audioMuted=false;s.audioDuration=videoBack.duration}else if(s.audioLinked!==false)s.audio=videoBack.hasAudio?s.video:undefined;s.d=Math.max(.1,Math.min(60,+videoBack.duration||s.d));s.keys.forEach(k=>k.t=Math.min(k.t,s.d));s.r=true;cur=i;G=Math.min(G,tot()-.01);pushHist({kind:'shot',url:s.video,label:s.n+' · edited video',audio:s.audio,shotId:s.id,duration:s.d})}else toast('Original shot changed; edited video is still available in Edit Anything.')}
 const back=SC.get('osh-edit-return');SC.set('osh-edit-return',null);
 if(back&&SH[back.shot]&&SH[back.shot].keys[back.key]){const k=SH[back.shot].keys[back.key];k.spec=back.spec;SH[back.shot].r=false;cur=back.shot;open=back.shot;selKey=k;G=start(cur)+Math.min(k.t,SH[cur].d-.01);playing=false;setTimeout(()=>toast(`Keyframe updated with ${back.n} edit${back.n===1?'':'s'} from Edit Anything`),300)}
 setInterval(save,1000);addEventListener('beforeunload',save);
@@ -248,12 +286,13 @@ if(inc&&inc.ref&&SH[inc.ref.shot]){cur=inc.ref.shot;if(inc.type==='keyframe')ope
 // score each candidate by palette fit, keep the best if it beats the current image.
 async function stylemaxx(style,m,progress){
  if(!OSH.online)return toast('Start the local runtime to Stylemaxx');
- const s=SH[m.ref?.shot],k=s?.keys[m.ref?.key];if(!k?.img)return toast('Select a generated keyframe first');
+ const workshopTarget=workspaceMode==='image';
+ const s=workshopTarget?{n:'Image workshop',m:imageDraft.prompt}:SH[m.ref?.shot],k=workshopTarget?{img:imageDraft.url,spec:SP({mia:false,bolt:false,scene:''})}:s?.keys[m.ref?.key];if(!k?.img)return toast('Select a generated keyframe first');
  const base=await SHELL.styleFit(k.img,style);let best={url:k.img,fit:base};const N=3;
  for(let j=0;j<N;j++){progress(`Stylemaxxing ${j+1}/${N} · best ${Math.round(best.fit*100)}%`);
   const r=await localGeneration.keyframe(`${keyPrompt(k.spec,s.m)}. ${style.prompt||style.n}`,Math.floor(Math.random()*1e6));const f=await SHELL.styleFit(r.url,style);
   pushHist({kind:'keyframe',url:r.url,label:`${s.n} · stylemaxx ${style.n} · fit ${Math.round(f*100)}%`});if(f>best.fit)best={url:r.url,fit:f}}
- if(best.url!==k.img){k.img=best.url;s.r=false;timeline();head();save();toast(`Keyframe restyled: fit ${Math.round(base*100)}% → ${Math.round(best.fit*100)}% (others are in history)`)}
+ if(best.url!==k.img){k.img=best.url;if(workshopTarget){imageDraft.url=best.url;saveWorkshop();syncWorkspace()}else{s.r=false;timeline();head();save()}toast(`Image restyled: fit ${Math.round(base*100)}% → ${Math.round(best.fit*100)}% (others are in history)`)}
  else toast(`No candidate beat the current keyframe (${Math.round(base*100)}%). Tries are in history.`)}
 SHELL.mount({app:'director',elementHint:'click to use in keyframe',
  mediaPool:()=>{const seen=new Set(),out=[];for(const h of HISTORY)if(h.kind==='keyframe'&&!seen.has(h.url)){seen.add(h.url);out.push({url:h.url,label:h.label})}
@@ -265,4 +304,33 @@ SHELL.mount({app:'director',elementHint:'click to use in keyframe',
 function markEls(){SHELL.mark($$('#els .chip.on').map(c=>c.dataset.k))}
 $('#els').addEventListener('click',()=>setTimeout(markEls));
 mountModels();
+const viewer=document.createElement('section');viewer.className='viewer';viewer.setAttribute('aria-label','Video viewer');const view=document.querySelector('main>.view');view.before(viewer);viewer.append(view);
+const transport=document.createElement('div');transport.className='viewer-tools';transport.innerHTML='<button id="previousFrame" title="Previous frame">◂ Frame</button><button id="nextFrame" title="Next frame">Frame ▸</button><label>Time<input id="viewerTime" aria-label="Viewer time in seconds" type="number" min="0" step="0.001"></label><button id="markIn" title="Set trim start at the playhead">Set in</button><button id="markOut" title="Set trim end at the playhead">Set out</button><button id="trimViewer">Trim</button><button id="editViewer" class="edit-video">Edit video ↗</button><span id="viewerTrimLabel" role="status"></span>';transport.prepend($('#play'));viewer.append(transport);viewer.append($('#videoAttributes'));$('#videoAttributes summary').textContent='Size & timing';$('#videoAttributes .attributes-caption').textContent='Next render';
+const composer=document.createElement('section');composer.className='composer';composer.setAttribute('aria-label','Generation prompts');const modelbar=document.querySelector('main>.modelbar'),promptRow=document.querySelector('main>.row'),audioRow=document.querySelector('.audio-prompt-row');modelbar.before(composer);composer.append(modelbar,promptRow);for(const controls of [...audioRow.querySelectorAll('.audio-actions')])composer.append(controls);audioRow.classList.add('prompt-field');promptRow.insertBefore(audioRow,promptRow.querySelector('.generate-action'));$('#audioPrompt').placeholder='Describe sounds, ambience or music…';
+$('#previousFrame').onclick=()=>viewerSeek(Math.max(0,G-start(cur)-1/(SH[cur].fps||24)));$('#nextFrame').onclick=()=>viewerSeek(G-start(cur)+1/(SH[cur].fps||24));$('#viewerTime').onchange=e=>{if(e.target.reportValidity())viewerSeek(+e.target.value)};
+$('#markIn').onclick=()=>{viewerIn=Math.min(SH[cur].d,Math.max(0,G-start(cur)));viewerTrimLabel()};$('#markOut').onclick=()=>{viewerOut=Math.max(0,Math.min(SH[cur].d,G-start(cur)+1/(SH[cur].fps||24)));viewerTrimLabel()};
+$('#editViewer').onclick=()=>{const s=SH[cur];if(!s.video)return;SC.set('osh-handoff',{type:'shot',label:s.n,video:s.video,audio:s.audio,audioPrompt:s.audioPrompt,audioLinked:s.audioLinked,duration:s.d,ref:{shot:cur,shotId:shotId(s)},from:'director'});location.href='edit.html?from=director'};
+$('#trimViewer').onclick=async()=>{const s=SH[cur];if(!s.video||$('#ov').style.display==='flex')return;if(viewerOut<=viewerIn)return toast('Set the out point after the in point');setPlaying(false);const from=viewerIn,to=viewerOut;try{await busy('Trimming video',async()=>{const info=await videoFrames(s.video),result=await OSH.editVideo({video:s.video,keepAudio:s.audioLinked!==false,start:from,end:Math.min(to,info.duration),speed:1,reverse:false,width:info.width,height:info.height});s.video=result.url;if(s.audio&&s.audioLinked!==false){s.audio=s.video;s.audioDuration=Math.min(to,info.duration)-from}s.d=Math.min(to,info.duration)-from;s.keys=s.keys.filter(k=>k.anchor||k.t>=from&&k.t<=to);s.keys.forEach(k=>k.t=k.anchor==='start'?0:k.anchor==='end'?s.d:k.t-from);s.r=true;pushHist({kind:'shot',url:s.video,audio:s.audio,label:s.n+' · trimmed',shotId:shotId(s),duration:s.d});viewerTrimShot='';G=start(cur);timeline();head();save()});toast('Trimmed take ready; original kept in history')}catch(e){toast('Trim failed: '+e.message)}};
+
+SH.forEach(s=>{s.renderWidth??=+$('#videoWidth').value;s.renderHeight??=+$('#videoHeight').value});
+addEventListener('osh-video-size',e=>{SH[cur].renderWidth=e.detail.width;SH[cur].renderHeight=e.detail.height;trackAttributes();save()});
+mountProjects();
+const batchSlider=$('#keyframeBatch');batchSlider.value=String([1,2,4].indexOf(keyframeBatch));
+const updateBatch=()=>{keyframeBatch=[1,2,4][+batchSlider.value];$('#keyframeBatchValue').textContent=String(keyframeBatch);batchSlider.setAttribute('aria-valuetext',`${keyframeBatch} keyframe${keyframeBatch===1?'':'s'}`);if(!$('#kgo').disabled)$('#kgo').textContent=workspaceMode==='image'?'Generate image':`Generate ${keyframeBatch} keyframe${keyframeBatch===1?'':'s'}`;saveWorkshop()};batchSlider.oninput=updateBatch;updateBatch();
+const workflowBar=document.createElement('div');workflowBar.className='workflow-switch';workflowBar.innerHTML='<button data-workflow="video">Video</button><button data-workflow="image">Image</button><button id="showVideoAttributes">Video attributes ↗</button>';
+document.querySelector('main').prepend(workflowBar);
+const tourGuide=document.createElement('section');tourGuide.id='onboardingGuide';tourGuide.className='onboarding-guide';tourGuide.setAttribute('aria-live','polite');workflowBar.after(tourGuide);renderTour();$('#res').tabIndex=0;
+$('#showVideoAttributes').onclick=()=>{const panel=$('#videoAttributes');panel.open=true;viewer.scrollIntoView({block:'start'});$('#videoWidth').focus({preventScroll:true})};
+const imageStage=document.createElement('section');imageStage.className='image-stage';imageStage.innerHTML='<div id="imageWelcome"><h2>Find the image you have in mind</h2><p>Describe it, generate it, make it yours.</p></div><img id="imageHero" alt="Your generated image" hidden><div id="nextImage" class="next-step" hidden><div><strong>Picture this in motion.</strong><p>Use this image as the first frame of a video.</p></div><button id="animateImage">Turn into a video →</button><button id="editWorkshopImage">Edit image</button></div>';
+viewer.before(imageStage);
+const videoNext=document.createElement('div');videoNext.id='nextVideo';videoNext.className='next-step';videoNext.hidden=true;videoNext.innerHTML='<div><strong>There’s a story here.</strong><p>Add another scene and start building your film.</p></div><button id="growFilm">Create the next scene →</button>';
+composer.after(videoNext);
+function setWorkflow(mode){if(document.getElementById("kgo").disabled||document.getElementById("ov").style.display==="flex")return;if(playing)setPlaying(false);workspaceMode=mode;$('#kp').value=imageDraft.prompt||'';$('#kgo').textContent=mode==='image'?'Generate image':'Generate '+keyframeBatch+' keyframe'+(keyframeBatch===1?'':'s');saveWorkshop();syncWorkspace();head()}
+workflowBar.onclick=e=>{const mode=e.target.closest('[data-workflow]')?.dataset.workflow;if(mode)setWorkflow(mode)};
+$('#kp').value=imageDraft.prompt||'';$('#kp').addEventListener('input',()=>{imageDraft.prompt=$('#kp').value;saveWorkshop()});
+$('#animateImage').onclick=()=>{setWorkflow('video');const spec=SP({mia:false,bolt:false,scene:''});SH[cur].prompt=imageDraft.prompt;SH[cur].spec=spec;const existing=SH[cur].keys.find(k=>k.anchor==='start'||k.t===0);if(existing){existing.img=imageDraft.url;existing.spec=spec;existing.anchor='start';SH[cur].r=false;selKey=existing;open=cur}else{addKey(cur,0,{img:imageDraft.url,spec,u:.5});SH[cur].keys.at(-1).anchor='start'}timeline();head();save();syncWorkspace();$('#motion').focus()};
+$('#editWorkshopImage').textContent='Download image';$('#editWorkshopImage').onclick=()=>{const link=document.createElement('a');link.href=imageDraft.url;link.download='image.png';link.click()};
+$('#growFilm').onclick=()=>{cinema=true;SH.push({n:`Scene ${SH.length+1}`,d:4,spec:SP({mia:false,bolt:false,scene:''}),m:'',keys:[],r:false});cur=SH.length-1;shotId(SH[cur]);open=null;G=start(cur);selKey=null;syncWorkspace();timeline();head();save();$('#shotPromptInput').focus()};
+syncWorkspace();$('#kgo').textContent=workspaceMode==='image'?'Generate image':'Generate '+keyframeBatch+' keyframe'+(keyframeBatch===1?'':'s');
+if(touring()&&onboarding.images?.length){results=onboarding.images.map(url=>({img:url,spec:SH.find(s=>s.id===onboarding.shotId)?.spec||SP({}),u:.5,p:imageDraft.prompt}));res()}
 timeline();head();markEls();histUI();save();if(!playing)$('#play').textContent='▶';

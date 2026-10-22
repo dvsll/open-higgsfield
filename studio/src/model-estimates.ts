@@ -1,7 +1,7 @@
 import type { ModelChoice } from '../../shared/runtime/model-catalog';
 import type { ServerTiming } from '../../shared/runtime/render-timings';
-export function serverEstimate(model: ModelChoice, duration: number, width: number, height: number, server?: ServerTiming) {
-  const frames=model.timing.duration?Math.max(25,Math.min(121,Math.round(duration*24/8)*8+1)):1;
+export function serverEstimate(model: ModelChoice, duration: number, width: number, height: number, server?: ServerTiming, exactFrames?:number) {
+  const frames=model.timing.duration?(exactFrames??Math.max(25,Math.min(121,Math.round(duration*24/8)*8+1))):1;
   const workload=width*height*frames;
   const samples=(server?.samples||[]).filter(s=>s.hardware===server?.hardware?.id&&s.model===model.id&&s.seconds>0);
   const warm=samples.filter(s=>!s.cold);

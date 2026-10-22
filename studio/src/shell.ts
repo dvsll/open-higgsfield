@@ -3,11 +3,13 @@
 // Project-level state (selected style, user styles) lives in localStorage 'osh-project' so it follows you between apps.
 import { SC } from './scene';
 import { elementLibrary } from './element-maker';
+import { mountConnection } from './connection';
+import { mountNumberControls } from './number-controls';
 
 declare const STYLEBOARD: { looks: Style[] };
 
 export type MediaType = 'shot' | 'keyframe' | 'frame';
-export type Media = { type: MediaType; label: string; spec?: unknown; u?: number; img?: string; video?:string;duration?:number;ref?: { shot: number; key?: number;shotId?:string } };
+export type Media = { type: MediaType; label: string; spec?: unknown; u?: number; img?: string; video?:string;audio?:string;audioPrompt?:string;editTarget?:'audio';audioLinked?:boolean;duration?:number;ref?: { shot: number; key?: number;shotId?:string } };
 export type Style = { id: string; n: string; prompt: string; sw: string[]; sky?: [string, string]; refs?: string[]; tint?: string; user?: boolean };
 export type Element = { id: string; ic: string; n: string; d: string; kind: 'cast' | 'place' | 'object'; refs?:string[];user?:boolean };
 export type PoolItem = { url: string; label: string };
@@ -166,6 +168,8 @@ const allStyles = (): Style[] => [...STYLEBOARD.looks, ...userStyles()];
 function save(extra: Partial<ProjectState> = {}) { SC.set('osh-project', { ...state(), style: style.id, str, ...extra }); }
 
 function mount(o: Opts) {
+  mountConnection();
+  mountNumberControls();
   opts = o;
   const st = state();
   style = allStyles().find((l) => l.id === (st.style || st.look)) || STYLEBOARD.looks[0];

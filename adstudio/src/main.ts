@@ -1,186 +1,213 @@
-﻿import { OSH } from '../../shared/runtime/client';
+import {OSH,type ShotResult,type LocalModels} from '../../shared/runtime/client';
+import {taglineOverlay} from './overlay';
+import {prepareReference} from './reference';
+import {Projects,openProjectDriver,memoryDriver,newProject,validName,restoredAttempt,ACTIVE_KEY,type AdProject,type Settings,type Take,type ProductAsset,type Ratio} from './projects';
+import {blobDataURL,normalizeProduct} from './assets';
+import {templates,templateSettings,resizeDimensions} from './templates';
+import {canGenerate,renderEstimate,type ApiCapabilities} from './availability';
 
-import { taglineOverlay } from './overlay';
-import { prepareReference, type Framing } from './reference';
-
-const el = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
-const photo = el<HTMLInputElement>('photo');
-const product = el<HTMLImageElement>('product');
-const fields = el<HTMLFieldSetElement>('fields');
-const go = el<HTMLButtonElement>('go');
-const status = el<HTMLParagraphElement>('status');
-const outs = el<HTMLDivElement>('outs');
-const exportAll = el<HTMLButtonElement>('export-all');
-type Ad = { ratio: string; seed: number; source: string; tagline: string; video: HTMLVideoElement; button: HTMLButtonElement; link: HTMLAnchorElement; message: HTMLParagraphElement; exporting: boolean; exported: boolean };
-const ads: Ad[] = [];
-let batchExporting = false;
-let image = '';
-let busy = false;
-let reading = false;
-let selection = 0;
-const sizes: Record<string, { width: number; height: number }> = {
-  '16:9': { width: 512, height: 288 },
-  '9:16': { width: 288, height: 512 },
-  '1:1': { width: 384, height: 384 },
+const el=<T extends HTMLElement>(id:string)=>document.getElementById(id) as T;
+const photo=el<HTMLInputElement>('photo'),product=el<HTMLImageElement>('product'),fields=el<HTMLFieldSetElement>('fields'),go=el<HTMLButtonElement>('go'),status=el('status'),outs=el('outs'),exportAll=el<HTMLButtonElement>('export-all');
+const sizes={'16:9':{width:512,height:288},'9:16':{width:288,height:512},'1:1':{width:384,height:384}};
+const vibes={studio:'Clean studio background, controlled lighting, smooth camera movement.',life:'Natural daylight, lifestyle commercial, gentle cinematic camera movement.',ugc:'Natural handheld camera movement, authentic product demonstration.'};
+let repository:Projects,project:AdProject,image='',busy=false,reading=true,exporting=0,selection=0,saving=Promise.resolve(),durable=false;
+let api:ApiCapabilities|null=null,catalog:LocalModels|null=null,checking=false;
+const projects=new Map<string,AdProject>(),pendingAssets=new Map<string,{projectId:string;asset:ProductAsset}>();
+const dirtyProjects=new Set<string>(),writeVersions=new Map<string,number>();
+type Card={take:Take;video:HTMLVideoElement;button:HTMLButtonElement;message:HTMLElement;exportLinks:HTMLElement};
+const cards:Card[]=[];
+const errorText=(error:unknown)=>error instanceof Error?error.message:String(error);
+function storageNotice(text:string){el('storage-status').textContent=text;}
+async function persist(asset?:ProductAsset) {
+ if(asset)pendingAssets.set(asset.id,{projectId:project.id,asset});
+ project.updated=Date.now();projects.set(project.id,project);
+ dirtyProjects.add(project.id);const revision=(writeVersions.get(project.id)||0)+1;writeVersions.set(project.id,revision);
+ const snapshot=structuredClone(project),assets=[...pendingAssets.values()].filter(a=>a.projectId===snapshot.id).map(a=>a.asset);
+ const task=saving.then(async()=>{await repository.save(snapshot,assets);if(!durable)throw new Error('Browser database unavailable; this session is not saved.');for(const a of assets)pendingAssets.delete(a.id);if(writeVersions.get(snapshot.id)===revision)dirtyProjects.delete(snapshot.id);storageNotice(dirtyProjects.size?`Unsaved changes in ${dirtyProjects.size} project(s). Retry saving if this persists.`:'Saved on this browser.');});
+ saving=task.catch(error=>storageNotice('Not saved — '+errorText(error)+' Keep this tab open and retry saving.'));
+ await saving;
+}
+function working(){return busy||reading||exporting>0;}
+function ready(){
+ go.disabled=working()||!image||!canGenerate(project?.settings.mode,api,OSH.online,catalog);
+ exportAll.disabled=working()||!api?.ffmpeg.available||!cards.some(c=>!c.take.exports.length);
+ photo.disabled=working();fields.disabled=busy||reading;
+ for(const id of ['projects','new-project','rename-project','project-name'])el<HTMLInputElement>(id).disabled=working();
+ document.querySelectorAll<HTMLButtonElement>('[data-processing]').forEach(b=>b.disabled=working()||!api?.ffmpeg.available);
+ document.querySelectorAll<HTMLButtonElement>('[data-template]').forEach(b=>{b.disabled=working();b.setAttribute('aria-pressed',String(b.dataset.template===project?.settings.template));});
+ el('empty-results').hidden=cards.length>0;
+}
+function readSettings():Settings {
+ return {...project.settings,model:el<HTMLSelectElement>('video-model').value||undefined,mode:el<HTMLSelectElement>('mode').value as Settings['mode'],motion:el<HTMLSelectElement>('camera-motion').value as Settings['motion'],ratios:[...document.querySelectorAll<HTMLInputElement>('input[name="ratio"]:checked')].map(c=>c.value as Ratio),duration:+el<HTMLSelectElement>('duration').value,seed:Number.isFinite(el<HTMLInputElement>('seed').valueAsNumber)?el<HTMLInputElement>('seed').valueAsNumber:project.settings.seed,pitch:el<HTMLTextAreaElement>('pitch').value,tagline:el<HTMLInputElement>('tagline').value,vibe:el<HTMLSelectElement>('vibe').value as Settings['vibe'],framing:el<HTMLSelectElement>('framing').value as Settings['framing']};
+}
+function updateMode(){
+ const mode=el<HTMLSelectElement>('mode').value;
+ for(const id of ['pitch','seed','vibe'])el<HTMLInputElement>(id).disabled=mode==='camera';
+ el<HTMLTextAreaElement>('pitch').required=mode!=='camera';
+ el<HTMLSelectElement>('camera-motion').disabled=mode!=='camera';el<HTMLSelectElement>('framing').disabled=mode!=='creative';
+ el('mode-help').textContent=mode==='camera'?'Conventional push/pan of your photo. No AI scene movement.':mode==='locked'?'A static original-photo rectangle over an LTX background. No automatic product segmentation.':'Experimental LTX generation. Product shapes, textures and lettering can change; commercial quality has not passed acceptance.';
+ go.textContent=mode==='camera'?'Animate photo':'Generate experimental video';ready();
+ el<HTMLSelectElement>('video-model').disabled=mode==='camera'||!catalog?.video.length;
+ const first=sizes[project.settings.ratios[0]||'9:16'];
+ el('estimate').textContent=mode==='camera'?'Local photo animation. No GPU or model generation.':renderEstimate(catalog,el<HTMLSelectElement>('video-model').value,first.width,first.height,project.settings.duration);
+}
+function applySettings(){
+ const s=project.settings;
+ for(const [id,value]of Object.entries({mode:s.mode,'camera-motion':s.motion,pitch:s.pitch,tagline:s.tagline,vibe:s.vibe,framing:s.framing,duration:s.duration,seed:s.seed}))el<HTMLInputElement>(id).value=String(value);
+ document.querySelectorAll<HTMLInputElement>('input[name="ratio"]').forEach(c=>c.checked=s.ratios.includes(c.value as Ratio));
+ if(s.model)el<HTMLSelectElement>('video-model').value=s.model;
+ updateMode();
+}
+function projectOptions(){
+ const select=el<HTMLSelectElement>('projects');select.replaceChildren();
+ for(const p of [...projects.values()].sort((a,b)=>b.updated-a.updated)){const option=document.createElement('option');option.value=p.id;option.textContent=p.name;select.append(option);}
+ select.value=project.id;el<HTMLInputElement>('project-name').value=project.name;
+}
+async function openProject(next:AdProject){
+ if(busy||exporting)return;
+ const ticket=++selection;reading=true;project=next;image='';product.removeAttribute('src');cards.length=0;outs.replaceChildren();photo.value='';applySettings();projectOptions();
+ try{localStorage.setItem(ACTIVE_KEY,project.id);}catch{storageNotice('Active project could not be remembered; browser storage is restricted.');}
+ try {
+  if(project.assetId){const asset=pendingAssets.get(project.assetId)?.asset||await repository.asset(project.assetId);if(!asset)throw new Error('Saved product reference is missing. Upload a replacement; previous takes are kept.');image=await blobDataURL(asset.normalized);if(ticket!==selection)return;product.src=image;}
+  status.textContent=project.attempt?.error||'Project opened. Previous takes are kept when you generate variations.';
+ }catch(error){status.textContent=errorText(error);}
+ if(ticket!==selection)return;
+ for(const take of project.takes)renderTake(take);
+ if(restoredAttempt(project)){status.textContent=project.attempt!.error!;await persist();}
+ reading=false;ready();
+}
+function outputLink(url:string,label:string,filename?:string){const a=document.createElement('a');a.href=url;a.textContent=label;if(filename)a.download=filename;return a;}
+function exportLinks(card:Card){card.exportLinks.replaceChildren();for(const item of card.take.exports)card.exportLinks.append(outputLink(item.url,'Download MP4',`ad-${card.take.id}.mp4`));}
+function renderTake(take:Take){
+ const article=document.createElement('article');article.className='out';article.dataset.takeId=take.id;
+ const title=document.createElement('strong');title.textContent=`${take.kind==='edit'?'Adjusted · ':''}${take.mode==='camera'?'Camera':take.mode==='locked'?'Product-Locked':'Creative experimental'} · ${take.ratio} · ${(take.frames/take.fps).toFixed(2)} s`;
+ const video=document.createElement('video');video.controls=true;video.playsInline=true;video.preload='metadata';video.src=take.exports.at(-1)?.url||take.source;
+ const details=document.createElement('details'),summary=document.createElement('summary'),copy=document.createElement('p');summary.textContent='Generation details';copy.className='note';copy.textContent=take.mode==='camera'?`FFmpeg ${take.settings.motion}; no model, prompt or seed used.`:`${take.settings.model||'LTX-Video 2B fallback'} · seed ${take.settings.seed} · ${take.prompt}`;details.append(summary,copy);
+ const button=document.createElement('button');button.type='button';button.dataset.processing='';button.textContent=take.exports.length?'Export another MP4':'Export MP4';
+ const message=document.createElement('p');message.className='note';message.setAttribute('role','status');
+ const links=document.createElement('div'),card={take,video,button,message,exportLinks:links};cards.push(card);exportLinks(card);
+ video.addEventListener('error',()=>{message.textContent='Preview unavailable. The local API or output file may be missing. Retry loading, or generate a new variation; history is kept.';});
+ const retry=document.createElement('button');retry.type='button';retry.textContent='Reload preview';retry.onclick=()=>{video.load();message.textContent='Checking the saved output…';void checkPreview(card);};
+ button.onclick=()=>void exportTake(card);
+ article.append(title,video,outputLink(take.source,'Download original WebM',`ad-${take.id}.webm`),button,links,message,retry,details);
+ if(take.background)article.append(outputLink(take.background,'Inspect Creative background'));
+ if(take.parentId){const parent=project.takes.find(t=>t.id===take.parentId);if(parent){const compare=document.createElement('button');compare.type='button';compare.textContent='Compare previous version';let original=false;compare.onclick=()=>{original=!original;video.src=original?parent.source:take.source;compare.textContent=original?'Show adjusted version':'Compare previous version';};article.append(compare);}}
+ article.append(adjustPanel(take,card));
+ void checkPreview(card);
+ outs.prepend(article);
+}
+async function checkPreview(card:Card){
+ const url=card.take.exports.at(-1)?.url||card.take.source;
+ try {const response=await fetch(url,{signal:AbortSignal.timeout(5000)});await response.body?.cancel();if(response.status===404){card.message.textContent='Saved output file is missing from the local runtime. History and source photo are kept. Generate a new variation.';if(url!==card.take.source){card.video.src=card.take.source;card.message.textContent+=' Trying the original WebM preview.';}}else if(!response.ok)card.message.textContent='The local API cannot serve this output. Retry the connection; your history is kept.';}
+ catch{card.message.textContent='Cannot reach the saved output. Reconnect the local API and reload this preview. Your history is kept.';}
+}
+function adjustPanel(take:Take,card:Card){
+ const panel=document.createElement('details');panel.className='adjust';
+ const summary=document.createElement('summary');summary.textContent='Adjust · trim, speed, reverse & resize';panel.append(summary);
+ function number(label:string,value:number){const wrap=document.createElement('label'),input=document.createElement('input');input.type='number';input.value=String(value);input.step='any';input.min='0';wrap.append(label,input);panel.append(wrap);return input;}
+ const duration=take.frames/take.fps,start=number('Trim start (seconds)',0),end=number('Trim end (seconds)',duration),width=number('Output width',take.width);
+ const dim=resizeDimensions(take.width,take.height,take.width);width.step=String(dim.step);width.min=String(dim.step);width.max='4096';
+ const size=document.createElement('p');size.className='note';size.textContent=`${take.width}×${take.height}. Width snaps to ${dim.step}px to keep the exact aspect ratio.`;panel.append(size);
+ width.oninput=()=>{try{const d=resizeDimensions(take.width,take.height,width.valueAsNumber);size.textContent=`Output ${d.width}×${d.height}. Original aspect ratio preserved.`;}catch(e){size.textContent=errorText(e);}};
+ const speedLabel=document.createElement('label'),speed=document.createElement('select');speedLabel.append('Playback speed',speed);for(const n of [.25,.5,1,2,4]){const o=document.createElement('option');o.value=String(n);o.textContent=n+'×';speed.append(o);}speed.value='1';panel.append(speedLabel);
+ const reverseLabel=document.createElement('label'),reverse=document.createElement('input');reverse.type='checkbox';reverseLabel.append(reverse,' Reverse');panel.append(reverseLabel);
+ const render=document.createElement('button');render.type='button';render.dataset.processing='';render.textContent='Save adjusted version';panel.append(render);
+ render.onclick=async()=>{
+  if(working())return;
+  let started=false;
+  try {
+   const from=start.valueAsNumber,to=end.valueAsNumber,rate=+speed.value;
+   if(!Number.isFinite(from)||!Number.isFinite(to)||from<0||from>=to||to>duration+.001)throw new Error('Choose a trim range inside this clip.');
+   const d=resizeDimensions(take.width,take.height,width.valueAsNumber);width.value=String(d.width);
+   const recipe={start:from,end:to,speed:rate,reverse:reverse.checked,width:d.width,height:d.height};
+   exporting++;started=true;ready();card.message.textContent='Rendering an adjusted copy. Original kept…';
+   const result=await OSH.editVideo({video:take.source,keepAudio:true,...recipe});
+   const adjusted:Take={...structuredClone(take),id:crypto.randomUUID(),created:Date.now(),source:result.url,parentId:take.id,kind:'edit',edit:recipe,width:d.width,height:d.height,fps:24,frames:Math.max(1,Math.round((to-from)/rate*24)),seconds:result.seconds,exports:[]};
+   project.takes.push(adjusted);await persist();renderTake(adjusted);card.message.textContent='Adjusted version added to history. Original unchanged.';
+  }catch(e){card.message.textContent=errorText(e)+' Original unchanged.';}
+  finally{if(started)exporting--;ready();}
+ };
+ return panel;
+}
+async function exportTake(card:Card){
+ if(working())return false;
+ exporting++;card.button.disabled=true;ready();card.message.textContent='Exporting MP4…';
+ try {
+  const tagline=project.settings.tagline.trim(),overlay=tagline?(await OSH.upload(taglineOverlay(card.take.width,card.take.height,tagline))).url:undefined;
+  const result=await OSH.exportVideo(card.take.source,overlay);
+  card.take.exports.push({id:crypto.randomUUID(),url:result.url,tagline,created:Date.now()});await persist();exportLinks(card);card.video.src=result.url;card.button.textContent='Export another MP4';card.message.textContent=`MP4 ready · ${result.seconds}s. Original video kept.`;return true;
+ }catch(error){card.message.textContent=errorText(error)+' Original video is unchanged; retry export.';return false;}
+ finally {exporting--;card.button.disabled=false;ready();}
+}
+exportAll.onclick=async()=>{if(working())return;const pending=cards.filter(c=>!c.take.exports.length);for(const card of pending)if(!await exportTake(card))break;};
+async function check(){
+ if(checking)return;checking=true;el<HTMLButtonElement>('check').disabled=true;
+ try {
+  const [health,local]=await Promise.allSettled([OSH.health(),fetch('/api/capabilities',{signal:AbortSignal.timeout(4000)}).then(async r=>{if(!r.ok)throw new Error('API unavailable');return r.json() as Promise<ApiCapabilities>;})]);
+  api=local.status==='fulfilled'?local.value:null;
+  const online=health.status==='fulfilled'&&health.value.online;
+  catalog=online?await OSH.models().catch(()=>null):null;
+  el('health').textContent=!api?'Local API unavailable — drafts and history stay here.':!api.ffmpeg.available?'FFmpeg unavailable — local animation/edit/export need configuration.':online?'Local API, FFmpeg and ComfyUI connected.':'ComfyUI offline — Camera, editing and export remain available.';
+  const select=el<HTMLSelectElement>('video-model'),prior=project?.settings.model||select.value;select.replaceChildren();
+  for(const model of catalog?.video||[]){const o=document.createElement('option');o.value=model.id;o.textContent=model.label+' · experimental';select.append(o);}if(prior&&catalog?.video.some(m=>m.id===prior))select.value=prior;
+  const list=el('capabilities');list.replaceChildren();
+  const labels=[`Local API: ${api?'available':'unreachable'}`,`Camera / Adjust / MP4: ${api?.ffmpeg.available?'available through FFmpeg':'unavailable'}`,`Video models: ${catalog?.video.length?catalog.video.map(m=>m.label).join(', '):'no verified runnable model'}`,`Image API: ${api?.keyframe?'available':'unreachable'}; ${catalog?.keyframe.length?'compatible weights installed; image creation UI not connected in this milestone':'no verified runnable image weights/nodes'}`,`Audio API: ${api?.audio?'available':'unreachable'}; ${catalog?.audio?.available?'compatible weights installed; audio UI not connected in this milestone':'no verified runnable audio weights/nodes'}`];
+  for(const label of labels){const item=document.createElement('li');item.textContent=label;list.append(item);}
+ }catch(error){el('health').textContent='Connection check failed: '+errorText(error);}
+ finally {checking=false;el<HTMLButtonElement>('check').disabled=false;if(project)updateMode();else ready();}
+}
+el('check').onclick=()=>void check();
+for(const event of ['online','focus'])addEventListener(event,()=>void check());
+addEventListener('offline',()=>{api=null;el('health').textContent='Connection interrupted. Drafts and history remain here; reconnect before retrying.';ready();});
+setInterval(()=>{if(!document.hidden)void check();},8000);
+addEventListener('beforeunload',event=>{if(dirtyProjects.size){event.preventDefault();event.returnValue='';}});
+const templateList=el('templates');for(const template of templates){const button=document.createElement('button');button.type='button';button.dataset.template=template.id;const title=document.createElement('strong'),description=document.createElement('span');title.textContent=template.name;description.textContent=template.description;button.append(title,description);button.onclick=()=>{if(working())return;project.settings=templateSettings(template.id,readSettings());applySettings();void persist();};templateList.append(button);}
+photo.onchange=async()=>{
+ const ticket=++selection,file=photo.files?.[0];if(!file)return;reading=true;ready();
+ try {const asset=await normalizeProduct(file);const url=await blobDataURL(asset.normalized);if(ticket!==selection)return;project.assetId=asset.id;image=url;product.src=url;await persist(asset);status.textContent='Product ready. Your previous takes are kept.';}
+ catch(error){status.textContent=errorText(error)+' Previous product reference is unchanged.';}
+ finally{if(ticket===selection){reading=false;ready();}}
 };
-const vibes: Record<string, string> = {
-  studio: 'Clean studio background, controlled lighting, smooth camera movement.',
-  life: 'Natural daylight, lifestyle commercial, gentle cinematic camera movement.',
-  ugc: 'Natural handheld camera movement, authentic product demonstration.',
+el<HTMLFormElement>('brief').addEventListener('input',()=>{if(!project||busy)return;project.settings=readSettings();updateMode();void persist();});
+el<HTMLFormElement>('brief').onsubmit=async event=>{
+ event.preventDefault();if(working()||!image)return;project.settings=readSettings();const settings=structuredClone(project.settings),assetId=project.assetId!;
+ if(!canGenerate(settings.mode,api,OSH.online,catalog)){status.textContent='This configuration is unavailable. Check connection and model readiness.';return;}
+ if(!settings.ratios.length){status.textContent='Select at least one format.';return;}
+ if(settings.mode!=='camera'&&!settings.pitch.trim()){status.textContent='Write a motion brief.';return;}
+ busy=true;ready();project.attempt={id:crypto.randomUUID(),created:Date.now(),status:'running',takeIds:[]};await persist();
+ try {
+  if(settings.mode!=='camera'){await check();if(!OSH.online)throw new Error(OSH.reason);}
+  const prompt=`${settings.pitch.trim()} ${vibes[settings.vibe]} Preserve the reference product appearance and branding. No added text.`;
+  const original=settings.mode!=='creative'?await OSH.upload(image):null;
+  const cropped=settings.mode==='creative'&&settings.framing==='crop'?await OSH.upload(image):null;
+  for(const ratio of settings.ratios){
+   const size=sizes[ratio];let result:ShotResult,background:ShotResult|undefined;
+   status.textContent=`${settings.mode==='camera'?'Animating':'Generating'} ${ratio}… ${project.attempt.takeIds.length+1}/${settings.ratios.length}.`;
+   if(settings.mode==='camera')result=await OSH.productVideo({image:original!.url,mode:'camera',ratio,duration:settings.duration,motion:settings.motion});
+   else {
+    const reference=cropped||await OSH.upload(await prepareReference(image,size.width,size.height,settings.mode==='creative'?settings.framing:'fit'));
+    result=await OSH.shot([{image:reference.url,t:0}],prompt,settings.duration,settings.seed,{...size,model:settings.model});
+    if(settings.mode==='locked'){background=result;result=await OSH.productVideo({image:original!.url,background:result.url,mode:'locked',ratio,duration:settings.duration});}
+   }
+   const take:Take={id:crypto.randomUUID(),created:Date.now(),assetId,source:result.url,kind:'generation',mode:settings.mode,ratio,settings:structuredClone(settings),prompt:settings.mode==='camera'?'':prompt,frames:result.frames,fps:result.fps||24,...size,seconds:result.seconds+(background?.seconds||0),background:background?.url,exports:[]};
+   project.takes.push(take);project.attempt.takeIds.push(take.id);await persist();renderTake(take);
+  }
+  project.attempt.status='complete';status.textContent='Videos ready. Preview, export, or make another variation. Earlier takes are kept.';
+ }catch(error){project.attempt.status='failed';project.attempt.error=errorText(error);status.textContent=`${project.attempt.takeIds.length} take(s) ready in this tab. ${errorText(error)} Check results before retrying; a disconnected render may still be running.`;}
+ finally {await persist();busy=false;updateMode();}
 };
-function ready() {
-  go.disabled = busy || reading || !image || !OSH.online;
-  exportAll.disabled = busy || batchExporting || !ads.some(ad => !ad.exported && !ad.exporting);
+el<HTMLSelectElement>('projects').onchange=async()=>{if(working())return;await saving;const next=projects.get(el<HTMLSelectElement>('projects').value);if(next)await openProject(next);};
+el('new-project').onclick=async()=>{if(working())return;try{await saving;const next=newProject(el<HTMLInputElement>('project-name').value||'Untitled ad');project=next;projects.set(next.id,next);await persist();await openProject(next);}catch(error){status.textContent=errorText(error);}};
+el('rename-project').onclick=async()=>{if(working())return;try{project.name=validName(el<HTMLInputElement>('project-name').value);await persist();projectOptions();}catch(error){status.textContent=errorText(error);}};
+el('retry-save').onclick=async()=>{
+ if(working())return;
+ try {await saving;repository=new Projects(await openProjectDriver());durable=true;for(const saved of projects.values()){const assets=[...pendingAssets.values()].filter(a=>a.projectId===saved.id).map(a=>a.asset);await repository.save(saved,assets);}pendingAssets.clear();dirtyProjects.clear();storageNotice('Saved on this browser.');const existing=await repository.list();for(const p of existing)if(!projects.has(p.id))projects.set(p.id,p);projectOptions();}
+ catch(error){durable=false;storageNotice('Not saved — '+errorText(error)+' Keep this tab open.');}
+};
+async function start(){
+ try {repository=new Projects(await openProjectDriver());const list=await repository.list();for(const p of list)projects.set(p.id,p);durable=true;storageNotice('Saved projects stay on this browser.');}
+ catch(error){repository=new Projects(memoryDriver());storageNotice('Session only — '+errorText(error)+' Keep this tab open; retry saving.');}
+ let active='';try{active=localStorage.getItem(ACTIVE_KEY)||'';}catch{}
+ project=projects.get(active)||[...projects.values()][0]||newProject();projects.set(project.id,project);await persist();await openProject(project);void check();
 }
-async function exportAd(ad: Ad): Promise<boolean> {
-  if (ad.exporting || ad.exported) return ad.exported;
-  ad.exporting = true;
-  ad.button.disabled = true;
-  ad.message.textContent = 'Exporting MP4…';
-  ready();
-  try {
-    let overlay: string | undefined;
-    if (ad.tagline) {
-      const size = sizes[ad.ratio];
-      overlay = (await OSH.upload(taglineOverlay(size.width, size.height, ad.tagline))).url;
-    }
-    const result = await OSH.exportVideo(ad.source, overlay);
-    ad.link.href = result.url;
-    ad.link.download = `ad-${ad.ratio.replace(':', 'x')}-${ad.seed}.mp4`;
-    ad.link.textContent = 'Download MP4';
-    ad.link.hidden = false;
-    ad.video.src = result.url;
-    ad.message.textContent = `MP4 ready${ad.tagline ? ' with tagline' : ''} · exported in ${result.seconds} s`;
-    ad.button.textContent = 'MP4 exported';
-    ad.exported = true;
-    return true;
-  } catch (error) {
-    ad.message.textContent = (error as Error).message;
-    ad.button.textContent = 'Retry MP4 export';
-    return false;
-  } finally {
-    ad.exporting = false;
-    ad.button.disabled = ad.exported;
-    ready();
-  }
-}
-exportAll.addEventListener('click', async () => {
-  batchExporting = true;
-  ready();
-  let failed = 0;
-  for (const ad of ads.filter(ad => !ad.exported && !ad.exporting)) if (!(await exportAd(ad))) failed++;
-  batchExporting = false;
-  status.textContent = failed ? `${failed} export(s) failed. Generated WebMs remain available; retry on each card.` : 'MP4 exports ready. Preview or download each format below.';
-  ready();
-});
-async function check() {
-  const h = await OSH.health();
-  el('health').textContent = h.online ? '● Local ComfyUI connected' : `Offline: ${h.reason}`;
-  ready();
-}
-el('check').addEventListener('click', () => void check());
-photo.addEventListener('change', async () => {
-  const ticket = ++selection;
-  image = '';
-  product.removeAttribute('src');
-  reading = true;
-  ready();
-  const file = photo.files?.[0];
-  try {
-    if (!file) return;
-    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type) || file.size > 10 * 1024 * 1024) throw new Error('Choose a PNG, JPEG or WebP under 10 MB.');
-    const bitmap = await createImageBitmap(file);
-    try {
-      const scale = Math.min(1, 1536 / Math.max(bitmap.width, bitmap.height));
-      const canvas = document.createElement('canvas');
-      canvas.width = Math.max(1, Math.round(bitmap.width * scale));
-      canvas.height = Math.max(1, Math.round(bitmap.height * scale));
-      const ctx = canvas.getContext('2d')!;
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-      const normalized = canvas.toDataURL('image/png');
-      if (normalized.length > 7 * 1024 * 1024) throw new Error('Photo is too complex; choose a smaller image.');
-      if (ticket !== selection) return;
-      image = normalized;
-      product.src = image;
-      status.textContent = 'Photo ready. Choose formats and generate.';
-    } finally { bitmap.close(); }
-  } catch (e) {
-    if (ticket === selection) status.textContent = (e as Error).message;
-  } finally {
-    if (ticket === selection) { reading = false; ready(); }
-  }
-});
-el<HTMLFormElement>('brief').addEventListener('submit', async (event) => {
-  event.preventDefault();
-  if (busy || reading || !image) return;
-  const ratios = Array.from(document.querySelectorAll<HTMLInputElement>('input[name="ratio"]:checked')).map(x => x.value);
-  if (!ratios.length) { status.textContent = 'Select at least one format.'; return; }
-  const pitch = el<HTMLTextAreaElement>('pitch').value.trim();
-  if (!pitch) { status.textContent = 'Write a motion brief.'; return; }
-  const duration = Number(el<HTMLSelectElement>('duration').value);
-  const seed = Number(el<HTMLInputElement>('seed').value);
-  const tagline = el<HTMLInputElement>('tagline').value.trim();
-  const framing = el<HTMLSelectElement>('framing').value as Framing;
-  const prompt = `${pitch} ${vibes[el<HTMLSelectElement>('vibe').value]} Preserve the reference product appearance and branding. No added text.`;
-  busy = true;
-  fields.disabled = true;
-  photo.disabled = true;
-  ready();
-  let completed = 0;
-  try {
-    await check();
-    if (!OSH.online) throw new Error(OSH.reason + '. Start ComfyUI and the proxy, then check connection.');
-    status.textContent = 'Uploading product reference…';
-    const uploaded = framing === 'crop' ? await OSH.upload(image) : null;
-    for (const ratio of ratios) {
-      status.textContent = `Preparing ${ratio} product reference…`;
-      const size = sizes[ratio];
-      const reference = uploaded || await OSH.upload(await prepareReference(image, size.width, size.height, framing));
-      status.textContent = `Generating ${ratio} (${completed + 1}/${ratios.length})… This may take several minutes. Keep this tab open.`;
-      const result = await OSH.shot([{ image: reference.url, t: 0 }], prompt, duration, seed, size);
-      const card = document.createElement('article');
-      card.className = 'out';
-      const title = document.createElement('strong');
-      title.textContent = `${ratio} · ${(result.frames / 24).toFixed(1)} s · rendered in ${result.seconds} s`;
-      const video = document.createElement('video');
-      video.controls = true;
-      video.playsInline = true;
-      video.preload = 'metadata';
-      video.src = result.url;
-      const download = document.createElement('a');
-      download.href = result.url;
-      download.download = `ad-${ratio.replace(':', 'x')}-${seed}.webm`;
-      download.textContent = 'Download WebM';
-      const details = document.createElement('p');
-      details.className = 'note';
-      details.textContent = `Seed ${seed} · ${framing === 'fit' ? 'Fit whole photo' : 'Crop to fill'} · ${prompt}`;
-      const exportButton = document.createElement('button');
-      exportButton.type = 'button';
-      exportButton.className = 'btng';
-      exportButton.textContent = 'Export MP4';
-      const mp4 = document.createElement('a');
-      mp4.hidden = true;
-      const message = document.createElement('p');
-      message.className = 'note';
-      message.setAttribute('role', 'status');
-      message.textContent = tagline ? `MP4 tagline: ${tagline}` : 'MP4 export without tagline.';
-      const ad: Ad = { ratio, seed, tagline, source: result.url, video, button: exportButton, link: mp4, message, exporting: false, exported: false };
-      ads.push(ad);
-      exportButton.addEventListener('click', () => void exportAd(ad));
-      card.append(title, video, download, exportButton, mp4, message, details);
-      outs.prepend(card);
-      completed++;
-    }
-    status.textContent = `${completed} video${completed === 1 ? '' : 's'} ready. Preview or download below.`;
-  } catch (e) {
-    status.textContent = `${completed ? `${completed} video(s) saved below. ` : ''}${(e as Error).message} You can retry generation.`;
-  } finally {
-    busy = false;
-    fields.disabled = false;
-    photo.disabled = false;
-    ready();
-  }
-});
-void check();
+void start();

@@ -9,6 +9,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { loadEnv } from 'vite';
 const exec = promisify(execFile);
+const base = process.env.OSH_TEST_URL || 'http://127.0.0.1:8288';
 const manifest = JSON.parse(await readFile(process.argv[2], 'utf8'));
 assert.ok(manifest.image && typeof manifest.prompt === 'string' && manifest.prompt.trim());
 assert.ok(Number.isInteger(manifest.seed) && manifest.seed >= 0 && manifest.seed <= 4294967295);
@@ -30,14 +31,14 @@ const report = {
   workflowSha256:sha(await readFile('shared/workflows/shot_ltxv.json')),
   sourceCommit:(await exec('git',['rev-parse','HEAD'])).stdout.trim(),
   sourceDirty:!!(await exec('git',['status','--porcelain'])).stdout.trim(),
-  health:await (await fetch('http://127.0.0.1:8288/api/health')).json(),
+  health:await (await fetch(base+'/api/health')).json(),
   browserAcceptance:'NOT TESTED by this script', runs:[],
 };
 const save = () => writeFile(join(folder,'report.json'),JSON.stringify(report,null,2));
 await save();
 assert.ok(report.health.comfyui && report.health.proxy,'Services offline');
 const post = async (route,body) => {
- const r=await fetch('http://127.0.0.1:8288/api/'+route,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+ const r=await fetch(base+'/api/'+route,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
  const data=await r.json(); assert.ok(r.ok,`${route}: HTTP ${r.status}: ${JSON.stringify(data)}`); return data;
 };
 const upload=await post('upload',{image:'data:image/png;base64,'+input.toString('base64')});
@@ -53,7 +54,7 @@ for(const ratio of ratios) {
  try {
   console.log('Generating',ratio,'seed',manifest.seed);
   run.result=await post('shot',request);
-  const response=await fetch('http://127.0.0.1:8288'+run.result.url);
+  const response=await fetch(base+run.result.url);
   assert.equal(response.status,200); assert.equal(response.headers.get('content-type'),'video/webm');
   const bytes=Buffer.from(await response.arrayBuffer());
   const video=join(folder,name+'.webm'); await writeFile(video,bytes);

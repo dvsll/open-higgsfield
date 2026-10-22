@@ -25,6 +25,8 @@ assert.equal((await post('/api/upload', { image: 'x'.repeat(8 * 1024 * 1024) }))
 assert.equal((await post('/api/shot', { keys: [{ image: '/outputs/../../secret', t: 0 }], duration: 2 })).status, 400);
 // Empty guides are valid text-to-video; malformed guide containers still fail.
 assert.equal((await post('/api/shot', { keys: null, duration: 2 })).status, 400);
+for (const frames of [0,10,122,73.5]) assert.equal((await post('/api/shot', { frames })).status,400);
+for (const fps of [0,121,'invalid']) assert.equal((await post('/api/shot', { fps })).status,400);
 assert.equal((await post('/api/keyframe', { prompt: '' })).status, 400);
 assert.equal((await post('/api/export', { video: '/outputs/../../secret' })).status, 400);
 assert.equal((await post('/api/export', { video: result.url })).status, 400);

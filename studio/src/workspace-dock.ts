@@ -1,92 +1,165 @@
 import './workspace-dock.css';
+import { panel, split, ids, remove, dock, valid, boundsOf, type Edge, type LayoutNode } from './window-layout';
 
-type Zone='left'|'center'|'right'|'bottom'|'floating'|'closed';
-type PanelState={zone:Zone;x?:number;y?:number;w?:number;h?:number};
-type Layout=Record<string,PanelState>;
-type Saved={active:string;layouts:Record<string,Layout>;notes:Record<string,{title:string;text:string}>;modes?:Record<string,string>};
-const KEY='osh-window-workspace-v1';
-const presets:Record<string,Layout>={
- Video:{assets:{zone:'closed'},viewer:{zone:'center'},prompts:{zone:'left'},keyframes:{zone:'right'},properties:{zone:'closed'},timeline:{zone:'bottom'},takes:{zone:'closed'},stage:{zone:'closed'},render:{zone:'closed'}},
- Image:{assets:{zone:'left'},viewer:{zone:'center'},prompts:{zone:'closed'},keyframes:{zone:'right'},properties:{zone:'closed'},timeline:{zone:'closed'},takes:{zone:'bottom'},stage:{zone:'closed'},render:{zone:'closed'}},
- '3D':{assets:{zone:'left'},viewer:{zone:'closed'},prompts:{zone:'closed'},keyframes:{zone:'closed'},properties:{zone:'closed'},timeline:{zone:'closed'},takes:{zone:'bottom'},stage:{zone:'center'},render:{zone:'right'}},
- Rendering:{assets:{zone:'closed'},viewer:{zone:'center'},prompts:{zone:'closed'},keyframes:{zone:'closed'},properties:{zone:'right'},timeline:{zone:'closed'},takes:{zone:'bottom'},stage:{zone:'closed'},render:{zone:'left'}}
-};
-const clone=(v:Layout):Layout=>JSON.parse(JSON.stringify(v));
-export function mountWorkspaceDock(resize:()=>void,workflow:(mode:string)=>void):void{
- const app=document.querySelector<HTMLElement>('.app')!,main=app.querySelector('main')!;
- let saved:Saved={active:'Video',layouts:{},notes:{}};
- try{const value=JSON.parse(localStorage.getItem(KEY)||'null');if(value&&typeof value.layouts==='object'&&value.layouts&&typeof value.notes==='object'&&value.notes)saved=value}catch{}
- if(!localStorage.getItem(KEY)&&document.body.dataset.workflow==='image')saved.active='Image';
- let active=typeof saved.active==='string'?saved.active:'Video';
- let layout=clone(saved.layouts[active]||presets[active]||presets.Video);
- const panels=new Map<string,HTMLElement>();
- const toolbar=document.createElement('nav');toolbar.className='workspace-toolbar';toolbar.setAttribute('aria-label','Workspace layout');
- const picker=document.createElement('select');picker.setAttribute('aria-label','Workspace setup');
- const windows=document.createElement('details');windows.className='window-menu';const summary=document.createElement('summary');summary.textContent='Windows';windows.append(summary);
- const menu=document.createElement('div');windows.append(menu);
- const saveButton=document.createElement('button');saveButton.textContent='Save setup…';
- const reset=document.createElement('button');reset.textContent='Reset setup';
- const hint=document.createElement('span');hint.textContent='Drag a window title to dock · double-click to float';toolbar.append(picker,windows,saveButton,reset,hint);
- const board=document.createElement('div');board.className='window-board';
- const zones=new Map<Zone,HTMLElement>();
- for(const zone of ['left','center','right','bottom','floating','closed'] as Zone[]){const el=document.createElement('div');el.className='window-zone zone-'+zone;el.dataset.zone=zone;board.append(el);zones.set(zone,el)}
- const persist=()=>{saved.active=active;saved.layouts[active]=clone(layout);try{localStorage.setItem(KEY,JSON.stringify(saved))}catch{}};
- let pending=false;const refresh=()=>{if(pending)return;pending=true;requestAnimationFrame(()=>{pending=false;resize()})};
- function render(){
-  for(const[id,panel]of panels){const state=layout[id]||{zone:'closed'};const zone=zones.has(state.zone)?state.zone:'closed';if(panel.parentElement!==zones.get(zone))zones.get(zone)!.append(panel);panel.classList.toggle('is-floating',zone==='floating');panel.hidden=zone==='closed';
-   if(zone==='floating'){panel.style.left=Math.max(0,Math.min(state.x||32,board.clientWidth-240))+'px';panel.style.top=Math.max(0,Math.min(state.y||32,board.clientHeight-100))+'px';panel.style.width=Math.min(state.w||460,board.clientWidth)+'px';panel.style.height=Math.min(state.h||320,board.clientHeight)+'px'}else{panel.removeAttribute('style')}
-   const toggle=menu.querySelector<HTMLButtonElement>('[data-window="'+id+'"]');if(toggle)toggle.setAttribute('aria-pressed',String(zone!=='closed'));
+type Setup = { tree: LayoutNode | null; mode: string };
+type Store = { version: 2; active: string; layouts: Record<string, Setup>; notes: Record<string, { title: string; text: string }> };
+const KEY = 'osh-window-workspace-v2';
+const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value));
+const icon = (path: string) => `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${path}"/></svg>`;
+
+export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) => void): void {
+ const app = document.querySelector<HTMLElement>('.app')!, main = app.querySelector('main')!;
+ const wide = innerWidth >= 1150;
+ const creation = split('x', panel('prompts'), panel('viewer'), wide ? .4 : .38);
+ const presets: Record<string, Setup> = {
+  Video: { tree: split('y', wide ? split('x', creation, panel('keyframes'), .79) : creation, panel('timeline'), .62), mode: 'video' },
+  Image: { tree: split('y', split('x', panel('viewer'), panel('keyframes'), .72), panel('takes'), .7), mode: 'image' },
+  '3D': { tree: split('x', panel('stage'), panel('elements'), .75), mode: 'video' },
+  Rendering: { tree: split('y', split('x', panel('viewer'), panel('properties'), .75), panel('takes'), .7), mode: 'video' }
+ };
+ let store: Store = { version: 2, active: document.body.dataset.workflow === 'image' ? 'Image' : 'Video', layouts: {}, notes: {} };
+ let restored=false;
+ try { const value = JSON.parse(localStorage.getItem(KEY) || 'null'); if (value?.version === 2 && value.layouts && value.notes && typeof value.active === 'string') {store = value;restored=true;} } catch {}
+ // Keep existing notes and named setups, translating regions into actual split trees. Floating legacy panels become docked siblings.
+ if (!restored) try {
+  const old = JSON.parse(localStorage.getItem('osh-window-workspace-v1') || 'null');
+  if (old?.notes) store.notes = old.notes;
+  for (const [name, layout] of Object.entries(old?.layouts || {})) {
+   if (presets[name]) continue;
+   const entries = Object.entries(layout as Record<string, { zone: string }>).filter(([, state]) => state.zone !== 'closed');
+   const group = (names: string[]) => names.reduce<LayoutNode | null>((tree, id) => tree ? split('y', tree, panel(id)) : panel(id), null);
+   const bottom = group(entries.filter(([, state]) => state.zone === 'bottom').map(([id]) => id));
+   const top = entries.filter(([, state]) => state.zone !== 'bottom').map(([id]) => id).reduce<LayoutNode | null>((tree, id) => tree ? split('x', tree, panel(id)) : panel(id), null);
+   store.layouts[name] = { tree: top && bottom ? split('y', top, bottom, .68) : top || bottom, mode: old.modes?.[name] || 'video' };
   }
-  for(const[zone,el]of zones){el.classList.toggle('zone-empty',!el.children.length);board.classList.toggle('has-'+zone,!!el.children.length)}
-  refresh();
- }
- function move(id:string,zone:Zone){layout[id]={...layout[id],zone};render();persist()}
- function add(id:string,title:string,content:HTMLElement){
-  const panel=document.createElement('section');panel.className='studio-window';panel.dataset.window=id;panel.setAttribute('aria-label',title+' window');
-  const bar=document.createElement('div');bar.className='window-titlebar';
-  const grip=document.createElement('button');grip.className='window-grip';grip.textContent=title;grip.title='Drag to dock; double-click to float';
-  const dock=document.createElement('select');dock.setAttribute('aria-label','Dock '+title);dock.innerHTML='<option value="">Dock…</option><option value="left">Left</option><option value="center">Center</option><option value="right">Right</option><option value="bottom">Bottom</option><option value="floating">Float</option>';dock.onchange=()=>{move(id,dock.value as Zone);dock.value=''};
-  const close=document.createElement('button');close.textContent='×';close.title='Close '+title;close.setAttribute('aria-label','Close '+title);close.onclick=()=>move(id,'closed');bar.append(grip,dock,close);
-  const body=document.createElement('div');body.className='window-body';body.append(content);panel.append(bar,body);panels.set(id,panel);
-  const toggle=document.createElement('button');toggle.dataset.window=id;toggle.textContent=title;toggle.onclick=()=>{move(id,layout[id]?.zone==='closed'||!layout[id]?'center':'closed');windows.open=false};menu.append(toggle);
-  grip.ondblclick=()=>move(id,layout[id]?.zone==='floating'?'center':'floating');
-  grip.onpointerdown=e=>{
-   if(e.button!==0)return;e.preventDefault();const initial={...layout[id]},startX=e.clientX,startY=e.clientY,rect=panel.getBoundingClientRect(),bounds=board.getBoundingClientRect();let dragging=false;
-   // Use document listeners because docking reparents the captured title bar.
-   const finish=(cancelled=false)=>{document.removeEventListener('pointermove',drag);document.removeEventListener('pointerup',drop);document.removeEventListener('pointercancel',cancel);document.removeEventListener('keydown',escape);board.classList.remove('is-dragging');for(const el of zones.values())el.classList.remove('drop-target');if(cancelled){layout[id]=initial;render()}persist()};
-   const escape=(event:KeyboardEvent)=>{if(event.key==='Escape')finish(true)};document.addEventListener('keydown',escape);
-   const drag=(event:PointerEvent)=>{if(!dragging&&Math.hypot(event.clientX-startX,event.clientY-startY)<6)return;dragging=true;board.classList.add('is-dragging');layout[id]={zone:'floating',x:rect.left-bounds.left+event.clientX-startX,y:rect.top-bounds.top+event.clientY-startY,w:rect.width,h:rect.height};render();for(const[zone,el]of zones){const r=el.getBoundingClientRect();el.classList.toggle('drop-target',zone!=='floating'&&zone!=='closed'&&event.clientX>=r.left&&event.clientX<=r.right&&event.clientY>=r.top&&event.clientY<=r.bottom)}};
-   const drop=(event:PointerEvent)=>{if(dragging){const x=(event.clientX-bounds.left)/bounds.width,y=(event.clientY-bounds.top)/bounds.height;let target:Zone='floating';if(y>.77)target='bottom';else if(x<.2)target='left';else if(x>.8)target='right';else if(y<.2)target='center';layout[id].zone=target;render()}finish()};const cancel=()=>finish(true);document.addEventListener('pointermove',drag);document.addEventListener('pointerup',drop);document.addEventListener('pointercancel',cancel);
+ } catch {}
+ let active = store.active;
+ let setup = clone(store.layouts[active] || presets[active] || presets.Video);
+ const panels = new Map<string, HTMLElement>();
+ const toolbar = document.createElement('nav'); toolbar.className = 'workspace-toolbar'; toolbar.setAttribute('aria-label', 'Workspace layout');
+ const picker = document.createElement('select'); picker.setAttribute('aria-label', 'Workspace setup');
+ const windows = document.createElement('details'); windows.className = 'window-menu'; windows.innerHTML = '<summary>Windows</summary><div></div>';
+ const menu = windows.querySelector('div')!;
+ const saveButton = document.createElement('button'); saveButton.textContent = 'Save setup…';
+ const reset = document.createElement('button'); reset.textContent = 'Reset setup';
+ const hint = document.createElement('span'); hint.textContent = 'Drag a window title · release on a docking guide';
+ toolbar.append(picker, windows, saveButton, reset, hint);
+ const board = document.createElement('div'); board.className = 'window-board';
+ const parking = document.createElement('div'); parking.hidden = true;
+ const overlay = document.createElement('div'); overlay.className = 'docking-overlay'; overlay.hidden = true;
+ const shade = document.createElement('div'); shade.className = 'dock-preview';
+ const guides = document.createElement('div'); guides.className = 'dock-guides';
+ for (const [edge, label] of [['top', 'Above'], ['left', 'Left'], ['right', 'Right'], ['bottom', 'Below']] as const) { const item = document.createElement('span'); item.dataset.edge = edge; item.textContent = label; guides.append(item); }
+ const label = document.createElement('div'); label.className = 'dock-preview-label'; overlay.append(shade, guides, label);
+ const persist = () => { store.active = active; store.layouts[active] = clone(setup); try { localStorage.setItem(KEY, JSON.stringify(store)); } catch {} };
+ let pending = false;
+ const refresh = () => { if (pending) return; pending = true; requestAnimationFrame(() => { pending = false; resize(); }); };
+ function separator(node: Extract<LayoutNode, { kind: 'split' }>, container: HTMLElement): HTMLElement {
+  const handle = document.createElement('div'); handle.className = 'workspace-split'; handle.tabIndex = 0; handle.setAttribute('role', 'separator');
+  handle.setAttribute('aria-label', 'Resize window split'); handle.setAttribute('aria-orientation', node.axis === 'x' ? 'vertical' : 'horizontal');
+  const apply = (ratio: number) => { node.ratio = Math.max(.15, Math.min(.85, ratio)); container.style.setProperty('--ratio', String(node.ratio)); handle.setAttribute('aria-valuenow', String(Math.round(node.ratio * 100))); refresh(); };
+  handle.onkeydown = e => { if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) return; e.preventDefault(); apply(node.ratio + (['ArrowRight', 'ArrowDown'].includes(e.key) ? .03 : -.03)); persist(); };
+  handle.onpointerdown = e => {
+   if (e.button !== 0) return; e.preventDefault(); handle.setPointerCapture(e.pointerId); const initial = node.ratio, rect = container.getBoundingClientRect();
+   handle.onpointermove = move => apply(node.axis === 'x' ? (move.clientX - rect.left) / rect.width : (move.clientY - rect.top) / rect.height);
+   handle.onpointerup = () => { handle.onpointermove = null; persist(); };
+   handle.onpointercancel = () => { handle.onpointermove = null; apply(initial); };
   };
-  const handle=document.createElement('button');handle.className='window-resize';handle.setAttribute('aria-label','Resize '+title);handle.title='Drag to resize floating window';panel.append(handle);
-  handle.onpointerdown=e=>{e.preventDefault();const r=panel.getBoundingClientRect(),x=e.clientX,y=e.clientY,old={...layout[id]};handle.setPointerCapture(e.pointerId);handle.onpointermove=m=>{layout[id]={...layout[id],w:Math.max(240,r.width+m.clientX-x),h:Math.max(120,r.height+m.clientY-y)};render()};handle.onpointerup=()=>{handle.onpointermove=null;persist()};handle.onpointercancel=()=>{handle.onpointermove=null;layout[id]=old;render()}};
+  return handle;
  }
- const assets=app.querySelector<HTMLElement>('aside.l')!,keys=app.querySelector<HTMLElement>('aside.r')!,viewer=main.querySelector<HTMLElement>('.viewer')!,image=main.querySelector<HTMLElement>('.image-stage')!,composer=main.querySelector<HTMLElement>('.composer')!,properties=document.getElementById('videoAttributes') as HTMLDetailsElement;
- const generate=composer.querySelector<HTMLElement>('.generate-action');if(generate)composer.append(generate);
- properties.open=true;const viewContent=document.createElement('div');viewContent.className='viewer-content';viewContent.append(image,viewer);
- add('assets','Assets',assets);add('viewer','Viewer',viewContent);add('prompts','Prompts',composer);add('keyframes','Image & keyframes',keys);add('properties','Size & timing',properties);add('timeline','Sequence',main.querySelector<HTMLElement>('.tlw')!);add('takes','Takes',main.querySelector<HTMLElement>('.hist')!);
- const stage=document.createElement('div');stage.className='stage-placeholder';stage.innerHTML='<div class="stage-grid"></div><h2>3D workspace</h2><p>Arrange your windows here. A 3D viewport and scene tools are not connected yet.</p>';add('stage','3D viewport',stage);
- const renderInfo=document.createElement('div');renderInfo.className='render-info';renderInfo.innerHTML='<h3>Local rendering</h3><p>Generation continues when you rearrange or close a window.</p><p>Use Prompts to generate video, or Image & keyframes for stills. Finished media appears in Takes.</p><button type="button">Open generation windows</button>';renderInfo.querySelector('button')!.onclick=()=>{move('prompts','center');move('keyframes','right')};add('render','Rendering',renderInfo);
- function ask(label:string,value:string):Promise<string|null>{return new Promise(resolve=>{const dialog=document.createElement('dialog');dialog.className='workspace-name-dialog';const form=document.createElement('form');form.method='dialog';const heading=document.createElement('h2');heading.textContent=label;const input=document.createElement('input');input.value=value;input.required=true;input.maxLength=80;input.setAttribute('aria-label',label);const cancel=document.createElement('button');cancel.type='button';cancel.textContent='Cancel';cancel.onclick=()=>dialog.close();const ok=document.createElement('button');ok.textContent='Save';form.append(heading,input,cancel,ok);form.onsubmit=e=>{e.preventDefault();if(input.value.trim())dialog.close('save')};dialog.append(form);document.body.append(dialog);dialog.onclose=()=>{resolve(dialog.returnValue==='save'?input.value.trim():null);dialog.remove()};dialog.showModal();input.select()})}
- function note(id:string,title:string,text:string){const field=document.createElement('textarea');field.className='workspace-note';field.placeholder='Ideas, shot notes, checklist…';field.value=text;field.setAttribute('aria-label',title);field.oninput=()=>{saved.notes[id].text=field.value;persist()};add(id,title,field)}
- for(const[id,value]of Object.entries(saved.notes))if(value&&typeof value.title==='string'&&typeof value.text==='string')note(id,value.title,value.text);
- const newNote=document.createElement('button');newNote.textContent='+ New notes window…';newNote.onclick=async()=>{const title=await ask('Window name','Notes');if(!title?.trim())return;const id='note-'+Date.now();saved.notes[id]={title:title.trim().slice(0,80),text:''};note(id,saved.notes[id].title,'');move(id,'floating');windows.open=false};menu.append(newNote);
- function choices(){picker.replaceChildren();for(const name of new Set([...Object.keys(presets),...Object.keys(saved.layouts)])){const option=new Option(name,name);picker.add(option)}picker.value=active}
- function select(name:string){active=name;layout=clone(saved.layouts[name]||presets[name]||presets.Video);workflow(saved.modes?.[name]||(name==='Image'?'image':'video'));choices();render();persist()}
- picker.onchange=()=>select(picker.value);saveButton.onclick=async()=>{const name=await ask('Save this window setup as',presets[active]?'My workspace':active);if(!name?.trim())return;active=name.trim().slice(0,80);saved.modes||={};saved.modes[active]=document.body.dataset.workflow||'video';persist();choices()};reset.onclick=()=>{layout=clone(presets[active]||presets.Video);render();persist()};
- // Keep the existing creation-mode switch and project/onboarding controls above the panel grid.
- const top=document.createElement('div');top.className='workspace-context';while(main.firstChild)top.append(main.firstChild);
- app.replaceChildren(toolbar,top,board);app.classList.add('window-workspace');
- top.querySelectorAll<HTMLButtonElement>('[data-workflow]').forEach(button=>button.addEventListener('click',()=>select(button.dataset.workflow==='image'?'Image':'Video')));
- document.getElementById('showVideoAttributes')?.addEventListener('click',()=>{move('properties','right');properties.open=true});
- for(const edge of ['left','right','bottom']){
-  const divider=document.createElement('div');divider.className='workspace-split split-'+edge;divider.tabIndex=0;divider.setAttribute('role','separator');divider.setAttribute('aria-label','Resize '+edge+' dock');divider.setAttribute('aria-orientation',edge==='bottom'?'horizontal':'vertical');board.append(divider);
-  const apply=(value:number)=>{const max=edge==='bottom'?board.clientHeight*.65:board.clientWidth*.4;board.style.setProperty('--'+edge+'-size',Math.max(edge==='bottom'?100:150,Math.min(max,value))+'px');refresh()};
-  divider.onpointerdown=e=>{e.preventDefault();const x=e.clientX,y=e.clientY,initial=edge==='bottom'?zones.get('bottom')!.clientHeight:zones.get(edge as Zone)!.clientWidth;divider.setPointerCapture(e.pointerId);divider.onpointermove=m=>apply(initial+(edge==='left'?m.clientX-x:edge==='right'?x-m.clientX:y-m.clientY));divider.onpointerup=()=>{divider.onpointermove=null;try{localStorage.setItem(KEY+'-'+edge,board.style.getPropertyValue('--'+edge+'-size'))}catch{}}};
-  divider.onkeydown=e=>{if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key))return;e.preventDefault();const initial=edge==='bottom'?zones.get('bottom')!.clientHeight:zones.get(edge as Zone)!.clientWidth;apply(initial+(['ArrowRight','ArrowDown'].includes(e.key)?20:-20))};
-  try{const value=localStorage.getItem(KEY+'-'+edge);if(value)board.style.setProperty('--'+edge+'-size',value)}catch{}
+ function renderNode(node: LayoutNode): HTMLElement {
+  if (node.kind === 'panel') return panels.get(node.id)!;
+  const container = document.createElement('div'); container.className = 'window-split axis-' + node.axis; container.style.setProperty('--ratio', String(node.ratio));
+  container.append(renderNode(node.first), separator(node, container), renderNode(node.second)); return container;
  }
- const observer=new ResizeObserver(refresh);observer.observe(board);for(const panel of panels.values())observer.observe(panel);
- document.addEventListener('osh-workflow-changed',((event:CustomEvent)=>{const name=event.detail==='image'?'Image':'Video';if((saved.modes?.[active]||(active==='Image'?'image':'video'))!==event.detail)select(name)}) as EventListener);
- addEventListener('resize',render);choices();render();persist();
+ function render(): void {
+  board.dataset.defaultLayout=String(active==='Video'&&JSON.stringify(setup.tree)===JSON.stringify(presets.Video.tree));
+  const visible = new Set(ids(setup.tree));
+  for (const [id, element] of panels) { element.hidden = !visible.has(id); element.classList.remove('is-dragging-window'); element.removeAttribute('style'); parking.append(element); menu.querySelector(`[data-window="${id}"]`)?.setAttribute('aria-pressed', String(visible.has(id))); }
+  board.replaceChildren(); if (setup.tree) board.append(renderNode(setup.tree)); else { const empty = document.createElement('p'); empty.className = 'empty-workspace'; empty.textContent = 'Open a window from the Windows menu.'; board.append(empty); }
+  board.append(overlay); refresh();
+ }
+ function openWindow(id: string): void { if (ids(setup.tree).includes(id)) return; setup.tree = setup.tree ? split('x', setup.tree, panel(id), .7) : panel(id); render(); persist(); }
+ function closeWindow(id: string): void { setup.tree = remove(setup.tree, id); render(); persist(); }
+ let cancelDrag: (()=>void)|null=null;
+ function startDrag(id: string, event: PointerEvent): void {
+  if (event.button !== 0) return; event.preventDefault();cancelDrag?.();
+  const element = panels.get(id)!, initial = clone(setup.tree), start = { x: event.clientX, y: event.clientY }, rect = element.getBoundingClientRect();
+  let moving = false, candidate: { target: string; edge: Edge } | null = null, ghost: HTMLElement | null = null;
+  const targets = [...panels.entries()].filter(([other, el]) => other !== id && !el.hidden && ids(initial).includes(other)).map(([target, el]) => ({ target, rect: el.getBoundingClientRect() }));
+  function update(x: number, y: number): void {
+   candidate = null;
+   // Target rectangles remain stable during the drag, so the preview cannot jump away beneath the pointer.
+   const target = targets.find(item => x >= item.rect.left && x <= item.rect.right && y >= item.rect.top && y <= item.rect.bottom);
+   if (!target) { overlay.hidden = true; return; }
+   const r = target.rect, cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+   const bounds = board.getBoundingClientRect();overlay.hidden=false;Object.assign(guides.style,{left:cx-bounds.left+'px',top:cy-bounds.top+'px'});
+   let edge: Edge;
+   const guide = [...guides.children].find(item => { const b = item.getBoundingClientRect(); return !overlay.hidden && x >= b.left && x <= b.right && y >= b.top && y <= b.bottom; }) as HTMLElement | undefined;
+   if (guide) edge = guide.dataset.edge as Edge;
+   else { const dx = (x - cx) / r.width, dy = (y - cy) / r.height; edge = Math.abs(dx) > Math.abs(dy) ? dx < 0 ? 'left' : 'right' : dy < 0 ? 'top' : 'bottom'; }
+   candidate = { target: target.target, edge }; overlay.hidden = false;
+   const area = boundsOf(dock(initial,id,target.target,edge),id,{x:4,y:4,width:board.clientWidth-8,height:board.clientHeight-8})!;
+   Object.assign(shade.style, { left: area.x + 'px', top: area.y + 'px', width: area.width + 'px', height: area.height + 'px' });
+   Object.assign(guides.style, { left: cx - bounds.left + 'px', top: cy - bounds.top + 'px' });
+   for (const item of guides.children) item.classList.toggle('selected', (item as HTMLElement).dataset.edge === edge);
+   label.textContent = `Release to dock ${edge === 'top' ? 'above' : edge === 'bottom' ? 'below' : 'to the ' + edge + ' of'} ${panels.get(target.target)!.getAttribute('aria-label')!.replace(' window', '')}`;
+   label.style.left = Math.max(4, Math.min(bounds.width - 280, area.x + 8)) + 'px'; label.style.top = Math.max(4, area.y + 8) + 'px';
+  }
+  const move = (e: PointerEvent) => {
+   if (!moving && Math.hypot(e.clientX - start.x, e.clientY - start.y) < 5) return;
+   if (!moving) { moving = true; element.classList.add('is-dragging-window'); ghost = document.createElement('div'); ghost.className = 'window-drag-label'; ghost.textContent = element.getAttribute('aria-label')!.replace(' window', ''); document.body.append(ghost); document.body.classList.add('docking-active'); }
+   if (ghost) { ghost.style.left = e.clientX + 14 + 'px'; ghost.style.top = e.clientY + 16 + 'px'; } update(e.clientX, e.clientY);
+  };
+  const finish = (cancelled: boolean) => {
+   document.removeEventListener('pointermove', move); document.removeEventListener('pointerup', up); document.removeEventListener('pointercancel', cancel); document.removeEventListener('keydown', escape); window.removeEventListener('blur', cancel);window.removeEventListener('resize',cancel);cancelDrag=null;
+   ghost?.remove(); element.classList.remove('is-dragging-window'); overlay.hidden = true; document.body.classList.remove('docking-active');
+   if (moving && !cancelled && candidate) setup.tree = dock(initial, id, candidate.target, candidate.edge);
+   else setup.tree = initial;
+   if (moving) { render(); persist(); }
+  };
+  const up = (e: PointerEvent) => { if (moving) update(e.clientX, e.clientY); finish(false); };
+  const cancel = () => finish(true); const escape = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.preventDefault(); finish(true); } };
+  document.addEventListener('pointermove', move); document.addEventListener('pointerup', up); document.addEventListener('pointercancel', cancel); document.addEventListener('keydown', escape); window.addEventListener('blur', cancel);window.addEventListener('resize',cancel);cancelDrag=cancel;
+ }
+ function add(id: string, title: string, content: HTMLElement): void {
+  const element = document.createElement('section'); element.className = 'studio-window'; element.dataset.window = id; element.setAttribute('aria-label', title + ' window');
+  const bar = document.createElement('div'); bar.className = 'window-titlebar';
+  const grip = document.createElement('button'); grip.className = 'window-grip'; grip.textContent = title; grip.title = 'Drag to dock beside another window'; grip.onpointerdown = e => startDrag(id, e);
+  const location = document.createElement('select'); location.setAttribute('aria-label', 'Dock ' + title); location.innerHTML = '<option value="">Dock…</option>';
+  location.onfocus = () => { location.replaceChildren(new Option('Dock…', '')); for (const other of ids(setup.tree).filter(other => other !== id)) for (const edge of ['left', 'right', 'top', 'bottom'] as Edge[]) location.add(new Option(`${edge === 'top' ? 'Above' : edge === 'bottom' ? 'Below' : edge + ' of'} ${panels.get(other)!.getAttribute('aria-label')!.replace(' window', '')}`, other + ':' + edge)); };
+  location.onchange = () => { const [target, edge] = location.value.split(':'); if (target) { setup.tree = dock(setup.tree, id, target, edge as Edge); render(); persist(); } location.value = ''; };
+  const close = document.createElement('button'); close.className = 'window-close'; close.innerHTML = icon('M6 6l12 12M18 6L6 18'); close.setAttribute('aria-label', 'Close ' + title); close.title = 'Close ' + title; close.onclick = () => closeWindow(id);
+  bar.append(grip, location, close); const body = document.createElement('div'); body.className = 'window-body'; body.append(content); element.append(bar, body); panels.set(id, element);
+  const toggle = document.createElement('button'); toggle.dataset.window = id; toggle.textContent = title; toggle.onclick = () => { ids(setup.tree).includes(id) ? closeWindow(id) : openWindow(id); windows.open = false; }; menu.append(toggle);
+ }
+ const assets = app.querySelector<HTMLElement>('aside.l')!, keys = app.querySelector<HTMLElement>('aside.r')!, viewer = main.querySelector<HTMLElement>('.viewer')!, image = main.querySelector<HTMLElement>('.image-stage')!, composer = main.querySelector<HTMLElement>('.composer')!, properties = document.getElementById('videoAttributes') as HTMLDetailsElement;
+ const generate = composer.querySelector<HTMLElement>('.generate-action')!; composer.querySelector('.row')!.append(generate);
+ properties.open = true; const viewContent = document.createElement('div'); viewContent.className = 'viewer-content'; viewContent.append(image, viewer);
+ add('stylization', 'Stylization', document.getElementById('studioStylization')!); add('elements', 'Elements', document.getElementById('studioElements')!); add('assets', 'Selected media', assets); add('viewer', 'Viewer', viewContent); add('prompts', 'Prompts', composer); add('keyframes', 'Image & keyframes', keys); add('properties', 'Size & timing', properties); add('timeline', 'Sequence', main.querySelector<HTMLElement>('.tlw')!); add('takes', 'Takes', main.querySelector<HTMLElement>('.hist')!);
+ const sequenceBar = panels.get('timeline')!.querySelector('.window-titlebar')!;
+ for (const id of ['trashBtn', 'addKeyBtn']) { const control = document.getElementById(id); if (control) sequenceBar.insertBefore(control, sequenceBar.children[1]); }
+ const stage = document.createElement('div'); stage.className = 'stage-placeholder'; stage.innerHTML = '<div class="stage-grid"></div><h2>3D workspace</h2><p>A 3D viewport and scene tools are not connected yet.</p>'; add('stage', '3D viewport', stage);
+ for (const [id, value] of Object.entries(store.notes)) if (value && typeof value.title === 'string' && typeof value.text === 'string') note(id, value.title, value.text);
+ function note(id: string, title: string, text: string): void { const field = document.createElement('textarea'); field.className = 'workspace-note'; field.placeholder = 'Ideas, shot notes, checklist…'; field.value = text; field.setAttribute('aria-label', title); field.oninput = () => { store.notes[id].text = field.value; persist(); }; add(id, title, field); }
+ function ask(label: string, value: string): Promise<string | null> { return new Promise(resolve => { const dialog = document.createElement('dialog'); dialog.className = 'workspace-name-dialog'; const form = document.createElement('form'); form.method = 'dialog'; const heading = document.createElement('h2'); heading.textContent = label; const input = document.createElement('input'); input.value = value; input.required = true; input.maxLength = 80; input.setAttribute('aria-label', label); const cancel = document.createElement('button'); cancel.type = 'button'; cancel.textContent = 'Cancel'; cancel.onclick = () => dialog.close(); const ok = document.createElement('button'); ok.textContent = 'Save'; form.append(heading, input, cancel, ok); form.onsubmit = e => { e.preventDefault(); if (input.value.trim()) dialog.close('save'); }; dialog.append(form); document.body.append(dialog); dialog.onclose = () => { resolve(dialog.returnValue === 'save' ? input.value.trim() : null); dialog.remove(); }; dialog.showModal(); input.select(); }); }
+ const newNote = document.createElement('button'); newNote.textContent = '+ New notes window…'; newNote.onclick = async () => { const title = await ask('Window name', 'Notes'); if (!title) return; const id = 'note-' + Date.now(); store.notes[id] = { title, text: '' }; note(id, title, ''); openWindow(id); windows.open = false; }; menu.append(newNote);
+ function choices(): void { picker.replaceChildren(); for (const name of new Set([...Object.keys(presets), ...Object.keys(store.layouts)])) picker.add(new Option(name, name)); picker.value = active; }
+ let switching = false;
+ function select(name: string): void {
+  if(switching)return;const next=clone(store.layouts[name]||presets[name]||presets.Video);
+  if(next.tree&&!valid(next.tree,new Set(panels.keys())))next.tree=clone(presets.Video.tree);
+  switching=true;try{workflow(next.mode)}finally{switching=false}
+  // A running generation can decline a creation-mode change. Keep its current layout and mode together.
+  if(document.body.dataset.workflow!==next.mode){choices();return}
+  active=name;setup=next;choices();render();persist();
+ }
+ picker.onchange = () => select(picker.value); saveButton.onclick = async () => { const name = await ask('Save this window setup as', presets[active] ? 'My workspace' : active); if (!name) return; active = name; persist(); choices(); }; reset.onclick = () => { setup = clone(presets[active] || presets.Video); workflow(setup.mode); render(); persist(); };
+ const top = document.createElement('div'); top.className = 'workspace-context'; while (main.firstChild) top.append(main.firstChild);
+ app.replaceChildren(toolbar, top, board, parking); app.classList.add('window-workspace');
+ top.querySelectorAll<HTMLButtonElement>('[data-workflow]').forEach(button => button.addEventListener('click', () => select(button.dataset.workflow === 'image' ? 'Image' : 'Video')));
+ document.getElementById('showVideoAttributes')?.addEventListener('click', () => { openWindow('properties'); properties.open = true; });
+ document.addEventListener('osh-workflow-changed', ((event: CustomEvent) => { if (!switching && setup.mode !== event.detail) select(event.detail === 'image' ? 'Image' : 'Video'); }) as EventListener);
+ const observer = new ResizeObserver(refresh); observer.observe(board); for (const element of panels.values()) observer.observe(element);
+ addEventListener('resize', refresh); if (setup.tree && !valid(setup.tree, new Set(panels.keys()))) setup = clone(presets.Video); choices(); render(); persist();
 }

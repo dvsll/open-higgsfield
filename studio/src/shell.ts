@@ -45,35 +45,35 @@ if(Array.isArray(storedElements))for(const element of storedElements){
 }
 
 const css = `
-#shared{display:flex;flex-direction:column;gap:12px}
-#shared .apps{display:flex;border:1px solid var(--line);padding:3px;gap:2px}
-#shared .apps a{flex:1;text-align:center;padding:6px 4px;color:var(--dim);text-decoration:none;font-size:12px;font-weight:500;cursor:pointer}
-#shared .apps a.on{background:#26262a;color:var(--txt)}#shared .apps a:not(.on):hover{color:var(--txt)}
-#shared .media{border:1px solid var(--line);padding:8px;display:flex;flex-direction:column;gap:8px;background:var(--card)}
-#shared .media canvas{width:100%;aspect-ratio:16/9;display:block;background:#000}
-#shared .media .mt{display:flex;align-items:center;gap:6px;font-size:12px}#shared .media .mt b{font-weight:500}
-#shared .media .ty{font-size:10px;text-transform:uppercase;letter-spacing:.08em;border:1px solid #3a4462;color:#aab6d8;padding:1px 7px}
-#shared .media .none{color:var(--faint);font-size:12px;padding:10px 4px;text-align:center}
-#shared .openin{display:flex;flex-direction:column;gap:4px}
-#shared .openin button{display:flex;align-items:center;justify-content:space-between;gap:6px;border:1px solid var(--line);background:none;padding:6px 9px;cursor:pointer;color:var(--txt);font-size:12px}
-#shared .openin button:hover:not(:disabled){border-color:var(--acc)}#shared .openin button:disabled{opacity:.4;cursor:default}
-#shared .openin small{color:var(--faint)}
-#shared .sec{font-size:11px;font-weight:500;color:var(--dim);text-transform:uppercase;letter-spacing:.09em;display:flex;align-items:center;gap:8px}
-#shared .sec span{margin-left:auto;text-transform:none;letter-spacing:0;color:var(--faint)}
-#shared .style{display:block;width:100%;padding:0;border:1px solid var(--line);background:var(--card);cursor:pointer;text-align:left;color:var(--txt)}
-#shared .style:hover{border-color:var(--acc)}
-#shared .style canvas{width:100%;aspect-ratio:3/1;display:block}
-#shared .style div{display:flex;justify-content:space-between;padding:6px 8px;font-size:12px}#shared .style small{color:var(--faint)}
-#shared .fit{display:flex;flex-direction:column;gap:5px}
-#shared .fit .row{display:flex;justify-content:space-between;font-size:11px;color:var(--dim)}#shared .fit b{font-weight:500;color:var(--txt)}
-#shared .meter{position:relative;height:6px;background:linear-gradient(90deg,#4a2a2a,#4a442a,#2a4a35)}
-#shared .meter i{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--txt);transition:left .4s}
-#shared .maxx{width:100%;padding:9px;border:1px solid var(--acc);background:var(--acc);color:#111;font-weight:600;cursor:pointer}
-#shared .maxx:disabled{opacity:.35;cursor:default}#shared .maxx.run{background:none;color:var(--txt)}
-#shared .wall{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
-#shared .el{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;aspect-ratio:1;background:var(--card);border:1px solid transparent;cursor:pointer;color:var(--txt);font-size:11px;padding:4px}
-#shared .el:hover{border-color:var(--line)}#shared .el.on{border-color:var(--acc)}
-#shared .el .av{font-size:22px;line-height:1}#shared .el span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.shared-section{display:flex;flex-direction:column;gap:12px}
+.shared-section .apps{display:flex;border:1px solid var(--line);padding:3px;gap:2px}
+.shared-section .apps a{flex:1;text-align:center;padding:6px 4px;color:var(--dim);text-decoration:none;font-size:12px;font-weight:500;cursor:pointer}
+.shared-section .apps a.on{background:#26262a;color:var(--txt)}.shared-section .apps a:not(.on):hover{color:var(--txt)}
+.shared-section .media{border:1px solid var(--line);padding:8px;display:flex;flex-direction:column;gap:8px;background:var(--card)}
+.shared-section .media canvas{width:100%;aspect-ratio:16/9;display:block;background:#000}
+.shared-section .media .mt{display:flex;align-items:center;gap:6px;font-size:12px}.shared-section .media .mt b{font-weight:500}
+.shared-section .media .ty{font-size:10px;text-transform:uppercase;letter-spacing:.08em;border:1px solid #3a4462;color:#aab6d8;padding:1px 7px}
+.shared-section .media .none{color:var(--faint);font-size:12px;padding:10px 4px;text-align:center}
+.shared-section .openin{display:flex;flex-direction:column;gap:4px}
+.shared-section .openin button{display:flex;align-items:center;justify-content:space-between;gap:6px;border:1px solid var(--line);background:none;padding:6px 9px;cursor:pointer;color:var(--txt);font-size:12px}
+.shared-section .openin button:hover:not(:disabled){border-color:var(--acc)}.shared-section .openin button:disabled{opacity:.4;cursor:default}
+.shared-section .openin small{color:var(--faint)}
+.shared-section .sec{font-size:11px;font-weight:500;color:var(--dim);text-transform:uppercase;letter-spacing:.09em;display:flex;align-items:center;gap:8px}
+.shared-section .sec span{margin-left:auto;text-transform:none;letter-spacing:0;color:var(--faint)}
+.shared-section .style{display:block;width:100%;padding:0;border:1px solid var(--line);background:var(--card);cursor:pointer;text-align:left;color:var(--txt)}
+.shared-section .style:hover{border-color:var(--acc)}
+.shared-section .style canvas{width:100%;aspect-ratio:3/1;display:block}
+.shared-section .style div{display:flex;justify-content:space-between;padding:6px 8px;font-size:12px}.shared-section .style small{color:var(--faint)}
+.shared-section .fit{display:flex;flex-direction:column;gap:5px}
+.shared-section .fit .row{display:flex;justify-content:space-between;font-size:11px;color:var(--dim)}.shared-section .fit b{font-weight:500;color:var(--txt)}
+.shared-section .meter{position:relative;height:6px;background:linear-gradient(90deg,#4a2a2a,#4a442a,#2a4a35)}
+.shared-section .meter i{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--txt);transition:left .4s}
+.shared-section .maxx{width:100%;padding:9px;border:1px solid var(--acc);background:var(--acc);color:#111;font-weight:600;cursor:pointer}
+.shared-section .maxx:disabled{opacity:.35;cursor:default}.shared-section .maxx.run{background:none;color:var(--txt)}
+.shared-section .wall{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.shared-section .el{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;aspect-ratio:1;background:var(--card);border:1px solid transparent;cursor:pointer;color:var(--txt);font-size:11px;padding:4px}
+.shared-section .el:hover{border-color:var(--line)}.shared-section .el.on{border-color:var(--acc)}
+.shared-section .el .av{font-size:22px;line-height:1}.shared-section .el span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 .shm{position:fixed;inset:0;background:rgba(5,5,7,.72);display:flex;align-items:center;justify-content:center;z-index:100}
 .shm .box{width:min(720px,94vw);max-height:88vh;overflow:auto;background:var(--col);border:1px solid var(--line);padding:18px;display:flex;flex-direction:column;gap:14px}
 .shm h3{margin:0;font-size:15px;font-weight:600;display:flex;align-items:center}.shm h3 button{margin-left:auto}
@@ -175,14 +175,14 @@ function mount(o: Opts) {
   style = allStyles().find((l) => l.id === (st.style || st.look)) || STYLEBOARD.looks[0];
   str = st.str ?? 0.8;
   const s = document.createElement('style'); s.textContent = css; document.head.append(s);
-  const root = $('#shared');
+  const root = $('#shared');root.classList.add('shared-section');
   root.innerHTML = `<div class="sec">Selected media</div><div class="media"></div>
     <div class="apps">${APPS.map(([id, n, href]) => `<a data-app="${id}" href="${href}" class="${id === o.app ? 'on' : ''}">${n}</a>`).join('')}</div>
-    <div class="sec">Stylization</div>
+    <section id="studioStylization" class="shared-section"><div class="sec">Stylization</div>
     <button class="style" title="Change style"><canvas width="480" height="160"></canvas><div><span class="sn"></span><small>change ▸</small></div></button>
     <div class="fit"><div class="row"><span>Palette match · selected media</span><b class="fv">—</b></div><div class="meter"><i style="left:0"></i></div></div>
     <button class="maxx" title="Try three prompt-based variations and keep the closest palette. This does not train or apply a LoRA.">Try style variations</button>
-    <div class="sec">Elements <span>${o.elementHint || ''}</span></div><div class="wall"></div>`;
+    </section><section id="studioElements" class="shared-section"><div class="sec">Elements <span>${o.elementHint || ''}</span></div><div class="wall"></div></section>`;
   ($('.style', root) as HTMLButtonElement).onclick = () => selector();
   ($('.maxx', root) as HTMLButtonElement).onclick = () => maxx();
   elementLibrary($('.wall',root),ELEMENTS,e=>o.onElement?.(e),()=>o.mediaPool?.()||[]);
@@ -192,7 +192,7 @@ function mount(o: Opts) {
 }
 
 function drawSelected() {
-  const root = $('#shared');
+  const root = $('#studioStylization');
   drawStyle($('.style canvas', root) as HTMLCanvasElement, style);
   $('.sn', root).textContent = style.n;
   updateFit();
@@ -206,7 +206,7 @@ function setStyle(st: Style) {
 // ---------- fit meter + Stylemaxx ----------
 let fitToken = 0;
 async function updateFit() {
-  const root = $('#shared'), fv = $('.fv', root), bar = $('.meter i', root), btn = $('.maxx', root) as HTMLButtonElement;
+  const root = $('#studioStylization'), fv = $('.fv', root), bar = $('.meter i', root), btn = $('.maxx', root) as HTMLButtonElement;
   const can = !!(media?.img && media.type !== 'shot' && opts.onStylemaxx);
   if (!btn.classList.contains('run')) { btn.disabled = !can; btn.title = can ? 'Regenerate the selected media to match the selected style' : media?.type === 'shot' ? 'Select a keyframe to Stylemaxx it' : 'Select a generated keyframe first'; }
   if (!media?.img) { fv.textContent = '—'; bar.style.left = '0'; return; }
@@ -217,7 +217,7 @@ async function updateFit() {
 }
 async function maxx() {
   if (!media?.img || !opts.onStylemaxx) return;
-  const btn = $('#shared .maxx') as HTMLButtonElement;
+  const btn = $('#studioStylization .maxx') as HTMLButtonElement;
   btn.disabled = true; btn.classList.add('run');
   try { await opts.onStylemaxx(style, media, (m) => (btn.textContent = m)); }
   finally { btn.classList.remove('run'); btn.textContent = 'Try style variations'; btn.disabled = false; updateFit(); }
@@ -323,6 +323,6 @@ function open(app: string) {
   location.href = a[2] + '?from=' + opts.app;
 }
 /** Highlight elements in use (chips on in the generator, regions selected in Edit). */
-function mark(ids: string[]) { document.querySelectorAll<HTMLElement>('#shared .el').forEach((b) => b.classList.toggle('on', ids.includes(b.dataset.id!))); }
+function mark(ids: string[]) { document.querySelectorAll<HTMLElement>('#studioElements .el').forEach((b) => b.classList.toggle('on', ids.includes(b.dataset.id!))); }
 
 export const SHELL = { mount, mark, select, open, ELEMENTS, APPS, styleFit };

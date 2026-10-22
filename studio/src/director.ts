@@ -327,7 +327,7 @@ const imageStage=document.createElement('section');imageStage.className='image-s
 viewer.before(imageStage);
 const videoNext=document.createElement('div');videoNext.id='nextVideo';videoNext.className='next-step';videoNext.hidden=true;videoNext.innerHTML='<div><strong>There’s a story here.</strong><p>Add another scene and start building your film.</p></div><button id="growFilm">Create the next scene →</button>';
 composer.after(videoNext);
-function setWorkflow(mode){if(document.getElementById("kgo").disabled||document.getElementById("ov").style.display==="flex")return;if(playing)setPlaying(false);workspaceMode=mode;$('#kp').value=imageDraft.prompt||'';$('#kgo').textContent=mode==='image'?'Generate image':'Generate '+keyframeBatch+' keyframe'+(keyframeBatch===1?'':'s');saveWorkshop();syncWorkspace();head()}
+function setWorkflow(mode){if(document.getElementById("kgo").disabled||document.getElementById("ov").style.display==="flex")return;if(playing)setPlaying(false);workspaceMode=mode;$('#kp').value=imageDraft.prompt||'';$('#kgo').textContent=mode==='image'?'Generate image':'Generate '+keyframeBatch+' keyframe'+(keyframeBatch===1?'':'s');saveWorkshop();syncWorkspace();head();document.dispatchEvent(new CustomEvent('osh-workflow-changed',{detail:mode}))}
 workflowBar.onclick=e=>{const mode=e.target.closest('[data-workflow]')?.dataset.workflow;if(mode)setWorkflow(mode)};
 $('#kp').value=imageDraft.prompt||'';$('#kp').addEventListener('input',()=>{imageDraft.prompt=$('#kp').value;saveWorkshop()});
 $('#animateImage').onclick=()=>{setWorkflow('video');const spec=SP({mia:false,bolt:false,scene:''});SH[cur].prompt=imageDraft.prompt;SH[cur].spec=spec;const existing=SH[cur].keys.find(k=>k.anchor==='start'||k.t===0);if(existing){existing.img=imageDraft.url;existing.spec=spec;existing.anchor='start';SH[cur].r=false;selKey=existing;open=cur}else{addKey(cur,0,{img:imageDraft.url,spec,u:.5});SH[cur].keys.at(-1).anchor='start'}timeline();head();save();syncWorkspace();$('#motion').focus()};
@@ -335,5 +335,5 @@ $('#editWorkshopImage').textContent='Download image';$('#editWorkshopImage').onc
 $('#growFilm').onclick=()=>{cinema=true;SH.push({n:`Scene ${SH.length+1}`,d:4,spec:SP({mia:false,bolt:false,scene:''}),m:'',keys:[],r:false});cur=SH.length-1;shotId(SH[cur]);open=null;G=start(cur);selKey=null;syncWorkspace();timeline();head();save();$('#shotPromptInput').focus()};
 syncWorkspace();$('#kgo').textContent=workspaceMode==='image'?'Generate image':'Generate '+keyframeBatch+' keyframe'+(keyframeBatch===1?'':'s');
 if(touring()&&onboarding.images?.length){results=onboarding.images.map(url=>({img:url,spec:SH.find(s=>s.id===onboarding.shotId)?.spec||SP({}),u:.5,p:imageDraft.prompt}));res()}
-mountWorkspaceDock(()=>{timeline();head()});
+mountWorkspaceDock(()=>{timeline();head()},setWorkflow);
 timeline();head();markEls();histUI();save();if(!playing)$('#play').textContent='▶';

@@ -169,3 +169,5 @@ Stable Audio Open 1.0, open weights under the Stability AI Community License (at
 
 
 **Partner funded-readiness handoff - 2026-10-22:** Temporary Runpod read-only reports PASS; user confirms10credit/auto-reload-off/awake host.34 Python tests, benchmark guards, real synthetic collector and build PASS. Added one-cookie attempt cleanup that terminates before local review after separate approval only. No Studio/shared source or model pin changes; no deployment/spend. Pending exact quote, key scopes/private-SSH confirmation and explicit approval. Details adstudio/benchmark/READINESS_CHECK.md. Existing local servers unchanged; PR3 remains draft.
+
+**Partner final approval gate - 2026-10-22:** SSH private/public match verified, temporary keys confirmed All (billing operations GET-only); live MCP confirms200GB host-local /workspace without network/global volume. Existing watchdog/first-cookie cleanup tests PASS again. GO for explicit approval only; no deployment/spend. Max2.5h/6, keep4, one cookie attempt then immediate termination. No Studio/shared/runtime source changes or server changes.

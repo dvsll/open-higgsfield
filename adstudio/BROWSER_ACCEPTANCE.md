@@ -1,3 +1,22 @@
+# Brand Intelligence V1 - browser acceptance
+
+**Status: NOT RUN.** Computer Use returned apps=[], browsers=[]. No interrupted session was bypassed. API/parser/provider-protocol/storage-domain checks do not prove real browser IndexedDB refresh/migration.
+
+Open **http://127.0.0.1:8300/adstudio/#brand** in a normal profile. Keep the same origin and existing site data; close other Ad Studio tabs for DB migration. Record commit/browser and PASS/FAIL.
+
+1. Create brand -> enter `https://www.nocrumbsbakery.store/` -> Research brand. Expect actual sourced identity/story, four current structured products, image/color candidates, source links and explicit AI unavailable notice on this machine. Audience/tone must not appear as fabricated AI conclusions.
+2. Edit name/description/tone/audience/preferences and colors. Add/edit/remove a product. Upload a logo and original product photo; assign the photo only to the correct product. Save brand - reviewed. Download original and compare its hash/bytes to the uploaded file.
+3. Refresh after saved status. All edits, palette, products, photo associations and original downloads must return. DevTools IndexedDB `osh-adstudio-projects` is DB3 with brands/assets/projects/media stores; BrandProfile version1, old project version3 remains supported. localStorage holds only active IDs.
+4. Create/switch to a second brand; verify isolation, then return. Re-research the first website: customer corrections and original photos must remain; new evidence becomes review-required again. Keep a website image and verify local retention and source link.
+5. Save reviewed brand -> Use brand name in Composer. Only the current project's brand name/link changes; shots, trims, previous exports and existing projects stay intact. The full brandContext is a future-generation contract; palette/logo are not automatically applied to Composer.
+6. Start manually without a website; fill only known facts. Add website/photos later. Try an inaccessible URL and `http://127.0.0.1`: show an error/manual recovery, keep edits/assets, no private-network fetch. Missing AI model must not fake an analysis.
+7. In a disposable browser profile simulate quota/unavailable storage. Expect Not saved, retained in-tab edits/originals and Retry saving; no reviewed-use until durable save. Restore storage, retry, refresh and verify.
+8. For the prepared authentic example, Create brand -> Open No Crumbs example. Actual website evidence and existing original logo/cookie photo load. No AI completion is claimed; cookie photo is unassigned to a specific SKU until reviewed.
+
+Browser playback/download/layout and DB1/DB2 -> DB3 migration remain manual acceptance gates. PR3 stays draft.
+
+---
+
 # Ad Composer V1 - browser acceptance
 
 **Composer status: NOT RUN.** The available Computer Use inventory has no browser surface. API/FFmpeg tests, frame inspection and memory-driver persistence tests passed; they do not prove browser playback, downloads or real IndexedDB. Keep PR #3 draft until review. Earlier workspace evidence is retained below.
@@ -8,7 +27,7 @@ Open **http://127.0.0.1:8300/adstudio/#compose** while the current local server 
 2. Create a new project. In Compose Ad, import `outputs/ltx25-benchmark/cookie-seed1/video.mp4`. In Create shots, upload a product photo and generate a Camera take; click **Add to ad**. Both clips must appear in this project's library and timeline.
 3. Reorder by dragging and arrows; duplicate/remove a shot; change In/Out points. Reject a reversed/out-of-bounds trim without losing the timeline. Choose cuts, then dissolve. Edit brand/headline/CTA and ending duration. Import local music, adjust volume and test Keep sound from shots.
 4. Click **Preview sequence**. Wait for the actual local render, then play the whole ad. Confirm shot order, trims, smooth transitions, text placement, sound and a complete ending. Landscape sources must have padding, never stretch. Click **Export Ad**; open the downloaded MP4 in another player and verify its end and audio.
-5. Wait for **Saved on this browser**, then refresh. Inspect DevTools > Application > IndexedDB > `osh-adstudio-projects` (DB version 2): `projects` records are project version 3; `media` holds imported original Blobs; `assets` retains product photos. Check that ordered shots, trims, text/music and playable previous exports return. Large media must not appear in localStorage.
+5. Wait for **Saved on this browser**, then refresh. Inspect DevTools > Application > IndexedDB > `osh-adstudio-projects` (DB version 3): `projects` records are project version 3; `media` holds imported original Blobs; `assets` retains product photos. Check that ordered shots, trims, text/music and playable previous exports return. Large media must not appear in localStorage.
 6. Create/switch to another project; it must have a separate composition/history. Return to the first project. Change branding and export again; both exports and all previous takes must remain. Source videos must retain original duration/bytes; trimming creates a new MP4.
 7. Missing-file recovery: use a disposable imported video and temporarily move its opaque server output out of `outputs/` (keep it locally). Refresh: show an explicit missing-source error without deleting the project. Click **Restore saved original** and render again. Restore the moved file afterward. Imported Blob recovery must retain trim/order and old export history.
 8. Storage failure: on a disposable profile/origin, deny storage or simulate quota failure. Expect **Not saved** and a retry action, never a saved-success claim. Keep the tab open, restore storage, retry and refresh; verify original Blobs and composition survive.

@@ -7,6 +7,7 @@ import {templates,templateSettings,resizeDimensions} from './templates';
 import {canGenerate,renderEstimate,type ApiCapabilities} from './availability';
 import {mountComposer} from './composer';
 import type {MediaAsset} from './composition';
+import {mountBrand} from './brand-ui';
 
 const el=<T extends HTMLElement>(id:string)=>document.getElementById(id) as T;
 const photo=el<HTMLInputElement>('photo'),product=el<HTMLImageElement>('product'),fields=el<HTMLFieldSetElement>('fields'),go=el<HTMLButtonElement>('go'),status=el('status'),outs=el('outs'),exportAll=el<HTMLButtonElement>('export-all');
@@ -18,6 +19,7 @@ const projects=new Map<string,AdProject>(),pendingAssets=new Map<string,{project
 const dirtyProjects=new Set<string>(),writeVersions=new Map<string,number>();
 const pendingMedia=new Map<string,{projectId:string;asset:MediaAsset}>();
 let composer:ReturnType<typeof mountComposer>|undefined;
+let brandWorkspace:Awaited<ReturnType<typeof mountBrand>>|undefined;
 type Card={take:Take;video:HTMLVideoElement;button:HTMLButtonElement;message:HTMLElement;exportLinks:HTMLElement};
 const cards:Card[]=[];
 const errorText=(error:unknown)=>error instanceof Error?error.message:String(error);
@@ -33,10 +35,11 @@ async function persist(asset?:ProductAsset,media?:MediaAsset|MediaAsset[]) {
  saving=task.catch(error=>storageNotice('Not saved — '+errorText(error)+' Keep this tab open and retry saving.'));
  await saving;
 }
-function working(){return busy||reading||exporting>0||Boolean(composer?.busy);}
-function showWorkspace(compose:boolean){el('create-workspace').hidden=compose;el('compose-workspace').hidden=!compose;el('show-create').setAttribute('aria-selected',String(!compose));el('show-compose').setAttribute('aria-selected',String(compose));history.replaceState(null,'',location.pathname+location.search+(compose?'#compose':''));}
+function working(){return busy||reading||exporting>0||Boolean(composer?.busy)||Boolean(brandWorkspace?.busy);}
+function showWorkspace(value:boolean|'brand'){const view=value==='brand'?'brand':value?'compose':'create';for(const name of ['brand','create','compose']){el(name+'-workspace').hidden=name!==view;el('show-'+name).setAttribute('aria-selected',String(name===view));}el('projects').closest<HTMLElement>('.project-bar')!.hidden=view==='brand';history.replaceState(null,'',location.pathname+location.search+'#'+view);}
 el('show-create').onclick=()=>showWorkspace(false);el('show-compose').onclick=()=>showWorkspace(true);
-showWorkspace(location.hash==='#compose');
+el('show-brand').onclick=()=>showWorkspace('brand');
+showWorkspace(location.hash==='#compose'?true:location.hash==='#create'?false:'brand');
 function ready(){
  go.disabled=working()||!image||!canGenerate(project?.settings.mode,api,OSH.online,catalog);
  exportAll.disabled=working()||!api?.ffmpeg.available||!cards.some(c=>!c.take.exports.length);
@@ -210,11 +213,12 @@ el<HTMLFormElement>('brief').onsubmit=async event=>{
 el<HTMLSelectElement>('projects').onchange=async()=>{if(working())return;await saving;const next=projects.get(el<HTMLSelectElement>('projects').value);if(next)await openProject(next);};
 el('new-project').onclick=async()=>{if(working())return;try{await saving;const next=newProject(el<HTMLInputElement>('project-name').value||'Untitled ad');project=next;projects.set(next.id,next);await persist();await openProject(next);}catch(error){status.textContent=errorText(error);}};
 el('rename-project').onclick=async()=>{if(working())return;try{project.name=validName(el<HTMLInputElement>('project-name').value);await persist();projectOptions();}catch(error){status.textContent=errorText(error);}};
-el('retry-save').onclick=async()=>{
- if(working())return;
+async function retryStorage(){
+ if(busy||reading||exporting||composer?.busy)return;
  try {await saving;repository=new Projects(await openProjectDriver());durable=true;for(const saved of projects.values()){const assets=[...pendingAssets.values()].filter(a=>a.projectId===saved.id).map(a=>a.asset),media=[...pendingMedia.values()].filter(a=>a.projectId===saved.id).map(a=>a.asset);await repository.save(saved,assets,media);}pendingAssets.clear();pendingMedia.clear();dirtyProjects.clear();storageNotice('Saved on this browser.');const existing=await repository.list();for(const p of existing)if(!projects.has(p.id))projects.set(p.id,p);projectOptions();}
  catch(error){durable=false;storageNotice('Not saved — '+errorText(error)+' Keep this tab open.');}
-};
+}
+el('retry-save').onclick=()=>void retryStorage();
 el('open-cookie-demo').onclick=async()=>{
  if(working())return;reading=true;ready();
  try{
@@ -231,6 +235,7 @@ async function start(){
  let active='';try{active=localStorage.getItem(ACTIVE_KEY)||'';}catch{}
  project=projects.get(active)||[...projects.values()][0]||newProject();projects.set(project.id,project);
  composer=mountComposer({project:()=>project,save:asset=>persist(undefined,asset),asset:id=>repository.media(id),changed:ready,show:()=>showWorkspace(true)});
+ brandWorkspace=await mountBrand({repository:()=>repository,durable:()=>durable,retry:retryStorage,changed:ready,use:async brand=>{if(busy||reading||exporting||composer?.busy)throw Error('Wait for the current project operation to finish.');project.brandId=brand.id;project.composition.brand=brand.dna.name.slice(0,60);await persist();await composer?.refresh();showWorkspace(true);}});
  await persist();await openProject(project);void check();
  void fetch('/api/ad-composer-demo').then(r=>{el('open-cookie-demo').hidden=!r.ok;}).catch(()=>{});
 }

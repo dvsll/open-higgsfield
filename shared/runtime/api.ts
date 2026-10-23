@@ -23,6 +23,8 @@ import { imageModel, videoModel } from './model-catalog.ts';
 import { identifyHardware, serverTiming, recordRender } from './render-timings.ts';
 import { productFormats, productPlan, renderProduct, ProductRenderError, type ProductRatio, type ProductMode, type CameraMotion } from './product-video.ts';
 import {importMedia,composeAd,ComposeError,mediaTypes} from './ad-compose.ts';
+import {analysisStatus,researchBrand,collectBrandImage} from './brand-research.ts';
+import {BrandError} from './brand-web.ts';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const WORKFLOWS = join(ROOT, "shared", "workflows");
@@ -490,6 +492,13 @@ function middleware(env: Env): Connect.NextHandleFunction {
         res.writeHead(200,{...headers,'Content-Length':size});if(req.method==='HEAD')return res.end();return createReadStream(p).pipe(res);
       }
       const route = `${req.method} ${url.pathname}`;
+      if(route==='GET /api/brand/status')return send(res,200,await analysisStatus(env));
+      if(route==='POST /api/brand/research')return send(res,200,await researchBrand(await readBody(req),env));
+      if(route==='POST /api/brand/image')return send(res,200,await collectBrandImage(await readBody(req)));
+      if(route==='GET /api/brand/demo'){
+        const file=join(OUTPUTS,'brand-demo','demo.json');if(!existsSync(file))return send(res,404,{error:'No private local brand demo has been prepared.'});
+        if(statSync(file).size>25*1024*1024)throw new HttpError(400,'Local demo is too large');return send(res,200,JSON.parse(await readFile(file,'utf8')));
+      }
       if(route==='GET /api/ad-composer-demo'){
         const file=join(OUTPUTS,'composer-demo','project.json');if(!existsSync(file))return send(res,404,{error:'No local cookie example has been built.'});
         if(statSync(file).size>512*1024)throw new HttpError(400,'Local example is too large');return send(res,200,JSON.parse(await readFile(file,'utf8')));
@@ -508,7 +517,7 @@ function middleware(env: Env): Connect.NextHandleFunction {
       if (route === "POST /api/shot") return send(res, 200, await shot(await readBody(req), env));
       return send(res, 404, { error: "unknown endpoint" });
     } catch (e: any) {
-      const status = e instanceof HttpError || e instanceof ComposeError ? e.status : 500;
+      const status = e instanceof HttpError || e instanceof ComposeError || e instanceof BrandError ? e.status : 500;
       if (status === 500) console.error(`[api] ${url.pathname} failed:`, e);
       send(res, status, { error: status === 500 ? "generation failed (see server log)" : e.message });
     }

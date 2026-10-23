@@ -1,10 +1,12 @@
 import {OSH,type ShotResult,type LocalModels} from '../../shared/runtime/client';
 import {taglineOverlay} from './overlay';
 import {prepareReference} from './reference';
-import {Projects,openProjectDriver,memoryDriver,newProject,validName,restoredAttempt,ACTIVE_KEY,type AdProject,type Settings,type Take,type ProductAsset,type Ratio} from './projects';
+import {Projects,openProjectDriver,memoryDriver,newProject,migrateProject,validName,restoredAttempt,ACTIVE_KEY,type AdProject,type Settings,type Take,type ProductAsset,type Ratio} from './projects';
 import {blobDataURL,normalizeProduct} from './assets';
 import {templates,templateSettings,resizeDimensions} from './templates';
 import {canGenerate,renderEstimate,type ApiCapabilities} from './availability';
+import {mountComposer} from './composer';
+import type {MediaAsset} from './composition';
 
 const el=<T extends HTMLElement>(id:string)=>document.getElementById(id) as T;
 const photo=el<HTMLInputElement>('photo'),product=el<HTMLImageElement>('product'),fields=el<HTMLFieldSetElement>('fields'),go=el<HTMLButtonElement>('go'),status=el('status'),outs=el('outs'),exportAll=el<HTMLButtonElement>('export-all');
@@ -14,25 +16,32 @@ let repository:Projects,project:AdProject,image='',busy=false,reading=true,expor
 let api:ApiCapabilities|null=null,catalog:LocalModels|null=null,checking=false;
 const projects=new Map<string,AdProject>(),pendingAssets=new Map<string,{projectId:string;asset:ProductAsset}>();
 const dirtyProjects=new Set<string>(),writeVersions=new Map<string,number>();
+const pendingMedia=new Map<string,{projectId:string;asset:MediaAsset}>();
+let composer:ReturnType<typeof mountComposer>|undefined;
 type Card={take:Take;video:HTMLVideoElement;button:HTMLButtonElement;message:HTMLElement;exportLinks:HTMLElement};
 const cards:Card[]=[];
 const errorText=(error:unknown)=>error instanceof Error?error.message:String(error);
 function storageNotice(text:string){el('storage-status').textContent=text;}
-async function persist(asset?:ProductAsset) {
+async function persist(asset?:ProductAsset,media?:MediaAsset|MediaAsset[]) {
  if(asset)pendingAssets.set(asset.id,{projectId:project.id,asset});
+ for(const file of media?(Array.isArray(media)?media:[media]):[])pendingMedia.set(file.id,{projectId:project.id,asset:file});
  project.updated=Date.now();projects.set(project.id,project);
  dirtyProjects.add(project.id);const revision=(writeVersions.get(project.id)||0)+1;writeVersions.set(project.id,revision);
  const snapshot=structuredClone(project),assets=[...pendingAssets.values()].filter(a=>a.projectId===snapshot.id).map(a=>a.asset);
- const task=saving.then(async()=>{await repository.save(snapshot,assets);if(!durable)throw new Error('Browser database unavailable; this session is not saved.');for(const a of assets)pendingAssets.delete(a.id);if(writeVersions.get(snapshot.id)===revision)dirtyProjects.delete(snapshot.id);storageNotice(dirtyProjects.size?`Unsaved changes in ${dirtyProjects.size} project(s). Retry saving if this persists.`:'Saved on this browser.');});
+ const mediaFiles=[...pendingMedia.values()].filter(a=>a.projectId===snapshot.id).map(a=>a.asset);
+ const task=saving.then(async()=>{await repository.save(snapshot,assets,mediaFiles);if(!durable)throw new Error('Browser database unavailable; this session is not saved.');for(const a of assets)pendingAssets.delete(a.id);for(const a of mediaFiles)pendingMedia.delete(a.id);if(writeVersions.get(snapshot.id)===revision)dirtyProjects.delete(snapshot.id);storageNotice(dirtyProjects.size?`Unsaved changes in ${dirtyProjects.size} project(s). Retry saving if this persists.`:'Saved on this browser.');});
  saving=task.catch(error=>storageNotice('Not saved — '+errorText(error)+' Keep this tab open and retry saving.'));
  await saving;
 }
-function working(){return busy||reading||exporting>0;}
+function working(){return busy||reading||exporting>0||Boolean(composer?.busy);}
+function showWorkspace(compose:boolean){el('create-workspace').hidden=compose;el('compose-workspace').hidden=!compose;el('show-create').setAttribute('aria-selected',String(!compose));el('show-compose').setAttribute('aria-selected',String(compose));history.replaceState(null,'',location.pathname+location.search+(compose?'#compose':''));}
+el('show-create').onclick=()=>showWorkspace(false);el('show-compose').onclick=()=>showWorkspace(true);
+showWorkspace(location.hash==='#compose');
 function ready(){
  go.disabled=working()||!image||!canGenerate(project?.settings.mode,api,OSH.online,catalog);
  exportAll.disabled=working()||!api?.ffmpeg.available||!cards.some(c=>!c.take.exports.length);
  photo.disabled=working();fields.disabled=busy||reading;
- for(const id of ['projects','new-project','rename-project','project-name'])el<HTMLInputElement>(id).disabled=working();
+ for(const id of ['projects','new-project','rename-project','project-name','open-cookie-demo'])el<HTMLInputElement>(id).disabled=working();
  document.querySelectorAll<HTMLButtonElement>('[data-processing]').forEach(b=>b.disabled=working()||!api?.ffmpeg.available);
  document.querySelectorAll<HTMLButtonElement>('[data-template]').forEach(b=>{b.disabled=working();b.setAttribute('aria-pressed',String(b.dataset.template===project?.settings.template));});
  el('empty-results').hidden=cards.length>0;
@@ -73,6 +82,7 @@ async function openProject(next:AdProject){
  }catch(error){status.textContent=errorText(error);}
  if(ticket!==selection)return;
  for(const take of project.takes)renderTake(take);
+ await composer?.refresh();
  if(restoredAttempt(project)){status.textContent=project.attempt!.error!;await persist();}
  reading=false;ready();
 }
@@ -93,6 +103,7 @@ function renderTake(take:Take){
  if(take.background)article.append(outputLink(take.background,'Inspect Creative background'));
  if(take.parentId){const parent=project.takes.find(t=>t.id===take.parentId);if(parent){const compare=document.createElement('button');compare.type='button';compare.textContent='Compare previous version';let original=false;compare.onclick=()=>{original=!original;video.src=original?parent.source:take.source;compare.textContent=original?'Show adjusted version':'Compare previous version';};article.append(compare);}}
  article.append(adjustPanel(take,card));
+ const compose=document.createElement('button');compose.type='button';compose.textContent='Add to ad';compose.onclick=()=>composer?.addTake(take);article.append(compose);
  void checkPreview(card);
  outs.prepend(article);
 }
@@ -123,7 +134,7 @@ function adjustPanel(take:Take,card:Card){
    exporting++;started=true;ready();card.message.textContent='Rendering an adjusted copy. Original kept…';
    const result=await OSH.editVideo({video:take.source,keepAudio:true,...recipe});
    const adjusted:Take={...structuredClone(take),id:crypto.randomUUID(),created:Date.now(),source:result.url,parentId:take.id,kind:'edit',edit:recipe,width:d.width,height:d.height,fps:24,frames:Math.max(1,Math.round((to-from)/rate*24)),seconds:result.seconds,exports:[]};
-   project.takes.push(adjusted);await persist();renderTake(adjusted);card.message.textContent='Adjusted version added to history. Original unchanged.';
+   project.takes.push(adjusted);await persist();renderTake(adjusted);composer?.refreshLibrary();card.message.textContent='Adjusted version added to history. Original unchanged.';
   }catch(e){card.message.textContent=errorText(e)+' Original unchanged.';}
   finally{if(started)exporting--;ready();}
  };
@@ -190,7 +201,7 @@ el<HTMLFormElement>('brief').onsubmit=async event=>{
     if(settings.mode==='locked'){background=result;result=await OSH.productVideo({image:original!.url,background:result.url,mode:'locked',ratio,duration:settings.duration});}
    }
    const take:Take={id:crypto.randomUUID(),created:Date.now(),assetId,source:result.url,kind:'generation',mode:settings.mode,ratio,settings:structuredClone(settings),prompt:settings.mode==='camera'?'':prompt,frames:result.frames,fps:result.fps||24,...size,seconds:result.seconds+(background?.seconds||0),background:background?.url,exports:[]};
-   project.takes.push(take);project.attempt.takeIds.push(take.id);await persist();renderTake(take);
+   project.takes.push(take);project.attempt.takeIds.push(take.id);await persist();renderTake(take);composer?.refreshLibrary();
   }
   project.attempt.status='complete';status.textContent='Videos ready. Preview, export, or make another variation. Earlier takes are kept.';
  }catch(error){project.attempt.status='failed';project.attempt.error=errorText(error);status.textContent=`${project.attempt.takeIds.length} take(s) ready in this tab. ${errorText(error)} Check results before retrying; a disconnected render may still be running.`;}
@@ -201,13 +212,26 @@ el('new-project').onclick=async()=>{if(working())return;try{await saving;const n
 el('rename-project').onclick=async()=>{if(working())return;try{project.name=validName(el<HTMLInputElement>('project-name').value);await persist();projectOptions();}catch(error){status.textContent=errorText(error);}};
 el('retry-save').onclick=async()=>{
  if(working())return;
- try {await saving;repository=new Projects(await openProjectDriver());durable=true;for(const saved of projects.values()){const assets=[...pendingAssets.values()].filter(a=>a.projectId===saved.id).map(a=>a.asset);await repository.save(saved,assets);}pendingAssets.clear();dirtyProjects.clear();storageNotice('Saved on this browser.');const existing=await repository.list();for(const p of existing)if(!projects.has(p.id))projects.set(p.id,p);projectOptions();}
+ try {await saving;repository=new Projects(await openProjectDriver());durable=true;for(const saved of projects.values()){const assets=[...pendingAssets.values()].filter(a=>a.projectId===saved.id).map(a=>a.asset),media=[...pendingMedia.values()].filter(a=>a.projectId===saved.id).map(a=>a.asset);await repository.save(saved,assets,media);}pendingAssets.clear();pendingMedia.clear();dirtyProjects.clear();storageNotice('Saved on this browser.');const existing=await repository.list();for(const p of existing)if(!projects.has(p.id))projects.set(p.id,p);projectOptions();}
  catch(error){durable=false;storageNotice('Not saved — '+errorText(error)+' Keep this tab open.');}
+};
+el('open-cookie-demo').onclick=async()=>{
+ if(working())return;reading=true;ready();
+ try{
+  const response=await fetch('/api/ad-composer-demo');if(!response.ok)throw Error('The local cookie example is unavailable.');
+  const example=migrateProject(await response.json()),existing=projects.get(example.id);
+  if(existing){reading=false;await openProject(existing);showWorkspace(true);return;}
+  const media:MediaAsset[]=await Promise.all(example.composition.media.map(async m=>{const r=await fetch(m.source);if(!r.ok)throw Error('An example source is missing. Rebuild the local example.');return{id:m.id,name:m.name,original:await r.blob()};}));
+  await saving;project=example;projects.set(example.id,example);await persist(undefined,media);reading=false;await openProject(example);showWorkspace(true);
+ }catch(e){status.textContent=errorText(e);}finally{reading=false;ready();}
 };
 async function start(){
  try {repository=new Projects(await openProjectDriver());const list=await repository.list();for(const p of list)projects.set(p.id,p);durable=true;storageNotice('Saved projects stay on this browser.');}
  catch(error){repository=new Projects(memoryDriver());storageNotice('Session only — '+errorText(error)+' Keep this tab open; retry saving.');}
  let active='';try{active=localStorage.getItem(ACTIVE_KEY)||'';}catch{}
- project=projects.get(active)||[...projects.values()][0]||newProject();projects.set(project.id,project);await persist();await openProject(project);void check();
+ project=projects.get(active)||[...projects.values()][0]||newProject();projects.set(project.id,project);
+ composer=mountComposer({project:()=>project,save:asset=>persist(undefined,asset),asset:id=>repository.media(id),changed:ready,show:()=>showWorkspace(true)});
+ await persist();await openProject(project);void check();
+ void fetch('/api/ad-composer-demo').then(r=>{el('open-cookie-demo').hidden=!r.ok;}).catch(()=>{});
 }
 void start();

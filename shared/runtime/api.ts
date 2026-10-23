@@ -22,6 +22,7 @@ import type { Connect, Plugin } from "vite";
 import { imageModel, videoModel } from './model-catalog.ts';
 import { identifyHardware, serverTiming, recordRender } from './render-timings.ts';
 import { productFormats, productPlan, renderProduct, ProductRenderError, type ProductRatio, type ProductMode, type CameraMotion } from './product-video.ts';
+import {importMedia,composeAd,ComposeError,mediaTypes} from './ad-compose.ts';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const WORKFLOWS = join(ROOT, "shared", "workflows");
@@ -30,7 +31,7 @@ const FPS = 24;
 const MAX_BODY = 64 * 1024;
 const MAX_UPLOAD_BODY = 8 * 1024 * 1024;
 const MAX_QUEUE = 4;
-const OUTPUT_NAME = /^[a-f0-9]{16}\.(png|webm|mp4|flac)$/;
+const OUTPUT_NAME = /^[a-f0-9]{16}\.(png|webm|mp4|flac|mp3|wav|m4a|ogg)$/;
 
 type Env = Record<string, string | undefined>;
 type Key = { image: string; t: number; strength?: number };
@@ -477,13 +478,24 @@ function middleware(env: Env): Connect.NextHandleFunction {
     try {
       if (isOut) {
         const name = url.pathname.slice("/outputs/".length);
-        if (req.method !== "GET" || !OUTPUT_NAME.test(name)) return send(res, 404, { error: "not found" });
+        if (!['GET','HEAD'].includes(req.method||'') || !OUTPUT_NAME.test(name)) return send(res, 404, { error: "not found" });
         const p = join(OUTPUTS, name);
         if (!existsSync(p)) return send(res, 404, { error: "not found" });
-        res.writeHead(200, { "Content-Type": name.endsWith(".flac") ? "audio/flac" : name.endsWith(".png") ? "image/png" : name.endsWith(".mp4") ? "video/mp4" : "video/webm", "Content-Length": statSync(p).size, "Cache-Control": "private, max-age=31536000, immutable", "X-Content-Type-Options": "nosniff" });
-        return createReadStream(p).pipe(res);
+        const size=statSync(p).size,headers:Record<string,string|number>={"Content-Type":name.endsWith('.png')?'image/png':mediaTypes[name.split('.').at(-1)!]||'video/webm',"Accept-Ranges":"bytes","Cache-Control":"private, max-age=31536000, immutable","X-Content-Type-Options":"nosniff"};
+        const range=req.headers.range;
+        if(range){const match=/^bytes=(\d*)-(\d*)$/.exec(range);let start=Number(match?.[1]||0),end=match?.[2]?Number(match[2]):size-1;if(match&&!match[1]&&match[2]){start=Math.max(0,size-Number(match[2]));end=size-1;}
+          if(!match||(!match[1]&&!match[2])||start>end||start>=size||!Number.isSafeInteger(start)||!Number.isSafeInteger(end)){res.writeHead(416,{'Content-Range':`bytes */${size}`});return res.end();}
+          end=Math.min(end,size-1);res.writeHead(206,{...headers,'Content-Range':`bytes ${start}-${end}/${size}`,'Content-Length':end-start+1});if(req.method==='HEAD')return res.end();return createReadStream(p,{start,end}).pipe(res);
+        }
+        res.writeHead(200,{...headers,'Content-Length':size});if(req.method==='HEAD')return res.end();return createReadStream(p).pipe(res);
       }
       const route = `${req.method} ${url.pathname}`;
+      if(route==='GET /api/ad-composer-demo'){
+        const file=join(OUTPUTS,'composer-demo','project.json');if(!existsSync(file))return send(res,404,{error:'No local cookie example has been built.'});
+        if(statSync(file).size>512*1024)throw new HttpError(400,'Local example is too large');return send(res,200,JSON.parse(await readFile(file,'utf8')));
+      }
+      if(route==='POST /api/media')return send(res,200,await importMedia(req,OUTPUTS,env));
+      if(route==='POST /api/compose-ad')return send(res,200,await composeAd(await readBody(req),OUTPUTS,env));
       if (route === "GET /api/health") return send(res, 200, await health(env));
       if (route === 'GET /api/capabilities') return send(res,200,await capabilities(env));
       if (route === "GET /api/models") return send(res, 200, await localModels(env));
@@ -496,7 +508,7 @@ function middleware(env: Env): Connect.NextHandleFunction {
       if (route === "POST /api/shot") return send(res, 200, await shot(await readBody(req), env));
       return send(res, 404, { error: "unknown endpoint" });
     } catch (e: any) {
-      const status = e instanceof HttpError ? e.status : 500;
+      const status = e instanceof HttpError || e instanceof ComposeError ? e.status : 500;
       if (status === 500) console.error(`[api] ${url.pathname} failed:`, e);
       send(res, status, { error: status === 500 ? "generation failed (see server log)" : e.message });
     }

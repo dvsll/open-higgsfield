@@ -168,6 +168,8 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
   if(document.body.dataset.workflow!==next.mode){choices();return}
   active=name;setup=next;choices();render();persist();
  }
+ addEventListener('osh-reveal-window',((event:CustomEvent)=>{if(panels.has(event.detail))openWindow(event.detail)}) as EventListener);
+ document.addEventListener('osh-workspace-select',((event:CustomEvent)=>{if(presets[event.detail])select(event.detail)}) as EventListener);
  picker.onchange = () => select(picker.value); saveButton.onclick = async () => { const name = await ask('Save this window setup as', presets[active] ? 'My workspace' : active); if (!name) return; active = name; persist(); choices(); }; reset.onclick = () => { setup = clone(presets[active] || presets.Video); workflow(setup.mode); render(); persist(); };
  const top = document.createElement('div'); top.className = 'workspace-context'; while (main.firstChild) top.append(main.firstChild);
  app.replaceChildren(toolbar, top, board, parking); app.classList.add('window-workspace');

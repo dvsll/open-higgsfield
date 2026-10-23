@@ -33,3 +33,6 @@ Local setup is a separate, explicit first-boot dialog. Model downloads show actu
 
 ## Incremental React migration
 User approved a gradual migration on 2026-10-22. Introduce React in contained panels as they are changed, preserving existing project storage, runtime APIs, docking behavior and CSS tokens. Avoid a whole-app rewrite; establish explicit state/event boundaries before moving a panel. Record React package licenses and official sources before adding dependencies. Current workspace/setup implementation remains TypeScript; no React dependency is installed by this change.
+
+## Personalized onboarding
+The tutorial lives outside the workspace grid as anchored popups. First choose ComfyUI experience (one/two/three play icons); then Image, Video or 3D. Beginner copy explains terms, seasoned copy focuses on the flow, professional copy is brief. Image and Video have real generation milestones; 3D honestly opens the unconnected workspace preview. Audio is a planned standalone setup. Never auto-generate or download from tutorial actions. Preserve project choices and successful milestones; suspend popups during modal setup or active renders. Highlight the actual target and keep both the target and popup usable within the viewport. Closing/reopening a docked window must not break the guide.

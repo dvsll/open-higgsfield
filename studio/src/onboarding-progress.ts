@@ -18,6 +18,11 @@ export function canResumeWorkflow(state: { entry?:Workflow; shotId?:string; dism
  return !!state && state.entry === entry && !state.dismissed && (entry === 'edit' || !!state.shotId);
 }
 export function ownsTour(page:'director'|'edit', entry?:Workflow): boolean { return page === 'edit' ? entry === 'edit' : entry !== 'edit'; }
+export function windowLesson(step:string, visible:ReadonlySet<string>, menuOpen:boolean):{window:string;stage:'menu'|'item'}|null {
+ const required:Record<string,string[]>={keyframes:['keyframes'],add:['keyframes','timeline'],position:['timeline'],image:['keyframes'],'image-review':['viewer'],'image-video':['prompts'],prompt:['prompts'],regenerate:['prompts'],'render-settings':['properties'],'render-takes':['takes'],'3d':['stage']};
+ const missing=required[step]?.find(id=>!visible.has(id));
+ return missing?{window:missing,stage:menuOpen?'item':'menu'}:null;
+}
 export function guidesPlaced(keys: { img?: string; anchor?: string }[]): boolean {
  return keys.some(k => k.img && k.anchor === 'start') && keys.some(k => k.img && k.anchor === 'end');
 }

@@ -84,7 +84,7 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
   const visible = new Set(ids(setup.tree));
   for (const [id, element] of panels) { element.hidden = !visible.has(id); element.classList.remove('is-dragging-window'); element.removeAttribute('style'); parking.append(element); menu.querySelector(`[data-window="${id}"]`)?.setAttribute('aria-pressed', String(visible.has(id))); }
   board.replaceChildren(); if (setup.tree) board.append(renderNode(setup.tree)); else { const empty = document.createElement('p'); empty.className = 'empty-workspace'; empty.textContent = 'Open a window from the Windows menu.'; board.append(empty); }
-  board.append(overlay); refresh();
+  board.append(overlay); refresh();document.dispatchEvent(new Event('osh-window-layout-changed'));
  }
  function openWindow(id: string): void { if (ids(setup.tree).includes(id)) return; setup.tree = setup.tree ? split('x', setup.tree, panel(id), .7) : panel(id); render(); persist(); }
  function closeWindow(id: string): void { setup.tree = remove(setup.tree, id); render(); persist(); }
@@ -138,7 +138,7 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
   location.onchange = () => { const [target, edge] = location.value.split(':'); if (target) { setup.tree = dock(setup.tree, id, target, edge as Edge); render(); persist(); } location.value = ''; };
   const close = document.createElement('button'); close.className = 'window-close'; close.innerHTML = icon('M6 6l12 12M18 6L6 18'); close.setAttribute('aria-label', 'Close ' + title); close.title = 'Close ' + title; close.onclick = () => closeWindow(id);
   bar.append(grip, location, close); const body = document.createElement('div'); body.className = 'window-body'; body.append(content); element.append(bar, body); panels.set(id, element);
-  const toggle = document.createElement('button'); toggle.dataset.window = id; toggle.textContent = title; toggle.onclick = () => { ids(setup.tree).includes(id) ? closeWindow(id) : openWindow(id); windows.open = false; }; menu.append(toggle);
+  const toggle = document.createElement('button'); toggle.dataset.window = id; toggle.textContent = title; toggle.setAttribute('aria-label', title); toggle.onclick = () => { ids(setup.tree).includes(id) ? closeWindow(id) : openWindow(id); windows.open = false; }; menu.append(toggle);
  }
  const assets = app.querySelector<HTMLElement>('aside.l')!, keys = app.querySelector<HTMLElement>('aside.r')!, viewer = main.querySelector<HTMLElement>('.viewer')!, image = main.querySelector<HTMLElement>('.image-stage')!, composer = main.querySelector<HTMLElement>('.composer')!, properties = document.getElementById('videoAttributes') as HTMLDetailsElement;
  const generate = composer.querySelector<HTMLElement>('.generate-action')!;

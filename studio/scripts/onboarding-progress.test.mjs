@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {ownsTour, canResumeWorkflow, readProfile, firstVisit, workflowForSetup, guidesPlaced} from '../src/onboarding-progress.ts';
+import {windowLesson, ownsTour, canResumeWorkflow, readProfile, firstVisit, workflowForSetup, guidesPlaced} from '../src/onboarding-progress.ts';
 const profile=readProfile({experience:'seasoned',workflows:{video:'completed',image:'skipped',edit:'nonsense',alien:'completed'}});
 assert.equal(profile.experience,'seasoned');assert.equal(firstVisit(profile,'director'),true);assert.equal(firstVisit(profile,'video'),false);assert.equal(firstVisit(profile,'image'),false);assert.equal(firstVisit(readProfile(null),'video'),false);
 assert.deepEqual(Object.keys(profile.workflows),['video','image']);assert.equal(workflowForSetup('Director'),'director');assert.equal(workflowForSetup('My images','image'),'image');assert.equal(workflowForSetup('Rendering'),'rendering');assert.equal(workflowForSetup('3D'),'3d');
@@ -10,6 +10,12 @@ assert.equal(canResumeWorkflow({entry:'edit',shotId:''},'edit'),true);
 assert.equal(canResumeWorkflow({entry:'image',shotId:'shot'},'director'),false);
 assert.equal(canResumeWorkflow({entry:'image',shotId:'shot',dismissed:true},'image'),false);
 assert.equal(ownsTour('edit','director'),false);assert.equal(ownsTour('director','edit'),false);assert.equal(ownsTour('edit','edit'),true);assert.equal(ownsTour('director','image'),true);
+assert.deepEqual(windowLesson('keyframes',new Set(['timeline']),false),{window:'keyframes',stage:'menu'});
+assert.deepEqual(windowLesson('keyframes',new Set(['timeline']),true),{window:'keyframes',stage:'item'});
+assert.equal(windowLesson('keyframes',new Set(['keyframes']),false),null);
+assert.deepEqual(windowLesson('add',new Set(['keyframes']),false),{window:'timeline',stage:'menu'});
+assert.equal(windowLesson('done',new Set(),false),null);
+assert.equal(windowLesson('edit-settings',new Set(),false),null);
 assert.equal(guidesPlaced([{img:'a',anchor:'start'},{anchor:'end'}]),false);assert.equal(guidesPlaced([{img:'a',anchor:'start'},{img:'b',anchor:'end'}]),true);
 // Exercise the actual Director attachment functions with CPU-only state and no renderer/network.
 const source=readFileSync(new URL('../src/director.ts',import.meta.url),'utf8');

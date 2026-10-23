@@ -2,7 +2,7 @@ import './onboarding-tour.css';
 import './onboarding-focus.css';
 import './onboarding-guidance.css';
 import { SC } from './scene';
-import { canResumeWorkflow, firstVisit, profileKey, readProfile, workflowForSetup, type Experience, type Workflow } from './onboarding-progress';
+import { canResumeWorkflow, firstVisit, profileKey, readProfile, windowLesson, workflowForSetup, type Experience, type Workflow } from './onboarding-progress';
 export type TourState = { step:string; shotId:string; images:string[]; dismissed?:boolean; suspended?:boolean; experience?:Experience; entry?:Workflow; firstVideo?:string|null };
 type Options = { get:()=>TourState|null; set:(state:TourState)=>void; save:()=>void; choose:(entry:Workflow)=>void; begin:(entry:Workflow)=>TourState; current:()=>Workflow };
 type Tip = { title:string; text:string; target?:string; secondary?:string; next?:string; diagram?:'add'|'position' };
@@ -17,7 +17,7 @@ export function mountOnboardingTour(options:Options) {
  const shade=document.createElementNS('http://www.w3.org/2000/svg','svg');shade.classList.add('tour-shade');shade.setAttribute('aria-hidden','true');shade.style.display='none';
  const shadePath=document.createElementNS(shade.namespaceURI,'path');shadePath.setAttribute('fill-rule','evenodd');shade.append(shadePath);
  const rings=[0,1].map(()=>{const ring=document.createElement('div');ring.className='tour-target';ring.hidden=true;return ring});document.body.append(shade,...rings,popup);
- let chooser:HTMLDialogElement|null=null,localStep=0,lastStage='',targets:string[]=[],switching=false,disposed=false;
+ let chooser:HTMLDialogElement|null=null,localStep=0,lastStage='',lastWindowLesson='',targets:string[]=[],switching=false,disposed=false;
  function end(skipped=false){const state=options.get();if(state){state.dismissed=true;const entry=state.entry||options.current();profile.workflows[entry]=skipped?'skipped':'completed';saveProfile();persist()}chooser?.close();render()}
  function pause(){const state=options.get();if(state?.entry&&!state.dismissed){state.suspended=true;persist()}}
  function start(entry:Workflow,force=false,changeSetup=true){
@@ -41,16 +41,21 @@ export function mountOnboardingTour(options:Options) {
   if(state.experience){const back=document.createElement('button');back.className='tour-back';back.textContent='← Experience level';back.onclick=()=>{state.experience=undefined;persist();chooser?.close();selection()};chooser.append(back)}
   chooser.append(grid,skip);chooser.addEventListener('cancel',e=>{e.preventDefault();end(true)});const currentDialog=chooser;chooser.addEventListener('close',()=>{currentDialog.remove();if(chooser===currentDialog)chooser=null});document.body.append(chooser);chooser.showModal();
  }
- function reveal(window:string){dispatchEvent(new CustomEvent('osh-reveal-window',{detail:window}))}
  function prepare(step:string){
-  if(['keyframes','add','image','image-generate'].includes(step))reveal('keyframes');
-  if(['add','position'].includes(step)){reveal('timeline');dispatchEvent(new Event('osh-tour-keyframe-view'))}
-  if(['prompt','regenerate','image-video'].includes(step))reveal('prompts');
-  if(step==='position')reveal('timeline');if(step==='image-review')reveal('viewer');if(step==='render-takes')reveal('takes');
+  if(['add','position'].includes(step))dispatchEvent(new Event('osh-tour-keyframe-view'));
   requestAnimationFrame(()=>{const selector=step==='add'?'#res':step==='position'?'#trk':step==='keyframes'?'#kgo':null;const element=selector&&document.querySelector(selector);element?.scrollIntoView({block:'nearest'})});
  }
  function tip(state:TourState):Tip{
   const beginner=state.experience==='beginner',pro=state.experience==='professional';
+  const visible=new Set(Array.from(document.querySelectorAll<HTMLElement>('.window-board .studio-window:not([hidden])')).map(panel=>panel.dataset.window!));
+  const lesson=windowLesson(state.step,visible,!!document.querySelector('.window-menu[open]'));
+  const lessonKey=lesson?lesson.window+':'+lesson.stage:'';
+  if(!lesson&&lastWindowLesson)prepare(state.step);lastWindowLesson=lessonKey;
+  if(lesson){
+   const titles:Record<string,string>={keyframes:'Image & keyframes',timeline:'Sequence',prompts:'Prompts',viewer:'Viewer',properties:'Size & timing',takes:'Takes',stage:'3D viewport'};
+   const title=titles[lesson.window];
+   return lesson.stage==='menu'?{title:'Add a window to your workspace',text:beginner?`Tools live in dockable windows. Open Windows in the top bar, then add ${title}. You can move windows and resize their splits to make the workspace yours.`:`Open Windows in the top bar to add ${title} yourself. Your window layout is saved.`,target:'.window-menu > summary'}:{title:`Choose ${title}`,text:`Select ${title} in this list to add the window. The walkthrough will continue once you have added it.`,target:`.window-menu button[data-window="${lesson.window}"]`};
+  }
   const tips:Record<string,Tip>={
    prompt:localStep===0?{title:'Describe your first scene',text:beginner?'Your shot prompt describes what the camera sees. We prepared a tiny copper robot watering a flower. Keep it or make it yours.':pro?'Edit the prepared shot prompt. Motion and audio are optional.':'Use the prepared scene or write your own. Motion and audio have separate prompt boxes.',target:'#shotPromptInput',next:'Next: generate'}:{title:'Bring it to life',text:beginner?'Press the highlighted Generate video button. No keyframes are required. We’ll continue when your video is ready.':'Press Generate video. The walkthrough continues when the video is ready.',target:'#gen'},
    keyframes:{title:'Create guide images',text:beginner?'A keyframe is an image that guides a moment in your video. The matching image prompt is ready. Use the image generator below; you’ll need two different results.':pro?'Generate at least two guide images from the prepared prompt.':'Use the image generator to create two matching guides for START and END.',target:'#kgo'},
@@ -102,6 +107,9 @@ export function mountOnboardingTour(options:Options) {
   rings.forEach((ring,i)=>{const b=rects[i];ring.hidden=!b;if(b)Object.assign(ring.style,{left:b.left-3+'px',top:b.top-3+'px',width:b.width+6+'px',height:b.height+6+'px'})});
  }
  document.addEventListener('osh-workspace-selected',((event:CustomEvent<{name:string;mode:string}>)=>{if(switching||chooser?.open)return;const state=options.get();if(state&&!state.dismissed&&(!state.experience||!state.entry))return;const entry=workflowForSetup(event.detail.name,event.detail.mode);if(state?.entry===entry&&!state.dismissed&&!state.suspended)return;if(profile.experience)start(entry,false,false)}) as EventListener);
+ const refreshWindows=()=>{if(!chooser?.open)render()};
+ document.addEventListener('osh-window-layout-changed',refreshWindows);
+ document.addEventListener('toggle',event=>{if((event.target as HTMLElement)?.matches('.window-menu'))refreshWindows()},true);
  addEventListener('pagehide',()=>{disposed=true});
  let initial=options.get();if(initial?.entry&&initial.entry!=='edit'&&!initial.shotId){const fresh=options.begin(initial.entry);fresh.experience=profile.experience;options.set(fresh);persist();initial=fresh}if(initial?.experience&&!profile.experience){profile.experience=initial.experience;saveProfile()}
  if(initial&&!initial.dismissed&&!initial.suspended){if(initial.entry)profile.workflows[initial.entry]??='started';saveProfile();render()}else if(firstVisit(profile,options.current())||profile.workflows[options.current()]==='started'&&suspended[options.current()]&&!suspended[options.current()]!.dismissed)start(options.current(),false,false);else render();

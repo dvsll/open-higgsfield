@@ -14,7 +14,7 @@ const pinBytes=await readFile(join(root,'pins.json')),pins=JSON.parse(pinBytes),
 const checkGate=async()=>validateRunGate(lease,JSON.parse(await readFile(process.env.BENCHMARK_WATCHDOG_READY,'utf8')),JSON.parse(await readFile(process.env.BENCHMARK_HEALTH_REPORT,'utf8')),createHash('sha256').update(pinBytes).digest('hex'));
 await checkGate();
 const deadline=lease.deadline*1000;
-if(deadline-Date.now()<30*60*1000||deadline-lease.created*1000>10800000)throw Error('Insufficient session time or invalid lease. Stop and collect artifacts.');
+if(deadline-Date.now()<30*60*1000||deadline-lease.created*1000>9000000)throw Error('Insufficient session time or invalid lease. Stop and collect artifacts.');
 const base=process.env.COMFY_BASE_URL||'http://127.0.0.1:28189',comfy=process.env.BENCHMARK_COMFY_URL||'http://127.0.0.1:28188';
 for(const u of [base,comfy])if(!['127.0.0.1','localhost','[::1]'].includes(new URL(u).hostname))throw Error('Use an SSH loopback tunnel, not a public HTTP endpoint');
 delete process.env.COMFY_API_KEY;process.env.COMFY_BASE_URL=base;

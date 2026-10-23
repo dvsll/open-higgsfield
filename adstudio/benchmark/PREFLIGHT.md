@@ -65,3 +65,5 @@ PASS: authenticated HF HEAD/status/size for all five pins; actual pinned CPU ima
 Full paid-operation commands and exact model pins remain in [README.md](README.md). This report adds prerequisites; it grants no approval to execute them.
 
 Latest read-only account/SXM quote and exact blockers: [DEPLOYMENT_GATE.md](DEPLOYMENT_GATE.md). Catalog price verified; full host/all-in offer and access/watchdog gates remain NO-GO.
+
+Scope correction: browser/Camera/project acceptance gates production acceptance and PR3 merge only; no browser UI is a technical dependency of the isolated SDK feasibility run. Current practical procedures, v2 lifecycle reconciliation and zero-cost rehearsals: [ACCESS_RUNBOOK.md](ACCESS_RUNBOOK.md). Maximum2.5h/$6 all-in, not3h.

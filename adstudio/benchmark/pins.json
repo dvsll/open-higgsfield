@@ -50,9 +50,9 @@
   },
   "requirementsSha256": "38e28e44c0d4b7c2113fe69a4a985e9b59167fdf8e25703054816f94ad1ed0e1",
   "budget": {
-    "gpuHours": 3,
+    "gpuHours": 2.5,
     "gpuRate": 1.79,
-    "gpu": 5.37,
+    "gpu": 4.475,
     "containerGB": 30,
     "volumeGB": 200,
     "storageRatePerGBMonth": 0.1,

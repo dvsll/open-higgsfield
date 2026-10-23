@@ -140,7 +140,9 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
   const toggle = document.createElement('button'); toggle.dataset.window = id; toggle.textContent = title; toggle.onclick = () => { ids(setup.tree).includes(id) ? closeWindow(id) : openWindow(id); windows.open = false; }; menu.append(toggle);
  }
  const assets = app.querySelector<HTMLElement>('aside.l')!, keys = app.querySelector<HTMLElement>('aside.r')!, viewer = main.querySelector<HTMLElement>('.viewer')!, image = main.querySelector<HTMLElement>('.image-stage')!, composer = main.querySelector<HTMLElement>('.composer')!, properties = document.getElementById('videoAttributes') as HTMLDetailsElement;
- const generate = composer.querySelector<HTMLElement>('.generate-action')!; composer.querySelector('.row')!.append(generate);
+ const generate = composer.querySelector<HTMLElement>('.generate-action')!;
+ const promptScroll = document.createElement('div'); promptScroll.className = 'prompt-scroll';
+ generate.remove(); promptScroll.append(...Array.from(composer.children)); composer.append(promptScroll, generate);
  properties.open = true; const viewContent = document.createElement('div'); viewContent.className = 'viewer-content'; viewContent.append(image, viewer);
  add('files','Project files',mountProjectFiles());add('stash','Stash',document.getElementById('stash')!);
  add('stylization', 'Stylization', document.getElementById('studioStylization')!); add('elements', 'Elements', document.getElementById('studioElements')!); add('assets', 'Selected media', assets); add('viewer', 'Viewer', viewContent); add('prompts', 'Prompts', composer); add('keyframes', 'Image & keyframes', keys); add('properties', 'Size & timing', properties); add('timeline', 'Sequence', main.querySelector<HTMLElement>('.tlw')!); add('takes', 'Takes', main.querySelector<HTMLElement>('.hist')!);

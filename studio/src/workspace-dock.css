@@ -49,3 +49,27 @@
 
 /* Preserve both adjacent media lanes when the viewport is short. */
 @media(max-height:650px){.studio-window[data-window=timeline]>.window-body{padding:0}}
+
+/* Prompt window: one vertical reading order and an always-visible action footer. */
+.studio-window[data-window=prompts]>.window-body{padding:0;overflow:hidden}
+.studio-window[data-window=prompts] .composer{height:100%;min-height:0;display:flex;flex-direction:column;gap:0;padding:0}
+.studio-window[data-window=prompts] .prompt-scroll{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;padding:var(--ui-space);display:flex;flex-direction:column;gap:12px}
+.studio-window[data-window=prompts] .prompt-scroll>.modelbar{flex:none;padding:0;flex-wrap:wrap;gap:6px}
+.studio-window[data-window=prompts] .prompt-scroll>.row{display:flex;flex-direction:column;gap:12px;flex:none;margin:0;padding:0;min-height:0}
+.studio-window[data-window=prompts] .composer .prompt-field{display:flex;flex-direction:column;gap:4px;width:100%;min-width:0;margin:0;flex:none}
+.studio-window[data-window=prompts] .composer .prompt-field[hidden]{display:none}
+.studio-window[data-window=prompts] .composer .prompt-field :is(textarea,.mention-editor){width:100%;height:96px;min-height:96px;flex:none;box-sizing:border-box}
+.studio-window[data-window=prompts] .composer .mention-editor textarea{height:100%;min-height:0}
+.studio-window[data-window=prompts] .composer .generate-action{position:static;display:flex;flex-direction:column;align-items:flex-end;align-self:stretch;flex:none;width:auto;height:auto;min-height:0;margin:0;padding:8px;gap:4px;background:var(--ui-bg);grid-area:auto}
+.studio-window[data-window=prompts] .composer .generate-action #gen{width:148px;max-width:100%;height:44px;min-height:44px;max-height:44px;margin:0}
+.studio-window[data-window=prompts] .composer .generate-action #videoGenerationEstimate{position:static;top:auto;right:auto;max-width:100%;white-space:normal;text-align:right;margin:0;font-size:var(--ui-small);line-height:14px}
+.studio-window[data-window=prompts] .prompt-scroll>.audio-actions{flex:none;margin:0;padding:0;min-height:0;display:flex;flex-wrap:wrap;gap:6px}
+@media(max-height:650px){.studio-window[data-window=prompts] .composer .prompt-field :is(textarea,.mention-editor){height:64px;min-height:64px}.studio-window[data-window=prompts] .composer .mention-editor textarea{height:100%;min-height:0}.studio-window[data-window=prompts] .prompt-scroll{gap:8px}.studio-window[data-window=prompts] .prompt-scroll>.row{gap:8px}}
+.studio-window[data-window=prompts] .prompt-scroll>.audio-actions[hidden]{display:none}
+.studio-window[data-window=prompts] .prompt-scroll>.modelbar{display:flex;align-items:center;min-width:0}
+.studio-window[data-window=prompts] .modelbar .model-card{flex:1 1 100%;min-width:0;max-width:100%}
+.studio-window[data-window=prompts] .modelbar .cap-badges{display:flex;flex-wrap:wrap!important;overflow:visible!important;min-width:0}
+.studio-window[data-window=prompts] .modelbar .model-picker{max-width:100%;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.studio-window[data-window=prompts] .prompt-scroll{container-type:size}
+.studio-window[data-window=prompts] .composer .prompt-field :is(textarea,.mention-editor){height:clamp(40px,calc((100cqh - 160px)/3),120px);min-height:40px}
+.studio-window[data-window=prompts] .composer .mention-editor textarea{height:100%;min-height:0}

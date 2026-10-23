@@ -3,6 +3,8 @@ import '../../shared/lib/kit.js';
 import '../../shared/styleboard/looks.js';
 import { SC } from './scene';
 import { updateGenerateArrow } from './generate-arrow';
+import { mountEditHistory } from './edit-history';
+let editHistory;
 import { mountProjects } from './projects';
 import { videoFrames, paintFilmstrip } from './video-frames';
 import { drawAudioTrack } from './audio-track';
@@ -32,7 +34,7 @@ function renderTour(){const root=document.getElementById('onboardingGuide');if(!
 let STASH=saved?.STASH||[],TRASH=saved?.TRASH||[],HISTORY=saved?.HISTORY||[];const workshop=SC.get('osh-workspace')||{};
 let keyframeBatch=[1,2,4].includes(workshop.keyframeCount)?workshop.keyframeCount:4;
 let workspaceMode=workshop.mode||'video',imageDraft=workshop.image||{prompt:'',url:null},cinema=SH.length>1;
-function saveWorkshop(){SC.set('osh-workspace',{mode:workspaceMode,image:imageDraft,keyframeCount:keyframeBatch})}
+function saveWorkshop(){SC.set('osh-workspace',{mode:workspaceMode,image:imageDraft,keyframeCount:keyframeBatch});editHistory?.record()}
 function syncWorkspace(){document.body.dataset.workflow=workspaceMode;document.body.classList.toggle('single-scene',!cinema);document.querySelectorAll('[data-workflow]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.workflow===workspaceMode)));$('#imageHero').src=imageDraft.url||'';$('#imageHero').hidden=!imageDraft.url;$('#imageWelcome').hidden=!!imageDraft.url;$('#nextImage').hidden=!imageDraft.url;$('#nextVideo').hidden=!SH[cur]?.r||touring();}
 // Stable identities keep takes attached when shots move, including through stash/trash.
 function shotId(s: {id?: string}): string {return s.id??=crypto.randomUUID()}
@@ -41,7 +43,7 @@ storedShots.forEach(s=>{shotId(s);s.keys.forEach(k=>{if(!k.anchor&&k.t===0)k.anc
 // Old history only stored a sequence index. Match the current video first;
 // unresolved entries stay unavailable rather than risking another shot's take.
 HISTORY.forEach(h=>{if(h.kind==='shot'&&!h.shotId){const s=storedShots.find(s=>s.video===h.url);if(s)h.shotId=shotId(s)}});
-function save(){SC.set('osh-director',{SH,cur,G,STASH,TRASH,HISTORY})}
+function save(){SC.set('osh-director',{SH,cur,G,STASH,TRASH,HISTORY});editHistory?.record()}
 // Generation history: every keyframe/shot the GPU made, newest first. Click to reuse.
 function pushHist(e){HISTORY.unshift({...e,at:Date.now()});HISTORY=HISTORY.slice(0,80);histUI();save()}
 function ago(t){const m=Math.round((Date.now()-t)/60000);return m<1?'just now':m<60?m+' min ago':Math.round(m/60)+' h ago'}
@@ -341,5 +343,11 @@ $('#editWorkshopImage').textContent='Download image';$('#editWorkshopImage').onc
 $('#growFilm').onclick=()=>{cinema=true;SH.push({n:`Scene ${SH.length+1}`,d:4,spec:SP({mia:false,bolt:false,scene:''}),m:'',keys:[],r:false});cur=SH.length-1;shotId(SH[cur]);open=null;G=start(cur);selKey=null;syncWorkspace();timeline();head();save();$('#shotPromptInput').focus()};
 syncWorkspace();$('#kgo').textContent=workspaceMode==='image'?'Generate image':'Generate '+keyframeBatch+' keyframe'+(keyframeBatch===1?'':'s');
 if(touring()&&onboarding.images?.length){results=onboarding.images.map(url=>({img:url,spec:SH.find(s=>s.id===onboarding.shotId)?.spec||SP({}),u:.5,p:imageDraft.prompt}));res()}
+editHistory=mountEditHistory(
+ ()=>JSON.parse(JSON.stringify({SH,STASH,TRASH,imageDraft,keyframeBatch})),
+ state=>{const id=SH[cur]?.id;setPlaying(false);SH.splice(0,SH.length,...state.SH);STASH=state.STASH;TRASH=state.TRASH;imageDraft=state.imageDraft;keyframeBatch=state.keyframeBatch;cur=Math.max(0,SH.findIndex(s=>s.id===id));open=null;selKey=null;clipSelected=true;selectedTrack='video';G=start(cur);viewerTrimShot='';$('#kp').value=imageDraft.prompt||'';batchSlider.value=String([1,2,4].indexOf(keyframeBatch));updateBatch();saveWorkshop();syncWorkspace();timeline();head();stashUI();trashUI();save()},
+ ()=>$('#ov').style.display==='flex'||$('#kgo').disabled||!!cancelShotDrag||!!dragV
+);
+editHistory.element.id='studioEditHistory';document.body.append(editHistory.element);
 mountWorkspaceDock(()=>{timeline();head()},setWorkflow);
 timeline();head();markEls();histUI();save();if(!playing)setPlaying(false);

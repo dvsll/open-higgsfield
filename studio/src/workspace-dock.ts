@@ -144,7 +144,7 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
  const promptScroll = document.createElement('div'); promptScroll.className = 'prompt-scroll';
  generate.remove(); promptScroll.append(...Array.from(composer.children)); composer.append(promptScroll, generate);
  properties.open = true; const viewContent = document.createElement('div'); viewContent.className = 'viewer-content'; viewContent.append(image, viewer);
- add('files','Project files',mountProjectFiles());add('stash','Stash',document.getElementById('stash')!);
+ add('edit-history','Edit history',document.getElementById('studioEditHistory')!);add('files','Project files',mountProjectFiles());add('stash','Stash',document.getElementById('stash')!);
  add('stylization', 'Stylization', document.getElementById('studioStylization')!); add('elements', 'Elements', document.getElementById('studioElements')!); add('assets', 'Selected media', assets); add('viewer', 'Viewer', viewContent); add('prompts', 'Prompts', composer); add('keyframes', 'Image & keyframes', keys); add('properties', 'Size & timing', properties); add('timeline', 'Sequence', main.querySelector<HTMLElement>('.tlw')!); add('takes', 'Takes', main.querySelector<HTMLElement>('.hist')!);
  const sequenceBar = panels.get('timeline')!.querySelector('.window-titlebar')!;
  for (const id of ['trashBtn', 'addKeyBtn']) { const control = document.getElementById(id); if (control) sequenceBar.insertBefore(control, sequenceBar.children[1]); }

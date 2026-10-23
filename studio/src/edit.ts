@@ -4,8 +4,10 @@ import '../../shared/styleboard/looks.js';
 import { SC } from './scene';
 import { SHELL } from './shell';
 import { mountVideoEditor } from './video-editor';
+import { mountEditOnboarding } from './edit-onboarding';
 const incoming=new URLSearchParams(location.search).get('from')?SC.get('osh-handoff'):null;
 if(incoming?.video)mountVideoEditor(incoming);else legacyEditor();
+mountEditOnboarding();
 function legacyEditor(){
 const {$,$$}=K,W=640,H=360;
 // Source: a keyframe handed over from Director, or a sample frame.

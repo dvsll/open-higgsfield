@@ -22,23 +22,24 @@ browser → Vite :8288 ─ pages (HMR)
                       └ /api, /outputs → shared/runtime/api.ts → @comfyorg/sdk → comfy-api-proxy :8189 → ComfyUI :8188
 ```
 
-1. **Node 22.18+** and `npm install`.
-2. Run ComfyUI (any install: Desktop, portable or git) on `127.0.0.1:8188`.
-3. Fetch the dev models into its `models/` folder (skips files you already have; ~30 GB, list in `shared/runtime/models.json`):
-   ```bash
-   npm run models -- --models-dir "<ComfyUI>/models" --dry-run
-   ```
-   Drop `--dry-run` to actually download.
-4. Install the Comfy API proxy once (the only non-Node piece; it's a pip tool the dev server starts for you):
-   ```bash
-   pip install -r shared/runtime/requirements.txt
-   ```
-   Or put it in a `.venv` at the repo root, or point `COMFY_API_PROXY` in `.env` at it.
-5. Start the dev server:
-   ```bash
-   npm run dev
-   ```
-   Open http://127.0.0.1:8288/. The Director header shows **● local ComfyUI** when generation is available.
+1. Install **Node 22.18+**, then run `npm install` and `npm run dev`.
+2. Open http://127.0.0.1:8288/studio/director.html. Click **Local setup** in the header. It opens automatically when the local runtime or video models are missing.
+3. Choose a setup path:
+   - **Use existing ComfyUI:** start your Desktop, portable or manual instance, enter its local URL (default `http://127.0.0.1:8188`), and connect. Existing models are reused. Enter its actual `models` folder only if you want Studio to download missing packs into it. Studio installs an isolated SDK connector only when needed.
+   - **Set up a local instance:** with **Python 3.12/3.13 and Git** available, choose NVIDIA, Apple Silicon or CPU and click **Download & install ComfyUI**. Studio installs pinned ComfyUI v0.41.3 and its dependencies separately under `.runtime/`, binds it to loopback, and saves the selected release/connection locally. Existing ComfyUI installations are left alone. AMD/Intel users can install [ComfyUI Desktop](https://www.comfy.org/download), then use the existing-instance path.
+4. Select only the model packs you want. The setup screen lists missing file sizes, licenses and sources, and shows actual download bytes. Video needs roughly **11.5 GB**; image and audio packs are optional. Interrupted model downloads resume; complete files are reused; incomplete existing files are reported without overwriting them.
+5. Generate after setup completes. **Downloading**, **installing**, **preparing models**, **generating** and **encoding** are separate statuses. First-time model loading can take minutes. The generation counter only labels a stage as generation when the runtime reports it; an older proxy without detailed progress gets an explicit coarse-progress message.
+
+The **Local setup** button stays available for reconnecting, changing models folders, starting the managed runtime, and downloading additional packs. Setup operations are only available from this computer and the app’s own origin; remote shared viewers cannot install software or write model files. Setup and generation cannot change the runtime underneath one another.
+
+Connection settings live in gitignored `outputs/runtime-config.json`; optional managed software is in gitignored `.runtime/`. The setup does not rewrite `.env`. The managed runtime starts again with the dev server after a successful install.
+
+Manual fallback remains supported:
+```bash
+pip install -r shared/runtime/requirements.txt
+npm run models -- --models-dir "<ComfyUI>/models" --only shot_ltxv --dry-run
+```
+Drop `--dry-run` to download. The CLI and setup UI use the same resumable model downloader. Environment overrides remain documented in `.env.example`. Runtime installer sources and licenses are recorded in [Studio notes](notes/studio.md).
 
 Other scripts: `npm run typecheck`, `npm run build` (to `dist/`), `npm run preview`.
 Outputs land in `outputs/` (gitignored). Workflow details and timings: `shared/workflows/CONTRACT.md`.

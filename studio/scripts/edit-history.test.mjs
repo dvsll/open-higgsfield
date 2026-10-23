@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import {createHistory,recordHistory,historyTarget,validHistory} from '../src/edit-history-tree.ts';
+const t=createHistory({value:0}),root=t.current;
+recordHistory(t,{value:1},'One');const one=t.current;
+recordHistory(t,{value:2},'Two');const two=t.current;
+assert.equal(historyTarget(t,'undo'),one);t.current=one;
+recordHistory(t,{value:3},'Alternate');const alternate=t.current;
+assert(t.nodes.some(n=>n.id===two));assert.equal(t.nodes.find(n=>n.id===alternate).parent,one);
+t.current=one;assert.equal(historyTarget(t,'redo'),alternate);
+assert.equal(recordHistory(t,{value:1},'Duplicate'),false);
+t.preferred={[one]:two};assert.equal(historyTarget(t,'redo'),two);delete t.preferred;
+assert(validHistory(JSON.parse(JSON.stringify(t))));
+const bad=structuredClone(t);bad.nodes[0].parent=two;assert.equal(validHistory(bad),false);
+t.current=alternate;for(let i=4;i<220;i++)recordHistory(t,{value:i},'Change');assert(t.nodes.length<=160);assert(validHistory(t));assert.notEqual(t.current,root);
+const state={value:300};recordHistory(t,state,'Copy');state.value=400;assert.equal(t.nodes.at(-1).state.value,300);
+console.log('PASS: edit history undo/redo, alternate branches, deduplication, persistence validation, cycles, retention and snapshot isolation.');

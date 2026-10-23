@@ -1,4 +1,5 @@
 import './workspace-dock.css';
+import './sequence-transport.css';
 import { mountProjectFiles } from './project-files';
 import { SHELL } from './shell';
 import { panel, split, ids, remove, dock, valid, boundsOf, type Edge, type LayoutNode } from './window-layout';
@@ -147,6 +148,9 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
  add('edit-history','Edit history',document.getElementById('studioEditHistory')!);add('files','Project files',mountProjectFiles());add('stash','Stash',document.getElementById('stash')!);
  add('stylization', 'Stylization', document.getElementById('studioStylization')!); add('elements', 'Elements', document.getElementById('studioElements')!); add('assets', 'Selected media', assets); add('viewer', 'Viewer', viewContent); add('prompts', 'Prompts', composer); add('keyframes', 'Image & keyframes', keys); add('properties', 'Size & timing', properties); add('timeline', 'Sequence', main.querySelector<HTMLElement>('.tlw')!); add('takes', 'Takes', main.querySelector<HTMLElement>('.hist')!);
  const sequenceBar = panels.get('timeline')!.querySelector('.window-titlebar')!;
+ const sequenceTransport=document.createElement('div');sequenceTransport.className='sequence-transport';sequenceTransport.setAttribute('role','group');sequenceTransport.setAttribute('aria-label','Sequence playback position');
+ for(const id of ['previousFrame','nextFrame','viewerTime']){const control=panels.get('viewer')!.querySelector<HTMLElement>('#'+id)!;sequenceTransport.append(id==='viewerTime'?control.closest('label')!:control)}
+ sequenceBar.insertBefore(sequenceTransport,sequenceBar.children[1]);
  for (const id of ['trashBtn', 'addKeyBtn']) { const control = document.getElementById(id); if (control) sequenceBar.insertBefore(control, sequenceBar.children[1]); }
  const stage = document.createElement('div'); stage.className = 'stage-placeholder'; stage.innerHTML = '<div class="stage-grid"></div><h2>3D workspace</h2><p>A 3D viewport and scene tools are not connected yet.</p>'; add('stage', '3D viewport', stage);
  for (const [id, value] of Object.entries(store.notes)) if (value && typeof value.title === 'string' && typeof value.text === 'string') note(id, value.title, value.text);

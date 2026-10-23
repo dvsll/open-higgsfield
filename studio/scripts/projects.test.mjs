@@ -17,3 +17,20 @@ const {seedOnboarding}=await import('../src/onboarding-starter.ts');seedOnboardi
 const starter=JSON.parse(data.get('osh:tour:osh-director')),tour=JSON.parse(data.get('osh:tour:osh-onboarding')),workshop=JSON.parse(data.get('osh:tour:osh-workspace'));
 assert.equal(starter.SH.length,1);assert.deepEqual(starter.SH[0].keys,[]);assert.equal(tour.shotId,starter.SH[0].id);assert.equal(tour.step,'prompt');assert.ok(starter.SH[0].prompt.includes('greenhouse'));assert.equal(workshop.keyframeCount,2);assert.equal(data.get(first.projectKey('osh-director')),original);
 console.log('PASS: legacy migration preserves original data and separate projects cannot overwrite each other.');
+// Recycled records stay recoverable, and cannot become the active storage namespace.
+const recycleList=JSON.parse(data.get('osh-projects-v1'));
+recycleList.find(p=>p.id==='second').deletedAt=Date.now();
+data.set('osh-projects-v1',JSON.stringify(recycleList));
+const recycled=await import('../src/projects.ts?recycled');
+assert.equal(recycled.projectKey('osh-director'),first.projectKey('osh-director'));
+assert.equal(data.get('osh:second:osh-director'),'second shot');
+assert.deepEqual(recycled.orderedProjects([{id:'a',name:'A',created:1},{id:'b',name:'B',created:2},{id:'c',name:'C',created:3,deletedAt:4}],'a').map(p=>p.id),['a','b']);
+// With no live projects, create a usable replacement without dropping the bin or legacy-copying old scenes.
+data.set('osh-projects-v1',JSON.stringify(recycleList.map(p=>({...p,deletedAt:Date.now()}))));
+const replacement=await import('../src/projects.ts?replacement');
+const all=JSON.parse(data.get('osh-projects-v1'));
+assert.equal(all.filter(p=>p.deletedAt).length,recycleList.length);
+assert.equal(all.filter(p=>!p.deletedAt).length,1);
+assert.notEqual(replacement.projectKey('osh-director'),first.projectKey('osh-director'));
+assert.equal(data.get('osh:second:osh-director'),'second shot');
+console.log('PASS: recycled projects preserve data, current sorting and safe last-project replacement.');

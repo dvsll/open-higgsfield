@@ -361,3 +361,5 @@ onboardingUI=mountOnboardingTour({
 });
 const requestedTour=sessionStorage.getItem('osh-requested-workflow');if(requestedTour){sessionStorage.removeItem('osh-requested-workflow');onboardingUI.visit(requestedTour)}
 timeline();head();markEls();histUI();save();if(!playing)setPlaying(false);
+
+import './projects.css';

@@ -2,6 +2,7 @@
 import '../../shared/lib/kit.js';
 import '../../shared/styleboard/looks.js';
 import { SC } from './scene';
+import { updateGenerateArrow } from './generate-arrow';
 import { mountProjects } from './projects';
 import { videoFrames, paintFilmstrip } from './video-frames';
 import { drawAudioTrack } from './audio-track';
@@ -276,7 +277,7 @@ K.loop(t=>{const now=performance.now(),dt=(now-last)/1000;last=now;if(playing){c
  else{if(vid.style.display!=='none'){vid.pause();vid.style.display='none'}}
  for(const [index,shot] of SH.entries()){const id=shotId(shot),begin=shot.audioLinked===false?shot.audioStart??start(index):start(index),duration=shot.audioLinked===false?shot.audioDuration||shot.d:shot.d,local=G-begin;let player=audioPlayers.get(id);if(!player&&shot.audio){player=new Audio();player.preload='auto';audioPlayers.set(id,player)}if(!player)continue;if(playing&&workspaceMode==='video'&&shot.audio&&!shot.audioMuted&&local>=0&&local<duration){if(!player.src.endsWith(shot.audio)){player.src=shot.audio;player.currentTime=local}if(Math.abs(player.currentTime-local)>.2)player.currentTime=local;if(player.paused)player.play().catch(()=>{})}else player.pause()}for(const[id,player]of audioPlayers)if(!SH.some(shot=>shot.id===id)){player.pause();audioPlayers.delete(id)}
  shotFrame(g,s,lt,t);if(!s.r)mute(g);
- const em=workspaceMode==='video'&&!s.r;$('#empty').style.display=em?'block':'none';$('#tag').style.visibility=$('#tc').style.visibility=em?'hidden':'visible';$('#gen').classList.toggle('nudge',em);const arrow=$('#generateArrow'),button=$('#gen').getBoundingClientRect(),message=$('#empty .msg').getBoundingClientRect();if($("#nextVideo"))$("#nextVideo").hidden=workspaceMode!=='video'||!SH[cur].r||touring();const showArrow=em&&$('#ov').style.display!=='flex'&&message.bottom>58&&button.top<innerHeight&&button.top>message.bottom;arrow.style.display=showArrow?'block':'none';if(showArrow){const x=message.left+message.width*.72,y=message.bottom+14,ex=button.left+button.width*.65,ey=button.top-12;$('#generateArrowCurve').setAttribute('d',`M ${x} ${y} C ${x+75} ${y+8}, ${ex+15} ${y+25}, ${ex} ${ey}`)}if(lt<.2&&i>0&&playing&&open==null){g.fillStyle=`rgba(0,0,0,${1-lt/.2})`;g.fillRect(0,0,W,H)}
+ const em=workspaceMode==='video'&&!s.r;$('#empty').style.display=em?'block':'none';$('#tag').style.visibility=$('#tc').style.visibility=em?'hidden':'visible';$('#gen').classList.toggle('nudge',em);if($("#nextVideo"))$("#nextVideo").hidden=workspaceMode!=='video'||!SH[cur].r||touring();updateGenerateArrow(em&&$('#ov').style.display!=='flex');if(lt<.2&&i>0&&playing&&open==null){g.fillStyle=`rgba(0,0,0,${1-lt/.2})`;g.fillRect(0,0,W,H)}
  $('#tag').textContent=s.r?`Shot ${i+1} · generated${s.video?' · LTX-Video':''}`:`Shot ${i+1} · keyframe preview — generate for real motion`;$('#tc').textContent=clipSelected||open!=null?`${lt.toFixed(1)} / ${+s.d.toFixed(3)}s`:`${G.toFixed(1)} / ${+tot().toFixed(3)}s`;
  if($('#viewerTime')&&document.activeElement!==$('#viewerTime'))$('#viewerTime').value=Math.min(SH[cur].d,Math.max(0,G-start(cur))).toFixed(3);
  $('#gph').style.left=((open!=null?G-start(open):G)*pxs+$('#ruler').offsetLeft)+'px';$('#gph').setAttribute('aria-label',`Playhead ${G.toFixed(1)} seconds`);SHELL.select(media())});

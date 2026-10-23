@@ -3,6 +3,7 @@
 Append dated decisions, render times and requests here. Only the studio owner edits this file; the partner adds requests at the bottom.
 
 ## Where we left off (update this before switching agents)
+**Latest handoff - 2026-10-23, responsive arrow curves:** Extracted Generate guidance into typed generate-arrow.ts. Curve uses direction-aware anchors and proportional Bezier handles, ending with a clean tangent toward the closest button edge. Horizontal routes start beneath/above the message rather than compressing into a narrow hook alongside it. Supports targets on either side and above/below; updates with the existing viewer render loop during docking, scrolling and resize. Suppresses cramped, clipped, hidden, covered or disabled targets and offscreen control-point hulls. Browser checked default and Prompts right/above/below Viewer on8288, restored default; screenshot outputs/generate-arrow-responsive.png. Typecheck passes. No models/dependencies/runtime changes.
 
 **Agreed direction - 2026-10-22:** User approved incremental React migration. Move contained panels as they are touched, retaining project state/runtime contracts/docking and shared design tokens; avoid a rewrite. No React dependency added in this change. Active development port is **8288**; older8292 handoffs below are historical.
 

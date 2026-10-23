@@ -1,0 +1,4 @@
+/* Dim the workspace without blocking its controls; the target remains a clear cutout. */
+.tour-target{box-shadow:0 0 0 200vmax rgb(0 0 0 / 68%)}
+.tour-popover{box-shadow:0 8px 32px #000b}
+.tour-popover[data-unanchored=true]{box-shadow:0 0 0 200vmax rgb(0 0 0 / 68%),0 8px 32px #000b}

@@ -3,6 +3,7 @@
 // Project-level state (selected style, user styles) lives in localStorage 'osh-project' so it follows you between apps.
 import { SC } from './scene';
 import { elementLibrary } from './element-maker';
+import { mountRuntimeSetup } from './runtime-setup';
 import { mountConnection } from './connection';
 import { mountNumberControls } from './number-controls';
 
@@ -168,7 +169,7 @@ const allStyles = (): Style[] => [...STYLEBOARD.looks, ...userStyles()];
 function save(extra: Partial<ProjectState> = {}) { SC.set('osh-project', { ...state(), style: style.id, str, ...extra }); }
 
 function mount(o: Opts) {
-  mountConnection();
+  mountConnection();mountRuntimeSetup();
   mountNumberControls();
   opts = o;
   const st = state();
@@ -306,6 +307,7 @@ function drawMedia() {
   box.innerHTML = `<canvas width="320" height="180"></canvas><div class="mt"><span class="ty">${TYPES[media.type]}</span><b>${media.label}</b></div><div class="openin"></div>`;
   const cv = $('canvas', box) as HTMLCanvasElement, g = cv.getContext('2d')!;
   if (media.img) loadImg(media.img).then((im) => { const r = Math.max(cv.width / im.naturalWidth, cv.height / im.naturalHeight); g.drawImage(im, (cv.width - im.naturalWidth * r) / 2, (cv.height - im.naturalHeight * r) / 2, im.naturalWidth * r, im.naturalHeight * r); });
+  else if(media.video){SC.blank(g);const source=media.video,video=document.createElement('video');video.muted=true;video.preload='auto';video.src=source+'#t=0.1';let drawn=false;video.onloadeddata=()=>{if(drawn||media?.video!==source||!cv.isConnected)return;drawn=true;const scale=Math.min(cv.width/video.videoWidth,cv.height/video.videoHeight);g.fillStyle='#08090b';g.fillRect(0,0,cv.width,cv.height);g.drawImage(video,(cv.width-video.videoWidth*scale)/2,(cv.height-video.videoHeight*scale)/2,video.videoWidth*scale,video.videoHeight*scale);video.removeAttribute('src');video.load()}}
   else SC.blank(g);
   const list = $('.openin', box);
   for (const [id, n, , types] of APPS) {

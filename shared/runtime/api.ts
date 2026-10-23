@@ -10,6 +10,8 @@
  * - Inputs are validated, bodies are size-capped, jobs run one at a time with a short queue,
  *   and /outputs only serves files this API wrote (random hex names).
  */
+import { RuntimeSetup, setupAccess } from './setup.ts';
+import { JobActivity, phaseForProgress } from './job-activity.ts';
 import { Comfy } from "@comfyorg/sdk";
 import { spawn } from "node:child_process";
 import { randomBytes, timingSafeEqual } from "node:crypto";
@@ -38,6 +40,7 @@ type Key = { image: string; t: number; strength?: number };
 // ---------------- ComfyUI side ----------------
 
 let comfy: Comfy | null = null;
+const activity=new JobActivity();
 function client(env: Env): Comfy {
   process.env.COMFY_BASE_URL = env.COMFY_BASE_URL || "http://127.0.0.1:8189"; // read by the SDK
   return (comfy ??= new Comfy());
@@ -53,7 +56,13 @@ async function up(url: string): Promise<boolean> {
 }
 
 /** Start comfy-api-proxy (pip tool) in front of ComfyUI if it isn't running. */
-async function ensureProxy(env: Env): Promise<void> {
+const proxyStarts=new Map<string,Promise<void>>();
+async function ensureProxy(env:Env):Promise<void>{
+ const key=(env.COMFY_BASE_URL||'http://127.0.0.1:8189')+'|'+(env.COMFYUI_URL||'http://127.0.0.1:8188');
+ const pending=proxyStarts.get(key);if(pending)return pending;
+ const work=startProxyProcess(env);proxyStarts.set(key,work);try{await work}finally{proxyStarts.delete(key)}
+}
+async function startProxyProcess(env: Env): Promise<void> {
   const base = env.COMFY_BASE_URL || "http://127.0.0.1:8189";
   if (await up(base + "/api/v2/health")) return;
   const win = process.platform === "win32";
@@ -94,13 +103,18 @@ function outputPath(url: unknown): string {
 }
 
 /** Run a workflow; retry once if the proxy reports the job expired (happens right after a proxy restart). */
-async function runWf(c: Comfy, wf: Parameters<Comfy["run"]>[0]) {
-  try {
-    return await c.run(wf);
-  } catch (e: any) {
-    if (e?.code === "job_failed" && /expired/i.test(String(e.message))) return c.run(wf);
-    throw e;
-  }
+async function runWf(c: Comfy, wf: Parameters<Comfy['run']>[0], requestId?:string) {
+ async function execute(){
+  activity.update(requestId,'preparing','Preparing model and prompt. First-time loading can take a few minutes; no generation steps yet.');
+  const job=await c.submit(wf),controller=new AbortController();
+  const stream=(async()=>{try{for await(const event of job.events(controller.signal)){
+   if(event.kind==='progress'){const node=event.currentNode?(wf.json[event.currentNode] as any)?.class_type:null;const phase=phaseForProgress({...event,currentNodeClass:event.currentNodeClass||node});activity.update(requestId,phase,phase==='generating'?`Generating${event.step!=null&&event.steps?' · step '+event.step+'/'+event.steps:''}`:phase==='encoding'?'Encoding and saving your media.':phase==='running'?'Running ComfyUI. First run can include model loading; this server is not reporting detailed steps.':'Preparing model and prompt. First-time loading can take a few minutes.',{percent:phase!=='running'&&Number.isFinite(event.value)?Math.max(0,Math.min(100,event.value*100)):null,step:event.step,steps:event.steps})}
+   else if(event.kind==='statusChange'&&event.status==='queued')activity.update(requestId,'queued','Waiting for the local generation worker.');
+   else if(event.kind==='log'&&/downloading/i.test(event.message))activity.update(requestId,'downloading','Downloading model files reported by ComfyUI. This is preparation, not generation.');
+  }}catch{/* Completion polling remains authoritative if live progress is unavailable. */}})();
+  try{await job.wait(30*60*1000);await job.result();return job}finally{controller.abort();void stream}
+ }
+ try{return await execute()}catch(error:any){if(error?.code==='job_failed'&&/expired/i.test(String(error.message)))return execute();throw error}
 }
 
 // One job at a time on the GPU; small queue, then 429.
@@ -171,10 +185,10 @@ function cropOutput(graph:Record<string,any>,decode:string,output:string,width:n
   if(rw!==width||rh!==height){graph['exact_size']={class_type:'ImageCrop',inputs:{image:[decode,0],width,height,x:Math.floor((rw-width)/2),y:Math.floor((rh-height)/2)}};graph[output].inputs.images=['exact_size',0]}
   return {rw,rh};
 }
-async function timedRun(c: Comfy, wf: Parameters<Comfy['run']>[0], env: Env, model: string, width: number, height: number, frames: number) {
+async function timedRun(c: Comfy, wf: Parameters<Comfy['run']>[0], env: Env, model: string, width: number, height: number, frames: number, requestId?:string) {
   const hardware=identifyHardware(await comfyJson(env,'/system_stats').catch(()=>null));
   let executionSeconds=0;
-  const job=await serialize(async()=>{const start=Date.now();const result=await runWf(c,wf);const ms=result.metrics?.execution_ms;executionSeconds=typeof ms==='number'?ms/1000:(Date.now()-start)/1000;
+  const job=await serialize(async()=>{const start=Date.now();const result=await runWf(c,wf,requestId);const ms=result.metrics?.execution_ms;executionSeconds=typeof ms==='number'?ms/1000:(Date.now()-start)/1000;
     const history=await comfyJson(env,'/history/'+encodeURIComponent(result.id)).catch(()=>null);
     const messages=history?.[result.id]?.status?.messages;
     const cached=Array.isArray(messages)&&messages.some(([event,data]:[string,any])=>event==='execution_cached'&&data.nodes?.includes(frames===1?'8':'14'));
@@ -196,7 +210,7 @@ async function keyframe(body: any, env: Env) {
   wf.setInput("8", "seed", seed);
   wf.setInput('7','width',rw);wf.setInput('7','height',rh);
   const t = Date.now();
-  const {job} = await timedRun(c,wf,env,model,rw,rh,1);
+  const {job} = await timedRun(c,wf,env,model,rw,rh,1,body._requestId);
   return { url: await save(job, "10", "png"), seconds: +((Date.now() - t) / 1000).toFixed(1) };
 }
 
@@ -267,13 +281,13 @@ async function shot(body: any, env: Env) {
     wf.setInput(i ? `5${n}` : "5", "image", c.assets.fromFile(paths[i]));
   });
   const t = Date.now();
-  const {job} = await timedRun(c,wf,env,model,rw,rh,length);
+  const {job} = await timedRun(c,wf,env,model,rw,rh,length,body._requestId);
   return { url: await save(job, "17", "webm"), seconds: +((Date.now() - t) / 1000).toFixed(1), frames: length, fps, duration:length/fps };
 }
 
-async function health(env: Env) {
+async function health(env: Env, runtimeBusy=false) {
   const comfyui = await up((env.COMFYUI_URL || "http://127.0.0.1:8188") + "/system_stats");
-  if (comfyui) await ensureProxy(env);
+  if (comfyui&&!runtimeBusy) await ensureProxy(env);
   return {
     comfyui,
     proxy: await up((env.COMFY_BASE_URL || "http://127.0.0.1:8189") + "/api/v2/health"),
@@ -353,7 +367,7 @@ async function generateAudio(body:any,env:Env){
   if(!(await localModels(env)).audio.available)throw new HttpError(400,'Install Stable Audio Open 1.0 and T5-base, then refresh local models');
   await ensureProxy(env);const c=client(env),wf=c.workflows.fromJson(await loadGraph('audio_stable'));
   wf.setInput('3','text',prompt);wf.setInput('5','seconds_total',Math.max(1,duration));wf.setInput('6','seconds',Math.max(1,duration));wf.setInput('7','seed',seed);
-  const t=Date.now(),job=await serialize(async()=>{const started=Date.now(),result=await runWf(c,wf),hardware=identifyHardware(await comfyJson(env,'/system_stats').catch(()=>null));await recordRender(OUTPUTS,hardware,{model:'stable-audio-open-1.0.safetensors',width:1,height:1,frames:Math.round(Math.max(1,duration)*44100),seconds:(Date.now()-started)/1000,jobId:result.id});return result}),audio=await save(job,'9','flac');
+  const t=Date.now(),job=await serialize(async()=>{const started=Date.now(),result=await runWf(c,wf,body._requestId),hardware=identifyHardware(await comfyJson(env,'/system_stats').catch(()=>null));await recordRender(OUTPUTS,hardware,{model:'stable-audio-open-1.0.safetensors',width:1,height:1,frames:Math.round(Math.max(1,duration)*44100),seconds:(Date.now()-started)/1000,jobId:result.id});return result}),audio=await save(job,'9','flac');
   let video:string|undefined;
   if(source){const name=outputName('webm'),destination=join(OUTPUTS,name),videoCodec=source.endsWith('.webm')?['-c:v','copy']:['-c:v','libvpx-vp9','-deadline','good','-cpu-used','4','-crf','25','-b:v','0'],args=['-nostdin','-hide_banner','-loglevel','error','-n','-i',source,'-i',outputPath(audio),'-map','0:v:0','-map','1:a:0',...videoCodec,'-c:a','libopus','-af','apad','-t',String(duration),destination];
     try{await serialize(()=>new Promise<void>((ok,fail)=>{const child=spawn(env.FFMPEG_PATH||'ffmpeg',args,{windowsHide:true,stdio:['ignore','ignore','pipe']});let error='';const timer=setTimeout(()=>{child.kill();fail(new HttpError(504,'Audio mux timed out'))},90000);child.stderr.on('data',(b:Buffer)=>error=(error+b.toString()).slice(-4000));child.on('error',()=>{clearTimeout(timer);fail(new HttpError(503,'FFmpeg unavailable'))});child.on('close',code=>{clearTimeout(timer);if(code===0)ok();else{console.error('[api] audio mux:',error);fail(new HttpError(500,'Could not combine audio and video; originals kept'))}})}));video='/outputs/'+name}catch(e){await unlink(destination).catch(()=>{});throw e}
@@ -451,7 +465,7 @@ function sameToken(a: string | undefined, b: string): boolean {
   return x.length === y.length && timingSafeEqual(x, y);
 }
 
-function middleware(env: Env): Connect.NextHandleFunction {
+function middleware(env: Env,setup:RuntimeSetup): Connect.NextHandleFunction {
   const token = env.OSH_TOKEN || "";
   return async (req, res, next) => {
     const url = new URL(req.url || "/", "http://x");
@@ -484,16 +498,23 @@ function middleware(env: Env): Connect.NextHandleFunction {
         return createReadStream(p).pipe(res);
       }
       const route = `${req.method} ${url.pathname}`;
-      if (route === "GET /api/health") return send(res, 200, await health(env));
+      if(url.pathname.startsWith('/api/setup')){
+       if(!setupAccess(req))return send(res,403,{error:'Runtime setup is only available from this computer and the app’s own origin.'});
+       if(route==='GET /api/setup')return send(res,200,{...await setup.status(),rendering:queued>0});
+       if(req.method==='POST'){if(queued>0&&route!=='POST /api/setup/cancel')return send(res,409,{error:'Finish the current generation before changing the local runtime or model files.'});const body=await readBody(req);try{const result=route==='POST /api/setup/connect'?setup.connect(body):route==='POST /api/setup/install'?setup.install(body):route==='POST /api/setup/download'?setup.download(body):route==='POST /api/setup/start'?setup.start():route==='POST /api/setup/cancel'?setup.cancel():null;return send(res,result?202:404,result||{error:'Unknown setup action'})}catch(error:any){return send(res,400,{error:error.message})}}
+      }
+      if(req.method==='GET'&&/^\/api\/activity\/[a-f0-9]{32}$/.test(url.pathname)){const state=activity.get(url.pathname.split('/').pop()!);return send(res,state?200:404,state?{...state,serverNow:Date.now()}:{error:'No activity for this request'})}
+      const tracked=async(handler:(body:any)=>Promise<any>)=>{if(setup.task.busy)throw new HttpError(503,'Local runtime setup is in progress. Finish or stop setup before generating.');const body=await readBody(req);body._requestId=req.headers['x-osh-request']||body._requestId;let id:string|null;try{id=activity.begin(body._requestId)}catch(error:any){throw new HttpError(400,error.message)}try{const result=await handler(body);activity.update(id,'complete','Media ready.');return result}catch(error:any){activity.update(id,'error','Generation stopped: '+String(error.message||error));throw error}};
+      if (route === "GET /api/health") return send(res, 200, await health(env,setup.task.busy));
       if (route === 'GET /api/capabilities') return send(res,200,await capabilities(env));
       if (route === "GET /api/models") return send(res, 200, await localModels(env));
       if (route === "POST /api/upload") return send(res, 200, await upload(await readBody(req, MAX_UPLOAD_BODY)));
       if (route === "POST /api/export") return send(res, 200, await exportVideo(await readBody(req), env));
       if (route === "POST /api/product-video") return send(res, 200, await productVideo(await readBody(req), env));
-      if (route === 'POST /api/audio') return send(res,200,await generateAudio(await readBody(req),env));
+      if (route === 'POST /api/audio') return send(res,200,await tracked(body=>generateAudio(body,env)));
       if (route === 'POST /api/edit-video') return send(res,200,await editVideo(await readBody(req),env));
-      if (route === "POST /api/keyframe") return send(res, 200, await keyframe(await readBody(req), env));
-      if (route === "POST /api/shot") return send(res, 200, await shot(await readBody(req), env));
+      if (route === "POST /api/keyframe") return send(res, 200, await tracked(body=>keyframe(body, env)));
+      if (route === "POST /api/shot") return send(res, 200, await tracked(body=>shot(body, env)));
       return send(res, 404, { error: "unknown endpoint" });
     } catch (e: any) {
       const status = e instanceof HttpError ? e.status : 500;
@@ -505,16 +526,17 @@ function middleware(env: Env): Connect.NextHandleFunction {
 
 /** Vite plugin: mounts /api + /outputs on the dev and preview servers. */
 export function comfyApi(env: Env): Plugin {
+  const setup=new RuntimeSetup(ROOT,env,ensureProxy,()=>{comfy=null});
   return {
     name: "osh-comfy-api",
     async configureServer(server) {
-      server.middlewares.use(middleware(env));
-      if (!(await up((env.COMFYUI_URL || "http://127.0.0.1:8188") + "/system_stats"))) console.warn("[api] ComfyUI not reachable; pages work, generation won't.");
-      else await ensureProxy(env);
+      server.middlewares.use(middleware(env,setup));
+      if(setup.config?.mode==='managed')setup.start();
+      else void (async()=>{if (!(await up((env.COMFYUI_URL || "http://127.0.0.1:8188") + "/system_stats"))) console.warn("[api] ComfyUI not reachable; open Local setup in Studio.");else await ensureProxy(env)})().catch(error=>console.warn('[setup]',error.message));
     },
     async configurePreviewServer(server) {
-      server.middlewares.use(middleware(env));
-      await ensureProxy(env);
+      server.middlewares.use(middleware(env,setup));
+      if(setup.config?.mode==='managed')setup.start();else void ensureProxy(env).catch(error=>console.warn('[setup]',error.message));
     },
   };
 }

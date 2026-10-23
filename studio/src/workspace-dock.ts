@@ -1,4 +1,6 @@
 import './workspace-dock.css';
+import { mountProjectFiles } from './project-files';
+import { SHELL } from './shell';
 import { panel, split, ids, remove, dock, valid, boundsOf, type Edge, type LayoutNode } from './window-layout';
 
 type Setup = { tree: LayoutNode | null; mode: string };
@@ -10,9 +12,12 @@ const icon = (path: string) => `<svg viewBox="0 0 24 24" aria-hidden="true"><pat
 export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) => void): void {
  const app = document.querySelector<HTMLElement>('.app')!, main = app.querySelector('main')!;
  const wide = innerWidth >= 1150;
- const creation = split('x', panel('prompts'), panel('viewer'), wide ? .4 : .38);
+ const creation = split('x', panel('prompts'), panel('viewer'), .5);
+ const bottom=Math.max(190,Math.min(300,innerHeight*.27)),topRatio=Math.max(.5,Math.min(.8,1-bottom/Math.max(300,innerHeight-110)));
+ const videoTop=wide?split('x',split('y',panel('assets'),panel('files'),.5),creation,.19):creation;
  const presets: Record<string, Setup> = {
-  Video: { tree: split('y', wide ? split('x', creation, panel('keyframes'), .79) : creation, panel('timeline'), .62), mode: 'video' },
+  Video: { tree: split('y', videoTop, panel('timeline'), topRatio), mode: 'video' },
+  Director:{tree:split('y',split('x',panel('viewer'),panel('keyframes'),.72),panel('timeline'),.62),mode:'video'},
   Image: { tree: split('y', split('x', panel('viewer'), panel('keyframes'), .72), panel('takes'), .7), mode: 'image' },
   '3D': { tree: split('x', panel('stage'), panel('elements'), .75), mode: 'video' },
   Rendering: { tree: split('y', split('x', panel('viewer'), panel('properties'), .75), panel('takes'), .7), mode: 'video' }
@@ -35,6 +40,7 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
  } catch {}
  let active = store.active;
  let setup = clone(store.layouts[active] || presets[active] || presets.Video);
+ try{if(!localStorage.getItem('osh-video-layout-reference-v2')){store.layouts.Video=clone(presets.Video);if(active==='Video')setup=clone(presets.Video);localStorage.setItem('osh-video-layout-reference-v2','1')}}catch{}
  const panels = new Map<string, HTMLElement>();
  const toolbar = document.createElement('nav'); toolbar.className = 'workspace-toolbar'; toolbar.setAttribute('aria-label', 'Workspace layout');
  const picker = document.createElement('select'); picker.setAttribute('aria-label', 'Workspace setup');
@@ -136,6 +142,7 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
  const assets = app.querySelector<HTMLElement>('aside.l')!, keys = app.querySelector<HTMLElement>('aside.r')!, viewer = main.querySelector<HTMLElement>('.viewer')!, image = main.querySelector<HTMLElement>('.image-stage')!, composer = main.querySelector<HTMLElement>('.composer')!, properties = document.getElementById('videoAttributes') as HTMLDetailsElement;
  const generate = composer.querySelector<HTMLElement>('.generate-action')!; composer.querySelector('.row')!.append(generate);
  properties.open = true; const viewContent = document.createElement('div'); viewContent.className = 'viewer-content'; viewContent.append(image, viewer);
+ add('files','Project files',mountProjectFiles());add('stash','Stash',document.getElementById('stash')!);
  add('stylization', 'Stylization', document.getElementById('studioStylization')!); add('elements', 'Elements', document.getElementById('studioElements')!); add('assets', 'Selected media', assets); add('viewer', 'Viewer', viewContent); add('prompts', 'Prompts', composer); add('keyframes', 'Image & keyframes', keys); add('properties', 'Size & timing', properties); add('timeline', 'Sequence', main.querySelector<HTMLElement>('.tlw')!); add('takes', 'Takes', main.querySelector<HTMLElement>('.hist')!);
  const sequenceBar = panels.get('timeline')!.querySelector('.window-titlebar')!;
  for (const id of ['trashBtn', 'addKeyBtn']) { const control = document.getElementById(id); if (control) sequenceBar.insertBefore(control, sequenceBar.children[1]); }
@@ -144,9 +151,10 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
  function note(id: string, title: string, text: string): void { const field = document.createElement('textarea'); field.className = 'workspace-note'; field.placeholder = 'Ideas, shot notes, checklist…'; field.value = text; field.setAttribute('aria-label', title); field.oninput = () => { store.notes[id].text = field.value; persist(); }; add(id, title, field); }
  function ask(label: string, value: string): Promise<string | null> { return new Promise(resolve => { const dialog = document.createElement('dialog'); dialog.className = 'workspace-name-dialog'; const form = document.createElement('form'); form.method = 'dialog'; const heading = document.createElement('h2'); heading.textContent = label; const input = document.createElement('input'); input.value = value; input.required = true; input.maxLength = 80; input.setAttribute('aria-label', label); const cancel = document.createElement('button'); cancel.type = 'button'; cancel.textContent = 'Cancel'; cancel.onclick = () => dialog.close(); const ok = document.createElement('button'); ok.textContent = 'Save'; form.append(heading, input, cancel, ok); form.onsubmit = e => { e.preventDefault(); if (input.value.trim()) dialog.close('save'); }; dialog.append(form); document.body.append(dialog); dialog.onclose = () => { resolve(dialog.returnValue === 'save' ? input.value.trim() : null); dialog.remove(); }; dialog.showModal(); input.select(); }); }
  const newNote = document.createElement('button'); newNote.textContent = '+ New notes window…'; newNote.onclick = async () => { const title = await ask('Window name', 'Notes'); if (!title) return; const id = 'note-' + Date.now(); store.notes[id] = { title, text: '' }; note(id, title, ''); openWindow(id); windows.open = false; }; menu.append(newNote);
- function choices(): void { picker.replaceChildren(); for (const name of new Set([...Object.keys(presets), ...Object.keys(store.layouts)])) picker.add(new Option(name, name)); picker.value = active; }
+ function choices(): void { picker.replaceChildren(); for (const name of new Set([...Object.keys(presets), ...Object.keys(store.layouts)])) picker.add(new Option(name, name)); picker.add(new Option('Edit ↗','__edit'));picker.value = active; }
  let switching = false;
  function select(name: string): void {
+  if(name==='__edit'){SHELL.open('edit');picker.value=active;return}
   if(switching)return;const next=clone(store.layouts[name]||presets[name]||presets.Video);
   if(next.tree&&!valid(next.tree,new Set(panels.keys())))next.tree=clone(presets.Video.tree);
   switching=true;try{workflow(next.mode)}finally{switching=false}

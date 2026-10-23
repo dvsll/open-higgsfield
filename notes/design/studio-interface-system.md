@@ -23,3 +23,13 @@ Named setups, split ratios, notes and panel visibility persist in browser storag
 Run typecheck/build and `studio/scripts/window-layout.test.mjs`. The layout test covers all four directions, removal/collapse, duplicates, invalid/self drops, unknown states, preview geometry and JSON round trips. Verify drag behavior in the browser separately.
 
 Check the default at 1280×720, 1024×768, 900×600 and 768×640. Check body dimensions against viewport, prompt/Generate bounds against their panel, and the audio lane's bottom against Sequence. Check label/input top alignment, keyboard focus, right-hand Generate placement, independent style/element windows and restored layouts. Expanded properties and deliberately crowded custom setups can scroll within their panel; the app frame must remain bounded.
+
+
+## Reference Video layout (2026-10-22)
+
+At desktop width, Selected media sits above Project files in a narrow left column; Prompts and Viewer share the remaining width evenly. Sequence spans the bottom. Narrow screens prioritize Prompts/Viewer/Sequence; the media/files windows remain in Windows. Director has its own arrangement with keyframes; Edit opens the existing Edit workspace through the setup picker. Cross-workflow links are removed from the Selected media card. Stash is an independent window, never a Sequence footer. Project files index only the active project's images/video/audio/references; they do not enumerate other projects or arbitrary server files. Primary Generate is bounded to 54px (32px at short viewport heights), never stretched by a tall dock. Tall prompt panels keep fields bounded as well.
+
+Local setup is a separate, explicit first-boot dialog. Model downloads show actual bytes and source/license information, outside generation timing. Runtime progress must never invent a model download, sampler step or percentage when its source does not report one.
+
+## Incremental React migration
+User approved a gradual migration on 2026-10-22. Introduce React in contained panels as they are changed, preserving existing project storage, runtime APIs, docking behavior and CSS tokens. Avoid a whole-app rewrite; establish explicit state/event boundaries before moving a panel. Record React package licenses and official sources before adding dependencies. Current workspace/setup implementation remains TypeScript; no React dependency is installed by this change.

@@ -7,11 +7,11 @@ export default defineConfig(({ mode }) => {
   const env = { ...loadEnv(mode, process.cwd(), ""), ...process.env } as Record<string, string | undefined>;
   const allowedHosts = (env.OSH_ALLOWED_HOSTS || "").split(",").map((h) => h.trim()).filter(Boolean);
   const port = Number(env.OSH_PORT || 8288);
-  const deny = [".env", ".env.*", "*.{crt,pem,key}", "**/.git/**", "**/.venv/**", "**/.claude/**", "**/node_modules/.vite/**"];
+  const deny = [".env", ".env.*", "*.{crt,pem,key}", "**/.git/**", "**/.venv/**", "**/.runtime/**", "**/.claude/**", "**/node_modules/.vite/**"];
   return {
     appType: "mpa",
     plugins: [comfyApi(env)],
-    server: { port, strictPort: true, host: env.OSH_HOST || "127.0.0.1", allowedHosts, fs: { strict: true, deny } },
+    server: { watch: { ignored: ['**/.runtime/**','**/.venv/**','**/outputs/**'] }, port, strictPort: true, host: env.OSH_HOST || "127.0.0.1", allowedHosts, fs: { strict: true, deny } },
     preview: { port, strictPort: true, host: env.OSH_HOST || "127.0.0.1", allowedHosts },
     build: {
       outDir: "dist",

@@ -32,11 +32,17 @@ async function health(): Promise<{ online: boolean; info: Health | null; reason:
   return { online, info, reason };
 }
 
+export type GenerationActivity={id:string;phase:string;message:string;phaseStartedAt:number;startedAt:number;updatedAt:number;percent:number|null;step:number|null;steps:number|null};
+function emitActivity(detail:GenerationActivity){if(typeof window!=='undefined')window.dispatchEvent(new CustomEvent('osh-generation-progress',{detail}))}
 async function post<T>(name: string, body: unknown): Promise<T> {
-  const r = await fetch("/api/" + name, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-  const j = await r.json().catch(() => ({ error: r.statusText }));
-  if (!r.ok || j.error) throw new Error(j.error || r.statusText);
-  return j as T;
+  const tracked=['shot','keyframe','audio'].includes(name),id=tracked?crypto.randomUUID().replaceAll('-',''):null;let finished=false,polling=false,failed=false;
+  const poll=async()=>{if(!id||finished||polling)return;polling=true;try{const r=await fetch('/api/activity/'+id,{cache:'no-store',signal:AbortSignal.timeout(3000)});if(r.ok&&!finished){const state=await r.json();if(typeof state.serverNow==='number')state.phaseStartedAt=Date.now()-Math.max(0,state.serverNow-state.phaseStartedAt);emitActivity(state)}}catch{/* Progress failure must never cancel a render. */}finally{polling=false}};
+  let timer:ReturnType<typeof setInterval>|undefined;if(id){const now=Date.now();emitActivity({id,phase:'queued',message:'Waiting for the local runtime…',phaseStartedAt:now,startedAt:now,updatedAt:now,percent:null,step:null,steps:null});timer=setInterval(()=>void poll(),700)}
+  try{
+   const r = await fetch('/api/'+name, { method:'POST',headers:{'Content-Type':'application/json',...(id?{'X-OSH-Request':id}:{})},body:JSON.stringify(body) });
+   const j=await r.json().catch(()=>({error:r.statusText}));if(!r.ok||j.error)throw new Error(j.error||r.statusText);
+   return j as T;
+  } catch(error){failed=true;throw error} finally{finished=true;if(timer)clearInterval(timer);if(id){const now=Date.now();emitActivity({id,phase:failed?'error':'complete',message:failed?'Generation failed. Check the message in the workspace.':'Media ready.',startedAt:now,phaseStartedAt:now,updatedAt:now,percent:null,step:null,steps:null})}}
 }
 
 export const OSH = {

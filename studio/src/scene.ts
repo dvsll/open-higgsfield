@@ -65,7 +65,7 @@ const SC = (() => {
   function mute(g) { const w = g.canvas.width, h = g.canvas.height, d = g.getImageData(0, 0, w, h), p = d.data; for (let i = 0; i < p.length; i += 4) { const l = p[i] * .3 + p[i + 1] * .59 + p[i + 2] * .11; p[i] = p[i] * .3 + l * .7; p[i + 1] = p[i + 1] * .3 + l * .7; p[i + 2] = p[i + 2] * .3 + l * .7; } g.putImageData(d, 0, 0); }
   // Local storage wrappers (can be unavailable).
   const get = k => { try { return JSON.parse(localStorage.getItem(projectKey(k))); } catch (e) { return null; } };
-  const set = (k, v) => { try { v == null ? localStorage.removeItem(projectKey(k)) : localStorage.setItem(projectKey(k), JSON.stringify(v)); } catch (e) {} };
+  const set = (k, v) => { try { v == null ? localStorage.removeItem(projectKey(k)) : localStorage.setItem(projectKey(k), JSON.stringify(v)); if(['osh-director','osh-elements','osh-project','osh-workspace'].includes(k))dispatchEvent(new Event('osh-project-media')); } catch (e) {} };
   // The one generic placeholder for anything without a real image yet.
   function blank(g, label = 'no image') {
     const W = g.canvas.width, H = g.canvas.height, k = Math.min(W, H) / 360;

@@ -18,6 +18,38 @@ export function mountOnboardingTour(options:Options) {
  const shadePath=document.createElementNS(shade.namespaceURI,'path');shadePath.setAttribute('fill-rule','evenodd');shade.append(shadePath);
  const rings=[0,1].map(()=>{const ring=document.createElement('div');ring.className='tour-target';ring.hidden=true;return ring});document.body.append(shade,...rings,popup);
  let chooser:HTMLDialogElement|null=null,localStep=0,lastStage='',lastWindowLesson='',targets:string[]=[],switching=false,disposed=false;
+ // Background presses redirect attention without disrupting panel dragging or text editing.
+ function nudgeFocus(event:PointerEvent){
+  if(disposed||event.button!==0)return;
+  const clicked=event.target as Node|null;
+  let focus:HTMLElement[]=[];
+  if(chooser?.open){
+   const b=chooser.getBoundingClientRect();
+   if(event.clientX>=b.left&&event.clientX<=b.right&&event.clientY>=b.top&&event.clientY<=b.bottom)return;
+   focus=[chooser];
+  }else{
+   if(popup.hidden||popup.style.visibility==='hidden'||shade.style.display==='none'||popup.contains(clicked))return;
+   const activeRings=rings.filter(r=>!r.hidden);
+   if(activeRings.some(r=>{const b=r.getBoundingClientRect();return event.clientX>=b.left&&event.clientX<=b.right&&event.clientY>=b.top&&event.clientY<=b.bottom}))return;
+   focus=targets.map(selector=>document.querySelector<HTMLElement>(selector)?.closest<HTMLElement>('.studio-window')).filter((e):e is HTMLElement=>!!e);
+   focus.push(...activeRings);if(!focus.length)focus=[popup];
+  }
+  for(const element of new Set(focus)){
+   element.getAnimations().filter(a=>a.id==='tour-attention').forEach(a=>a.cancel());
+   const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+   element.animate(reduced?[
+    {outline:'2px solid #f3d58a',outlineOffset:'-2px'},
+    {outline:'2px solid transparent',outlineOffset:'-2px'}
+   ]:[
+    {outline:'2px solid transparent',outlineOffset:'-2px'},
+    {outline:'2px solid #f3d58a',outlineOffset:'-2px',offset:.2},
+    {outline:'2px solid #f3d58a',outlineOffset:'-2px',offset:.65},
+    {outline:'2px solid transparent',outlineOffset:'-2px'}
+   ],{duration:reduced?700:550,easing:'ease-out',id:'tour-attention'});
+  }
+ }
+ document.addEventListener('pointerdown',nudgeFocus,true);
+ addEventListener('pagehide',()=>document.removeEventListener('pointerdown',nudgeFocus,true));
  function end(skipped=false){const state=options.get();if(state){state.dismissed=true;const entry=state.entry||options.current();profile.workflows[entry]=skipped?'skipped':'completed';saveProfile();persist()}chooser?.close();render()}
  function pause(){const state=options.get();if(state?.entry&&!state.dismissed){state.suspended=true;persist()}}
  function start(entry:Workflow,force=false,changeSetup=true){
@@ -115,3 +147,5 @@ export function mountOnboardingTour(options:Options) {
  if(initial&&!initial.dismissed&&!initial.suspended){if(initial.entry)profile.workflows[initial.entry]??='started';saveProfile();render()}else if(firstVisit(profile,options.current())||profile.workflows[options.current()]==='started'&&suspended[options.current()]&&!suspended[options.current()]!.dismissed)start(options.current(),false,false);else render();
  requestAnimationFrame(position);return {render,visit:(entry:Workflow)=>start(entry)};
 }
+
+

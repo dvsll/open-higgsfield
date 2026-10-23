@@ -1,5 +1,7 @@
 # SXM deployment gate — 2026-10-22
 
+**Current funded-readiness update:** [READINESS_CHECK.md](READINESS_CHECK.md) supersedes the historical credit/access state below. User reports a funded $10 balance; no deployment approval. A new one-cookie runner terminates immediately after local video/provenance download, even on failure, before CPU contact-sheet collection. No first-session label/repeat experiment. Fresh OAuth inventory/billing/catalog reads and local cleanup rehearsals completed; temporary-key reports and full console quote are separate gates. $6 maximum session usage, >=$4 reserved, maximum2.5h. No claim of a provider-enforced hard billing cap.
+
 **NO-GO for paid execution.** Read-only preparation only. $10 research allocation, first experiment all-in <=$6, >=$4 reserved. No creation, funding, weights, private transfer or paid job performed. PR #3 verified draft through `gh pr view 3`; keep draft.
 
 Current practical follow-up: [ACCESS_RUNBOOK.md](ACCESS_RUNBOOK.md). It supersedes access/API/browser-gate statements in the original snapshot below: dedicated key is registered, lifecycle now uses strict v2 responses, maximum2.5h enforced, local termination/collection rehearsals pass. Browser acceptance is required for production/merge, not isolated SDK feasibility. Remaining user-only actions are at the end of that runbook. Paid execution remains NO-GO.

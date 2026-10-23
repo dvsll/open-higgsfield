@@ -167,3 +167,5 @@ Stable Audio Open 1.0, open weights under the Stability AI Community License (at
 
 **ComfyUI startup handoff - 2026-10-22:** Installed ComfyUI 0.42.4 started on http://127.0.0.1:8188 using its existing virtual environment and shared model-path configuration (session 43106). RTX 3080 detected. Latest-main Director preview on 8288 reports comfyui=true, proxy=true, queued=1. No models installed or generation submitted by this startup task. Preview Vite session 42153 remains running.
 
+
+**Partner funded-readiness handoff - 2026-10-22:** Temporary Runpod read-only reports PASS; user confirms10credit/auto-reload-off/awake host.34 Python tests, benchmark guards, real synthetic collector and build PASS. Added one-cookie attempt cleanup that terminates before local review after separate approval only. No Studio/shared source or model pin changes; no deployment/spend. Pending exact quote, key scopes/private-SSH confirmation and explicit approval. Details adstudio/benchmark/READINESS_CHECK.md. Existing local servers unchanged; PR3 remains draft.

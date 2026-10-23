@@ -1,5 +1,5 @@
 """Existing Windows host, retained console. No power/API action by default."""
-import argparse, ctypes, getpass, json, os, pathlib
+import argparse, ctypes, getpass, json, os, pathlib, warnings
 from lifecycle import validate_lease, watch, terminate_until_gone
 
 def main():
@@ -16,7 +16,9 @@ def main():
     awake.argtypes=[ctypes.c_uint];awake.restype=ctypes.c_uint
     try:
         if not os.environ.get('RUNPOD_API_KEY'):
-            os.environ['RUNPOD_API_KEY']=getpass.getpass('Temporary Runpod termination key (hidden): ')
+            with warnings.catch_warnings():
+                warnings.simplefilter('error',getpass.GetPassWarning)
+                os.environ['RUNPOD_API_KEY']=getpass.getpass('Temporary Runpod termination key (hidden): ')
         if not os.environ['RUNPOD_API_KEY']:raise ValueError('Missing key')
         if not awake(0x80000001):raise RuntimeError('Could not request awake state')
         try:watch(lease,args.ready_file)

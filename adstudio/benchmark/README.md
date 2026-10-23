@@ -1,5 +1,7 @@
 # LTX-2.5 remote benchmark preparation
 
+**Current execution scope:** [READINESS_CHECK.md](READINESS_CHECK.md). User-funded $10, first session <=$6 usage, >=$4 reserve, strict2.5h lease. No deployment approved. One original-cookie seed1 attempt, then terminate as soon as MP4/provenance are local; build the gallery after termination. Use `cookie-session.py` only following separate approval and post-create checks. Printed-label/repeat seeds below describe future comparisons, not authorization to extend the first session.
+
 Preparation only. No deployment, paid operation, private upload or weight download is authorized yet. Experimental assets never change production defaults. This report records readiness, commands, costs and the approval gate.
 
 **Final no-spend audit: [PREFLIGHT.md](PREFLIGHT.md). Deployment is NO-GO until its account, CPU-container validation, live-quote and explicit approval gates are satisfied.** The user selected the printed-label surrogate; private transfer is still separately gated.
@@ -71,7 +73,7 @@ Public prices checked2026-10-22; actual region/stock/tax and deployment quote mu
 
 Storage estimate uses730hours/month as a planning conversion; provider docs verify per-second storage billing and rates but do not establish this exact month divisor. Live quote/bill is authoritative. No ingress/egress fee per Pod pricing docs; [tax](https://docs.runpod.io/accounts-billing/sales-tax) may apply to purchases and is account/location dependent. Do not initiate a top-up, auto-pay or any other paid service. If the full live estimate plus tax/fees exceeds$6, stop for revised approval. Do not borrow the reserved$4 automatically. No retained network volume:200GB for a month at$.07/GB/month would cost$14, exceeding the entire budget. A stopped Pod still bills its volume at$.20/GB/month; **terminate**, do not merely stop.
 
-Hard maximum is three hours from **Pod creation**, including initialization, downloads, rendering and collection. Both watchdogs begin DELETE at2h25m. Target finishing actual work by2h30m; collect continuously. Stop immediately on severe product/lettering damage, broken conditioning, OOM, repeated execution failure or unsafe termination status. First two renders: cookie seed1, printed-label/approved-brand seed1. Review before seed2; at most four attempts total, including failed submissions. No seed2 without acceptable first results and remaining time; no idle GPU while waiting on owner review. Render timeout25min is a stop/review condition, not permission to retry a possibly still-running job.
+First-session maximum is2.5h from immediately before **Pod creation**, including initialization, downloads and rendering. Both watchdogs begin DELETE at2h25m; independent phone alarm at2h15m. Run only original-cookie seed1 once. Terminate immediately after video/provenance download, or on any failure; do CPU contact sheets and visual review locally afterward. Printed-label/repeat-seed comparisons require later separate approval, not unused first-session time. Render timeout25min is a stop condition, not permission to retry a possibly still-running job.
 
 ## Deployment approval gate — nothing below has been executed
 
@@ -135,10 +137,7 @@ $env:BENCHMARK_WATCHDOG_READY='outputs/ltx25-benchmark/watchdog-ready.json'
 $env:BENCHMARK_HEALTH_REPORT='outputs/ltx25-benchmark/remote-health.json'
 $env:COMFY_BASE_URL='http://127.0.0.1:28189'
 $env:BENCHMARK_COMFY_URL='http://127.0.0.1:28188'
-node adstudio/benchmark/render.mjs --approved --case cookie --seed 1
-node adstudio/benchmark/collect.mjs
-node adstudio/benchmark/render.mjs --approved --case printed-label --seed 1
-node adstudio/benchmark/collect.mjs
+python adstudio/benchmark/cookie-session.py --node outputs/runpod-integration/node-runtime/node-v22.20.0-win-x64/node.exe --approved
 ```
 The local SDK → remote proxy → remote ComfyUI architecture is preserved. Runner requires a matching lease, fresh external watchdog heartbeat and remote environment/weight-hash report, then validates graph/model choices before lazy upload. It records guide/graph/model hashes, exact prompt, seed, system stats, job ID, elapsed time and errors. It writes attempt ledger **before** submission and prevents duplicates. No automatic retry. Render/download waits are bounded. Remote `health.py` verifies exact commits, Python/CUDA/PyTorch/GPU/RAM, all five weight hashes, FFmpeg, dependency consistency and service health. It never queues a render. Do not use production `/api/shot` or models.json for this benchmark.
 
@@ -163,7 +162,7 @@ python adstudio/benchmark/lifecycle.py audit --lease outputs/ltx25-benchmark/lea
 ```
 Uses [GET Pod and DELETE](https://docs.runpod.io/api-reference/pods/DELETE/pods/podId), [GET billing/pods](https://docs.runpod.io/api-reference/billing/GET/billing/pods) and GET networkvolumes. Requires GET Pod404; saves filtered billing history, volume inventory and reported amount privately. Billing can lag: repeat after records settle, independently inspect Billing and Pods/Storage in the console and reconcile credit delta against any pre-existing resources. Verify no new retained volume, no running benchmark Pod and zero continuing benchmark storage/compute. Do not delete unrelated volumes. Revoke ephemeral credentials. There is no automatic second session or top-up.
 
-**Safeguard limit:** no provider-enforced 2.5-hour TTL was verified. Both watchdogs issue real DELETE, retry until GET404 and start five minutes early, but neither can guarantee a monetary cap during a provider control-plane outage. A 2h45m independent console alarm/manual termination fallback is required. Do not deploy if both watchdogs/credentials/independent host cannot be verified. Clock drift, host sleep, API changes/rate limits, unavailable A100s and provider billing delay remain risks. Tests simulate termination; they do not prove real deletion.
+**Safeguard limit:** no provider-enforced 2.5-hour TTL was verified. Both watchdogs issue real DELETE, retry until GET404 and start five minutes early, but neither can guarantee a monetary cap during a provider control-plane outage. A2h15m independent console alarm/manual termination fallback is required. Do not deploy if both watchdogs/credentials/independent host cannot be verified. Clock drift, host sleep, API changes/rate limits, unavailable A100s and provider billing delay remain risks. Tests simulate termination; they do not prove real deletion.
 
 ## PASS / FAIL gate
 
@@ -182,7 +181,7 @@ First score each case separately. A valid MP4 is only a technical prerequisite. 
 
 For measurements reuse `adstudio/scripts/motion-metrics.py` with manually selected product-only ROI, source/final frames and pinned FFmpeg/Python/Pillow/numpy. Run its `--self-test` before evaluation; do not silently install measurement dependencies in the cloud. Record track count/inlier coverage, NCC rejection, first/middle/final scale/translation and fit residual. Compare stable silhouette/label/texture crops against the input after alignment. Patch tracks can fail on repeated cookies/reflections/deformation and cannot prove physical camera motion or exact logo fidelity. Displacement outside the product is irrelevant. No quantitative result exists for LTX-2.5 yet.
 
-If either first case has severe identity/label damage, stop and classify the limitation with evidence. If both appear acceptable, seed2 repeat is allowed within the same bounded four-attempt plan after review. No endless tuning. A failed/unknown candidate remains separate from production; LTX2B Creative remains commercial FAIL and Camera/Product-Locked remain honest fallbacks.
+Review the first cookie case after termination. If it has severe identity/texture damage, classify the limitation with evidence. Printed-label and repeat-seed comparisons require separate approval; the low-level runner's four-attempt ledger is a secondary ceiling, not first-session scope. A failed/unknown candidate remains separate from production; LTX2B Creative remains commercial FAIL and Camera/Product-Locked remain honest fallbacks.
 
 ## Validation and unresolved items
 
@@ -190,4 +189,4 @@ PASS locally: public metadata revisions/digests/LFS file hashes;109-package Linu
 
 NOT RUN: Linux setup/start shell execution, remote import/pip-check, A100 GPU render/VRAM/latency, real SDK/proxy SaveVideo output compatibility, actual provider deletion and billing, real model video playback/quality, actual brand-logo case. Resolve any import/schema failure before uploading private photos or queueing a paid render. Latest source plus resolved dependency metadata is a **candidate compatible stack**, not a tested environment image. No costs incurred by this preparation.
 
-Exact next milestone: obtain explicit deployment/private-transfer approval and a live quote; execute the original-cookie and user-selected printed-label surrogate seed1 cases under armed watchdogs; terminate, independently settle billing, review motion and preservation together. Do not call surrogate success a brand-logo fidelity pass. Promote no model/default unless that evidence passes. App development/browser acceptance proceeds independently.
+Exact next milestone: finish temporary-key scope/private-SSH confirmation and fresh quote, then obtain explicit deployment/weights/cookie-transfer approval; execute only original-cookie seed1 under armed watchdogs, terminate immediately after local download, independently settle billing and review motion/preservation. Label/repeat cases remain prepared for later approval. Promote no model/default without evidence. App development/browser acceptance proceeds independently.

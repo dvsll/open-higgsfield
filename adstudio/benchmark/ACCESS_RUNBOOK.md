@@ -1,5 +1,7 @@
 # Private access and no-spend rehearsal — 2026-10-22
 
+**Current first-session scope:** user reports $10 account funding; deployment remains unapproved. See [READINESS_CHECK.md](READINESS_CHECK.md). One original-cookie seed1 attempt only, followed immediately by verified Pod termination once the MP4/provenance are local (also terminate on failure). Build contact sheets/review after termination. Printed-label and repeat-seed cases are deferred to separately approved work; the older multi-case procedure below is not the first-session instruction. Initial usage <=$6, >=$4 untouched; retain the stricter2.5h lease/2h25m termination start/2h15m alarm.
+
 **NO-GO remains; $0 spent.** No remote resources changed. First session: <=2.5h elapsed from immediately before create, <=$6 **all-in**, $10 total research/$4 minimum reserve. Browser UI acceptance is **not required for this isolated SDK model-feasibility run**: its technical dependencies are pinned runtime/schema, SSH tunnel, private guide integrity and SDK/proxy transport. Browser/project/Camera acceptance still precedes production acceptance and merging draft PR #3.
 
 ## Dedicated SSH identity
@@ -72,6 +74,8 @@ Environment variables are process-private convention, not protection from same-u
 [Runpod credential guidance](https://docs.runpod.io/get-started/credentials), [live public v2 schema](https://api.runpod.io/v2/openapi.json).
 
 ## v1/v2 reconciliation and rehearsal
+
+For sanitized credential evidence, add `--out outputs/benchmark-readiness/termination-credential.json` to the Pod/SSH-key check or `--out outputs/benchmark-readiness/billing-credential.json` to the billing-only check above. This saves timestamp, mode, status and bounded check results, never credentials/account response bodies. It invalidates stale success before prompting and refuses an echoing prompt fallback. If `RUNPOD_API_KEY` is already set in your terminal, remove it before these checks so each process prompts for its intended separate key. Never pipe or paste a key into shell arguments.
 
 Only benchmark lifecycle control-plane calls migrated. Production generation SDK/proxy and all software/model pins remain unchanged. No new dependency. Current `lifecycle.py` pins `https://api.runpod.io/v2`, refuses redirects, supports only GET and exact-Pod DELETE; no provisioning function. Required differences:
 

@@ -258,3 +258,6 @@ PyTorch/torchvision/torchaudio are ComfyUI runtime requirements, installed from 
 
 
 **Ad Studio integration-first handoff - 2026-10-23:** Merged latest main ea2287b into feat/adstudio-workspace, retaining exact latest Studio sources and runtime setup/model management/progress with Ad Studio brand/composition/product APIs. Route table union only; both notes histories retained. Both app builds, latest Director suites, live local media/edit/export/Composer and setup-origin checks PASS. Unrelated benchmark working files preserved by hash. No model installs/GPU spending, no main/PR3 merge.
+
+
+**Ad Studio static ads handoff - 2026-10-23:** Integration3191482 retains main ea2287b exactly for Studio source/setup/model services. Added local /api/static-ad + fixed private example route and one OSH.staticAd wrapper; existing SDK/media/model calls preserved. Small shared pure undo helper adapted without Director imports/registry. Deterministic source-preserving PNG layouts and saved Brand handoff in Ad Studio. All setup/Studio/domain/HTTP/FFmpeg regressions and builds PASS; browser/actual IndexedDB NOT RUN. Comfy offline, no AI claims/downloads/GPU spending. Actual No Crumbs PNGs/private review gallery outputs/static-ads-demo, UI8300/adstudio/#static. PR3 draft; no automatic main merge.

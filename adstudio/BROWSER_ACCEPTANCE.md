@@ -1,3 +1,20 @@
+# Static ads V1 - browser acceptance
+
+**Status: NOT RUN.** Current Computer Use inventory apps=[], browsers=[]. No browser interruption was bypassed. Real PNG/API and storage-domain tests do not prove actual browser downloads, responsive layout or IndexedDB refresh.
+
+Use **http://127.0.0.1:8300/adstudio/#brand** on the same normal-profile origin as your saved data. Record commit/browser/time. Keep PR3 draft.
+
+1. Open an existing brand. Check the overview and recognizable asset strip. Reviewed, From website, Your input, Inferred and Missing states must be distinct. Optional empty fields and evidence should be collapsed; no deep AI understanding claimed when unavailable. Expand/edit a field and save; check immediate status changes.
+2. Product cards: choose the correct original photograph, expand/edit one product, then Use in ad. Or Create an advertisement and select a product. Confirm quantity/packaging match before checking the photograph confirmation. Do not select a specific SKU for an unverified reference photo.
+3. Choose spotlight/editorial/poster, change headline/body/CTA/colors/format. Preview should update immediately with the actual photo/logo and deterministic text. Entire source photo must fit without stretching. Overlong copy must show an error, not silently export a clipped or stale preview. Use saved product description only after verifying it.
+4. Export PNG in all three formats. Open the downloaded files at full size and phone size; verify text, crop/contain, logo identity and source photo. Save a variation, undo/redo and edit a copy of a previous export. Earlier PNGs and source assets must remain unchanged.
+5. Wait for Saved, refresh and switch projects. Concepts, source selections, undo history and downloadable prior PNGs must return. Old video projects/takes/Composer exports must still work. Existing IndexedDB DB3/stores stay intact; no large image blobs in localStorage.
+6. With Comfy offline, deterministic editing/export must work and optional supporting-image generation must be disabled honestly. If later connected with compatible weights, generate only on explicit click, verify real shared-job output and retain original product/logo. No automatic weight downloads.
+7. Open /adstudio/#static -> Open No Crumbs ads for the actual three-PNG example and editable source project. Existing example edits must be kept when reopening. Compare the two feed ads and story poster with outputs/static-ads-demo/index.html; that gallery contains real exports, not UI screenshots.
+8. In a disposable project test missing runtime outputs and storage failure. Prior exports should use saved PNG Blobs; original references should re-upload for a fresh export. Storage failure must show Not saved, retain the tab state and allow retry. Verify panel-end scrolling, all disclosures, keyboard focus and narrow-window layout.
+
+---
+
 # Brand Intelligence V1 - browser acceptance
 
 **Status: NOT RUN.** Computer Use returned apps=[], browsers=[]. No interrupted session was bypassed. API/parser/provider-protocol/storage-domain checks do not prove real browser IndexedDB refresh/migration.

@@ -27,6 +27,7 @@ import { productFormats, productPlan, renderProduct, ProductRenderError, type Pr
 import {importMedia,composeAd,ComposeError,mediaTypes} from './ad-compose.ts';
 import {analysisStatus,researchBrand,collectBrandImage} from './brand-research.ts';
 import {BrandError} from './brand-web.ts';
+import {exportStaticAd,StaticAdError} from './static-ad.ts';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const WORKFLOWS = join(ROOT, "shared", "workflows");
@@ -506,6 +507,11 @@ function middleware(env: Env,setup:RuntimeSetup): Connect.NextHandleFunction {
         res.writeHead(200,{...headers,'Content-Length':size});if(req.method==='HEAD')return res.end();return createReadStream(p).pipe(res);
       }
       const route = `${req.method} ${url.pathname}`;
+      if(route==='POST /api/static-ad')return send(res,200,await exportStaticAd(await readBody(req),OUTPUTS));
+      if(route==='GET /api/static-ad-demo'){
+        const file=join(OUTPUTS,'static-ads-demo','demo.json');if(!existsSync(file))return send(res,404,{error:'No local static-ad example has been prepared.'});
+        if(statSync(file).size>32*1024*1024)throw new HttpError(400,'Local static example is too large');return send(res,200,JSON.parse(await readFile(file,'utf8')));
+      }
       if(url.pathname.startsWith('/api/setup')){
        if(!setupAccess(req))return send(res,403,{error:'Runtime setup is only available from this computer and the app’s own origin.'});
        if(route==='GET /api/setup')return send(res,200,{...await setup.status(),rendering:queued>0});
@@ -538,7 +544,7 @@ function middleware(env: Env,setup:RuntimeSetup): Connect.NextHandleFunction {
       if (route === "POST /api/shot") return send(res, 200, await tracked(body=>shot(body, env)));
       return send(res, 404, { error: "unknown endpoint" });
     } catch (e: any) {
-      const status = e instanceof HttpError || e instanceof ComposeError || e instanceof BrandError ? e.status : 500;
+      const status = e instanceof HttpError || e instanceof ComposeError || e instanceof BrandError || e instanceof StaticAdError ? e.status : 500;
       if (status === 500) console.error(`[api] ${url.pathname} failed:`, e);
       send(res, status, { error: status === 500 ? "generation failed (see server log)" : e.message });
     }

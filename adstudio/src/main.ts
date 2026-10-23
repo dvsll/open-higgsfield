@@ -8,6 +8,7 @@ import {canGenerate,renderEstimate,type ApiCapabilities} from './availability';
 import {mountComposer} from './composer';
 import type {MediaAsset} from './composition';
 import {mountBrand} from './brand-ui';
+import {mountStaticAds} from './static-ui';
 
 const el=<T extends HTMLElement>(id:string)=>document.getElementById(id) as T;
 const photo=el<HTMLInputElement>('photo'),product=el<HTMLImageElement>('product'),fields=el<HTMLFieldSetElement>('fields'),go=el<HTMLButtonElement>('go'),status=el('status'),outs=el('outs'),exportAll=el<HTMLButtonElement>('export-all');
@@ -20,12 +21,13 @@ const dirtyProjects=new Set<string>(),writeVersions=new Map<string,number>();
 const pendingMedia=new Map<string,{projectId:string;asset:MediaAsset}>();
 let composer:ReturnType<typeof mountComposer>|undefined;
 let brandWorkspace:Awaited<ReturnType<typeof mountBrand>>|undefined;
+let staticWorkspace:ReturnType<typeof mountStaticAds>|undefined;
 type Card={take:Take;video:HTMLVideoElement;button:HTMLButtonElement;message:HTMLElement;exportLinks:HTMLElement};
 const cards:Card[]=[];
 const errorText=(error:unknown)=>error instanceof Error?error.message:String(error);
 function storageNotice(text:string){el('storage-status').textContent=text;}
-async function persist(asset?:ProductAsset,media?:MediaAsset|MediaAsset[]) {
- if(asset)pendingAssets.set(asset.id,{projectId:project.id,asset});
+async function persist(asset?:ProductAsset|ProductAsset[],media?:MediaAsset|MediaAsset[]) {
+ for(const file of asset?(Array.isArray(asset)?asset:[asset]):[])pendingAssets.set(file.id,{projectId:project.id,asset:file});
  for(const file of media?(Array.isArray(media)?media:[media]):[])pendingMedia.set(file.id,{projectId:project.id,asset:file});
  project.updated=Date.now();projects.set(project.id,project);
  dirtyProjects.add(project.id);const revision=(writeVersions.get(project.id)||0)+1;writeVersions.set(project.id,revision);
@@ -35,16 +37,17 @@ async function persist(asset?:ProductAsset,media?:MediaAsset|MediaAsset[]) {
  saving=task.catch(error=>storageNotice('Not saved — '+errorText(error)+' Keep this tab open and retry saving.'));
  await saving;
 }
-function working(){return busy||reading||exporting>0||Boolean(composer?.busy)||Boolean(brandWorkspace?.busy);}
-function showWorkspace(value:boolean|'brand'){const view=value==='brand'?'brand':value?'compose':'create';for(const name of ['brand','create','compose']){el(name+'-workspace').hidden=name!==view;el('show-'+name).setAttribute('aria-selected',String(name===view));}el('projects').closest<HTMLElement>('.project-bar')!.hidden=view==='brand';history.replaceState(null,'',location.pathname+location.search+'#'+view);}
+function working(){return busy||reading||exporting>0||Boolean(composer?.busy)||Boolean(brandWorkspace?.busy)||Boolean(staticWorkspace?.busy);}
+function showWorkspace(value:boolean|'brand'|'static'){const view=typeof value==='string'?value:value?'compose':'create';for(const name of ['brand','static','create','compose']){el(name+'-workspace').hidden=name!==view;el('show-'+name).setAttribute('aria-selected',String(name===view));}el('projects').closest<HTMLElement>('.project-bar')!.hidden=view==='brand';history.replaceState(null,'',location.pathname+location.search+'#'+view);}
 el('show-create').onclick=()=>showWorkspace(false);el('show-compose').onclick=()=>showWorkspace(true);
 el('show-brand').onclick=()=>showWorkspace('brand');
-showWorkspace(location.hash==='#compose'?true:location.hash==='#create'?false:'brand');
+el('show-static').onclick=()=>{showWorkspace('static');void staticWorkspace?.refresh();};
+showWorkspace(location.hash==='#compose'?true:location.hash==='#create'?false:location.hash==='#static'?'static':'brand');
 function ready(){
  go.disabled=working()||!image||!canGenerate(project?.settings.mode,api,OSH.online,catalog);
  exportAll.disabled=working()||!api?.ffmpeg.available||!cards.some(c=>!c.take.exports.length);
  photo.disabled=working();fields.disabled=busy||reading;
- for(const id of ['projects','new-project','rename-project','project-name','open-cookie-demo'])el<HTMLInputElement>(id).disabled=working();
+ for(const id of ['projects','new-project','rename-project','project-name','open-cookie-demo','open-static-demo'])el<HTMLInputElement>(id).disabled=working();
  document.querySelectorAll<HTMLButtonElement>('[data-processing]').forEach(b=>b.disabled=working()||!api?.ffmpeg.available);
  document.querySelectorAll<HTMLButtonElement>('[data-template]').forEach(b=>{b.disabled=working();b.setAttribute('aria-pressed',String(b.dataset.template===project?.settings.template));});
  el('empty-results').hidden=cards.length>0;
@@ -86,6 +89,7 @@ async function openProject(next:AdProject){
  if(ticket!==selection)return;
  for(const take of project.takes)renderTake(take);
  await composer?.refresh();
+ if(!el('static-workspace').hidden)await staticWorkspace?.refresh();
  if(restoredAttempt(project)){status.textContent=project.attempt!.error!;await persist();}
  reading=false;ready();
 }
@@ -235,8 +239,19 @@ async function start(){
  let active='';try{active=localStorage.getItem(ACTIVE_KEY)||'';}catch{}
  project=projects.get(active)||[...projects.values()][0]||newProject();projects.set(project.id,project);
  composer=mountComposer({project:()=>project,save:asset=>persist(undefined,asset),asset:id=>repository.media(id),changed:ready,show:()=>showWorkspace(true)});
- brandWorkspace=await mountBrand({repository:()=>repository,durable:()=>durable,retry:retryStorage,changed:ready,use:async brand=>{if(busy||reading||exporting||composer?.busy)throw Error('Wait for the current project operation to finish.');project.brandId=brand.id;project.composition.brand=brand.dna.name.slice(0,60);await persist();await composer?.refresh();showWorkspace(true);}});
+ staticWorkspace=mountStaticAds({project:()=>project,repository:()=>repository,asset:async id=>pendingAssets.get(id)?.asset||await repository.asset(id),save:persist,changed:ready,brand:()=>showWorkspace('brand')});
+ brandWorkspace=await mountBrand({repository:()=>repository,durable:()=>durable,retry:retryStorage,changed:ready,create:async(brand,productId)=>{if(busy||reading||exporting||composer?.busy||staticWorkspace?.busy)throw Error('Wait for the current operation to finish.');await staticWorkspace?.refresh(brand,productId);showWorkspace('static');},use:async brand=>{if(busy||reading||exporting||composer?.busy)throw Error('Wait for the current project operation to finish.');project.brandId=brand.id;project.composition.brand=brand.dna.name.slice(0,60);await persist();await composer?.refresh();showWorkspace(true);}});
  await persist();await openProject(project);void check();
  void fetch('/api/ad-composer-demo').then(r=>{el('open-cookie-demo').hidden=!r.ok;}).catch(()=>{});
+ void fetch('/api/static-ad-demo').then(async r=>{await r.body?.cancel();el('open-static-demo').hidden=!r.ok;}).catch(()=>{});
 }
+el('open-static-demo').onclick=async()=>{
+ if(working())return;reading=true;ready();
+ try{const r=await fetch('/api/static-ad-demo');if(!r.ok)throw Error('Local example unavailable.');const demo=await r.json(),example=migrateProject(demo.project),existing=projects.get(example.id);
+  if(existing){reading=false;await openProject(existing);await staticWorkspace?.refresh();showWorkspace('static');return;}
+  const files:ProductAsset[]=await Promise.all(demo.files.map(async(f:any)=>{const original=await(await fetch(f.original)).blob(),normalized=f.normalized?await(await fetch(f.normalized)).blob():original;return {id:f.assetId,name:f.name,original,normalized,width:f.width,height:f.height,created:Date.now()};}));
+  if(!(await repository.brands()).some(b=>b.id===demo.brand.id))await repository.saveBrand(demo.brand,files);
+  await saving;project=example;projects.set(example.id,example);await persist(files);reading=false;await openProject(example);await brandWorkspace?.refreshList();await staticWorkspace?.refresh(demo.brand);showWorkspace('static');
+ }catch(e){status.textContent=errorText(e);}finally{reading=false;ready();}
+};
 void start();

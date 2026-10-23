@@ -46,6 +46,7 @@ async function post<T>(name: string, body: unknown): Promise<T> {
 }
 
 export const OSH = {
+  staticAd:(body:{design:import('../lib/static-ad').StaticDesign;photo:string;logo?:string;support?:string})=>post<{url:string;width:number;height:number;sha256:string;sources:Record<string,string>;warnings:string[]}>('static-ad',body),
   audio:(prompt:string,duration:number,seed=1,video?:string)=>post<{audio:string;video?:string;duration:number;seconds:number}>('audio',{prompt,duration,seed,video}),
   health,
   async models(): Promise<LocalModels> {

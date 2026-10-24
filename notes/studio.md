@@ -281,3 +281,6 @@ No Director/UI/runtime/default changes. Separate hero_qwen2511_benchmark.json an
 
 
 **2026-10-24 Ad Studio coordination:** Completed approved3-candidate Qwen creative sprint; Pod/local disks terminated and all cloud inventories empty. Added standalone local provisional-ad composer and evidence/quality notes only; studio/ and shared/runtime/workflows unchanged,18 app CPU regressions +typecheck/build pass. Nine unrelated working files preserved; PR3 remains draft, no owner approval claimed. Private outputs/creative-quality-sprint/session/gallery.html and ad/no-crumbs-provisional-ad.png await owner review. No further cloud jobs authorized.
+
+
+**2026-10-24 Ad Studio shared contract coordination:** Added pure shared/lib/product-brief.ts and optional HeroSettings.briefDraft (version1) with16000-char prompt bound, retaining old workspace/project/take versions and all endpoint/SDK defaults. Ad Studio gets evidence-labelled editable controls/brief/prompt review and stale-review gates; no Director source changes, no model/runtime graph migration or inference. Typecheck/build,18 app regressions and brief/project/source preservation checks pass; browser NOT RUN (no surface). Qwen examples are private preparation only, not approved generated outputs. Nine unrelated working files unchanged. See adstudio/BRIEF_CONTROLS.md; PR3 remains draft.

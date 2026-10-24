@@ -66,5 +66,19 @@ git filter-repo --path studio/ --path shared/ --path notes/studio.md --path LICE
 
 For the ad studio, do the same with `--path adstudio/ --path notes/adstudio.md`. Each repo keeps `shared/` next to its app folder, so the `../shared/` paths still work. Then add a project README at the root, set the repo public, and submit.
 
+## Optional local prompt helper
+
+Studio starts with one expanding Prompt box. Expand **Advanced** to inspect the video model, generated video/motion/audio prompts and audio controls. Auto-fill uses the main prompt after a pause in typing, and Generate waits for current details. Edits in Advanced are retained; **Reset manual edits** returns the fields to automatic mode. Turn off **Auto-fill details** to use manual prompts without the helper. Rewriting never starts image/video/audio generation itself.
+
+On Windows x64, explicitly install the helper from the repo root:
+
+```powershell
+powershell -File shared/runtime/install-prompt-rewriter.ps1
+```
+
+This downloads the pinned [llama.cpp CPU runtime](https://github.com/ggml-org/llama.cpp/releases/tag/b11669) (MIT, about20MB) and [Qwen2.5-1.5B-Instruct Q4_K_M](https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF) (Apache-2.0, about1.12GB), checks SHA256, and stores them in ignored `.runtime/prompt-rewriter/`. It runs on CPU at loopback11435 with a per-process API key, starts on demand and exits after two idle minutes or server shutdown. No weights enter Git, no cloud API is used, and generation does not download anything. Non-Windows setups may place a compatible `llama-server` at `.runtime/prompt-rewriter/bin/llama-server` and the same GGUF at `.runtime/prompt-rewriter/model.gguf`.
+
+Model-generated details are suggestions. Expand Advanced to review them; a small local model can misunderstand a prompt. Missing/failed rewriting shows an error and preserves authored text, with manual mode available.
+
 ## License
 MIT. See [LICENSE](LICENSE).

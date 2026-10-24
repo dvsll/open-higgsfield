@@ -1,4 +1,5 @@
 import { ProjectPicker, tryOnboarding } from './projects';
+import {AdvancedPrompt} from './prompt-advanced';
 export function DirectorSurface() {
   return (
     <>
@@ -119,6 +120,13 @@ export function DirectorSurface() {
           </section>
           <section className="composer" aria-label="Generation prompts">
             <div className="prompt-scroll">
+              <div className="row primary-prompt-row">
+                <div className="prompt-field" data-model-kind="video" data-model-control="shotPromptInput">
+                  <label htmlFor="shotPromptInput">Prompt</label>
+                  <textarea id="shotPromptInput" rows={2} placeholder="Describe your video, including any movement and sound…" />
+                </div>
+              </div>
+              <AdvancedPrompt>
               <div className="modelbar">
                 <label htmlFor="videoModel">{'Video'}</label>
                 <select id="videoModel" disabled>
@@ -127,14 +135,7 @@ export function DirectorSurface() {
                 <div id="videoModelDetails" className="model-card" aria-live="polite"></div>
               </div>
               <div className="row">
-                <div className="prompt-field" data-model-kind="video" data-model-control="shotPromptInput">
-                  <label htmlFor="shotPromptInput">{'Shot prompt'}</label>
-                  <textarea
-                    id="shotPromptInput"
-                    rows={2}
-                    placeholder="Describe the scene and visual details…"
-                  ></textarea>
-                </div>
+                <div className="prompt-field"><label htmlFor="visualPrompt">Video prompt</label><textarea id="visualPrompt" rows={2} placeholder="Scene details from your prompt…" /></div>
                 <div className="prompt-field" data-model-kind="video" data-model-control="motion">
                   <label htmlFor="motion">{'Motion prompt'}</label>
                   <textarea
@@ -172,6 +173,7 @@ export function DirectorSurface() {
                   <input type="checkbox" id="audioMute" /> Mute audio
                 </label>
               </div>
+              </AdvancedPrompt>
             </div>
             <div className="generate-action">
               <button className="pill solid" id="gen">

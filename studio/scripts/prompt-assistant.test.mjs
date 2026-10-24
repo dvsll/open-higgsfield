@@ -1,0 +1,20 @@
+import assert from 'node:assert/strict';
+import {applyPromptDetails,manualPromptFields} from '../src/prompt-assistant.ts';
+import {rewriteInput,validatePromptDetails,preserveRequestedSilence,PromptRewriter} from '../../shared/runtime/prompt-rewriter.ts';
+const details={visual:'A robot and a yellow flower.',motion:'Slow push in.',audio:'Water droplets.'};
+const fresh={prompt:'Robot waters a flower.'};
+applyPromptDetails(fresh,fresh.prompt,details);
+assert.equal(fresh.visualPrompt,details.visual);assert.equal(fresh.m,details.motion);assert.equal(fresh.audioPrompt,details.audio);
+assert.equal(fresh.rewriteSource,fresh.prompt);assert.deepEqual(manualPromptFields(fresh),{visual:false,motion:false,audio:false});
+// Existing authored fields and an explicit blank/silent override must survive a rewrite.
+const authored={m:'Hold the camera still.',audioPrompt:'',promptOverrides:{motion:true,audio:true}};
+applyPromptDetails(authored,'new prompt',details);assert.equal(authored.m,'Hold the camera still.');assert.equal(authored.audioPrompt,'');assert.equal(authored.visualPrompt,details.visual);
+const legacy={m:'Original motion.',audioPrompt:'Original ambience.'};applyPromptDetails(legacy,'new',details);assert.equal(legacy.m,'Original motion.');assert.equal(legacy.audioPrompt,'Original ambience.');
+fresh.promptOverrides.audio=true;fresh.audioPrompt='Manual sound entered while rewriting.';applyPromptDetails(fresh,'changed',{...details,audio:'New inferred sound'});assert.match(fresh.audioPrompt,/Manual sound/);
+fresh.promptOverrides={};applyPromptDetails(fresh,'reset',details);assert.equal(fresh.audioPrompt,details.audio);
+assert.equal(rewriteInput('  a scene  '),'a scene');for(const invalid of [null,'',' '.repeat(4),'x'.repeat(4001),{}])assert.throws(()=>rewriteInput(invalid));
+assert.deepEqual(validatePromptDetails({...details,audio:''}),{...details,audio:''});
+assert.equal(preserveRequestedSilence(details,'A completely silent video.').audio,'');assert.equal(preserveRequestedSilence(details,'Water droplets, no music.').audio,details.audio);assert.equal(preserveRequestedSilence({...details,audio:'None'},'A flower.').audio,'');
+for(const invalid of [null,{}, {...details,visual:''},{...details,audio:4},{...details,motion:'x'.repeat(2001)}])assert.throws(()=>validatePromptDetails(invalid));
+const missing=new PromptRewriter('outputs/nonexistent-rewriter-test');assert.equal(missing.status().available,false);await assert.rejects(()=>missing.rewrite('a scene'),/not installed/);missing.close();
+console.log('PASS: automatic details, legacy/manual/silent overrides, reset, bounded input, response validation and honest missing-runtime errors. No model inference.');

@@ -30,10 +30,10 @@ export function estimateContext(duration: number, missingKeys: number,frames=97)
 }
 
 const usage: Record<string, string> = {
-  'Shot prompt': 'Use Shot prompt to describe the scene. Use the separate Motion prompt box for camera and subject movement. Both are sent together to the video model.',
+  'Shot prompt': 'Describe your scene, movement and sound in Prompt. The local helper separates the details; expand Advanced to review or edit them.',
   'Text to image': 'Write your prompt in Generate keyframe, choose Elements and Framing, then Generate 4 keyframes.',
   'Keyframe-guided video': 'Optional: double-click a shot, add image guides and drag them to the clip edges for start/end frames or into the middle for timed guidance. Generate shot also works with no guides.',
-  'Motion prompt': 'Describe movement in the motion box next to Generate shot, for example: slow camera push toward the robot.',
+  'Motion prompt': 'Movement is filled from your main prompt. Expand Advanced to edit Motion prompt, for example: slow camera push toward the robot.',
   'Elements': 'Type @ in Image, Shot or Motion prompt, then search and choose an element. Mentions expand into descriptions; this does not lock character identity.',
   'JSON posing': 'There is no pose JSON input yet. A pose-control workflow and parser must be connected before you can use it.',
   'LoRA stylization': 'LoRA loading is not wired up yet. Training assets are in the local LoRA lab; they are not active style adapters.',

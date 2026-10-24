@@ -11,6 +11,7 @@
  *   and /outputs only serves files this API wrote (random hex names).
  */
 import { RuntimeSetup, setupAccess } from './setup.ts';
+import {PromptRewriter,PromptRewriteError} from './prompt-rewriter.ts';
 import { JobActivity, phaseForProgress } from './job-activity.ts';
 import { Comfy } from "@comfyorg/sdk";
 import { spawn } from "node:child_process";
@@ -484,7 +485,7 @@ function sameToken(a: string | undefined, b: string): boolean {
   return x.length === y.length && timingSafeEqual(x, y);
 }
 
-function middleware(env: Env,setup:RuntimeSetup): Connect.NextHandleFunction {
+function middleware(env: Env,setup:RuntimeSetup,rewriter:PromptRewriter): Connect.NextHandleFunction {
   const token = env.OSH_TOKEN || "";
   return async (req, res, next) => {
     const url = new URL(req.url || "/", "http://x");
@@ -539,6 +540,8 @@ function middleware(env: Env,setup:RuntimeSetup): Connect.NextHandleFunction {
       if(req.method==='GET'&&/^\/api\/activity\/[a-f0-9]{32}$/.test(url.pathname)){const state=activity.get(url.pathname.split('/').pop()!);return send(res,state?200:404,state?{...state,serverNow:Date.now()}:{error:'No activity for this request'})}
       const tracked=async(handler:(body:any)=>Promise<any>)=>{if(setup.task.busy)throw new HttpError(503,'Local runtime setup is in progress. Finish or stop setup before generating.');const body=await readBody(req);body._requestId=req.headers['x-osh-request']||body._requestId;let id:string|null;try{id=activity.begin(body._requestId)}catch(error:any){throw new HttpError(400,error.message)}try{const result=await handler(body);activity.update(id,'complete','Media ready.');return result}catch(error:any){activity.update(id,'error','Generation stopped: '+String(error.message||error));throw error}};
       if (route === "GET /api/health") return send(res, 200, await health(env,setup.task.busy));
+      if(route==='GET /api/prompt-rewriter')return send(res,200,rewriter.status());
+      if(route==='POST /api/prompt-rewriter')return send(res,200,await rewriter.rewrite((await readBody(req)).prompt));
       if(route==='GET /api/brand/status')return send(res,200,await analysisStatus(env));
       if(route==='POST /api/brand/research')return send(res,200,await researchBrand(await readBody(req),env));
       if(route==='POST /api/brand/image')return send(res,200,await collectBrandImage(await readBody(req)));
@@ -564,7 +567,7 @@ function middleware(env: Env,setup:RuntimeSetup): Connect.NextHandleFunction {
       if (route === "POST /api/shot") return send(res, 200, await tracked(body=>shot(body, env)));
       return send(res, 404, { error: "unknown endpoint" });
     } catch (e: any) {
-      const status = e instanceof HttpError || e instanceof ComposeError || e instanceof BrandError || e instanceof StaticAdError || e instanceof HeroError ? e.status : 500;
+      const status = e instanceof HttpError || e instanceof ComposeError || e instanceof BrandError || e instanceof StaticAdError || e instanceof HeroError || e instanceof PromptRewriteError ? e.status : 500;
       if (status === 500) console.error(`[api] ${url.pathname} failed:`, e);
       send(res, status, { error: status === 500 ? "generation failed (see server log)" : e.message });
     }
@@ -574,15 +577,18 @@ function middleware(env: Env,setup:RuntimeSetup): Connect.NextHandleFunction {
 /** Vite plugin: mounts /api + /outputs on the dev and preview servers. */
 export function comfyApi(env: Env): Plugin {
   const setup=new RuntimeSetup(ROOT,env,ensureProxy,()=>{comfy=null});
+  const rewriter=new PromptRewriter(ROOT);
   return {
     name: "osh-comfy-api",
     async configureServer(server) {
-      server.middlewares.use(middleware(env,setup));
+      server.middlewares.use(middleware(env,setup,rewriter));
+      server.httpServer?.once('close',()=>rewriter.close());
       if(setup.config?.mode==='managed')setup.start();
       else void (async()=>{if (!(await up((env.COMFYUI_URL || "http://127.0.0.1:8188") + "/system_stats"))) console.warn("[api] ComfyUI not reachable; open Local setup in Studio.");else await ensureProxy(env)})().catch(error=>console.warn('[setup]',error.message));
     },
     async configurePreviewServer(server) {
-      server.middlewares.use(middleware(env,setup));
+      server.middlewares.use(middleware(env,setup,rewriter));
+      server.httpServer.once('close',()=>rewriter.close());
       if(setup.config?.mode==='managed')setup.start();else void ensureProxy(env).catch(error=>console.warn('[setup]',error.message));
     },
   };

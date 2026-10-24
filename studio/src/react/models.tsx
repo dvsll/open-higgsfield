@@ -1,5 +1,6 @@
 import { useEffect, useRef,useState,useLayoutEffect,useId } from 'react';
 import {createPortal} from 'react-dom';
+import {Popup} from './popup';
 export type Help = { title: string; text: string };
 export type Badge = { name: string; status: string; label: string; help: Help; description?:string;usage?:string;onClick?: () => void };
 export function ModelCapabilities({info}:{info:ModelInfoData}){
@@ -86,19 +87,17 @@ export function ModelChooser({
   attach,
   onChoose,
   onClose,
+  onDialog,
 }: {
   groups:ModelGroup[];
   research: string[];
   attach: AttachHelp;
   onChoose: (kind:'video'|'keyframe',id: string) => void;
   onClose: () => void;
+  onDialog?:(dialog:HTMLDialogElement|null)=>void;
 }) {
   return (
-    <>
-      <header>
-        <h2>Choose model</h2>
-        <button onClick={onClose}>Close</button>
-      </header>
+    <Popup title="Choose model" closeLabel="Close model chooser" className="model-chooser" onClose={onClose} onDialog={onDialog}>
       <small>Select a model name. Hover or focus capabilities for explanations and usage.</small>
       {groups.map(group=><section key={group.kind} className="model-media-group" aria-label={group.label+' models'}><h3>{group.label}</h3>{!group.rows.length&&<p>No compatible local models installed.</p>}{group.rows.map((row) => (
         <div key={row.id} className={'model-choice' + (row.id === group.selected ? ' active' : '')}>
@@ -116,6 +115,6 @@ export function ModelChooser({
           {repo} · downloaded for LoRA training · generation workflow not connected · estimate unavailable
         </div>
       ))}
-    </>
+    </Popup>
   );
 }

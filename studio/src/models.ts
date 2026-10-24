@@ -102,11 +102,12 @@ function renderModelInfo(kind:Kind,entry:ModelChoice,el:HTMLElement):void{
 }
 function chooseEntry(kind:Kind,id:string):void{select(kind).value=id;chosen[kind]=id;localStorage.setItem(storageKey,JSON.stringify(chosen));renderDetails();chooser?.close()}
 let chooser: HTMLDialogElement | null = null;
+let chooserHost:HTMLDivElement|null=null;
 function chooseModel(kind: Kind): void {
- if(chooser){unmountView(chooser);chooser.remove()}
- chooser=document.createElement('dialog');chooser.className='model-chooser';chooser.setAttribute('aria-label','Choose model');
- renderView(chooser,createElement(ModelChooser,{groups:(['video','keyframe'] as const).map(group=>({kind:group,label:group==='video'?'Video':'Image',rows:(catalog?.[group]||[]).map(entry=>({...entry,info:modelInfo(group,entry)})),selected:select(group).value})),research:(catalog?.research||[]).map(item=>item.repo),attach:attachHelp,onChoose:(group,id)=>{chooseEntry(group,id);document.dispatchEvent(new CustomEvent('osh-workspace-select',{detail:group==='video'?'Video':'Image'}))},onClose:()=>chooser?.close()}));
- const current=chooser;chooser.onclose=()=>{if(tooltip)tooltip.hidden=true;unmountView(current);current.remove();if(chooser===current)chooser=null};document.body.append(chooser);chooser.showModal();
+ if(chooserHost){unmountView(chooserHost);chooserHost.remove();chooser=null}
+ const host=document.createElement('div');chooserHost=host;document.body.append(host);
+ const close=()=>{if(tooltip)tooltip.hidden=true;unmountView(host);host.remove();if(chooserHost===host){chooserHost=null;chooser=null}};
+ renderView(host,createElement(ModelChooser,{groups:(['video','keyframe'] as const).map(group=>({kind:group,label:group==='video'?'Video':'Image',rows:(catalog?.[group]||[]).map(entry=>({...entry,info:modelInfo(group,entry)})),selected:select(group).value})),research:(catalog?.research||[]).map(item=>item.repo),attach:attachHelp,onDialog:dialog=>{if(chooserHost===host)chooser=dialog},onChoose:(group,id)=>{chooseEntry(group,id);document.dispatchEvent(new CustomEvent('osh-workspace-select',{detail:group==='video'?'Video':'Image'}))},onClose:close}));
 }
 // The same selections apply to direct generation, automatic keyframes, and stylization.
 export const localGeneration = {

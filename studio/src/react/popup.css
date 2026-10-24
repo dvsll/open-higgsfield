@@ -1,0 +1,10 @@
+dialog.studio-popup{box-sizing:border-box;width:min(1040px,calc(100vw - 32px));max-height:calc(100dvh - 48px);padding:0;border:1px solid var(--ui-border,#3c414b);border-radius:0;background:var(--ui-bg,#14161a);color:var(--ui-text,#e8e9ed);font:var(--ui-font,12px)/1.5 Inter,system-ui,sans-serif;overflow:auto;overscroll-behavior:contain}
+.studio-popup::backdrop{background:#0009}
+.studio-popup .popup-header{position:sticky;top:0;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px 16px;margin:0;border-bottom:1px solid var(--ui-border,#3c414b);background:inherit}
+.studio-popup .popup-header h2{margin:0;font-size:14px;font-weight:600;line-height:1.4}
+.studio-popup .popup-close{display:flex;align-items:center;justify-content:center;flex:none;width:30px;height:30px;padding:6px;margin:0;border:0;border-radius:0;background:transparent;color:var(--ui-muted,#a0a7b3);cursor:pointer}
+.studio-popup .popup-close svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.7}
+.studio-popup .popup-close:hover{background:#ffffff0d;color:var(--ui-text,#e8e9ed)}
+.studio-popup .popup-close:focus-visible{outline:2px solid var(--ui-accent,#e9c46a);outline-offset:-2px}
+.studio-popup .popup-content{padding:16px;min-width:0}
+@media(max-width:500px){.studio-popup{width:calc(100vw - 16px);max-height:calc(100dvh - 16px)}.studio-popup .popup-header{padding:8px 12px}.studio-popup .popup-content{padding:12px}}

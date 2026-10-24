@@ -284,3 +284,10 @@ Formatting tool used for the rewrite: Prettier 3 (MIT, https://github.com/pretti
 
 ## Ad Studio coordination - 2026-10-23 hero benchmark
 Partner branch adds isolated /api/hero/{capabilities,finish,reimagine,export,demo} and new hero_zimage_experimental.json. Existing Director source and production keyframe/video graphs untouched; audio/FLAC/edit/product/setup/model-string/options+frames/FPS regressions and both builds pass. New source-conditioned image inference is NOT RUN (missing image weights); no installs/spend. Local8301 Ad Studio hero review;8188 existing ComfyUI and8189 proxy running. PR3 draft, owner/browser quality approval pending; see notes/adstudio.md/HERO_BENCHMARK.md. Studio Where we left off above remains the owner's active handoff.
+
+
+## Ad Studio coordination - Qwen2511 benchmark preparation,2026-10-23
+No Director/UI/runtime/default changes. Separate hero_qwen2511_benchmark.json and benchmark/qwen-hero.mjs use the existing SDK/proxy only after explicit model approval; check-only default. Local native nodes match, image weights absent; Runpod inventory empty, no billable resources/weights/private uploads. Both builds and project/client compatibility tests pass. No new AI hero generated or approved. PR3 stays draft. See adstudio/QWEN_HERO_BENCHMARK.md and notes/adstudio.md; original owner handoff above untouched.
+
+
+**Ad Studio coordination - 2026-10-24 UTC:** Approved Qwen A40 benchmark attempted once, failed initial usable-VRAM assertion before model downloads/private upload/inference. Exact Pod and its local disks terminated/GET404; no network/global volumes, current spend0. No Qwen outputs. Isolated benchmark source/diagnostic fix and CPU cleanup tests only; no Studio/shared API/UI/default workflow changes. Typecheck/build and18 Director/Ad Studio regressions pass. Existing local services/other benchmark work preserved; PR3 draft. Evidence and renewed-approval retry requirements: adstudio/QWEN_HERO_BENCHMARK.md and notes/adstudio.md. Director's Where we left off/UI handoff above remains unchanged.

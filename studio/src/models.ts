@@ -1,6 +1,6 @@
 import {createElement} from 'react';
 import {renderView,unmountView} from './react/render';
-import {ModelInfo,ModelTiming,ModelChooser,type ModelInfoData} from './react/models';
+import {ModelInfo,ModelTiming,ModelChooser,ModelCapabilities,type ModelInfoData} from './react/models';
 import { OSH, type LocalModels, type ShotKey } from '../../shared/runtime/client';
 import { serverEstimate } from './model-estimates';
 import { frameSize, mountFrameSizes, videoTiming } from './frame-size';
@@ -73,7 +73,7 @@ function renderDetails(): void {
       picker.textContent = `${entry?.label || 'Choose model'} ▾`; picker.disabled = !catalog;
       picker.setAttribute('aria-label', `${kind === 'video' ? 'Video' : 'Image'} model: ${entry?.label || 'unavailable'}. Choose model`);
     }
-    if (!entry) {if(kind==='video'){renderView(el,null);const estimate=document.getElementById('videoGenerationEstimate');if(estimate)renderView(estimate,'Est: unavailable')}else renderView(el,'Est: unavailable');continue; }
+    if (!entry) {renderView(el,null);const estimate=document.getElementById(kind==='video'?'videoGenerationEstimate':'keyframeGenerationEstimate');if(estimate)renderView(estimate,'Est: unavailable');continue; }
     renderModelInfo(kind, entry, el);
   }
 }
@@ -90,22 +90,22 @@ function modelInfo(kind: Kind, entry: ModelChoice): ModelInfoData {
     const help={title:'Server-based estimate',text:`${timingServer?.hardware?.name||'GPU unavailable'} · ${timingServer?.hardware?.vramGB||'?'} GB VRAM. ${size.width}×${size.height}${kind==='video'?` · ${context.duration}s clip`:' per image'}. ${estimate.basis}. ${estimate.render??'?'}s rendering + ${estimate.load}s observed model-switch overhead${extra?` + ${extra}s for ${context.missingKeys} missing keyframes`:''}. ${timingServer?.queued?`${timingServer.queued} queued jobs; waiting is additional.`:'Queue empty at last refresh.'} Resolution/frame scaling is approximate; measured samples improve the estimate.`};
     return {timing,help,badges:entry.capabilities.filter(capability=>capability.status!=='unavailable').map(capability=>{
       const state=capability.status==='ready'?'Available':capability.status==='prompt'?'Prompt only':'Not connected';
-      return {name:capability.name,status:capability.status,label:`${capability.name}: ${state}`,help:{title:`${capability.name} · ${state}`,text:`${capability.detail} ${usage[capability.name]||''}${capability.control?' Click to open this control.':''}`},onClick:capability.control?()=>{
-        chooseEntry(kind,entry.id);requestAnimationFrame(()=>{if(tooltip)tooltip.hidden=true;if(capability.control==='timeline')dispatchEvent(new CustomEvent('osh-model-control',{detail:'timeline'}));const target=document.getElementById(capability.control!);target?.scrollIntoView({block:'nearest'});const focus=target?.matches('textarea,input,button')?target:target?.querySelector<HTMLElement>('button');(focus as HTMLElement|undefined)?.focus()});
+      return {name:capability.name,status:capability.status,label:`${capability.name}: ${state}`,description:capability.detail,usage:usage[capability.name],help:{title:`${capability.name} · ${state}`,text:`${capability.detail} ${usage[capability.name]||''}${capability.control?' Click to open this control.':''}`},onClick:capability.control?()=>{
+        chooseEntry(kind,entry.id);requestAnimationFrame(()=>{if(tooltip)tooltip.hidden=true;if(capability.control==='timeline')dispatchEvent(new CustomEvent('osh-model-control',{detail:'timeline'}));if(capability.control==='motion'||capability.control==='shotPromptInput'){dispatchEvent(new CustomEvent('osh-reveal-window',{detail:'prompts'}));if(capability.control==='motion')dispatchEvent(new Event('osh-open-prompt-advanced'));}if(capability.control==='kp'||capability.control==='els')dispatchEvent(new CustomEvent('osh-reveal-window',{detail:'keyframes'}));const target=document.getElementById(capability.control!);target?.scrollIntoView({block:'nearest'});const focus=target?.matches('textarea,input,button')?target:target?.querySelector<HTMLElement>('button');(focus as HTMLElement|undefined)?.focus()});
       }:undefined};
     })};
 }
 function renderModelInfo(kind:Kind,entry:ModelChoice,el:HTMLElement):void{
  const info=modelInfo(kind,entry),video=kind==='video'&&el.id==='videoModelDetails';
- renderView(el,createElement(ModelInfo,{info,attach:attachHelp,timing:!video}));
- if(video){const estimate=document.getElementById('videoGenerationEstimate');if(estimate)renderView(estimate,createElement(ModelTiming,{info,attach:attachHelp}))}
+ renderView(el,createElement(ModelCapabilities,{info}));
+ const estimate=document.getElementById(video?'videoGenerationEstimate':'keyframeGenerationEstimate');if(estimate)renderView(estimate,createElement(ModelTiming,{info,attach:attachHelp}));
 }
 function chooseEntry(kind:Kind,id:string):void{select(kind).value=id;chosen[kind]=id;localStorage.setItem(storageKey,JSON.stringify(chosen));renderDetails();chooser?.close()}
 let chooser: HTMLDialogElement | null = null;
 function chooseModel(kind: Kind): void {
  if(chooser){unmountView(chooser);chooser.remove()}
- chooser=document.createElement('dialog');chooser.className='model-chooser';chooser.setAttribute('aria-label',kind==='video'?'Choose video model':'Choose image model');
- renderView(chooser,createElement(ModelChooser,{kind,rows:(catalog?.[kind]||[]).map(entry=>({...entry,info:modelInfo(kind,entry)})),selected:select(kind).value,research:kind==='keyframe'?(catalog?.research||[]).map(item=>item.repo):[],attach:attachHelp,onChoose:id=>chooseEntry(kind,id),onClose:()=>chooser?.close()}));
+ chooser=document.createElement('dialog');chooser.className='model-chooser';chooser.setAttribute('aria-label','Choose model');
+ renderView(chooser,createElement(ModelChooser,{groups:(['video','keyframe'] as const).map(group=>({kind:group,label:group==='video'?'Video':'Image',rows:(catalog?.[group]||[]).map(entry=>({...entry,info:modelInfo(group,entry)})),selected:select(group).value})),research:(catalog?.research||[]).map(item=>item.repo),attach:attachHelp,onChoose:(group,id)=>{chooseEntry(group,id);document.dispatchEvent(new CustomEvent('osh-workspace-select',{detail:group==='video'?'Video':'Image'}))},onClose:()=>chooser?.close()}));
  const current=chooser;chooser.onclose=()=>{if(tooltip)tooltip.hidden=true;unmountView(current);current.remove();if(chooser===current)chooser=null};document.body.append(chooser);chooser.showModal();
 }
 // The same selections apply to direct generation, automatic keyframes, and stylization.

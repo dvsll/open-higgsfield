@@ -120,6 +120,12 @@ export function DirectorSurface() {
           </section>
           <section className="composer" aria-label="Generation prompts">
             <div className="prompt-scroll">
+              <div className="modelbar compact-modelbar">
+                <label htmlFor="videoModel">Model</label>
+                <select id="videoModel" disabled><option>Connecting…</option></select>
+                <span className="model-output-tag">Video</span>
+                <div id="videoModelDetails" className="model-card" />
+              </div>
               <div className="row primary-prompt-row">
                 <div className="prompt-field" data-model-kind="video" data-model-control="shotPromptInput">
                   <label htmlFor="shotPromptInput">Prompt</label>
@@ -127,13 +133,6 @@ export function DirectorSurface() {
                 </div>
               </div>
               <AdvancedPrompt>
-              <div className="modelbar">
-                <label htmlFor="videoModel">{'Video'}</label>
-                <select id="videoModel" disabled>
-                  <option>{'Connecting…'}</option>
-                </select>
-                <div id="videoModelDetails" className="model-card" aria-live="polite"></div>
-              </div>
               <div className="row">
                 <div className="prompt-field"><label htmlFor="visualPrompt">Video prompt</label><textarea id="visualPrompt" rows={2} placeholder="Scene details from your prompt…" /></div>
                 <div className="prompt-field" data-model-kind="video" data-model-control="motion">
@@ -245,11 +244,12 @@ export function DirectorSurface() {
         </main>
         <aside className="r">
           <div className="sec">{'Generate keyframe'}</div>
-          <div className="modelbar image-modelbar">
-            <label htmlFor="keyframeModel">{'Image'}</label>
+            <div className="modelbar image-modelbar compact-modelbar">
+              <label htmlFor="keyframeModel">Model</label>
             <select id="keyframeModel" disabled>
               <option>{'Connecting…'}</option>
             </select>
+              <span className="model-output-tag">Image</span>
             <div id="keyframeModelDetails" className="model-card" aria-live="polite"></div>
           </div>
           <details className="local-models">
@@ -304,6 +304,7 @@ export function DirectorSurface() {
           <button className="pill solid" id="kgo" style={{ width: '100%' }}>
             {'Generate 4 keyframes'}
           </button>
+          <div id="keyframeGenerationEstimate" className="keyframe-generation-estimate" />
           <div className="sec">
             {'Results '}
             <span>

@@ -58,7 +58,11 @@ try {
     createElement(TourChoice, { onChoose: () => {}, onBack: () => {}, onSkip: () => {} }),
   );
   assert.equal((choices.match(/viewBox="0 0 16 16"/g) || []).length, 6);
-  const { ModelInfo } = await server.ssrLoadModule('/studio/src/react/models.tsx');
+  const { ModelInfo,ModelChooser,ModelCapabilities } = await server.ssrLoadModule('/studio/src/react/models.tsx');
+  const groupInfo={timing:'Est: ~20s',help:{title:'Estimate',text:'GPU'},badges:[]};
+  const grouped=renderToStaticMarkup(createElement(ModelChooser,{groups:[{kind:'video',label:'Video',selected:'v',rows:[{id:'v',label:'Local video',description:'Video model',info:groupInfo}]},{kind:'keyframe',label:'Image',selected:'i',rows:[{id:'i',label:'Local image',description:'Image model',info:groupInfo}]}],research:[],attach:()=>{},onChoose:()=>{},onClose:()=>{}}));
+  assert.match(grouped,/aria-label="Video models"/);assert.match(grouped,/aria-label="Image models"/);assert.ok(grouped.indexOf('Local video')<grouped.indexOf('Local image'));
+  const capabilityTrigger=renderToStaticMarkup(createElement(ModelCapabilities,{info:groupInfo}));assert.match(capabilityTrigger,/aria-expanded="false"/);assert.match(capabilityTrigger,/Model capabilities/);
   const model = renderToStaticMarkup(
     createElement(ModelInfo, {
       info: {

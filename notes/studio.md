@@ -278,3 +278,6 @@ No Director/UI/runtime/default changes. Separate hero_qwen2511_benchmark.json an
 
 
 **Ad Studio coordination - 2026-10-24:** Creative-quality sprint preparation only: deterministic source-grounded Qwen briefs,3 original/crop concepts, isolated session/plan support and CPU tests. No new paid run, model install, generation or UI. Shared heroAdSVG (Ad Studio-only consumer) now respects logo alpha instead of forcing black backing; signature unchanged, actual PNG regression added. No Director source changes, originals/raw outputs/other working files preserved; both apps build. New GPU approval gate and current prepared inputs: adstudio/CREATIVE_QUALITY_SPRINT.md. PR3 remains draft; Director handoff above unchanged.
+
+
+**2026-10-24 Ad Studio coordination:** Completed approved3-candidate Qwen creative sprint; Pod/local disks terminated and all cloud inventories empty. Added standalone local provisional-ad composer and evidence/quality notes only; studio/ and shared/runtime/workflows unchanged,18 app CPU regressions +typecheck/build pass. Nine unrelated working files preserved; PR3 remains draft, no owner approval claimed. Private outputs/creative-quality-sprint/session/gallery.html and ad/no-crumbs-provisional-ad.png await owner review. No further cloud jobs authorized.

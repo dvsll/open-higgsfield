@@ -16,24 +16,27 @@ const KEY = 'osh-window-workspace-v2';
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value));
 const icon = (path: string) => `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${path}"/></svg>`;
 
-export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) => void): void {
+export type CustomWorkspace={storageKey:string;active:string;presets:Record<string,Setup>;panels:{id:string;title:string;content:HTMLElement}[]};
+export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) => void,custom?:CustomWorkspace): void {
+ const storageKey=custom?.storageKey||KEY;
  const app = document.querySelector<HTMLElement>('.app')!, main = app.querySelector('main')!;
  const wide = innerWidth >= 1150;
  const creation = split('x', panel('prompts'), panel('viewer'), .5);
  const bottom=Math.max(190,Math.min(300,innerHeight*.27)),topRatio=Math.max(.5,Math.min(.8,1-bottom/Math.max(300,innerHeight-110)));
  const videoTop=wide?split('x',split('y',panel('assets'),panel('files'),.5),creation,.19):creation;
- const presets: Record<string, Setup> = {
+ const presets: Record<string, Setup> = custom?.presets||{
   Video: { tree: split('y', videoTop, panel('timeline'), topRatio), mode: 'video' },
   Director:{tree:split('y',split('x',panel('viewer'),panel('keyframes'),.72),panel('timeline'),.62),mode:'video'},
   Image: { tree: split('y', split('x', panel('viewer'), panel('keyframes'), .72), panel('takes'), .7), mode: 'image' },
   '3D': { tree: split('x', panel('stage'), panel('elements'), .75), mode: 'video' },
   Rendering: { tree: split('y', split('x', panel('viewer'), panel('properties'), .75), panel('takes'), .7), mode: 'video' }
  };
- let store: Store = { version: 2, active: document.body.dataset.workflow === 'image' ? 'Image' : 'Video', layouts: {}, notes: {} };
+ const fallback=presets[custom?.active||'Video']||Object.values(presets)[0];
+ let store: Store = { version: 2, active: custom?.active||(document.body.dataset.workflow === 'image' ? 'Image' : 'Video'), layouts: {}, notes: {} };
  let restored=false;
- try { const value = JSON.parse(localStorage.getItem(KEY) || 'null'); if (value?.version === 2 && value.layouts && value.notes && typeof value.active === 'string') {store = value;restored=true;} } catch {}
+ try { const value = JSON.parse(localStorage.getItem(storageKey) || 'null'); if (value?.version === 2 && value.layouts && value.notes && typeof value.active === 'string') {store = value;restored=true;} } catch {}
  // Keep existing notes and named setups, translating regions into actual split trees. Floating legacy panels become docked siblings.
- if (!restored) try {
+ if (!custom && !restored) try {
   const old = JSON.parse(localStorage.getItem('osh-window-workspace-v1') || 'null');
   if (old?.notes) store.notes = old.notes;
   for (const [name, layout] of Object.entries(old?.layouts || {})) {
@@ -46,8 +49,8 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
   }
  } catch {}
  let active = store.active;
- let setup = clone(store.layouts[active] || presets[active] || presets.Video);
- try{if(!localStorage.getItem('osh-video-layout-reference-v2')){store.layouts.Video=clone(presets.Video);if(active==='Video')setup=clone(presets.Video);localStorage.setItem('osh-video-layout-reference-v2','1')}}catch{}
+ let setup = clone(store.layouts[active] || presets[active] || fallback);
+ try{if(!custom&&!localStorage.getItem('osh-video-layout-reference-v2')){store.layouts.Video=clone(fallback);if(active==='Video')setup=clone(fallback);localStorage.setItem('osh-video-layout-reference-v2','1')}}catch{}
  const panels = new Map<string, HTMLElement>();
  const registrations=new Map<string,{title:string;content:HTMLElement}>();
  const toolbar = document.createElement('nav'); toolbar.className = 'workspace-toolbar'; toolbar.setAttribute('aria-label', 'Workspace layout');
@@ -62,11 +65,11 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
  const guides = document.createElement('div'); guides.className = 'dock-guides';
  for (const [edge, label] of [['top', 'Above'], ['left', 'Left'], ['right', 'Right'], ['bottom', 'Below']] as const) { const item = document.createElement('span'); item.dataset.edge = edge; item.textContent = label; guides.append(item); }
  const label = document.createElement('div'); label.className = 'dock-preview-label'; overlay.append(shade, guides, label);
- const persist = () => { store.active = active; store.layouts[active] = clone(setup); try { localStorage.setItem(KEY, JSON.stringify(store)); } catch {} };
+ const persist = () => { store.active = active; store.layouts[active] = clone(setup); try { localStorage.setItem(storageKey, JSON.stringify(store)); } catch {} };
  let pending = false;
  const refresh = () => { if (pending) return; pending = true; requestAnimationFrame(() => { pending = false; resize(); }); };
  function render(): void {
-  board.dataset.defaultLayout=String(active==='Video'&&JSON.stringify(setup.tree)===JSON.stringify(presets.Video.tree));
+  board.dataset.defaultLayout=String(active==='Video'&&JSON.stringify(setup.tree)===JSON.stringify(fallback.tree));
   const visible = new Set(ids(setup.tree));
   for(const [id,{title,content}] of registrations)renderView(panels.get(id)!,createElement(WindowChrome,{id,title,content,visible:[...visible],panels,onDrag:startDrag,onDock:(moving,target,edge)=>{setup.tree=dock(setup.tree,moving,target,edge);render();persist()},onClose:()=>closeWindow(id)}));
   for (const [id, element] of panels) { element.hidden = !visible.has(id); element.classList.remove('is-dragging-window'); element.removeAttribute('style'); parking.append(element); menu.querySelector(`[data-window="${id}"]`)?.setAttribute('aria-pressed', String(visible.has(id))); }
@@ -122,6 +125,7 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
   renderView(element,createElement(WindowChrome,{id,title,content,visible:ids(setup.tree),panels,onDrag:startDrag,onDock:(moving,target,edge)=>{setup.tree=dock(setup.tree,moving,target,edge);render();persist()},onClose:()=>closeWindow(id)}));
   renderMenu();
  }
+ if(custom){for(const item of custom.panels)add(item.id,item.title,item.content)}else{
  const assets = app.querySelector<HTMLElement>('aside.l')!, keys = app.querySelector<HTMLElement>('aside.r')!, viewer = main.querySelector<HTMLElement>('.viewer')!, image = main.querySelector<HTMLElement>('.image-stage')!, composer = main.querySelector<HTMLElement>('.composer')!, properties = document.getElementById('videoAttributes') as HTMLDetailsElement;
  properties.open = true; const viewContent = document.createElement('div'); viewContent.className = 'viewer-content'; viewContent.append(image, viewer);
  add('edit-history','Edit history',document.getElementById('studioEditHistory')!);add('files','Project files',mountProjectFiles());add('stash','Stash',document.getElementById('stash')!);
@@ -132,15 +136,17 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
  sequenceBar.insertBefore(sequenceTransport,sequenceBar.children[1]);
  for (const id of ['trashBtn', 'addKeyBtn']) { const control = document.getElementById(id); if (control) sequenceBar.insertBefore(control, sequenceBar.children[1]); }
  const stage = document.createElement('div'); stage.className = 'stage-placeholder'; renderView(stage,createElement(StagePlaceholder)); add('stage', '3D viewport', stage);
+ document.getElementById('showVideoAttributes')?.addEventListener('click', () => { openWindow('properties'); properties.open = true; });
+ }
  for (const [id, value] of Object.entries(store.notes)) if (value && typeof value.title === 'string' && typeof value.text === 'string') note(id, value.title, value.text);
  function note(id: string, title: string, text: string): void { const field = document.createElement('textarea'); field.className = 'workspace-note'; field.placeholder = 'Ideas, shot notes, checklist…'; field.value = text; field.setAttribute('aria-label', title); field.oninput = () => { store.notes[id].text = field.value; persist(); }; add(id, title, field); }
  function ask(label:string,value:string):Promise<string|null>{return new Promise(resolve=>{const dialog=document.createElement('dialog');dialog.className='workspace-name-dialog';renderView(dialog,createElement(WorkspaceName,{label,value,onSave:name=>dialog.close(name),onCancel:()=>dialog.close()}));document.body.append(dialog);dialog.onclose=()=>{resolve(dialog.returnValue||null);unmountView(dialog);dialog.remove()};dialog.showModal()})}
- function choices(): void { picker.replaceChildren(); for (const name of new Set([...Object.keys(presets), ...Object.keys(store.layouts)])) picker.add(new Option(name, name)); picker.add(new Option('Edit ↗','__edit'));picker.value = active; }
+ function choices(): void { picker.replaceChildren(); for (const name of new Set([...Object.keys(presets), ...Object.keys(store.layouts)])) picker.add(new Option(name, name)); if(!custom)picker.add(new Option('Edit ↗','__edit'));picker.value = active; }
  let switching = false;
  function select(name: string): void {
   if(name==='__edit'){SHELL.open('edit');picker.value=active;return}
-  if(switching)return;const next=clone(store.layouts[name]||presets[name]||presets.Video);
-  if(next.tree&&!valid(next.tree,new Set(panels.keys())))next.tree=clone(presets.Video.tree);
+  if(switching)return;const next=clone(store.layouts[name]||presets[name]||fallback);
+  if(next.tree&&!valid(next.tree,new Set(panels.keys())))next.tree=clone(fallback.tree);
   switching=true;try{workflow(next.mode)}finally{switching=false}
   // A running generation can decline a creation-mode change. Keep its current layout and mode together.
   if(document.body.dataset.workflow!==next.mode){choices();return}
@@ -148,12 +154,11 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
  }
  addEventListener('osh-reveal-window',((event:CustomEvent)=>{if(panels.has(event.detail))openWindow(event.detail)}) as EventListener);
  document.addEventListener('osh-workspace-select',((event:CustomEvent)=>{if(presets[event.detail])select(event.detail)}) as EventListener);
- picker.onchange = () => select(picker.value); saveButton.onclick = async () => { const name = await ask('Save this window setup as', presets[active] ? 'My workspace' : active); if (!name) return; active = name; persist(); choices(); }; reset.onclick = () => { setup = clone(presets[active] || presets.Video); workflow(setup.mode); render(); persist(); };
- const top = document.createElement('div'); top.className = 'workspace-context'; while (main.firstChild) top.append(main.firstChild);
+ picker.onchange = () => select(picker.value); saveButton.onclick = async () => { const name = await ask('Save this window setup as', presets[active] ? 'My workspace' : active); if (!name) return; active = name; persist(); choices(); }; reset.onclick = () => { setup = clone(presets[active] || fallback); workflow(setup.mode); render(); persist(); };
+ const top = document.createElement('div'); top.className = 'workspace-context'; if(!custom)while (main.firstChild) top.append(main.firstChild);
  app.replaceChildren(toolbar, top, board, parking); app.classList.add('window-workspace');
  top.querySelectorAll<HTMLButtonElement>('[data-workflow]').forEach(button => button.addEventListener('click', () => select(button.dataset.workflow === 'image' ? 'Image' : 'Video')));
- document.getElementById('showVideoAttributes')?.addEventListener('click', () => { openWindow('properties'); properties.open = true; });
  document.addEventListener('osh-workflow-changed', ((event: CustomEvent) => { if (!switching && setup.mode !== event.detail) select(event.detail === 'image' ? 'Image' : 'Video'); }) as EventListener);
  const observer = new ResizeObserver(refresh); observer.observe(board); for (const element of panels.values()) observer.observe(element);
- addEventListener('resize', refresh); if (setup.tree && !valid(setup.tree, new Set(panels.keys()))) setup = clone(presets.Video); choices(); render(); persist();
+ addEventListener('resize', refresh); if (setup.tree && !valid(setup.tree, new Set(panels.keys()))) setup = clone(fallback); choices(); render(); persist();
 }

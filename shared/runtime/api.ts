@@ -12,6 +12,7 @@
  */
 import { RuntimeSetup, setupAccess } from './setup.ts';
 import {PromptRewriter,PromptRewriteError} from './prompt-rewriter.ts';
+import {precisionSources} from './precision-image.ts';
 import { JobActivity, phaseForProgress } from './job-activity.ts';
 import { Comfy } from "@comfyorg/sdk";
 import { spawn } from "node:child_process";
@@ -557,6 +558,29 @@ function middleware(env: Env,setup:RuntimeSetup,rewriter:PromptRewriter): Connec
       if(route==='POST /api/compose-ad')return send(res,200,await composeAd(await readBody(req),OUTPUTS,env));
       if (route === 'GET /api/capabilities') return send(res,200,await capabilities(env));
       if (route === "GET /api/models") return send(res, 200, await localModels(env));
+      if (route === 'GET /api/precision-image') {
+        const catalog = await localModels(env), nodes = await comfyJson(env, '/object_info'), graph = await loadGraph('precision_zimage');
+        return send(res, 200, {
+          available: catalog.keyframe.length > 0 && Object.values(graph).every(n => nodes[n.class_type]),
+          automaticSubjectSelection: false,
+          model: 'Z-Image Turbo · masked resynthesis',
+          note: 'Experimental masked resynthesis, not an instruction-edit checkpoint. Outside the mask is composited from the original.',
+        });
+      }
+      if (route === 'POST /api/precision-image') return send(res, 200, await tracked(async body => {
+        let sources;
+        try { sources = await precisionSources(OUTPUTS, body); }
+        catch (error: any) { throw new HttpError(error.status || 400, error.message); }
+        const catalog = await localModels(env);
+        if (!catalog.keyframe.length) throw new HttpError(503, 'The installed image model is unavailable.');
+        const c = client(env), wf = c.workflows.fromJson(await loadGraph('precision_zimage'));
+        wf.setInput('11', 'image', c.assets.fromFile(sources.image.path));
+        wf.setInput('12', 'image', c.assets.fromFile(sources.mask.path));
+        wf.setInput('5', 'text', body.prompt);
+        wf.setInput('8', 'seed', Math.floor(num(body.seed, 0, 2 ** 32, 1)));
+        const start = Date.now(), job = await serialize(() => runWf(c, wf, body._requestId));
+        return { url: await save(job, '10', 'png'), seconds: (Date.now() - start) / 1000, width: sources.image.width, height: sources.image.height };
+      }));
       if (route === "POST /api/upload") return send(res, 200, await upload(await readBody(req, MAX_UPLOAD_BODY)));
       if (route === "POST /api/export") return send(res, 200, await exportVideo(await readBody(req), env));
       if (route === "POST /api/product-video") return send(res, 200, await productVideo(await readBody(req), env));

@@ -1,0 +1,12 @@
+body .app.window-workspace{flex:1;height:auto;min-height:0;overflow:hidden;display:flex;flex-direction:column}
+.precision-viewer{display:flex;flex-direction:column;height:100%;min-height:0;margin:0!important;padding:0!important;overflow:hidden!important;background:#0c0d10}
+.precision-toolbar,.precision-tools{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:8px;flex:none}
+.precision-toolbar button,.precision-tools button,.precision-inspector button,.precision-versions button{font:inherit;min-height:30px;padding:5px 8px;border:1px solid #3b414c;background:#22262d;color:#e7e9ed;cursor:pointer;border-radius:0}
+.precision-toolbar a{font-size:11px;color:#aeb7c5}.precision-inspector button:disabled{opacity:.4;cursor:default}.precision-tools button[aria-pressed=true]{border-color:#e9c46a;color:#e9c46a}
+.precision-stage{flex:1;min-height:120px;position:relative;display:grid;place-items:center;overflow:hidden}
+.precision-canvases{position:relative;width:100%;height:100%;min-height:0}.precision-canvases canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}.precision-mask{opacity:.4;touch-action:none;cursor:crosshair}
+.precision-empty{padding:24px;color:#a0a9b8;text-align:center}.precision-empty h2{color:#e6e8ed;font-size:18px}.precision-status{font-size:12px;color:#aab2bf;padding:8px;margin:0;line-height:1.5}
+.precision-inspector{display:flex;flex-direction:column;gap:12px;padding:8px!important;overflow:auto!important;min-width:0}.precision-inspector label{display:flex;flex-direction:column;gap:6px;font-size:12px}.precision-inspector textarea{min-height:112px;width:100%;box-sizing:border-box;background:#121417;border:1px solid #3b414c;color:#e7e9ed;font:inherit;padding:8px;resize:vertical}.precision-inspector input[type=number]{width:80px;box-sizing:border-box;padding:6px;background:#17191e;color:#e7e9ed;border:1px solid #3b414c}.precision-inspector p{font-size:11px;line-height:1.5;color:#9da6b5;margin:0}.precision-inspector .solid{background:#e9c46a;color:#211b10}
+.precision-version{display:flex;align-items:center;gap:8px;width:100%;text-align:left;margin-top:6px}.precision-version img{width:64px;height:48px;object-fit:contain}.precision-version span{font-size:11px;overflow-wrap:anywhere}.precision-version[aria-pressed=true]{border-color:#e9c46a}
+
+.app.window-workspace>.window-board{flex:1;min-height:0}.app.window-workspace>.workspace-toolbar,.app.window-workspace>.workspace-context{flex:none}

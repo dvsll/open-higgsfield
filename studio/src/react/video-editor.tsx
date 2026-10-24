@@ -3,16 +3,21 @@ import { createPortal } from 'react-dom';
 import { OSH } from '../../../shared/runtime/client';
 import { SC } from '../scene';
 import { SHELL, type Media } from '../shell';
+import {captureViewerFrame} from '../frame-keyframe';
 export type VideoHandoff = Media & { video: string; from?: string };
 type Take = { video: string; audio?: string; prompt: string; edited: boolean };
 export function VideoEditor({
   hand,
   right,
   actions,
+  onFrame,
+  versionsHost,
 }: {
   hand: VideoHandoff;
   right: HTMLElement;
   actions: HTMLElement;
+  onFrame?:(image:string)=>void|Promise<void>;
+  versionsHost?:HTMLElement;
 }) {
   const [take, setTake] = useState<Take>({
       video: hand.video,
@@ -194,7 +199,9 @@ export function VideoEditor({
   };
   return (
     <>
+      {versionsHost&&createPortal(<><p className="precision-status">Video versions from this editing session</p>{[...history,take].map((version,index)=><button className="precision-version" key={index} disabled={busy} aria-pressed={version===take} onClick={()=>loadTake(version)}>{index===0?"Original":"Edit "+index}</button>)}</>,versionsHost)}
       <div className="video-edit-toolbar">
+        {onFrame&&<button disabled={busy||!loaded} onClick={async()=>{setBusy(true);try{video.current?.pause();await onFrame(captureViewerFrame(video.current!))}catch(error){setStatus((error as Error).message)}finally{setBusy(false)}}}>Precision edit current frame</button>}
         <button data-original disabled={busy || !loaded} onClick={() => setComparing(!comparing)}>
           {comparing ? 'Show edited video' : 'Compare original'}
         </button>

@@ -41,5 +41,5 @@ Two entries for Comfy Org's **Open Source Higgsfield** competition. **Hard deadl
   - State lives in `localStorage['osh-director']` (`SH` shots, `STASH`, `TRASH`, `cur`, `G`). The look is in `osh-project`.
   - Shot: `{n, d, spec, m (motion), keys:[{t,u,spec,img}], r (generated), video, seed}`.
   - `OSH.keyframe()` / `OSH.shot()` (`shared/runtime/client.ts`) call `/api` (`shared/runtime/api.ts`). Video only generates when the user presses Generate.
-- `edit.html` + `src/edit.ts`: Edit Anything (placeholder edits; real image-edit workflow not built yet).
+- `edit.html` + `src/edit.ts`: docked Edit workflow; React precision image editor (brush/box/erase, masked Z-Image resynthesis, saved versions), real video properties/export and frame capture. Automatic subject masks need segmentation weights; not implemented.
 - `src/shell.ts`: shared sidebar (selected media + "open in", mood board, cast & places). `src/scene.ts`: generic placeholder + storage helpers.

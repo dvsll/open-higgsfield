@@ -243,7 +243,7 @@ export function DirectorSurface() {
           <div className="hist" id="hist"></div>
         </main>
         <aside className="r">
-          <div className="sec">{'Generate keyframe'}</div>
+          <div className="sec">{'Image workshop'}</div>
             <div className="modelbar image-modelbar compact-modelbar">
               <label htmlFor="keyframeModel">Model</label>
             <select id="keyframeModel" disabled>
@@ -306,13 +306,11 @@ export function DirectorSurface() {
           <div className="sec">
             {'Results '}
             <span>
-              {'click = add to selected shot'}
-              <br />
-              {'or drag onto a clip'}
+              {'Select an image to preview it'}
             </span>
           </div>
           <div id="res">
-            <div className="empty">{'Generated keyframes show up here.'}</div>
+            <div className="empty">{'Generated images show up here.'}</div>
           </div>
         </aside>
       </div>

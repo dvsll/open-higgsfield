@@ -19,7 +19,7 @@ export function canResumeWorkflow(state: { entry?:Workflow; shotId?:string; dism
 }
 export function ownsTour(page:'director'|'edit', entry?:Workflow): boolean { return page === 'edit' ? entry === 'edit' : entry !== 'edit'; }
 export function windowLesson(step:string, visible:ReadonlySet<string>, menuOpen:boolean):{window:string;stage:'menu'|'item'}|null {
- const required:Record<string,string[]>={keyframes:['keyframes'],add:['keyframes','timeline'],position:['timeline'],image:['keyframes'],'image-review':['viewer'],'image-video':['prompts'],prompt:['prompts'],regenerate:['prompts'],'render-settings':['properties'],'render-takes':['takes'],'3d':['stage']};
+ const required:Record<string,string[]>={keyframes:['keyframes'],add:['files','timeline'],position:['timeline'],image:['keyframes'],'image-review':['viewer'],'image-video':['prompts'],prompt:['prompts'],regenerate:['prompts'],'render-settings':['properties'],'render-takes':['takes'],'3d':['stage']};
  const missing=required[step]?.find(id=>!visible.has(id));
  return missing?{window:missing,stage:menuOpen?'item':'menu'}:null;
 }
@@ -28,3 +28,11 @@ export function guidesPlaced(keys: { img?: string; anchor?: string }[]): boolean
 }
 
 export function continuesImageTour(state:{entry?:Workflow;step:string;dismissed?:boolean;suspended?:boolean}|null,entry:Workflow):boolean{return !!state&&!state.dismissed&&!state.suspended&&state.entry==='image'&&entry==='video'&&['image-review','image-video'].includes(state.step)}
+export function workflowTourStep(state:{entry?:Workflow;step:string;dismissed?:boolean;suspended?:boolean}|null,entry:Workflow):string|null{
+ if(!state||state.dismissed||state.suspended)return null;
+ if(['video','director'].includes(state.entry||'')){
+  if(entry==='image'&&['switch-image','keyframes'].includes(state.step))return 'keyframes';
+  if(entry==='video'&&['return-video','add','position','regenerate'].includes(state.step))return state.step==='return-video'?'add':state.step;
+ }
+ return continuesImageTour(state,entry)?'image-video':null;
+}

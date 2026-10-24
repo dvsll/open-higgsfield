@@ -4,10 +4,12 @@ export function Takes({
   items,
   ago,
   onUse,
+  imageMode=false,
 }: {
   items: Take[];
   ago: (time: number) => string;
   onUse: (item: Take) => void;
+  imageMode?:boolean;
 }) {
   return (
     <>
@@ -15,7 +17,7 @@ export function Takes({
         Generation history{' '}
         <span>
           {items.length
-            ? `${items.length} · click a keyframe to add it to the selected shot, a shot to use it as that shot's take`
+            ? imageMode?`${items.length} · select an image to keep workshopping it`:`${items.length} · select an image to add a keyframe, or restore a video take`
             : ''}
         </span>
       </div>

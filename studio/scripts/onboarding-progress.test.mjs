@@ -13,7 +13,7 @@ assert.equal(ownsTour('edit','director'),false);assert.equal(ownsTour('director'
 assert.deepEqual(windowLesson('keyframes',new Set(['timeline']),false),{window:'keyframes',stage:'menu'});
 assert.deepEqual(windowLesson('keyframes',new Set(['timeline']),true),{window:'keyframes',stage:'item'});
 assert.equal(windowLesson('keyframes',new Set(['keyframes']),false),null);
-assert.deepEqual(windowLesson('add',new Set(['keyframes']),false),{window:'timeline',stage:'menu'});
+assert.deepEqual(windowLesson('add',new Set(['keyframes']),false),{window:'files',stage:'menu'});
 assert.equal(windowLesson('done',new Set(),false),null);
 assert.equal(windowLesson('edit-settings',new Set(),false),null);
 assert.equal(guidesPlaced([{img:'a',anchor:'start'},{anchor:'end'}]),false);assert.equal(guidesPlaced([{img:'a',anchor:'start'},{img:'b',anchor:'end'}]),true);
@@ -58,3 +58,32 @@ try{
  allowed=null;lock.sync();assert.equal(sourceRoot.inert,false);assert.equal(existing.inert,true);
  lock.dispose();assert.equal(fire('click',sourceRoot),false);
 }finally{for(const [key,value] of Object.entries(globals)){if(value===undefined)delete globalThis[key];else globalThis[key]=value}}
+
+
+const {workflowTourStep}=await import('../src/onboarding-progress.ts');
+const videoTour={entry:'video',step:'switch-image'};
+assert.equal(workflowTourStep(videoTour,'image'),'keyframes');
+assert.equal(workflowTourStep({...videoTour,step:'keyframes'},'image'),'keyframes');
+assert.equal(workflowTourStep({...videoTour,step:'return-video'},'video'),'add');
+assert.equal(workflowTourStep({...videoTour,step:'position'},'video'),'position');
+assert.equal(workflowTourStep({...videoTour,dismissed:true},'image'),null);
+assert.equal(workflowTourStep({...videoTour,suspended:true},'image'),null);
+assert.equal(workflowTourStep(videoTour,'rendering'),null);
+assert.equal(workflowTourStep({entry:'image',step:'image-review'},'video'),'image-video');
+assert.equal(windowLesson('switch-image',new Set(),false),null);
+assert.deepEqual(windowLesson('add',new Set(['timeline']),false),{window:'files',stage:'menu'});
+assert.equal(windowLesson('add',new Set(['files','timeline']),false),null);
+// Existing Project files images can be dropped as guides, but external/unknown URLs cannot.
+context.SC={get:()=>[{url:'/outputs/1111111111111111.png',kind:'image'}]};context.dragV=null;context.onboarding.step='add';shot.keys=[];
+api.dropTarget(el,0);el.ondrop({preventDefault(){},clientX:110,dataTransfer:{getData:()=>'/outputs/1111111111111111.png'}});assert.equal(shot.keys.length,1);assert.equal(shot.keys[0].img,'/outputs/1111111111111111.png');
+el.ondrop({preventDefault(){},clientX:210,dataTransfer:{getData:()=>'/outputs/2222222222222222.png'}});assert.equal(shot.keys.length,1);
+
+// Run the real image-generation controller against a deterministic CPU stub.
+const imageCode=source.slice(source.indexOf("$('#kgo').onclick=async()=>"),source.indexOf('\nfunction res()'));
+const button={disabled:false,textContent:''},promptInput={value:'Prepared guide prompt'};
+let generated=0,guideRenders=0;
+const imageContext={$:selector=>selector==='#kgo'?button:promptInput,SP:value=>value,touring:()=>true,specFromUI:()=>({}),OSH:{online:true},workspaceMode:'image',keyframeBatch:4,results:[],imageDraft:{},onboarding:{entry:'video',step:'keyframes',images:[]},localGeneration:{keyframe:async()=>({url:'/outputs/'+String(++generated).repeat(16)+'.png'})},res:()=>{},SC:{set:()=>{}},advanceTour:step=>{imageContext.onboarding.step=step},renderTour:()=>guideRenders++,saveWorkshop:()=>{},syncWorkspace:()=>{},pushHist:()=>{},toast:()=>{}};
+const generateGuide=Function('ctx','with(ctx){'+imageCode+";return $('#kgo').onclick}")(imageContext);
+await generateGuide();assert.equal(imageContext.onboarding.step,'keyframes');assert.equal(guideRenders,1);assert.equal(button.disabled,false);
+await generateGuide();assert.equal(imageContext.onboarding.step,'return-video');assert.equal(imageContext.onboarding.images.length,2);assert.equal(imageContext.imageDraft.url,'/outputs/2222222222222222.png');
+imageContext.onboarding={entry:'image',step:'image',images:[]};await generateGuide();assert.equal(imageContext.onboarding.step,'image-review');

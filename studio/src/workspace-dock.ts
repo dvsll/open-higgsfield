@@ -26,7 +26,7 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
  const videoTop=wide?split('x',split('y',panel('assets'),panel('files'),.5),creation,.19):creation;
  const presets: Record<string, Setup> = custom?.presets||{
   Video: { tree: split('y', videoTop, panel('timeline'), topRatio), mode: 'video' },
-  Director:{tree:split('y',split('x',panel('viewer'),panel('keyframes'),.72),panel('timeline'),.62),mode:'video'},
+  Director:{tree:split('y',split('x',panel('viewer'),panel('prompts'),.6),panel('timeline'),.62),mode:'video'},
   Image: { tree: split('y', split('x', panel('viewer'), panel('keyframes'), .72), panel('takes'), .7), mode: 'image' },
   '3D': { tree: split('x', panel('stage'), panel('elements'), .75), mode: 'video' },
   Rendering: { tree: split('y', split('x', panel('viewer'), panel('properties'), .75), panel('takes'), .7), mode: 'video' }
@@ -57,7 +57,7 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
  renderView(toolbar,createElement(WorkspaceToolbar));
  const newButton=toolbar.querySelector<HTMLButtonElement>('[data-new-setup]')!,deleteButton=toolbar.querySelector<HTMLButtonElement>('[data-delete-setup]')!,restoreButton=toolbar.querySelector<HTMLButtonElement>('[data-restore-setup]')!;
  const picker=toolbar.querySelector('select')!,windows=toolbar.querySelector('details')!,menu=windows.querySelector('div')!,saveButton=toolbar.querySelector<HTMLButtonElement>('[data-save-setup]')!,reset=toolbar.querySelector<HTMLButtonElement>('[data-reset-setup]')!;
- function renderMenu(){renderView(menu,createElement(WindowsMenu,{panels:[...registrations].map(([id,p])=>({id,title:p.title})),visible:ids(setup.tree),onToggle:id=>{ids(setup.tree).includes(id)?closeWindow(id):openWindow(id);windows.open=false},onNew:async()=>{const title=await ask('Window name','Notes');if(!title)return;const id='note-'+Date.now();store.notes[id]={title,text:''};note(id,title,'');openWindow(id);windows.open=false}}))}
+ function renderMenu(){renderView(menu,createElement(WindowsMenu,{panels:[...registrations].filter(([id])=>custom||id!=='keyframes'||setup.mode==='image').map(([id,p])=>({id,title:p.title})),visible:ids(setup.tree),onToggle:id=>{ids(setup.tree).includes(id)?closeWindow(id):openWindow(id);windows.open=false},onNew:async()=>{const title=await ask('Window name','Notes');if(!title)return;const id='note-'+Date.now();store.notes[id]={title,text:''};note(id,title,'');openWindow(id);windows.open=false}}))}
  const board = document.createElement('div'); board.className = 'window-board';
  const layout=document.createElement('div');layout.className='dock-layout';board.append(layout);
  const parking = document.createElement('div'); parking.hidden = true;
@@ -70,6 +70,7 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
  let pending = false;
  const refresh = () => { if (pending) return; pending = true; requestAnimationFrame(() => { pending = false; resize(); }); };
  function render(): void {
+  if(!custom&&setup.mode!=='image')setup.tree=remove(setup.tree,'keyframes');
   if(!custom&&document.getElementById('videoTrackToggle')?.getAttribute('aria-expanded')!=='true')setup.tree=remove(setup.tree,'properties');
   board.dataset.defaultLayout=String(active==='Video'&&JSON.stringify(setup.tree)===JSON.stringify(fallback.tree));
   const visible = new Set(ids(setup.tree));
@@ -78,7 +79,7 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
   renderView(layout,createElement(DockTree,{node:setup.tree,panels,parking,onRatio:persist}));
   board.append(overlay); renderMenu();refresh();document.dispatchEvent(new Event('osh-window-layout-changed'));
  }
- function openWindow(id: string): void { if(!custom&&id==='properties'&&document.getElementById('videoTrackToggle')?.getAttribute('aria-expanded')!=='true'){dispatchEvent(new Event('osh-expand-video'));return}if (ids(setup.tree).includes(id)) return; setup.tree = setup.tree ? split('x', setup.tree, panel(id), .7) : panel(id); render(); persist(); }
+ function openWindow(id: string): void { if(!custom&&id==='keyframes'&&setup.mode!=='image'){if(select('Image'))openWindow(id);return} if(!custom&&id==='properties'&&document.getElementById('videoTrackToggle')?.getAttribute('aria-expanded')!=='true'){dispatchEvent(new Event('osh-expand-video'));return}if (ids(setup.tree).includes(id)) return; setup.tree = setup.tree ? split('x', setup.tree, panel(id), .7) : panel(id); render(); persist(); }
  function closeWindow(id: string): void {if(!ids(setup.tree).includes(id))return;setup.tree = remove(setup.tree, id); render(); persist();if(!custom&&id==='properties')dispatchEvent(new Event('osh-collapse-video')); }
  let cancelDrag: (()=>void)|null=null;
  function startDrag(id: string, event: PointerEvent): void {
@@ -132,7 +133,7 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
  properties.open = true; const viewContent = document.createElement('div'); viewContent.className = 'viewer-content'; viewContent.append(image, viewer);
  add('captions','Captions',document.getElementById('studioCaptions')!);add('edit-history','Edit history',document.getElementById('studioEditHistory')!);add('files','Project files',mountProjectFiles());add('stash','Stash',document.getElementById('stash')!);
  const inspector=document.createElement('div');inspector.className='sequence-inspector';const identity=document.getElementById('videoTrackAttributes')!;identity.hidden=false;identity.className='scene-property-identity';inspector.append(identity,properties);
- add('stylization', 'Stylization', document.getElementById('studioStylization')!); add('elements', 'Elements', document.getElementById('studioElements')!); add('assets', 'Selected media', assets); add('viewer', 'Viewer', viewContent); add('prompts', 'Prompts', composer); add('keyframes', 'Image & keyframes', keys); add('properties', 'Properties', inspector); add('timeline', 'Sequence', main.querySelector<HTMLElement>('.tlw')!); add('takes', 'Takes', main.querySelector<HTMLElement>('.hist')!);
+ add('stylization', 'Stylization', document.getElementById('studioStylization')!); add('elements', 'Elements', document.getElementById('studioElements')!); add('assets', 'Selected media', assets); add('viewer', 'Viewer', viewContent); add('prompts', 'Prompts', composer); add('keyframes', 'Image prompts', keys); add('properties', 'Properties', inspector); add('timeline', 'Sequence', main.querySelector<HTMLElement>('.tlw')!); add('takes', 'Takes', main.querySelector<HTMLElement>('.hist')!);
  const sequenceBar = panels.get('timeline')!.querySelector('.window-titlebar')!;
  const sequenceTransport=document.createElement('div');sequenceTransport.className='sequence-transport';sequenceTransport.setAttribute('role','group');sequenceTransport.setAttribute('aria-label','Sequence playback position');
  for(const id of ['previousFrame','nextFrame','viewerTime']){const control=panels.get('viewer')!.querySelector<HTMLElement>('#'+id)!;sequenceTransport.append(id==='viewerTime'?control.closest('label')!:control)}

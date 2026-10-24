@@ -36,3 +36,4 @@
 .file-folder-form p{margin:0;color:var(--ui-muted);line-height:1.5}.file-folder-actions{display:flex;justify-content:flex-end;gap:8px}.file-folder-actions button{font:inherit;padding:8px 12px}
 .project-files .files-empty{font-size:var(--ui-small);color:var(--ui-muted);line-height:1.6;margin:0;padding:8px 0}
 .project-files .file-group summary{cursor:pointer;color:var(--ui-text)}
+.project-files .file-add-keyframe{font:inherit;flex-shrink:0;margin-bottom:8px;padding:6px 8px;text-align:left}

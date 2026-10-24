@@ -138,3 +138,12 @@ dialog.workspace-name-popup{width:min(420px,calc(100vw - 32px))}.workspace-name-
 
 .model-selection-advanced{margin-top:16px;border-top:1px solid var(--ui-border);padding-top:12px}.model-selection-advanced summary{cursor:pointer;color:var(--ui-text);font-weight:500;padding:4px 0}.model-selection-advanced p{color:var(--ui-muted);line-height:1.5}.model-compute-grid{display:grid;gap:10px}.model-compute-grid label{display:grid;grid-template-columns:minmax(0,1fr) minmax(160px,220px);align-items:center;gap:12px}.model-compute-grid select{font:inherit;color:var(--ui-text);background:var(--ui-raised);border:1px solid var(--ui-border);padding:5px;border-radius:0}@media(max-width:550px){.model-compute-grid label{grid-template-columns:1fr;gap:4px}}
 
+/* Keep the Image → Video handoff in the viewer frame at every dock size. */
+body[data-workflow=image] .window-body .image-stage{display:flex;flex-direction:column;overflow:hidden}
+body[data-workflow=image] .window-body .image-stage>img{flex:1;min-height:0;height:0;max-height:none;object-fit:contain}
+body[data-workflow=image] .window-body #imageWelcome{flex:1;min-height:0;overflow:auto}
+body[data-workflow=image] .window-body #nextImage{flex:none;margin:0;padding:10px;gap:8px;flex-wrap:wrap;border-width:1px 0 0}
+body[data-workflow=image] .window-body #nextImage>div{min-width:160px}
+body[data-workflow=image] .window-body #nextImage strong{font-size:var(--ui-small);font-weight:500}
+body[data-workflow=image] .window-body #nextImage p{font-size:var(--ui-small);margin-top:4px}
+body[data-workflow=image] .window-body #nextImage button{font-size:var(--ui-small);padding:7px 10px}

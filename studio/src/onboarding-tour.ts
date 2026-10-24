@@ -6,7 +6,7 @@ import './onboarding-focus.css';
 import './onboarding-guidance.css';
 import { SC } from './scene';
 import {lockTourInteraction} from './onboarding-interaction';
-import { continuesImageTour, canResumeWorkflow, firstVisit, profileKey, readProfile, windowLesson, workflowForSetup, type Experience, type Workflow } from './onboarding-progress';
+import { workflowTourStep, canResumeWorkflow, firstVisit, profileKey, readProfile, windowLesson, workflowForSetup, type Experience, type Workflow } from './onboarding-progress';
 export type TourState = { step:string; shotId:string; images:string[]; dismissed?:boolean; suspended?:boolean; experience?:Experience; entry?:Workflow; firstVideo?:string|null };
 type Options = { get:()=>TourState|null; set:(state:TourState)=>void; save:()=>void; choose:(entry:Workflow)=>void; begin:(entry:Workflow)=>TourState; current:()=>Workflow };
 type Tip = { title:string; text:string; target?:string; secondary?:string; next?:string; diagram?:'add'|'position' };
@@ -22,6 +22,13 @@ export function mountOnboardingTour(options:Options) {
  const shadePath=document.createElementNS(shade.namespaceURI,'path');shadePath.setAttribute('fill-rule','evenodd');shade.append(shadePath);
  const rings=[0,1].map(()=>{const ring=document.createElement('div');ring.className='tour-target';ring.hidden=true;return ring});document.body.append(shade,...rings,popup);
  let chooser:HTMLDialogElement|null=null,localStep=0,lastStage='',lastWindowLesson='',targets:string[]=[],switching=false,disposed=false;
+ const restrictedOptions=new Map<HTMLOptionElement,boolean>();
+ function workflowChoices(){
+  for(const [option,disabled] of restrictedOptions)option.disabled=disabled;restrictedOptions.clear();
+  const state=options.get();if(!state||state.dismissed||state.suspended)return;
+  const expected=state.step==='switch-image'?'Image':state.step==='return-video'?'Video':null;
+  if(expected)document.querySelectorAll<HTMLOptionElement>('[aria-label="Workspace setup"] option').forEach(option=>{if(option.value!==expected){restrictedOptions.set(option,option.disabled);option.disabled=true}});
+ }
  const targetElement=(selector:string)=>selector.split(',').map(s=>document.querySelector<HTMLElement>(s.trim())).find(e=>e&&e.getClientRects().length);
  const interaction=lockTourInteraction({roots:()=>{
   if(popup.hidden||disposed)return null;
@@ -89,7 +96,7 @@ export function mountOnboardingTour(options:Options) {
  }
  function prepare(step:string){
   if(['add','position'].includes(step))dispatchEvent(new Event('osh-tour-keyframe-view'));
-  requestAnimationFrame(()=>{const selector=step==='add'?'#res':step==='position'?'#trk':step==='keyframes'?'#kgo':null;const element=selector&&document.querySelector(selector);element?.scrollIntoView({block:'nearest'})});
+  requestAnimationFrame(()=>{const selector=step==='add'?'.project-files':step==='position'?'#trk':step==='keyframes'?'#kp':null;const element=selector&&document.querySelector(selector);element?.scrollIntoView({block:'nearest'})});
  }
  function tip(state:TourState):Tip{
   const beginner=state.experience==='beginner',pro=state.experience==='professional';
@@ -98,18 +105,20 @@ export function mountOnboardingTour(options:Options) {
   const lessonKey=lesson?lesson.window+':'+lesson.stage:'';
   if(!lesson&&lastWindowLesson)prepare(state.step);lastWindowLesson=lessonKey;
   if(lesson){
-   const titles:Record<string,string>={keyframes:'Image & keyframes',timeline:'Sequence',prompts:'Prompts',viewer:'Viewer',properties:'Size & timing',takes:'Takes',stage:'3D viewport'};
+   const titles:Record<string,string>={keyframes:'Image prompts',files:'Project files',timeline:'Sequence',prompts:'Prompts',viewer:'Viewer',properties:'Properties',takes:'Takes',stage:'3D viewport'};
    const title=titles[lesson.window];
    return lesson.stage==='menu'?{title:'Add a window to your workspace',text:beginner?`Tools live in dockable windows. Open Windows in the top bar, then add ${title}. You can move windows and resize their splits to make the workspace yours.`:`Open Windows in the top bar to add ${title} yourself. Your window layout is saved.`,target:'.window-menu > summary'}:{title:`Choose ${title}`,text:`Select ${title} in this list to add the window. The walkthrough will continue once you have added it.`,target:`.window-menu button[data-window="${lesson.window}"]`};
   }
   const tips:Record<string,Tip>={
    prompt:localStep===0?{title:'Describe your first scene',text:beginner?'Your shot prompt describes what the camera sees. We prepared a tiny copper robot watering a flower. Keep it or make it yours.':pro?'Edit the prepared shot prompt. Motion and audio are optional.':'Use the prepared scene or write your own. Motion and audio have separate prompt boxes.',target:'#shotPromptInput',next:'Next: generate'}:{title:'Bring it to life',text:beginner?'Press the highlighted Generate video button. No keyframes are required. We’ll continue when your video is ready.':'Press Generate video. The walkthrough continues when the video is ready.',target:'#gen'},
-   keyframes:{title:'Create guide images',text:beginner?'A keyframe is an image that guides a moment in your video. The matching image prompt is ready. Use the image generator below; you’ll need two different results.':pro?'Generate at least two guide images from the prepared prompt.':'Use the image generator to create two matching guides for START and END.',target:'#kgo'},
-   add:{title:'Drag images into your scene',text:beginner?'Drag each result from the image generator onto the scene in Sequence. Place them anywhere to start; next you’ll move them to the edges. You can also click results to add them.':'Drag two different results onto the scene. Click-to-add also works. Next: move the guides to START and END.',target:'#res',secondary:'#trk',diagram:'add'},
+   'switch-image':{title:'Try the Image workflow',text:beginner?'Your first video is ready. Now let’s guide its next take with pictures. Open the workspace selector at the top and choose Image. Your video stays in this project.':'Choose Image in the workspace selector to create two guides for this scene. Your video and timeline are preserved.',target:'[aria-label="Workspace setup"]'},
+   keyframes:localStep===0?{title:'Pictures can guide your video',text:beginner?'The Image workflow is where you workshop still pictures. The prepared prompt matches your scene. We’ll make two different images, then bring them back as keyframes.':'Review the prepared image prompt, then generate two guides for START and END.',target:'#kp',next:'Next: generate guides'}:{title:new Set(state.images).size?'Create a second guide':'Create your first guide',text:new Set(state.images).size?'One guide is saved. Press Generate image again for a different result. Both images will be available in Project files when you return to Video.':'Press Generate image. After it finishes, generate once more for a second guide. Images stay in this project across workflows.',target:'#kgo'},
+   'return-video':{title:'Bring your images back to Video',text:'Both guides are saved in Project files. Choose Video in the workspace selector. Next, you’ll add them to the scene and place them at START and END.',target:'[aria-label="Workspace setup"]'},
+   add:{title:'Bring images onto the timeline',text:beginner?'Your Image results are here in Project files. Drag two different image thumbnails onto this scene. Or select an image and press Add as keyframe. Next you’ll move the guides to the edges.':'Drag two different images from Project files onto the scene, or select each and use Add as keyframe. Next: START and END.',target:'.project-files',secondary:'#trk',diagram:'add'},
    position:{title:'Drag to START and END',text:beginner?'Drag one image keyframe all the way left until it becomes START. Drag the other all the way right until it becomes END. Interior keyframes can sit anywhere in between. Keyboard: focus a keyframe and press Home or End.':'Drag one keyframe to each timeline edge: left → START, right → END. Interior guides remain movable.',target:'#trk',diagram:'position'},
    regenerate:{title:'See your direction take effect',text:beginner?'START and END are attached. Press Generate video again to see how those images shape the next take.':'Press Generate video to make a new take with both guides.',target:'#gen'},
    image:localStep===0?{title:'Start with one image',text:beginner?'Describe a subject, setting and visual style. We prepared a matching robot-and-flower prompt. Keep it or make it yours.':'Edit the prepared image prompt.',target:'#kp',next:'Next: generate image'}:{title:'Generate your first image',text:'Press the highlighted Generate image button. We’ll continue when your picture is ready.',target:'#kgo'},
-   'image-review':{title:'Your image is ready',text:'Keep workshopping it, or press Turn into a video below the image to use it as the starting frame.',target:'#animateImage'},
+   'image-review':{title:'Make this image a video keyframe',text:beginner?'Your picture can become the START keyframe of a video. Press Turn into a video to bring it into the Video workflow. Then you’ll generate motion from it.':'Press Turn into a video to switch workflows with this image attached as START. Your original image stays saved.',target:'#animateImage'},
    'image-video':{title:'Animate your image',text:beginner?'Your image is attached as START. Press the highlighted Generate video button to animate it.':'Press Generate video to animate your starting image.',target:'#gen'},
    '3d':{title:'Explore the 3D preview',text:'This setup is a workspace preview. 3D generation is not connected yet. Image and Video can generate locally today.',target:'.stage-placeholder',next:'Explore other workflows'},
    'render-settings':{title:'Set the next render’s size and timing',text:beginner?'Width, height, frame count and frame rate describe the next generated take. They do not resize an existing video. Numbers can be typed or dragged.':'Set dimensions, frames and FPS for the next generation. Existing media stays unchanged.',target:'#videoAttributes',next:'Next: review takes'},
@@ -119,6 +128,7 @@ export function mountOnboardingTour(options:Options) {
   };return tips[state.step]||tips.prompt;
  }
  function render(){
+  workflowChoices();
   const state=options.get();popup.hidden=!state||!!state.dismissed||!!state.suspended;shade.style.display='none';rings.forEach(r=>r.hidden=true);if(popup.hidden){chooser?.close();interaction.sync();return}
   if(profile.experience)state!.experience=profile.experience;
   if(!state!.experience||!state!.entry){popup.hidden=true;selection();return}
@@ -126,10 +136,10 @@ export function mountOnboardingTour(options:Options) {
   if(!profile.workflows[state!.entry!]){profile.workflows[state!.entry!]='started';saveProfile()}
   if(lastStage!==state!.step){lastStage=state!.step;localStep=0;prepare(state!.step)}
   const done=state!.step==='done';
-  if(done){profile.workflows[state!.entry!]='completed';saveProfile();targets=[]}
+  if(done){profile.workflows[state!.entry!]='completed';if(state!.entry==='image')profile.workflows.video='completed';else if(['video','director'].includes(state!.entry!)&&new Set(state!.images).size>=2)profile.workflows.image='completed';saveProfile();targets=[]}
   const current=done?undefined:tip(state!);if(current)targets=[current.target,current.secondary].filter(Boolean) as string[];
   renderView(popup,createElement(TourPopover,{experience:state!.experience!,entry:state!.entry!,done,tip:current,onSkip:()=>end(!done),onFinish:()=>end(),onWorkflow:entry=>start(entry),onNext:()=>{
-   if(['prompt','image'].includes(state!.step)&&localStep===0){localStep=1;document.querySelector(state!.step==='image'?'#kgo':'#gen')?.scrollIntoView({block:'nearest'});render();return}
+   if(['prompt','image','keyframes'].includes(state!.step)&&localStep===0){localStep=1;document.querySelector(state!.step==='prompt'?'#gen':'#kgo')?.scrollIntoView({block:'nearest'});render();return}
    state!.step=state!.step==='render-settings'?'render-takes':state!.step==='edit-settings'?'edit-review':'done';persist();render();
   }}));
   interaction.sync();
@@ -146,12 +156,12 @@ export function mountOnboardingTour(options:Options) {
   popup.style.left=x+'px';popup.style.top=y+'px';shade.style.display='block';shade.setAttribute('viewBox',`0 0 ${innerWidth} ${innerHeight}`);shadePath.setAttribute('d',`M0 0H${innerWidth}V${innerHeight}H0Z`+rects.map(b=>`M${b.left-3} ${b.top-3}h${b.width+6}v${b.height+6}h-${b.width+6}Z`).join(''));
   rings.forEach((ring,i)=>{const b=rects[i];ring.hidden=!b;if(b)Object.assign(ring.style,{left:b.left-3+'px',top:b.top-3+'px',width:b.width+6+'px',height:b.height+6+'px'})});
  }
- document.addEventListener('osh-workspace-selected',((event:CustomEvent<{name:string;mode:string}>)=>{if(switching||chooser?.open)return;const state=options.get();if(state&&!state.dismissed&&(!state.experience||!state.entry))return;const entry=workflowForSetup(event.detail.name,event.detail.mode);if(continuesImageTour(state,entry))return;if(state?.entry===entry&&!state.dismissed&&!state.suspended)return;if(profile.experience)start(entry,false,false)}) as EventListener);
+ document.addEventListener('osh-workspace-selected',((event:CustomEvent<{name:string;mode:string}>)=>{if(switching||chooser?.open)return;const state=options.get();if(state&&!state.dismissed&&(!state.experience||!state.entry))return;const entry=workflowForSetup(event.detail.name,event.detail.mode);const bridge=workflowTourStep(state,entry);if(bridge&&state){state.step=bridge;persist();render();return}if(state?.entry===entry&&!state.dismissed&&!state.suspended)return;if(profile.experience)start(entry,false,false)}) as EventListener);
  const refreshWindows=()=>{if(!chooser?.open)render()};
  document.addEventListener('osh-window-layout-changed',refreshWindows);
  document.addEventListener('toggle',event=>{if((event.target as HTMLElement)?.matches('.window-menu'))refreshWindows()},true);
- addEventListener('pagehide',()=>{disposed=true;interaction.dispose()});
- let initial=options.get();if(initial?.entry&&initial.entry!=='edit'&&!initial.shotId){const fresh=options.begin(initial.entry);fresh.experience=profile.experience;options.set(fresh);persist();initial=fresh}if(initial?.experience&&!profile.experience){profile.experience=initial.experience;saveProfile()}
+ addEventListener('pagehide',()=>{disposed=true;interaction.dispose();for(const [option,disabled] of restrictedOptions)option.disabled=disabled});
+ let initial=options.get();if(initial?.step==='keyframes'&&options.current()!=='image')initial.step='switch-image';if(initial?.entry&&initial.entry!=='edit'&&!initial.shotId){const fresh=options.begin(initial.entry);fresh.experience=profile.experience;options.set(fresh);persist();initial=fresh}if(initial?.experience&&!profile.experience){profile.experience=initial.experience;saveProfile()}
  if(initial&&!initial.dismissed&&!initial.suspended){if(initial.entry)profile.workflows[initial.entry]??='started';saveProfile();render()}else if(firstVisit(profile,options.current())||profile.workflows[options.current()]==='started'&&suspended[options.current()]&&!suspended[options.current()]!.dismissed)start(options.current(),false,false);else render();
  requestAnimationFrame(position);return {render,visit:(entry:Workflow)=>start(entry)};
 }

@@ -1,0 +1,33 @@
+# Ad Studio React migration handoff
+
+2026-10-23 · Requested by dvs for the partner's coding agent. **Planning only: Ad Studio stays on its current UI in this merge. The user clarified React, not Rust. No Rust migration is planned.**
+
+## Read first
+
+Read repository `AGENTS.md`, `notes/adstudio.md`, then this document. Studio has already migrated its view layer to React; see `notes/design/studio-react-architecture.md`. Do not import Studio components/controllers into Ad Studio: both entries must stay separable, loading their own folder and `../shared/` only.
+
+React/React DOM 19.3.1 and their TypeScript definitions are already root dependencies (MIT; https://github.com/facebook/react and https://github.com/DefinitelyTyped/DefinitelyTyped). Existing Vite handles TSX and `jsx: react-jsx` is configured. No new framework or dependency is required. Add `adstudio/**/*.tsx` to the root tsconfig include when starting implementation. Keep `adstudio/index.html` as a Vite entry; preserve its URL and `#brand`, `#static`, `#hero`, `#create`, `#compose` routes.
+
+## Fastest safe path
+
+1. Establish a typed React entry under `adstudio/src/react/` and switch the HTML module entry only when that entry can render a complete usable surface. Move page markup into components while retaining current CSS and explicit service integration IDs. Keep boot failures visible. Do not ship two simultaneous UI owners.
+2. Split `src/main.ts` into a project/job service and React views. Keep its asynchronous project-save ordering, pending asset/media maps, dirty/write-version guards, in-flight operation locks, refresh recovery and status behavior. Expose snapshots plus actions; React owns controls and renders snapshots. Never call the existing top-level DOM-binding module before its surface exists.
+3. Migrate one complete workspace at a time: shared project/header controls, then Create/takes, Composer, Brand, Static Ads and Hero. Current boundaries are `main.ts`, `composer.ts`, `brand-ui.ts`, `static-ui.ts`, `hero-ui.ts`; these are migration targets, not React components. Preserve remaining native mounts only inside dedicated empty hosts with explicit cleanup. Never mutate React-owned children with `innerHTML`/`replaceChildren`.
+4. Prefer explicit React state/subscriptions after extracting the service. Studio's `react/render.tsx` demonstrates a small root adapter for transitional controllers, but copy the pattern locally rather than importing Studio. A single React root with typed workspace children is sufficient here; Ad Studio does not need Studio's docking manager.
+5. Remove old DOM listeners/mounts as each boundary moves. Add disposal for timers, subscriptions, media listeners and object URLs. Async view requests need stale-result guards when switching projects/workspaces. Start without Strict Mode replay or Fast Refresh across old page-lifetime controllers; enable them only after mount/unmount cleanup is proven. Studio's full-reload plugin currently matches **Studio source only**, so explicitly choose an Ad Studio reload policy during the transition.
+
+## Preserve these contracts
+
+- `src/projects.ts`: IndexedDB `osh-adstudio-projects`, local active key `osh-adstudio:active:v1`, project schema version 3, original/normalized Blob storage, migrations, immutable take/export lineage and recovery. A UI rewrite needs no database reset, rename or schema bump.
+- `src/composition.ts`, `templates.ts`, `availability.ts`, `assets.ts`, `reference.ts` remain reusable domain services. `shared/lib/brand.ts`, `static-ad.ts`, `hero-ad.ts` retain validators and existing saved representations.
+- `shared/runtime/client.ts` remains the browser API. Preserve `OSH.shot` string/options compatibility, frames/FPS and optional audio, plus product-video, upload/media, compose-ad, brand, static-ad and hero contracts in `shared/workflows/CONTRACT.md`.
+- Generation stays Comfy SDK -> proxy -> ComfyUI. Preserve setup/download progress, local access gates, installed-model checks, source ownership validation, queue tracking and honest capability/error messages. Do not introduce direct Comfy calls or automatic model downloads.
+- Preserve source photos and export review. FFmpeg finishing/static composition are not AI generation; supplied AI references are not newly generated output. React must retain these distinctions.
+
+## Acceptance before replacing the old entry
+
+Run `npm run typecheck`, `npm run build`, `npm run test:studio` and Ad Studio's pure regression scripts under `adstudio/scripts/` (projects/workspace/shared-client/product-video/composition/brand/static-ad/hero). Run the corresponding CPU HTTP scripts against the intended dev server using `OSH_TEST_URL`; inspect each script because defaults use different historical ports. Fixture-only brand-provider tests do not prove model inference. No GPU run is needed for this migration.
+
+Browser acceptance must use existing saved projects: upload -> switch workspace/project -> refresh -> verify original Blobs, selected brand, takes and export lineage. Exercise Create, Composer reorder/trim/music/export, Brand editing/review, Static Ads and Hero comparison/approval; check offline recovery, missing-output re-upload, pending-save/storage failures, keyboard focus, disabled job controls and contained scrolling. Confirm no duplicate network jobs after remount/reload and no loss of media when views switch. Leave benchmark/cloud approvals and known model fidelity limits unchanged.
+
+Commit each working boundary separately, record tests and remaining native owners in `notes/adstudio.md`, and keep both applications building. Rollback should be reverting a view-layer commit, never clearing user storage.

@@ -1,6 +1,79 @@
+# Hero / Benchmark Ad V1 - browser acceptance
+
+**NOT RUN.** Computer Use returned apps=[], browsers=[]. No session interruption bypassed. Actual PNG inspection/API/Blob-domain tests do not establish browser UI or IndexedDB acceptance. PR3 remains draft.
+
+Open http://127.0.0.1:8301/adstudio/#hero on a normal profile. Browser data is origin-specific; older8300 projects remain at8300 (do not clear storage). Test the same exact origin across refreshes.
+
+1. Click Open No Crumbs benchmark. Expect a separate example brand/project, original roll photograph, selected developed hero, actual ad preview and two retained hero versions. Notice supplied AI source provenance and unknown original model; do not mark it automatically faithful. Compare to outputs/benchmark-ad-v1/index.html.
+2. Choose a different brand/product/source or upload an original; inspect source/provenance selection. No new hero should be invented until Develop is clicked. Original/hero must appear in proportion. Develop a photographic version; change direction/crop and develop another. Both versions must remain selectable. Compare original structure, frosting/spirals/ingredients and cropping.
+3. Edit two-line headline, product name and website. Preview updates immediately; overly long text errors explicitly. Change logo only through saved genuine assets. Confirm review of the selected hero, export PNG and download hero separately. Open actual files at full and phone size; inspect legibility, logo and food detail. A new version requires new fidelity review.
+4. Wait for Saved, refresh and switch projects. Brand/source/direction/copy, both hero versions and prior PNG downloads must return. Verify DB3 projects.hero version1 and assets original/normalized Blobs; no image data in localStorage. Old video/Composer/static projects still open untouched.
+5. Temporarily move a disposable opaque output, retaining it locally. Hero/export history should still load from saved Blobs; fresh export should re-upload the retained hero/logo. Missing saved Blob must show an explicit error. Restore moved files. In a disposable profile simulate storage failure: Not saved must remain visible; retain tab, retry saving and verify refresh.
+6. AI Reimagine must show unavailable and disable generation with current missing image weights. No generated image, model download or photo fallback should be claimed. With ComfyUI offline, local photographic finishing and PNG export still work. Check advanced disclosure, keyboard focus, panel-end scrolling and narrow viewport. Record anything untested, never infer acceptance from API success.
+
+---
+
+# Static ads V1 - browser acceptance
+
+**Status: NOT RUN.** Current Computer Use inventory apps=[], browsers=[]. No browser interruption was bypassed. Real PNG/API and storage-domain tests do not prove actual browser downloads, responsive layout or IndexedDB refresh.
+
+Use **http://127.0.0.1:8300/adstudio/#brand** on the same normal-profile origin as your saved data. Record commit/browser/time. Keep PR3 draft.
+
+1. Open an existing brand. Check the overview and recognizable asset strip. Reviewed, From website, Your input, Inferred and Missing states must be distinct. Optional empty fields and evidence should be collapsed; no deep AI understanding claimed when unavailable. Expand/edit a field and save; check immediate status changes.
+2. Product cards: choose the correct original photograph, expand/edit one product, then Use in ad. Or Create an advertisement and select a product. Confirm quantity/packaging match before checking the photograph confirmation. Do not select a specific SKU for an unverified reference photo.
+3. Choose spotlight/editorial/poster, change headline/body/CTA/colors/format. Preview should update immediately with the actual photo/logo and deterministic text. Entire source photo must fit without stretching. Overlong copy must show an error, not silently export a clipped or stale preview. Use saved product description only after verifying it.
+4. Export PNG in all three formats. Open the downloaded files at full size and phone size; verify text, crop/contain, logo identity and source photo. Save a variation, undo/redo and edit a copy of a previous export. Earlier PNGs and source assets must remain unchanged.
+5. Wait for Saved, refresh and switch projects. Concepts, source selections, undo history and downloadable prior PNGs must return. Old video projects/takes/Composer exports must still work. Existing IndexedDB DB3/stores stay intact; no large image blobs in localStorage.
+6. With Comfy offline, deterministic editing/export must work and optional supporting-image generation must be disabled honestly. If later connected with compatible weights, generate only on explicit click, verify real shared-job output and retain original product/logo. No automatic weight downloads.
+7. Open /adstudio/#static -> Open No Crumbs ads for the actual three-PNG example and editable source project. Existing example edits must be kept when reopening. Compare the two feed ads and story poster with outputs/static-ads-demo/index.html; that gallery contains real exports, not UI screenshots.
+8. In a disposable project test missing runtime outputs and storage failure. Prior exports should use saved PNG Blobs; original references should re-upload for a fresh export. Storage failure must show Not saved, retain the tab state and allow retry. Verify panel-end scrolling, all disclosures, keyboard focus and narrow-window layout.
+
+---
+
+# Brand Intelligence V1 - browser acceptance
+
+**Status: NOT RUN.** Computer Use returned apps=[], browsers=[]. No interrupted session was bypassed. API/parser/provider-protocol/storage-domain checks do not prove real browser IndexedDB refresh/migration.
+
+Open **http://127.0.0.1:8300/adstudio/#brand** in a normal profile. Keep the same origin and existing site data; close other Ad Studio tabs for DB migration. Record commit/browser and PASS/FAIL.
+
+1. Create brand -> enter `https://www.nocrumbsbakery.store/` -> Research brand. Expect actual sourced identity/story, four current structured products, image/color candidates, source links and explicit AI unavailable notice on this machine. Audience/tone must not appear as fabricated AI conclusions.
+2. Edit name/description/tone/audience/preferences and colors. Add/edit/remove a product. Upload a logo and original product photo; assign the photo only to the correct product. Save brand - reviewed. Download original and compare its hash/bytes to the uploaded file.
+3. Refresh after saved status. All edits, palette, products, photo associations and original downloads must return. DevTools IndexedDB `osh-adstudio-projects` is DB3 with brands/assets/projects/media stores; BrandProfile version1, old project version3 remains supported. localStorage holds only active IDs.
+4. Create/switch to a second brand; verify isolation, then return. Re-research the first website: customer corrections and original photos must remain; new evidence becomes review-required again. Keep a website image and verify local retention and source link.
+5. Save reviewed brand -> Use brand name in Composer. Only the current project's brand name/link changes; shots, trims, previous exports and existing projects stay intact. The full brandContext is a future-generation contract; palette/logo are not automatically applied to Composer.
+6. Start manually without a website; fill only known facts. Add website/photos later. Try an inaccessible URL and `http://127.0.0.1`: show an error/manual recovery, keep edits/assets, no private-network fetch. Missing AI model must not fake an analysis.
+7. In a disposable browser profile simulate quota/unavailable storage. Expect Not saved, retained in-tab edits/originals and Retry saving; no reviewed-use until durable save. Restore storage, retry, refresh and verify.
+8. For the prepared authentic example, Create brand -> Open No Crumbs example. Actual website evidence and existing original logo/cookie photo load. No AI completion is claimed; cookie photo is unassigned to a specific SKU until reviewed.
+
+Browser playback/download/layout and DB1/DB2 -> DB3 migration remain manual acceptance gates. PR3 stays draft.
+
+---
+
+# Ad Composer V1 - browser acceptance
+
+**Composer status: NOT RUN.** The available Computer Use inventory has no browser surface. API/FFmpeg tests, frame inspection and memory-driver persistence tests passed; they do not prove browser playback, downloads or real IndexedDB. Keep PR #3 draft until review. Earlier workspace evidence is retained below.
+
+Open **http://127.0.0.1:8300/adstudio/#compose** while the current local server is running. Keep this exact origin for persistence tests. Use a disposable project and record browser/version, commit, URL and PASS/FAIL for each step. No ComfyUI, Runpod or GPU is needed.
+
+1. Click **Open cookie example**. Expect an editable 8.5-second vertical ad with two shots, placeholder branding, a closing card and local demo tones. Play the full preview with sound. The opening is a 2D Camera photo animation; only the hero is the existing LTX-2.5 footage.
+2. Create a new project. In Compose Ad, import `outputs/ltx25-benchmark/cookie-seed1/video.mp4`. In Create shots, upload a product photo and generate a Camera take; click **Add to ad**. Both clips must appear in this project's library and timeline.
+3. Reorder by dragging and arrows; duplicate/remove a shot; change In/Out points. Reject a reversed/out-of-bounds trim without losing the timeline. Choose cuts, then dissolve. Edit brand/headline/CTA and ending duration. Import local music, adjust volume and test Keep sound from shots.
+4. Click **Preview sequence**. Wait for the actual local render, then play the whole ad. Confirm shot order, trims, smooth transitions, text placement, sound and a complete ending. Landscape sources must have padding, never stretch. Click **Export Ad**; open the downloaded MP4 in another player and verify its end and audio.
+5. Wait for **Saved on this browser**, then refresh. Inspect DevTools > Application > IndexedDB > `osh-adstudio-projects` (DB version 3): `projects` records are project version 3; `media` holds imported original Blobs; `assets` retains product photos. Check that ordered shots, trims, text/music and playable previous exports return. Large media must not appear in localStorage.
+6. Create/switch to another project; it must have a separate composition/history. Return to the first project. Change branding and export again; both exports and all previous takes must remain. Source videos must retain original duration/bytes; trimming creates a new MP4.
+7. Missing-file recovery: use a disposable imported video and temporarily move its opaque server output out of `outputs/` (keep it locally). Refresh: show an explicit missing-source error without deleting the project. Click **Restore saved original** and render again. Restore the moved file afterward. Imported Blob recovery must retain trim/order and old export history.
+8. Storage failure: on a disposable profile/origin, deny storage or simulate quota failure. Expect **Not saved** and a retry action, never a saved-success claim. Keep the tab open, restore storage, retry and refresh; verify original Blobs and composition survive.
+9. With ComfyUI offline, retry connection and create a Camera take, preview/export the composition and download MP4. These local actions must work; unavailable AI models must remain honestly disabled.
+
+Report layout/keyboard/phone-width issues separately. Actual IndexedDB migration from an existing version-1 database, full playback, browser downloads and responsive layout remain manual acceptance requirements.
+
+---
+
 # PR #2 — persistent workspace browser acceptance
 
-**Status: NOT RUN. Keep [PR #2](https://github.com/dvsll/open-higgsfield/pull/2) draft.** These are instructions for a person to execute, not completed results. Previous Computer Use initialization failed with a missing Node runtime; an earlier session was interrupted by physical Escape. Neither was bypassed. API/media and memory-driver tests do not establish real IndexedDB, browser playback or download acceptance.
+**Status: NOT RUN. [PR #3](https://github.com/dvsll/open-higgsfield/pull/3) is the draft Camera/preflight follow-up.** GitHub reports [PR #2](https://github.com/dvsll/open-higgsfield/pull/2) was externally merged as `c7d02b7` at22:52UTC on2026-10-22; this agent did not merge it. These are instructions for a person to execute, not completed results. Latest Computer Use initialized, then stopped because Chrome's current URL could not be determined confidently. Earlier failures/interruption were not bypassed. API/media and memory-driver tests do not establish real IndexedDB, browser playback or download acceptance.
+
+**Camera review first:** open private `outputs/camera-motion-20261022/index.html`, play baseline/revised pairs at normal speed, then generate fresh takes of all three templates in the app. Revised push is eased 4%; pans use eased 2.4% travel. Check for shaking, abrupt endpoints, repeated-frame stutter and tiny-letter shimmer through full playback. Existing history keeps its old videos. Record any remaining problem with template, source, output filename and player/browser; see `CAMERA_MOTION.md` for measured evidence/limits.
 
 ## Before starting
 
@@ -15,7 +88,7 @@ Record PASS / FAIL / NOT RUN for each numbered check. Stop and report a failure 
 | # | Do this | Pass when |
 |---|---|---|
 | 1 · New project | Enter **Acceptance A** in Name, click **New project**. Choose **Portrait push**, upload the original cookie photo, enter tagline **Fresh cookies. Made to share.** Wait for **Saved on this browser.** | Photo previews in proportion; Camera is selected; Animate photo becomes available when local API/FFmpeg are ready. No image/audio model download or GPU job starts. |
-| 2 · Real IndexedDB | Press F12 → **Application → IndexedDB → osh-adstudio-projects** (refresh the database view if necessary). Inspect `projects` and `assets`. Then refresh the page. | Project record has `version: 2`, a stable ID, settings and asset ID; asset record contains original/normalized Blobs. Local Storage `osh-adstudio:active:v1` contains only an ID, not large image data. The same project, preview, tagline and settings return. The file picker may be blank: restored preview comes from IndexedDB. |
+| 2 · Real IndexedDB | Press F12 → **Application → IndexedDB → osh-adstudio-projects** (refresh the database view if necessary). Inspect `projects` and `assets`. Then refresh the page. | Project record has `version: 3` (legacy versions migrate), a stable ID, settings and asset ID; asset record contains original/normalized Blobs. Local Storage `osh-adstudio:active:v1` contains only an ID, not large image data. The same project, preview, tagline and settings return. The file picker may be blank: restored preview comes from IndexedDB. |
 | 3 · Generation/history | Click **Animate photo**, wait, play the entire clip. Note the original WebM link. Generate a second variation. | Two separate cards remain; neither replaces the other. Both play. Generation status changes while working; project switching/upload are blocked during processing and restored afterward. Portrait output is 288×512, about 3.04s/73frames/24FPS. |
 | 4 · All presets | In A, choose **Landscape pan**, animate; then **Square pan**, animate. Play each whole clip. Open Generation details. | Previous cards remain. Landscape is 512×288, camera-right motion (photo moves left); square is 384×384, camera-left motion (photo moves right). Portrait pushes in. Product is not stretched or unintentionally clipped. Details identify FFmpeg camera motion and say no model/prompt/seed was used. |
 | 5 · Derived editing | Download the first portrait card’s **original WebM**. Open its **Adjust** panel. Set start **0.5**, end **2.5**, speed **2×**, Reverse on, width **144**. Click **Save adjusted version**. Play and use **Compare previous version**. | A new Adjusted card appears (~1s, 144×256). Compare toggles the parent/derived video. Original card, source URL and previous takes stay intact. Invalid end-before-start shows an error and leaves history unchanged. Width changes preserve aspect ratio; height is not independently stretched. |
@@ -71,4 +144,4 @@ Storage failure / interrupted job / layout (or NOT RUN):
 Failure: step, exact message, expected/actual, source/take URLs, screenshot if useful:
 ```
 
-PR #2 stays draft until this evidence is reviewed. Do not turn an API test pass, successful request or recognizable product into a browser or fidelity acceptance claim.
+Keep the Camera/preflight follow-up draft until this evidence is reviewed. Do not turn an API test pass, successful request or recognizable product into a browser or fidelity acceptance claim.

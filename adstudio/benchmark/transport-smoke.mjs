@@ -22,12 +22,17 @@ const graph={
  '3':{class_type:'CreateVideo',inputs:{images:['2',0],fps:24,bit_depth:8}},
  '4':{class_type:'SaveVideo',inputs:{video:['3',0],filename_prefix:'adstudio-synthetic-preflight',format:'mp4','format.codec':'h264'}}
 };
-process.env.COMFY_BASE_URL=proxy;delete process.env.COMFY_API_KEY;
+// setInput replaces a filename with a live SDK asset object. Never serialize
+// transports/authentication state into evidence; retain the original JSON graph.
+const graphSnapshot=structuredClone(graph);
+process.env.COMFY_BASE_URL=proxy;
+if(process.env.BENCHMARK_PROXY_TOKEN)process.env.COMFY_API_KEY=process.env.BENCHMARK_PROXY_TOKEN;
+else delete process.env.COMFY_API_KEY;
 const client=new Comfy(),workflow=client.workflows.fromJson(graph);workflow.setInput('1','image',client.assets.fromFile(input));
 const begin=Date.now(),job=await client.run(workflow,{timeoutMs:60000});
 const asset=job.getOutputs('4')[0];assert.ok(asset,'Proxy omitted SaveVideo output');await asset.toFile(output);
 const bytes=await readFile(output);assert.equal(bytes.subarray(4,8).toString(),'ftyp');
 const metadata=JSON.parse((await exec(ffprobe,['-v','error','-count_frames','-show_streams','-of','json',output],{windowsHide:true})).stdout),video=metadata.streams.find(s=>s.codec_type==='video');
 assert.equal(video.codec_name,'h264');assert.equal(video.width,96);assert.equal(video.height,128);assert.equal(video.avg_frame_rate,'24/1');assert.equal(video.nb_read_frames,'73');
-await writeFile(join(folder,'result.json'),JSON.stringify({passed:true,synthetic:true,modelsUsed:[],jobId:job.id,seconds:(Date.now()-begin)/1000,graph,metadata},null,2));
+await writeFile(join(folder,'result.json'),JSON.stringify({passed:true,synthetic:true,modelsUsed:[],jobId:job.id,seconds:(Date.now()-begin)/1000,graph:graphSnapshot,metadata},null,2));
 console.log('PASS CPU SDK → proxy → Comfy CreateVideo/SaveVideo → downloaded H.264 MP4, 73frames/24FPS. Synthetic only:',folder);

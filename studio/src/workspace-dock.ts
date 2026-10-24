@@ -9,9 +9,9 @@ import './sequence-transport.css';
 import { mountProjectFiles } from './project-files';
 import { SHELL } from './shell';
 import { panel, split, ids, remove, dock, valid, boundsOf, type Edge, type LayoutNode } from './window-layout';
+import {basicVideoWorkspace,workspaceNameError,recycleWorkspace,restoredWorkspaceName,type Setup} from './workspace-setups';
 
-type Setup = { tree: LayoutNode | null; mode: string };
-type Store = { version: 2; active: string; layouts: Record<string, Setup>; notes: Record<string, { title: string; text: string }> };
+type Store = { version: 2; active: string; layouts: Record<string, Setup>; notes: Record<string, { title: string; text: string }>; deletedLayouts?:Record<string,Setup> };
 const KEY = 'osh-window-workspace-v2';
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value));
 const icon = (path: string) => `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${path}"/></svg>`;
@@ -55,6 +55,7 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
  const registrations=new Map<string,{title:string;content:HTMLElement}>();
  const toolbar = document.createElement('nav'); toolbar.className = 'workspace-toolbar'; toolbar.setAttribute('aria-label', 'Workspace layout');
  renderView(toolbar,createElement(WorkspaceToolbar));
+ const newButton=toolbar.querySelector<HTMLButtonElement>('[data-new-setup]')!,deleteButton=toolbar.querySelector<HTMLButtonElement>('[data-delete-setup]')!,restoreButton=toolbar.querySelector<HTMLButtonElement>('[data-restore-setup]')!;
  const picker=toolbar.querySelector('select')!,windows=toolbar.querySelector('details')!,menu=windows.querySelector('div')!,saveButton=toolbar.querySelector<HTMLButtonElement>('[data-save-setup]')!,reset=toolbar.querySelector<HTMLButtonElement>('[data-reset-setup]')!;
  function renderMenu(){renderView(menu,createElement(WindowsMenu,{panels:[...registrations].map(([id,p])=>({id,title:p.title})),visible:ids(setup.tree),onToggle:id=>{ids(setup.tree).includes(id)?closeWindow(id):openWindow(id);windows.open=false},onNew:async()=>{const title=await ask('Window name','Notes');if(!title)return;const id='note-'+Date.now();store.notes[id]={title,text:''};note(id,title,'');openWindow(id);windows.open=false}}))}
  const board = document.createElement('div'); board.className = 'window-board';
@@ -140,21 +141,63 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
  }
  for (const [id, value] of Object.entries(store.notes)) if (value && typeof value.title === 'string' && typeof value.text === 'string') note(id, value.title, value.text);
  function note(id: string, title: string, text: string): void { const field = document.createElement('textarea'); field.className = 'workspace-note'; field.placeholder = 'Ideas, shot notes, checklist…'; field.value = text; field.setAttribute('aria-label', title); field.oninput = () => { store.notes[id].text = field.value; persist(); }; add(id, title, field); }
- function ask(label:string,value:string):Promise<string|null>{return new Promise(resolve=>{const dialog=document.createElement('dialog');dialog.className='workspace-name-dialog';renderView(dialog,createElement(WorkspaceName,{label,value,onSave:name=>dialog.close(name),onCancel:()=>dialog.close()}));document.body.append(dialog);dialog.onclose=()=>{resolve(dialog.returnValue||null);unmountView(dialog);dialog.remove()};dialog.showModal()})}
- function choices(): void { picker.replaceChildren(); for (const name of new Set([...Object.keys(presets), ...Object.keys(store.layouts)])) picker.add(new Option(name, name)); if(!custom)picker.add(new Option('Edit ↗','__edit'));picker.value = active; }
+ function ask(label:string,value:string,validate?:(name:string)=>string,submitLabel='Save'):Promise<string|null>{
+  return new Promise(resolve=>{
+   const host=document.createElement('div');document.body.append(host);let settled=false;
+   const finish=(name:string|null)=>{if(settled)return;settled=true;resolve(name);queueMicrotask(()=>{unmountView(host);host.remove()})};
+   renderView(host,createElement(WorkspaceName,{label,value,validate,submitLabel,onSave:finish,onCancel:()=>finish(null)}));
+  });
+ }
+ function choices(): void {
+  picker.replaceChildren();
+  for(const [label,names] of [['Presets',Object.keys(presets)],['My workspaces',Object.keys(store.layouts).filter(name=>!Object.hasOwn(presets,name))]] as const){
+   if(!names.length)continue;const group=document.createElement('optgroup');group.label=label;
+   for(const name of names)group.append(new Option(name,name));picker.append(group);
+  }
+  if(!custom)picker.add(new Option('Edit ↗','__edit'));picker.add(new Option('+ Create new workspace…','__new'));picker.value=active;
+  deleteButton.disabled=Object.hasOwn(presets,active);
+  deleteButton.title=deleteButton.disabled?'Built-in presets stay available. Use Reset setup to restore their layout.':`Delete ${active}`;
+  const last=Object.keys(store.deletedLayouts||{}).at(-1);restoreButton.hidden=!last;restoreButton.title=last?`Restore ${last}`:'';
+ }
  let switching = false;
- function select(name: string): void {
-  if(name==='__edit'){SHELL.open('edit');picker.value=active;return}
-  if(switching)return;const next=clone(store.layouts[name]||presets[name]||fallback);
+ function select(name: string): boolean {
+  if(name==='__edit'){SHELL.open('edit');picker.value=active;return false}
+  if(name==='__new'){picker.value=active;void createWorkspace();return false}
+  if(switching)return false;const next=clone(store.layouts[name]||presets[name]||fallback);
   if(next.tree&&!valid(next.tree,new Set(panels.keys())))next.tree=clone(fallback.tree);
   switching=true;try{workflow(next.mode)}finally{switching=false}
   // A running generation can decline a creation-mode change. Keep its current layout and mode together.
-  if(document.body.dataset.workflow!==next.mode){choices();return}
-  active=name;setup=next;choices();render();persist();document.dispatchEvent(new CustomEvent('osh-workspace-selected',{detail:{name,mode:setup.mode}}));
+  if(document.body.dataset.workflow!==next.mode){choices();return false}
+  active=name;setup=next;choices();render();persist();document.dispatchEvent(new CustomEvent('osh-workspace-selected',{detail:{name,mode:setup.mode}}));return true;
  }
  addEventListener('osh-reveal-window',((event:CustomEvent)=>{if(panels.has(event.detail))openWindow(event.detail)}) as EventListener);
  document.addEventListener('osh-workspace-select',((event:CustomEvent)=>{if(presets[event.detail])select(event.detail)}) as EventListener);
- picker.onchange = () => select(picker.value); saveButton.onclick = async () => { const name = await ask('Save this window setup as', presets[active] ? 'My workspace' : active); if (!name) return; active = name; persist(); choices(); }; reset.onclick = () => { setup = clone(presets[active] || fallback); workflow(setup.mode); render(); persist(); };
+ const names=()=>[...new Set([...Object.keys(presets),...Object.keys(store.layouts)])];
+ async function createWorkspace(){
+  const proposed=restoredWorkspaceName('My workspace',names());
+  const name=await ask('New workspace',proposed,value=>workspaceNameError(value,names()),'Create workspace');if(!name)return;
+  const next=custom?clone(fallback):basicVideoWorkspace();
+  store.layouts[name]=next;
+  if(!select(name)){delete store.layouts[name];choices()}
+ }
+ picker.onchange=()=>select(picker.value);newButton.onclick=()=>void createWorkspace();
+ saveButton.onclick=async()=>{
+  const current=Object.hasOwn(presets,active)?undefined:active;
+  const name=await ask('Save this window setup as',current||restoredWorkspaceName('My workspace',names()),value=>workspaceNameError(value,names(),current));if(!name)return;
+  active=name;persist();choices();
+ };
+ deleteButton.onclick=()=>{
+  if(Object.hasOwn(presets,active))return;const removed=active;
+  // Change mode first; a running generation may reject a workflow switch.
+  if(!select(custom?.active||'Video'))return;
+  store.deletedLayouts||={};recycleWorkspace(store.layouts,store.deletedLayouts,presets,removed);persist();choices();
+ };
+ restoreButton.onclick=()=>{
+  const deleted=store.deletedLayouts||{},name=Object.keys(deleted).at(-1);if(!name)return;
+  const restored=restoredWorkspaceName(name,names());store.layouts[restored]=clone(deleted[name]);
+  if(select(restored)){delete deleted[name];persist()}else delete store.layouts[restored];choices();
+ };
+ reset.onclick=()=>{const next=clone(presets[active]|| (custom?fallback:basicVideoWorkspace()));workflow(next.mode);if(document.body.dataset.workflow!==next.mode)return;setup=next;render();persist()};
  const top = document.createElement('div'); top.className = 'workspace-context'; if(!custom)while (main.firstChild) top.append(main.firstChild);
  app.replaceChildren(toolbar, top, board, parking); app.classList.add('window-workspace');
  top.querySelectorAll<HTMLButtonElement>('[data-workflow]').forEach(button => button.addEventListener('click', () => select(button.dataset.workflow === 'image' ? 'Image' : 'Video')));

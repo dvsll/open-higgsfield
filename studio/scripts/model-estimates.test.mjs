@@ -1,5 +1,9 @@
 import assert from 'node:assert/strict';
-import { imageModel, videoModel } from '../../shared/runtime/model-catalog.ts';
+import {readFileSync} from 'node:fs';
+import {videoModel,imageModel} from '../../shared/runtime/model-catalog.ts';
+const videoGraph=JSON.parse(readFileSync(new URL('../../shared/workflows/shot_ltxv.json',import.meta.url),'utf8'));
+const imageGraph=JSON.parse(readFileSync(new URL('../../shared/workflows/keyframe_zimage.json',import.meta.url),'utf8'));
+assert.equal(videoModel.generation.steps,videoGraph['13'].inputs.steps);assert.equal(imageModel.generation.steps,imageGraph['8'].inputs.steps);assert.equal(videoModel.generation.preferredFps,30);assert.match(videoModel.generation.fpsNote,/24 FPS/);
 import { estimatedSeconds } from '../src/model-estimates.ts';
 assert.equal(estimatedSeconds(imageModel, 4, []).low, 7);
 assert.equal(estimatedSeconds(imageModel, 4, []).high, 20);

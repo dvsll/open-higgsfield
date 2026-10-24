@@ -1,4 +1,6 @@
 import type { FrameSize, GenerationKind } from '../frame-size';
+import {useEffect,useState} from 'react';
+import type {ModelChoice} from '../../../shared/runtime/model-catalog';
 export function FrameControls({
   kind,
   size,
@@ -9,6 +11,8 @@ export function FrameControls({
   onChange: () => void;
 }) {
   const video = kind === 'video';
+  const [preferences,setPreferences]=useState<{label?:string;generation?:ModelChoice['generation']}>({});
+  useEffect(()=>{const update=(event:Event)=>{const detail=(event as CustomEvent).detail;if(detail.kind===kind)setPreferences(detail)};addEventListener('osh-model-preferences',update);return()=>removeEventListener('osh-model-preferences',update)},[kind]);
   const sizes = video
     ? [
         [768, 448, 'Default'],
@@ -103,6 +107,7 @@ export function FrameControls({
               required
             />
           </label>
+          <div className="fps-field">
           <label>
             FPS
             <input
@@ -114,8 +119,11 @@ export function FrameControls({
               step="0.01"
               defaultValue={24}
               required
+              aria-describedby={preferences.generation?.preferredFps?'videoFpsRecommendation':undefined}
             />
           </label>
+          {preferences.generation?.preferredFps&&<button id="videoFpsRecommendation" className="fps-recommendation" type="button" title={preferences.generation.fpsNote} onClick={()=>{const input=document.getElementById('videoFPS') as HTMLInputElement;input.value=String(preferences.generation!.preferredFps);input.dispatchEvent(new Event('input',{bubbles:true}));input.focus()}}>{preferences.generation.preferredFps} FPS · model default</button>}
+          </div>
           <output id="videoDuration" />
           <small>LTX: 9, 17, 25…121 frames (8n+1). Local workflow limit: 121.</small>
           <label>
@@ -124,6 +132,7 @@ export function FrameControls({
           </label>
         </div>
       )}
+      {preferences.generation&&<div className="generation-preset"><span>Sampling steps</span><output aria-label={`${video?'Video':'Image'} sampling steps`}>{preferences.generation.steps}</output><span>Workflow preset</span><p>{preferences.generation.stepNote}</p></div>}
     </>
   );
 }

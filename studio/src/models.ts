@@ -65,6 +65,7 @@ function renderDetails(): void {
     if (!el) continue;
 
     const entry = catalog?.[kind].find(m => m.id === select(kind).value);
+    dispatchEvent(new CustomEvent('osh-model-preferences',{detail:{kind,label:entry?.label,generation:entry?.generation}}));
     if (catalog) document.querySelectorAll<HTMLElement>(`[data-model-kind="${kind}"][data-model-control]`).forEach(field => {
       field.hidden = !entry?.capabilities.some(capability => capability.control === field.dataset.modelControl && capability.status !== 'unavailable');
     });

@@ -255,3 +255,5 @@ Studio adds GET/POST /api/prompt-rewriter for local text-only video/motion/audio
 Studio coordination - 2026-10-23 Advanced review: prompt-rewriter POST now optionally accepts bounded details visual/motion/audio fields for explicit polishing of existing boxes; prompt-only callers unchanged. Studio Advanced Generate bypasses rewriting. No Ad Studio UI/media contracts changed; existing CPU helper only, no dependencies/downloads.
 
 Studio coordination - 2026-10-23 clean URLs: Vite adds a fixed Studio-only clean-route middleware for /studio/director, /studio/edit, /studio/design-lab and legacy redirects. Dev/preview API handling, Ad Studio URLs and application source unchanged. No new dependencies. Studio routes/browser navigation/build and isolated dev+preview HTTP acceptance pass.
+
+Studio coordination - 2026-10-24 FPS metadata: model catalog choices now add optional generation metadata (preferredFps/fpsNote, steps/stepNote). Existing IDs, timing, payloads and generation graphs unchanged. Studio highlights published LTX30fps default separately from current24fps local preset, and displays actual8-step sampler presets. No Ad Studio UI changes or generation.

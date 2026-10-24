@@ -24,11 +24,12 @@ import './viewer.css';
 import './timeline-readability.css';
 import { mountWorkspaceDock } from './workspace-dock';
 import { SHELL } from './shell';
+import {mentionRanges,elementMentionText} from './mention-matching';
 import { OSH } from '../../shared/runtime/client';
 import { localGeneration, mountModels, estimateContext } from './models';
 import { insertionIndex, movedIndex } from './timeline-interaction';
 const {$,$$}=K,W=640,H=360;
-let lastPrompt='kp';addEventListener('focusin',e=>{if(['kp','motion','shotPromptInput'].includes(e.target.id))lastPrompt=e.target.id});
+let lastPrompt='shotPromptInput';addEventListener('focusin',e=>{if(['kp','motion','shotPromptInput'].includes(e.target.id)){lastPrompt=e.target.id;markEls()}});
 // ---------- data ----------
 const LOOKS=SC.LOOKS;
 let look=LOOKS[0],str=.8;
@@ -262,14 +263,11 @@ $('#genAll').onclick=async()=>{const todo=SH.filter(s=>!s.r);if(!todo.length)ret
  if(OSH.online){try{for(const s of todo){const i=SH.indexOf(s);await realShot(i,`Shot ${i+1} of ${SH.length}`);timeline();head()}toast('All shots generated')}catch(e){toast('Generation failed: '+e.message)}return}
  toast('Start ComfyUI on port 8188, then refresh local models')};
 // ---------- keyframe generator ----------
-const ELS=[['mia','👧 Mia',1],['bolt','🤖 Bolt',1],['yard','🏚 Junkyard',0],['street','🏙 Street',0],['room','🛏 Mia\'s room',1]],PLACES=['yard','street','room'];
 const FR=[['wide','Wide',.6],['medium','Medium',1.3],['close','Close',2.4]];let frm='medium';
-renderView($('#els'),h(Chips,{items:ELS.map(([key,name,selected])=>({key,name,selected}))}));
 renderView($('#frm'),h(Chips,{items:FR.map(([key,name])=>({key,name,selected:key===frm}))}));
-$('#els').onclick=e=>{const c=e.target.closest('.chip');if(!c)return;if(PLACES.includes(c.dataset.k))$$('#els .chip').forEach(x=>{if(PLACES.includes(x.dataset.k))x.classList.toggle('on',x===c)});else c.classList.toggle('on')};
 $('#frm').onclick=e=>{const c=e.target.closest('.chip');if(!c)return;frm=c.dataset.k;$$('#frm .chip').forEach(x=>x.classList.toggle('on',x===c))};
-function specFromUI(){const on=k=>$(`#els [data-k=${k}]`).classList.contains('on'),p=$('#kp').value.toLowerCase();
- return SP({mia:on('mia'),bolt:on('bolt'),scene:on('street')?'street':on('room')?'room':'yard',scale:FR.find(f=>f[0]===frm)[2],night:/night|dark|midnight/.test(p),dawn:/dawn|first light|morning|sunrise/.test(p),eyes:/glow|eyes|wake|light/.test(p),carry:/carr|holds|holding/.test(p)})}
+function specFromUI(){const p=$('#kp').value.toLowerCase();
+ return SP({mia:false,bolt:false,scene:'',scale:FR.find(f=>f[0]===frm)[2],night:/night|dark|midnight/.test(p),dawn:/dawn|first light|morning|sunrise/.test(p),eyes:false,carry:/carr|holds|holding/.test(p)})}
 $('#kgo').onclick=async()=>{const base=touring()?SP({mia:false,bolt:false,scene:''}):specFromUI();$('#kgo').disabled=true;$('#kgo').textContent='Generating…';
  if(OSH.online){const p=$('#kp').value,prompt=workspaceMode==='image'||touring()?p:keyPrompt(base,p),batch=Array.from({length:workspaceMode==='image'?1:keyframeBatch}).map(()=>({spec:base,u:.5,p,pending:true}));results=batch.concat(results).slice(0,12);res();
   try{for(const [j,v] of batch.entries()){const r=await localGeneration.keyframe(prompt,Math.floor(Math.random()*1e6));v.img=r.url;v.pending=false;if(touring()&&['keyframes','add'].includes(onboarding.step)){onboarding.images.push(r.url);SC.set('osh-onboarding',onboarding);if(onboarding.images.length>=2)advanceTour('add')}if(workspaceMode==='image'){imageDraft={prompt:p,url:r.url,spec:base};saveWorkshop();syncWorkspace()}pushHist({kind:'keyframe',url:r.url,label:p});if(touring()&&onboarding.step==='image')advanceTour('image-review');$('#kgo').textContent=`Image ${j+1}/${batch.length} ready`;res()}}
@@ -317,15 +315,17 @@ async function stylemaxx(style,m,progress){
   pushHist({kind:'keyframe',url:r.url,label:`${s.n} · stylemaxx ${style.n} · fit ${Math.round(f*100)}%`});if(f>best.fit)best={url:r.url,fit:f}}
  if(best.url!==k.img){k.img=best.url;if(workshopTarget){imageDraft.url=best.url;saveWorkshop();syncWorkspace()}else{s.r=false;timeline();head();save()}toast(`Image restyled: fit ${Math.round(base*100)}% → ${Math.round(best.fit*100)}% (others are in history)`)}
  else toast(`No candidate beat the current keyframe (${Math.round(base*100)}%). Tries are in history.`)}
-SHELL.mount({app:'director',elementHint:'click to use in keyframe',
+SHELL.mount({app:'director',elementHint:'',
  mediaPool:()=>{const seen=new Set(),out=[];for(const h of HISTORY)if(h.kind==='keyframe'&&!seen.has(h.url)){seen.add(h.url);out.push({url:h.url,label:h.label})}
   for(const s of SH)for(const k of s.keys)if(k.img&&!seen.has(k.img)){seen.add(k.img);out.push({url:k.img,label:s.n})}return out},
  onStylemaxx:stylemaxx,
  beforeOpen:()=>save(),
  onLook:(l,s2,commit)=>{look=l;str=s2;$('#lookUse').textContent=l.n;if(commit){SH.forEach(x=>x.r=false);timeline();head();res()}},
- onElement:e=>{const input=$('#'+lastPrompt);input.setRangeText('@'+e.n+' ',input.selectionStart,input.selectionEnd,'end');input.dispatchEvent(new Event('input',{bubbles:true}));input.focus()}});
-function markEls(){SHELL.mark($$('#els .chip.on').map(c=>c.dataset.k))}
-$('#els').addEventListener('click',()=>setTimeout(markEls));
+ onElement:e=>{if(workspaceMode==='image')lastPrompt='kp';dispatchEvent(new CustomEvent('osh-reveal-window',{detail:lastPrompt==='kp'?'keyframes':'prompts'}));const input=$('#'+lastPrompt);input.setRangeText(elementMentionText(input.value,input.selectionStart,e.n),input.selectionStart,input.selectionEnd,'end');input.dispatchEvent(new Event('input',{bubbles:true}));input.focus()}});
+function markEls(){const text=$('#'+lastPrompt)?.value||'';SHELL.mark(SHELL.ELEMENTS.filter(element=>mentionRanges(text,[element]).length).map(element=>element.id))}
+addEventListener('input',event=>{if(['kp','motion','shotPromptInput'].includes(event.target.id))markEls()});
+addEventListener('osh-elements-changed',markEls);
+addEventListener('osh-request-element-usage',markEls);
 mountModels();
 const viewer=document.querySelector('.viewer'),composer=document.querySelector('.composer');
 const seedInput=$('#videoSeed');seedInput.onchange=()=>{if(seedInput.reportValidity()){SH[cur].seed=+seedInput.value;save()}};

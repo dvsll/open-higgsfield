@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom';
 import type { Element, PoolItem } from '../shell';
 import { OSH } from '../../../shared/runtime/client';
 import { projectKey } from '../projects';
+import {Popup} from './popup';
+function ReferenceImage({url,name}:{url:string;name:string}){const [missing,setMissing]=useState(false);return missing?<div className="element-no-reference">Reference unavailable</div>:<img loading="lazy" src={url} alt={name+' reference'} onError={()=>setMissing(true)}/>}
 export function ElementLibrary({
   elements,
   onSelect,
@@ -21,46 +23,28 @@ export function ElementLibrary({
     elements.splice(0, elements.length, ...next);
     setItems([...next]);
     dispatchEvent(new Event('osh-elements-changed'));
+    dispatchEvent(new Event('osh-project-media'));
     setEditing(undefined);
   };
-  return (
-    <>
-      {items.map((element) => (
-        <div key={element.id} className="element-tile">
-          <button
-            className="el"
-            data-id={element.id}
-            title={`Use @${element.n}`}
-            onClick={() => onSelect(element)}
-          >
-            {element.refs?.[0] ? (
-              <img src={element.refs[0]} alt="" />
-            ) : (
-              <span className="av">{element.ic}</span>
-            )}
-            <span>{element.n}</span>
-          </button>
-          <button className="element-edit" title={`Edit ${element.n}`} onClick={() => setEditing(element)}>
-            ✎
-          </button>
-        </div>
-      ))}
-      <button className="element-add" onClick={() => setEditing(null)}>
-        ＋ Create
+  const [query,setQuery]=useState(''),[category,setCategory]=useState('all'),[selected,setSelected]=useState<string[]>([]);
+  useEffect(()=>{const update=(event:Event)=>setSelected((event as CustomEvent<string[]>).detail);addEventListener('osh-element-usage',update);dispatchEvent(new Event('osh-request-element-usage'));return()=>removeEventListener('osh-element-usage',update)},[]);
+  const labels={cast:'Character',place:'Place',object:'Object'};
+  const filtered=items.filter(item=>(category==='all'||item.kind===category)&&`${item.n} ${item.d}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()));
+  return <div className="element-library">
+    <div className="element-library-toolbar"><input type="search" aria-label="Search elements" placeholder="Search elements…" value={query} onChange={e=>setQuery(e.target.value)}/><button className="element-new" onClick={()=>setEditing(null)}><span aria-hidden="true">+</span> New</button></div>
+    <div className="element-library-filter"><select aria-label="Element category" value={category} onChange={e=>setCategory(e.target.value)}><option value="all">All elements</option><option value="cast">Characters</option><option value="place">Places</option><option value="object">Objects</option></select><span>{filtered.length} {filtered.length===1?'element':'elements'}</span></div>
+    <div className="element-gallery">{filtered.map(element=><article key={element.id} className="element-tile">
+      <button className="el" data-id={element.id} aria-label={`Use @${element.n}`} aria-pressed={selected.includes(element.id)} title={element.d} onClick={()=>onSelect(element)}>
+        <div className="element-cover">{element.refs?.[0]?<ReferenceImage key={element.refs[0]} url={element.refs[0]} name={element.n}/>:<div className="element-no-reference"><svg viewBox="0 0 24 24" aria-hidden="true"><path d={element.kind==='cast'?'M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0ZM4 21v-2a8 8 0 0 1 16 0v2':element.kind==='place'?'M3 21V9l9-6 9 6v12M9 21v-7h6v7':'M3 7l9-4 9 4v10l-9 4-9-4V7Zm0 0 9 4 9-4M12 11v10'}/></svg><span>No reference</span></div>}{!!element.refs?.length&&<span className="element-ref-count">{element.refs.length} {element.refs.length===1?'image':'images'}</span>}</div>
+        <div className="element-caption"><strong>{element.n}</strong><span>{labels[element.kind]}</span></div>
       </button>
-      {editing !== undefined && (
-        <ElementMaker
-          existing={editing || undefined}
-          elements={items}
-          pool={pool()}
-          onSave={save}
-          onClose={() => setEditing(undefined)}
-        />
-      )}
-    </>
-  );
-}
-function ElementMaker({
+      <button className="element-edit" aria-label={`Edit ${element.n}`} title={`Edit ${element.n}`} onClick={()=>setEditing(element)}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5 4 4M4 20l4-1L20 7a2.8 2.8 0 0 0-4-4L4 15v5Z"/></svg></button>
+    </article>)}</div>
+    {!filtered.length&&<p className="element-library-empty">{items.length?'No matching elements. Try another search or category.':'Save a character, place or object to reuse in your scenes.'}</p>}
+    <p className="element-library-help">Click to insert an @mention. Descriptions guide generation; photos are saved references, not identity conditioning.</p>
+    {editing!==undefined&&<ElementMaker existing={editing||undefined} elements={items} pool={pool()} onSave={save} onClose={()=>setEditing(undefined)}/>}
+  </div>;
+}function ElementMaker({
   existing,
   elements,
   pool,
@@ -73,8 +57,7 @@ function ElementMaker({
   onSave: (element: Element) => void;
   onClose: () => void;
 }) {
-  const dialog = useRef<HTMLDialogElement>(null),
-    input = useRef<HTMLInputElement>(null),
+  const input = useRef<HTMLInputElement>(null),
     fileInput = useRef<HTMLInputElement>(null),
     alive = useRef(true),
     uploading = useRef(false);
@@ -89,11 +72,11 @@ function ElementMaker({
   references.current = refs;
   useEffect(() => {
     alive.current = true;
-    dialog.current!.showModal();
+
     input.current?.focus();
     return () => {
       alive.current = false;
-      dialog.current?.close();
+
     };
   }, []);
   const upload = async (files: FileList | File[]) => {
@@ -160,27 +143,16 @@ function ElementMaker({
     }
   };
   return createPortal(
-    <dialog
-      ref={dialog}
-      className="element-maker"
-      aria-label={existing ? 'Edit element' : 'Create element'}
-      onClose={onClose}
-    >
+    <Popup title={existing ? 'Edit element' : 'Create element'} className="element-maker" onClose={onClose} closeLabel="Close element maker">
       <form
         onSubmit={(e) => {
           e.preventDefault();
           submit();
         }}
       >
-        <header>
-          <h2>{existing ? 'Edit element' : 'Create element'}</h2>
-          <button type="button" data-close aria-label="Close element maker" onClick={onClose}>
-            ✕
-          </button>
-        </header>
         <div className="element-layout">
           <section>
-            <label>Reference images</label>
+            <label>Reference images <small>First image is the library cover</small></label>
             <div
               className={'element-drop' + (over ? ' over' : '')}
               tabIndex={0}
@@ -300,7 +272,7 @@ function ElementMaker({
           </button>
         </footer>
       </form>
-    </dialog>,
+    </Popup>,
     document.body,
   );
 }

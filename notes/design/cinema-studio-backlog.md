@@ -18,7 +18,7 @@ These checkboxes refer to the six P0 takeaways in the research brief, not every 
 One-time app reminder requested for October 23, 2026 at 9:00 AM America/New_York. The reminder is a planning prompt, not authorization to start unattended implementation.
 
 - [ ] Audit the existing model picker, then finish curated recommendations, readiness and capability explanations.
-- [ ] Finish Element asset cards, reference attachment and explicit prompt-only vs reference-conditioning labels.
+- [x] Finish Element asset cards, reference attachment and explicit prompt-only vs reference-conditioning labels. (Oct 24: visual library, search/category filters, saved reference covers, shared maker popup; current generation remains prompt-only.)
 - [ ] Save reusable production setups with a review of changed settings before application.
 - [ ] Group takes by scene; preserve prompt/model/seed/reference/output metadata per take.
 - [ ] Add visual examples for motion and style choices, connected only to supported workflows.

@@ -271,8 +271,6 @@ export function DirectorSurface() {
               defaultValue="Mia holds Bolt up to the window, first light on his face"
             />
           </div>
-          <div className="sec">{'Elements'}</div>
-          <div className="chips" id="els"></div>
           <div className="sec">{'Framing'}</div>
           <div className="chips" id="frm"></div>
           <div style={{ color: 'var(--faint)', fontSize: '12px' }}>

@@ -1,4 +1,7 @@
 export type MentionElement = { id: string; n: string; d: string; ic: string; kind: string;refs?:string[] };
+export function elementMentionText(text:string,caret:number,name:string):string{
+  return (caret>0&&!/[\s(]/.test(text[caret-1])?' ':'')+`@${name} `;
+}
 export function mentionAt(value: string, caret: number) {
   const before = value.slice(0, caret);
   const match = /(?:^|[\s(])@([\p{L}\p{N} '_-]*)$/u.exec(before);

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mentionAt, matchingElements, expandMentions, mentionRanges } from '../src/mention-matching.ts';
+import { mentionAt, matchingElements, expandMentions, mentionRanges, elementMentionText } from '../src/mention-matching.ts';
 const elements = [
   { id:'mia', n:'Mia', d:'girl in a yellow raincoat', ic:'', kind:'cast' },
   { id:'bolt', n:'Bolt', d:'small robot', ic:'', kind:'cast' },
@@ -18,3 +18,8 @@ assert.equal(expandMentions('test@Mia.com',elements), 'test@Mia.com');
 assert.deepEqual(mentionRanges("@Mia's room and @Bolt! @Unknown @Miax",elements),[{start:0,end:11},{start:16,end:21}]);
 assert.deepEqual(mentionRanges('test@Mia.com',elements),[]);
 console.log('PASS: mention triggers, filtering, email exclusion, multiword names and prompt expansion.');
+
+assert.equal(elementMentionText('Scene.',6,'Bolt'),' @Bolt ');
+assert.equal(elementMentionText('Scene ',6,'Bolt'),'@Bolt ');
+assert.equal(elementMentionText('',0,'Bolt'),'@Bolt ');
+assert.equal(expandMentions('Scene.'+elementMentionText('Scene.',6,'Bolt'),elements),'Scene. Bolt (small robot) ');

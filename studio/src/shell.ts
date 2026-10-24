@@ -262,6 +262,6 @@ function open(app: string) {
   location.href = a[2] + '?from=' + opts.app;
 }
 /** Highlight elements in use (chips on in the generator, regions selected in Edit). */
-function mark(ids: string[]) { document.querySelectorAll<HTMLElement>('#studioElements .el').forEach((b) => b.classList.toggle('on', ids.includes(b.dataset.id!))); }
+function mark(ids: string[]) { dispatchEvent(new CustomEvent('osh-element-usage',{detail:ids}));document.querySelectorAll<HTMLElement>('#studioElements .el').forEach((b) => b.classList.toggle('on', ids.includes(b.dataset.id!))); }
 
 export const SHELL = { mount, mark, select, open, ELEMENTS, APPS, styleFit };

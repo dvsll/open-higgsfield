@@ -13,6 +13,7 @@
 import { RuntimeSetup, setupAccess } from './setup.ts';
 import {PromptRewriter,PromptRewriteError} from './prompt-rewriter.ts';
 import {precisionSources} from './precision-image.ts';
+import {captionSegments} from '../lib/captions.ts';
 import { JobActivity, phaseForProgress } from './job-activity.ts';
 import { Comfy } from "@comfyorg/sdk";
 import { spawn } from "node:child_process";
@@ -558,6 +559,20 @@ function middleware(env: Env,setup:RuntimeSetup,rewriter:PromptRewriter): Connec
       if(route==='POST /api/compose-ad')return send(res,200,await composeAd(await readBody(req),OUTPUTS,env));
       if (route === 'GET /api/capabilities') return send(res,200,await capabilities(env));
       if (route === "GET /api/models") return send(res, 200, await localModels(env));
+      if (route === 'GET /api/captions') {
+        const nodes=await comfyJson(env,'/object_info');
+        return send(res,200,{available:!!nodes.LoadAudio&&!!nodes.OSHWhisperCaptions?.input?.required?.model?.[0]?.includes('Whisper Tiny · CPU'),model:'Whisper Tiny · CPU',setup:'Run shared/runtime/setup-captions.py with ComfyUI Python, then restart ComfyUI.'});
+      }
+      if (route === 'POST /api/captions') return send(res,200,await tracked(async body=>{
+        if(typeof body.audio!=='string'||!/^\/outputs\/[a-f0-9]{16}\.(flac|wav|mp3|m4a|ogg|webm|mp4)$/.test(body.audio))throw new HttpError(400,'Select an audio or video file from this project.');
+        const source=outputPath(body.audio);if(statSync(source).size>32*1024*1024)throw new HttpError(400,'Select audio under 32 MB and 10 minutes.');
+        const nodes=await comfyJson(env,'/object_info');if(!nodes.OSHWhisperCaptions?.input?.required?.model?.[0]?.includes('Whisper Tiny · CPU'))throw new HttpError(503,'Local captions need setup. Install the Studio caption node and Whisper Tiny, then restart ComfyUI.');
+        await ensureProxy(env);const c=client(env),wf=c.workflows.fromJson(await loadGraph('captions_whisper'));
+        wf.setInput('1','audio',c.assets.fromFile(source));const started=Date.now(),job=await serialize(()=>runWf(c,wf,body._requestId)),output=job.getOutputs('2')[0];
+        if(!output)throw new HttpError(502,'The caption workflow returned no transcript.');
+        const result=JSON.parse(Buffer.from(await output.toBytes()).toString('utf8'));
+        return {model:'Whisper Tiny · CPU',language:typeof result.language==='string'?result.language:null,duration:result.duration,seconds:(Date.now()-started)/1000,segments:captionSegments(result.segments)};
+      }));
       if (route === 'GET /api/precision-image') {
         const catalog = await localModels(env), nodes = await comfyJson(env, '/object_info'), graph = await loadGraph('precision_zimage');
         return send(res, 200, {

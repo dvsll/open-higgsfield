@@ -2,3 +2,6 @@
 
 /* Functional brief review; no theme changes. */
 #hero-brief .brief-controls{display:grid;grid-template-columns:1fr 1fr;gap:12px}#hero-brief textarea{min-height:90px}#brief-prompt{min-height:240px}#brief-issues,#brief-review-status{white-space:pre-wrap;overflow-wrap:anywhere}#brief-payload{font-size:11px;max-height:250px;overflow:auto}#hero-brief p{font-size:12px;line-height:1.5}
+
+/* Compact owner-facing flow; technical controls remain disclosed. */
+#hero-brief{display:grid;gap:12px}#brief-source{max-height:230px!important}#brief-summary{line-height:1.5}#hero-brief .brief-confirm{display:flex;align-items:flex-start;gap:10px}#brief-confirmed{width:auto;flex:none}#hero-readiness{display:grid;grid-template-columns:65px minmax(0,1fr);gap:6px 12px;font-size:11px;line-height:1.5;margin:0}#hero-readiness dt{color:var(--dim)}#hero-readiness dd{margin:0;overflow-wrap:anywhere}#hero-request-actions button{width:100%}

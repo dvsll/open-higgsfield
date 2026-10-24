@@ -8,3 +8,9 @@ console.log('PASS: project file indexing deduplicates, excludes remote/unsafe pa
 assert.equal(projectFiles({}, {}, [], {}, [{url:image,label:'Older generated image',kind:'image'}]).length,1,'saved project assets survive the bounded take history');
 
 assert.equal(projectFiles(null,null,[],{},[{url:'/outputs/1111111111111111.wav',label:'Voice',kind:'audio'}])[0].kind,'audio');
+
+const {readFileOrganization,removeFileFolder}=await import('../src/project-file-folders.ts');
+const organization=readFileOrganization({folders:[{id:'refs',name:' References '},{id:'refs',name:'Duplicate'},{id:'bad',name:' '}],assignments:{[image]:'refs',[video]:'missing'}});
+assert.deepEqual(organization.folders,[{id:'refs',name:'References'}]);assert.equal(organization.assignments[image],'refs');assert.equal(organization.assignments[video],undefined);
+assert.deepEqual(removeFileFolder(organization,'refs'),{folders:[],assignments:{}});assert.equal(projectFiles(current,{}).length,3,'folder removal never deletes media');
+assert.deepEqual(readFileOrganization(null).folders,[]);

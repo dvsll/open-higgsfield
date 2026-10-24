@@ -2,6 +2,21 @@
   display: contents;
 }
 
+body[data-studio-boot='loading'] > :not(.studio-boot-overlay),
+body[data-studio-boot='loading'] > :not(.studio-boot-overlay) * {
+  visibility: hidden !important;
+}
+.studio-boot-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 20000;
+  display: grid;
+  place-items: center;
+  background: #101114;
+  color: #a4abb6;
+  font: 12px/1.5 Inter, system-ui, sans-serif;
+}
+
 .react-panel-slot {
   min-width: 0;
   min-height: 0;

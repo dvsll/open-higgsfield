@@ -5,6 +5,7 @@ import './onboarding-tour.css';
 import './onboarding-focus.css';
 import './onboarding-guidance.css';
 import { SC } from './scene';
+import {lockTourInteraction} from './onboarding-interaction';
 import { continuesImageTour, canResumeWorkflow, firstVisit, profileKey, readProfile, windowLesson, workflowForSetup, type Experience, type Workflow } from './onboarding-progress';
 export type TourState = { step:string; shotId:string; images:string[]; dismissed?:boolean; suspended?:boolean; experience?:Experience; entry?:Workflow; firstVideo?:string|null };
 type Options = { get:()=>TourState|null; set:(state:TourState)=>void; save:()=>void; choose:(entry:Workflow)=>void; begin:(entry:Workflow)=>TourState; current:()=>Workflow };
@@ -21,6 +22,19 @@ export function mountOnboardingTour(options:Options) {
  const shadePath=document.createElementNS(shade.namespaceURI,'path');shadePath.setAttribute('fill-rule','evenodd');shade.append(shadePath);
  const rings=[0,1].map(()=>{const ring=document.createElement('div');ring.className='tour-target';ring.hidden=true;return ring});document.body.append(shade,...rings,popup);
  let chooser:HTMLDialogElement|null=null,localStep=0,lastStage='',lastWindowLesson='',targets:string[]=[],switching=false,disposed=false;
+ const targetElement=(selector:string)=>selector.split(',').map(s=>document.querySelector<HTMLElement>(s.trim())).find(e=>e&&e.getClientRects().length);
+ const interaction=lockTourInteraction({roots:()=>{
+  if(popup.hidden||disposed)return null;
+  const dialog=document.querySelector<HTMLDialogElement>('dialog[open]');
+  if(dialog)return [dialog];
+  if(document.getElementById('ov')?.style.display==='flex')return [document.getElementById('ov')!];
+  const allowed=targets.map(targetElement).filter((e):e is HTMLElement=>!!e);
+  for(const input of [...allowed]){
+   const menu=document.getElementById(input.getAttribute('aria-controls')||'');
+   if(menu&&!menu.hidden&&input.getAttribute('aria-expanded')==='true')allowed.push(menu);
+  }
+  return [...allowed,popup];
+ },blocked:()=>nudgeFocus(new PointerEvent('pointerdown',{clientX:-1,clientY:-1}))});
  // Background presses redirect attention without disrupting panel dragging or text editing.
  function nudgeFocus(event:PointerEvent){
   if(disposed||event.button!==0)return;
@@ -96,7 +110,7 @@ export function mountOnboardingTour(options:Options) {
    regenerate:{title:'See your direction take effect',text:beginner?'START and END are attached. Press Generate video again to see how those images shape the next take.':'Press Generate video to make a new take with both guides.',target:'#gen'},
    image:localStep===0?{title:'Start with one image',text:beginner?'Describe a subject, setting and visual style. We prepared a matching robot-and-flower prompt. Keep it or make it yours.':'Edit the prepared image prompt.',target:'#kp',next:'Next: generate image'}:{title:'Generate your first image',text:'Press the highlighted Generate image button. We’ll continue when your picture is ready.',target:'#kgo'},
    'image-review':{title:'Your image is ready',text:'Keep workshopping it, or press Turn into a video below the image to use it as the starting frame.',target:'#animateImage'},
-   'image-video':{title:'Animate your image',text:beginner?'Your image is attached as START. Add a motion prompt, then press the highlighted Generate video button.':'Add motion, then press Generate video to animate your starting image.',target:'#gen'},
+   'image-video':{title:'Animate your image',text:beginner?'Your image is attached as START. Press the highlighted Generate video button to animate it.':'Press Generate video to animate your starting image.',target:'#gen'},
    '3d':{title:'Explore the 3D preview',text:'This setup is a workspace preview. 3D generation is not connected yet. Image and Video can generate locally today.',target:'.stage-placeholder',next:'Explore other workflows'},
    'render-settings':{title:'Set the next render’s size and timing',text:beginner?'Width, height, frame count and frame rate describe the next generated take. They do not resize an existing video. Numbers can be typed or dragged.':'Set dimensions, frames and FPS for the next generation. Existing media stays unchanged.',target:'#videoAttributes',next:'Next: review takes'},
    'render-takes':{title:'Keep your original takes',text:'Takes holds previous generated results. Reuse a take here, or open it in Edit for trim, speed, reverse and resizing.',target:'#hist',next:'Explore other workflows'},
@@ -105,7 +119,7 @@ export function mountOnboardingTour(options:Options) {
   };return tips[state.step]||tips.prompt;
  }
  function render(){
-  const state=options.get();popup.hidden=!state||!!state.dismissed||!!state.suspended;shade.style.display='none';rings.forEach(r=>r.hidden=true);if(popup.hidden){chooser?.close();return}
+  const state=options.get();popup.hidden=!state||!!state.dismissed||!!state.suspended;shade.style.display='none';rings.forEach(r=>r.hidden=true);if(popup.hidden){chooser?.close();interaction.sync();return}
   if(profile.experience)state!.experience=profile.experience;
   if(!state!.experience||!state!.entry){popup.hidden=true;selection();return}
   persist();if(!profile.experience){profile.experience=state!.experience;saveProfile()}
@@ -118,12 +132,13 @@ export function mountOnboardingTour(options:Options) {
    if(['prompt','image'].includes(state!.step)&&localStep===0){localStep=1;document.querySelector(state!.step==='image'?'#kgo':'#gen')?.scrollIntoView({block:'nearest'});render();return}
    state!.step=state!.step==='render-settings'?'render-takes':state!.step==='edit-settings'?'edit-review':'done';persist();render();
   }}));
+  interaction.sync();
  }
  function clipped(selector:string){const element=selector.split(',').map(s=>document.querySelector<HTMLElement>(s.trim())).find(e=>e&&e.getBoundingClientRect().width&&e.getBoundingClientRect().height);if(!element)return null;let r=element.getBoundingClientRect();if(!r.width||!r.height)return null;let left=Math.max(4,r.left),top=Math.max(4,r.top),right=Math.min(innerWidth-4,r.right),bottom=Math.min(innerHeight-4,r.bottom);
   for(let p=element.parentElement;p;p=p.parentElement){const style=getComputedStyle(p);if(style.display==='none'||style.visibility==='hidden')return null;const b=p.getBoundingClientRect();if(/auto|scroll|hidden|clip/.test(style.overflowX)){left=Math.max(left,b.left);right=Math.min(right,b.right)}if(/auto|scroll|hidden|clip/.test(style.overflowY)){top=Math.max(top,b.top);bottom=Math.min(bottom,b.bottom)}}
   return right-left>12&&bottom-top>12?{left,top,right,bottom,width:right-left,height:bottom-top}:null;
  }
- let lastTick=0,lastTarget='',revealBudget=3,lastReveal=0;function position(now:number){if(disposed)return;requestAnimationFrame(position);if(now-lastTick<100)return;lastTick=now;if(popup.hidden)return;
+ let lastTick=0,lastTarget='',revealBudget=3,lastReveal=0;function position(now:number){if(disposed)return;requestAnimationFrame(position);if(now-lastTick<100)return;lastTick=now;interaction.sync();if(popup.hidden)return;
   const modal=!!document.querySelector('dialog[open]')||document.getElementById('ov')?.style.display==='flex'||!!document.querySelector<HTMLButtonElement>('#kgo')?.disabled;popup.style.visibility=modal?'hidden':'visible';if(modal){shade.style.display='none';rings.forEach(r=>r.hidden=true);return}
   if(lastTarget!==targets[0]){lastTarget=targets[0];revealBudget=3}const primary=targets[0]&&document.querySelector<HTMLElement>(targets[0]);const visible=targets[0]&&clipped(targets[0]);if(primary&&revealBudget>0&&now-lastReveal>400){const actual=primary.getBoundingClientRect();if(actual.width&&actual.height&&(!visible||primary.matches('button,input,textarea')&&visible.height<actual.height-4)){primary.scrollIntoView({block:'center',inline:'nearest'});lastReveal=now;revealBudget--}}
   const rects=targets.map(clipped).filter((r):r is NonNullable<typeof r>=>!!r);popup.style.width=Math.min(340,innerWidth-24)+'px';const width=popup.getBoundingClientRect().width,h=Math.min(popup.getBoundingClientRect().height,innerHeight-24);const r=rects[0];
@@ -135,7 +150,7 @@ export function mountOnboardingTour(options:Options) {
  const refreshWindows=()=>{if(!chooser?.open)render()};
  document.addEventListener('osh-window-layout-changed',refreshWindows);
  document.addEventListener('toggle',event=>{if((event.target as HTMLElement)?.matches('.window-menu'))refreshWindows()},true);
- addEventListener('pagehide',()=>{disposed=true});
+ addEventListener('pagehide',()=>{disposed=true;interaction.dispose()});
  let initial=options.get();if(initial?.entry&&initial.entry!=='edit'&&!initial.shotId){const fresh=options.begin(initial.entry);fresh.experience=profile.experience;options.set(fresh);persist();initial=fresh}if(initial?.experience&&!profile.experience){profile.experience=initial.experience;saveProfile()}
  if(initial&&!initial.dismissed&&!initial.suspended){if(initial.entry)profile.workflows[initial.entry]??='started';saveProfile();render()}else if(firstVisit(profile,options.current())||profile.workflows[options.current()]==='started'&&suspended[options.current()]&&!suspended[options.current()]!.dismissed)start(options.current(),false,false);else render();
  requestAnimationFrame(position);return {render,visit:(entry:Workflow)=>start(entry)};

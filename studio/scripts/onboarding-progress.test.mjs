@@ -34,3 +34,27 @@ assert.equal(continuesImageTour({entry:'image',step:'image-review'},'video'),tru
 assert.equal(continuesImageTour({entry:'image',step:'image-video'},'video'),true);
 assert.equal(continuesImageTour({entry:'image',step:'image-review',suspended:true},'video'),false);
 assert.equal(continuesImageTour({entry:'image',step:'image-review'},'rendering'),false);
+
+// Interaction lock: preserve pre-existing inert state, support two drag roots, release on exit.
+const {lockTourInteraction}=await import('../src/onboarding-interaction.ts');
+class ElementStub {
+ constructor(children=[]){this.children=children;this.inert=false;this.tabIndex=-1}
+ contains(node){return this===node||this.children.some(child=>child.contains(node))}
+ querySelectorAll(){return []}
+}
+const globals={window:globalThis.window,document:globalThis.document,HTMLElement:globalThis.HTMLElement,Node:globalThis.Node};
+try{
+ globalThis.HTMLElement=globalThis.Node=ElementStub;globalThis.window=new EventTarget();
+ const sourceRoot=new ElementStub(),dropRoot=new ElementStub(),outside=new ElementStub(),existing=new ElementStub();existing.inert=true;
+ const panel=new ElementStub([sourceRoot,outside]),body=new ElementStub([panel,dropRoot,existing]);
+ globalThis.document={body};let allowed=[sourceRoot,dropRoot],nudges=0;
+ const lock=lockTourInteraction({roots:()=>allowed,blocked:()=>nudges++});lock.sync();
+ assert.equal(panel.inert,false);assert.equal(sourceRoot.inert,false);assert.equal(dropRoot.inert,false);assert.equal(outside.inert,true);
+ function fire(type,target){const event=new Event(type,{cancelable:true});Object.defineProperty(event,'target',{value:target});window.dispatchEvent(event);return event.defaultPrevented}
+ assert.equal(fire('pointerdown',outside),true);assert.equal(nudges,1);
+ assert.equal(fire('click',outside),true);assert.equal(fire('drop',dropRoot),false);assert.equal(fire('dragstart',sourceRoot),false);
+ assert.equal(fire('pointerup',outside),false); // A permitted drag must always be able to finish.
+ allowed=[outside];lock.sync();assert.equal(sourceRoot.inert,true);assert.equal(outside.inert,false);
+ allowed=null;lock.sync();assert.equal(sourceRoot.inert,false);assert.equal(existing.inert,true);
+ lock.dispose();assert.equal(fire('click',sourceRoot),false);
+}finally{for(const [key,value] of Object.entries(globals)){if(value===undefined)delete globalThis[key];else globalThis[key]=value}}

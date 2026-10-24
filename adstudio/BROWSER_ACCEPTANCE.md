@@ -1,3 +1,18 @@
+# Hero / Benchmark Ad V1 - browser acceptance
+
+**NOT RUN.** Computer Use returned apps=[], browsers=[]. No session interruption bypassed. Actual PNG inspection/API/Blob-domain tests do not establish browser UI or IndexedDB acceptance. PR3 remains draft.
+
+Open http://127.0.0.1:8301/adstudio/#hero on a normal profile. Browser data is origin-specific; older8300 projects remain at8300 (do not clear storage). Test the same exact origin across refreshes.
+
+1. Click Open No Crumbs benchmark. Expect a separate example brand/project, original roll photograph, selected developed hero, actual ad preview and two retained hero versions. Notice supplied AI source provenance and unknown original model; do not mark it automatically faithful. Compare to outputs/benchmark-ad-v1/index.html.
+2. Choose a different brand/product/source or upload an original; inspect source/provenance selection. No new hero should be invented until Develop is clicked. Original/hero must appear in proportion. Develop a photographic version; change direction/crop and develop another. Both versions must remain selectable. Compare original structure, frosting/spirals/ingredients and cropping.
+3. Edit two-line headline, product name and website. Preview updates immediately; overly long text errors explicitly. Change logo only through saved genuine assets. Confirm review of the selected hero, export PNG and download hero separately. Open actual files at full and phone size; inspect legibility, logo and food detail. A new version requires new fidelity review.
+4. Wait for Saved, refresh and switch projects. Brand/source/direction/copy, both hero versions and prior PNG downloads must return. Verify DB3 projects.hero version1 and assets original/normalized Blobs; no image data in localStorage. Old video/Composer/static projects still open untouched.
+5. Temporarily move a disposable opaque output, retaining it locally. Hero/export history should still load from saved Blobs; fresh export should re-upload the retained hero/logo. Missing saved Blob must show an explicit error. Restore moved files. In a disposable profile simulate storage failure: Not saved must remain visible; retain tab, retry saving and verify refresh.
+6. AI Reimagine must show unavailable and disable generation with current missing image weights. No generated image, model download or photo fallback should be claimed. With ComfyUI offline, local photographic finishing and PNG export still work. Check advanced disclosure, keyboard focus, panel-end scrolling and narrow viewport. Record anything untested, never infer acceptance from API success.
+
+---
+
 # Static ads V1 - browser acceptance
 
 **Status: NOT RUN.** Current Computer Use inventory apps=[], browsers=[]. No browser interruption was bypassed. Real PNG/API and storage-domain tests do not prove actual browser downloads, responsive layout or IndexedDB refresh.

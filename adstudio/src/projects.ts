@@ -3,6 +3,7 @@ export const DATABASE = 'osh-adstudio-projects';
 export const ACTIVE_KEY = 'osh-adstudio:active:v1';
 import {emptyComposition,validateComposition,type Composition,type MediaAsset} from './composition.ts';
 import {validateBrand,type BrandProfile} from '../../shared/lib/brand.ts';
+import {heroDefaults,validateHeroWorkspace,type HeroWorkspace} from '../../shared/lib/hero-ad.ts';
 import {emptyStaticAds,validateStaticWorkspace,type StaticWorkspace} from '../../shared/lib/static-ad.ts';
 export type Ratio = '16:9'|'9:16'|'1:1';
 export type Mode = 'camera'|'locked'|'creative';
@@ -11,10 +12,10 @@ export type ProductAsset = {id:string;name:string;original:Blob;normalized:Blob;
 export type EditRecipe = {start:number;end:number;speed:number;reverse:boolean;width:number;height:number};
 export type Take = {id:string;created:number;assetId:string;source:string;parentId?:string;kind:'generation'|'edit';mode:Mode;ratio:Ratio;settings:Settings;prompt:string;frames:number;fps:number;width:number;height:number;seconds:number;background?:string;edit?:EditRecipe;exports:{id:string;url:string;tagline:string;created:number}[]};
 export type Attempt = {id:string;status:'running'|'complete'|'failed'|'interrupted';created:number;takeIds:string[];error?:string};
-export type AdProject = {version:3;id:string;name:string;created:number;updated:number;settings:Settings;assetId?:string;brandId?:string;staticAds?:StaticWorkspace;takes:Take[];attempt?:Attempt;composition:Composition};
+export type AdProject = {version:3;id:string;name:string;created:number;updated:number;settings:Settings;assetId?:string;brandId?:string;staticAds?:StaticWorkspace;hero?:HeroWorkspace;takes:Take[];attempt?:Attempt;composition:Composition};
 export const defaults = ():Settings => ({template:'portrait-push',mode:'camera',motion:'push',ratios:['9:16'],duration:3,seed:1,pitch:'A slow camera push toward the product, soft studio lighting, subtle reflections, premium commercial product shot.',tagline:'',vibe:'studio',framing:'fit'});
 export function newProject(name='Untitled ad'):AdProject {
- const now=Date.now();return {version:3,id:crypto.randomUUID(),name:validName(name),created:now,updated:now,settings:defaults(),takes:[],composition:emptyComposition(),staticAds:emptyStaticAds()};
+ const now=Date.now();return {version:3,id:crypto.randomUUID(),name:validName(name),created:now,updated:now,settings:defaults(),takes:[],composition:emptyComposition(),staticAds:emptyStaticAds(),hero:heroDefaults()};
 }
 export function validName(name:string) {const value=name.trim();if(!value||value.length>60)throw new Error('Use a project name of 1–60 characters.');return value;}
 export function migrateProject(value:unknown):AdProject {
@@ -27,7 +28,7 @@ export function migrateProject(value:unknown):AdProject {
  const video=(url:unknown)=>typeof url==='string'&&/^\/outputs\/[a-f0-9]{16}\.(webm|mp4)$/.test(url);
  const integer=(n:unknown,min:number,max:number)=>typeof n==='number'&&Number.isInteger(n)&&n>=min&&n<=max;
  if(!Array.isArray(takes)||takes.some((t:any)=>!t||typeof t.id!=='string'||!t.id||!video(t.source)||(t.background&&!video(t.background))||!t.settings||!['camera','locked','creative'].includes(t.mode)||!['16:9','9:16','1:1'].includes(t.ratio)||!integer(t.width,16,4096)||!integer(t.height,16,4096)||t.width*t.height>4096*2160||!integer(t.frames,1,100000)||!integer(t.fps,1,120)||!Array.isArray(t.exports)||t.exports.some((e:any)=>!e||!video(e.url))))throw new Error('Invalid saved history. Saved data was not overwritten.');
- return {...p,version:3,settings,takes,composition:p.version===3?validateComposition(p.composition):emptyComposition(),staticAds:p.staticAds?validateStaticWorkspace(p.staticAds):emptyStaticAds()} as AdProject;
+ return {...p,version:3,settings,takes,composition:p.version===3?validateComposition(p.composition):emptyComposition(),hero:p.hero?validateHeroWorkspace(p.hero):heroDefaults(),staticAds:p.staticAds?validateStaticWorkspace(p.staticAds):emptyStaticAds()} as AdProject;
 }
 export interface ProjectDriver {all():Promise<unknown[]>;put(project:AdProject,assets?:ProductAsset[],media?:MediaAsset[]):Promise<void>;asset(id:string):Promise<ProductAsset|undefined>;media?(id:string):Promise<MediaAsset|undefined>;brands?():Promise<unknown[]>;putBrand?(brand:BrandProfile,assets:ProductAsset[]):Promise<void>}
 export class Projects {

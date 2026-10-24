@@ -26,3 +26,5 @@ export function windowLesson(step:string, visible:ReadonlySet<string>, menuOpen:
 export function guidesPlaced(keys: { img?: string; anchor?: string }[]): boolean {
  return keys.some(k => k.img && k.anchor === 'start') && keys.some(k => k.img && k.anchor === 'end');
 }
+
+export function continuesImageTour(state:{entry?:Workflow;step:string;dismissed?:boolean;suspended?:boolean}|null,entry:Workflow):boolean{return !!state&&!state.dismissed&&!state.suspended&&state.entry==='image'&&entry==='video'&&['image-review','image-video'].includes(state.step)}

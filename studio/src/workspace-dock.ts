@@ -1,3 +1,9 @@
+import {StagePlaceholder} from './react/controls';
+import {WorkspaceName} from './react/workspace-name';
+import {WorkspaceToolbar,WindowsMenu} from './react/workspace-toolbar';
+import {createElement} from 'react';
+import {renderView,unmountView} from './react/render';
+import {DockTree,WindowChrome} from './react/docking';
 import './workspace-dock.css';
 import './sequence-transport.css';
 import { mountProjectFiles } from './project-files';
@@ -43,15 +49,13 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
  let setup = clone(store.layouts[active] || presets[active] || presets.Video);
  try{if(!localStorage.getItem('osh-video-layout-reference-v2')){store.layouts.Video=clone(presets.Video);if(active==='Video')setup=clone(presets.Video);localStorage.setItem('osh-video-layout-reference-v2','1')}}catch{}
  const panels = new Map<string, HTMLElement>();
+ const registrations=new Map<string,{title:string;content:HTMLElement}>();
  const toolbar = document.createElement('nav'); toolbar.className = 'workspace-toolbar'; toolbar.setAttribute('aria-label', 'Workspace layout');
- const picker = document.createElement('select'); picker.setAttribute('aria-label', 'Workspace setup');
- const windows = document.createElement('details'); windows.className = 'window-menu'; windows.innerHTML = '<summary>Windows</summary><div></div>';
- const menu = windows.querySelector('div')!;
- const saveButton = document.createElement('button'); saveButton.textContent = 'Save setup…';
- const reset = document.createElement('button'); reset.textContent = 'Reset setup';
- const hint = document.createElement('span'); hint.textContent = 'Drag a window title · release on a docking guide';
- toolbar.append(picker, windows, saveButton, reset, hint);
+ renderView(toolbar,createElement(WorkspaceToolbar));
+ const picker=toolbar.querySelector('select')!,windows=toolbar.querySelector('details')!,menu=windows.querySelector('div')!,saveButton=toolbar.querySelector<HTMLButtonElement>('[data-save-setup]')!,reset=toolbar.querySelector<HTMLButtonElement>('[data-reset-setup]')!;
+ function renderMenu(){renderView(menu,createElement(WindowsMenu,{panels:[...registrations].map(([id,p])=>({id,title:p.title})),visible:ids(setup.tree),onToggle:id=>{ids(setup.tree).includes(id)?closeWindow(id):openWindow(id);windows.open=false},onNew:async()=>{const title=await ask('Window name','Notes');if(!title)return;const id='note-'+Date.now();store.notes[id]={title,text:''};note(id,title,'');openWindow(id);windows.open=false}}))}
  const board = document.createElement('div'); board.className = 'window-board';
+ const layout=document.createElement('div');layout.className='dock-layout';board.append(layout);
  const parking = document.createElement('div'); parking.hidden = true;
  const overlay = document.createElement('div'); overlay.className = 'docking-overlay'; overlay.hidden = true;
  const shade = document.createElement('div'); shade.className = 'dock-preview';
@@ -61,30 +65,13 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
  const persist = () => { store.active = active; store.layouts[active] = clone(setup); try { localStorage.setItem(KEY, JSON.stringify(store)); } catch {} };
  let pending = false;
  const refresh = () => { if (pending) return; pending = true; requestAnimationFrame(() => { pending = false; resize(); }); };
- function separator(node: Extract<LayoutNode, { kind: 'split' }>, container: HTMLElement): HTMLElement {
-  const handle = document.createElement('div'); handle.className = 'workspace-split'; handle.tabIndex = 0; handle.setAttribute('role', 'separator');
-  handle.setAttribute('aria-label', 'Resize window split'); handle.setAttribute('aria-orientation', node.axis === 'x' ? 'vertical' : 'horizontal');
-  const apply = (ratio: number) => { node.ratio = Math.max(.15, Math.min(.85, ratio)); container.style.setProperty('--ratio', String(node.ratio)); handle.setAttribute('aria-valuenow', String(Math.round(node.ratio * 100))); refresh(); };
-  handle.onkeydown = e => { if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) return; e.preventDefault(); apply(node.ratio + (['ArrowRight', 'ArrowDown'].includes(e.key) ? .03 : -.03)); persist(); };
-  handle.onpointerdown = e => {
-   if (e.button !== 0) return; e.preventDefault(); handle.setPointerCapture(e.pointerId); const initial = node.ratio, rect = container.getBoundingClientRect();
-   handle.onpointermove = move => apply(node.axis === 'x' ? (move.clientX - rect.left) / rect.width : (move.clientY - rect.top) / rect.height);
-   handle.onpointerup = () => { handle.onpointermove = null; persist(); };
-   handle.onpointercancel = () => { handle.onpointermove = null; apply(initial); };
-  };
-  return handle;
- }
- function renderNode(node: LayoutNode): HTMLElement {
-  if (node.kind === 'panel') return panels.get(node.id)!;
-  const container = document.createElement('div'); container.className = 'window-split axis-' + node.axis; container.style.setProperty('--ratio', String(node.ratio));
-  container.append(renderNode(node.first), separator(node, container), renderNode(node.second)); return container;
- }
  function render(): void {
   board.dataset.defaultLayout=String(active==='Video'&&JSON.stringify(setup.tree)===JSON.stringify(presets.Video.tree));
   const visible = new Set(ids(setup.tree));
+  for(const [id,{title,content}] of registrations)renderView(panels.get(id)!,createElement(WindowChrome,{id,title,content,visible:[...visible],panels,onDrag:startDrag,onDock:(moving,target,edge)=>{setup.tree=dock(setup.tree,moving,target,edge);render();persist()},onClose:()=>closeWindow(id)}));
   for (const [id, element] of panels) { element.hidden = !visible.has(id); element.classList.remove('is-dragging-window'); element.removeAttribute('style'); parking.append(element); menu.querySelector(`[data-window="${id}"]`)?.setAttribute('aria-pressed', String(visible.has(id))); }
-  board.replaceChildren(); if (setup.tree) board.append(renderNode(setup.tree)); else { const empty = document.createElement('p'); empty.className = 'empty-workspace'; empty.textContent = 'Open a window from the Windows menu.'; board.append(empty); }
-  board.append(overlay); refresh();document.dispatchEvent(new Event('osh-window-layout-changed'));
+  renderView(layout,createElement(DockTree,{node:setup.tree,panels,parking,onRatio:persist}));
+  board.append(overlay); renderMenu();refresh();document.dispatchEvent(new Event('osh-window-layout-changed'));
  }
  function openWindow(id: string): void { if (ids(setup.tree).includes(id)) return; setup.tree = setup.tree ? split('x', setup.tree, panel(id), .7) : panel(id); render(); persist(); }
  function closeWindow(id: string): void { setup.tree = remove(setup.tree, id); render(); persist(); }
@@ -131,19 +118,11 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
  }
  function add(id: string, title: string, content: HTMLElement): void {
   const element = document.createElement('section'); element.className = 'studio-window'; element.dataset.window = id; element.setAttribute('aria-label', title + ' window');
-  const bar = document.createElement('div'); bar.className = 'window-titlebar';
-  const grip = document.createElement('button'); grip.className = 'window-grip'; grip.textContent = title; grip.title = 'Drag to dock beside another window'; grip.onpointerdown = e => startDrag(id, e);
-  const location = document.createElement('select'); location.setAttribute('aria-label', 'Dock ' + title); location.innerHTML = '<option value="">Dock…</option>';
-  location.onfocus = () => { location.replaceChildren(new Option('Dock…', '')); for (const other of ids(setup.tree).filter(other => other !== id)) for (const edge of ['left', 'right', 'top', 'bottom'] as Edge[]) location.add(new Option(`${edge === 'top' ? 'Above' : edge === 'bottom' ? 'Below' : edge + ' of'} ${panels.get(other)!.getAttribute('aria-label')!.replace(' window', '')}`, other + ':' + edge)); };
-  location.onchange = () => { const [target, edge] = location.value.split(':'); if (target) { setup.tree = dock(setup.tree, id, target, edge as Edge); render(); persist(); } location.value = ''; };
-  const close = document.createElement('button'); close.className = 'window-close'; close.innerHTML = icon('M6 6l12 12M18 6L6 18'); close.setAttribute('aria-label', 'Close ' + title); close.title = 'Close ' + title; close.onclick = () => closeWindow(id);
-  bar.append(grip, location, close); const body = document.createElement('div'); body.className = 'window-body'; body.append(content); element.append(bar, body); panels.set(id, element);
-  const toggle = document.createElement('button'); toggle.dataset.window = id; toggle.textContent = title; toggle.setAttribute('aria-label', title); toggle.onclick = () => { ids(setup.tree).includes(id) ? closeWindow(id) : openWindow(id); windows.open = false; }; menu.append(toggle);
+  registrations.set(id,{title,content});panels.set(id,element);
+  renderView(element,createElement(WindowChrome,{id,title,content,visible:ids(setup.tree),panels,onDrag:startDrag,onDock:(moving,target,edge)=>{setup.tree=dock(setup.tree,moving,target,edge);render();persist()},onClose:()=>closeWindow(id)}));
+  renderMenu();
  }
  const assets = app.querySelector<HTMLElement>('aside.l')!, keys = app.querySelector<HTMLElement>('aside.r')!, viewer = main.querySelector<HTMLElement>('.viewer')!, image = main.querySelector<HTMLElement>('.image-stage')!, composer = main.querySelector<HTMLElement>('.composer')!, properties = document.getElementById('videoAttributes') as HTMLDetailsElement;
- const generate = composer.querySelector<HTMLElement>('.generate-action')!;
- const promptScroll = document.createElement('div'); promptScroll.className = 'prompt-scroll';
- generate.remove(); promptScroll.append(...Array.from(composer.children)); composer.append(promptScroll, generate);
  properties.open = true; const viewContent = document.createElement('div'); viewContent.className = 'viewer-content'; viewContent.append(image, viewer);
  add('edit-history','Edit history',document.getElementById('studioEditHistory')!);add('files','Project files',mountProjectFiles());add('stash','Stash',document.getElementById('stash')!);
  add('stylization', 'Stylization', document.getElementById('studioStylization')!); add('elements', 'Elements', document.getElementById('studioElements')!); add('assets', 'Selected media', assets); add('viewer', 'Viewer', viewContent); add('prompts', 'Prompts', composer); add('keyframes', 'Image & keyframes', keys); add('properties', 'Size & timing', properties); add('timeline', 'Sequence', main.querySelector<HTMLElement>('.tlw')!); add('takes', 'Takes', main.querySelector<HTMLElement>('.hist')!);
@@ -152,11 +131,10 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
  for(const id of ['previousFrame','nextFrame','viewerTime']){const control=panels.get('viewer')!.querySelector<HTMLElement>('#'+id)!;sequenceTransport.append(id==='viewerTime'?control.closest('label')!:control)}
  sequenceBar.insertBefore(sequenceTransport,sequenceBar.children[1]);
  for (const id of ['trashBtn', 'addKeyBtn']) { const control = document.getElementById(id); if (control) sequenceBar.insertBefore(control, sequenceBar.children[1]); }
- const stage = document.createElement('div'); stage.className = 'stage-placeholder'; stage.innerHTML = '<div class="stage-grid"></div><h2>3D workspace</h2><p>A 3D viewport and scene tools are not connected yet.</p>'; add('stage', '3D viewport', stage);
+ const stage = document.createElement('div'); stage.className = 'stage-placeholder'; renderView(stage,createElement(StagePlaceholder)); add('stage', '3D viewport', stage);
  for (const [id, value] of Object.entries(store.notes)) if (value && typeof value.title === 'string' && typeof value.text === 'string') note(id, value.title, value.text);
  function note(id: string, title: string, text: string): void { const field = document.createElement('textarea'); field.className = 'workspace-note'; field.placeholder = 'Ideas, shot notes, checklist…'; field.value = text; field.setAttribute('aria-label', title); field.oninput = () => { store.notes[id].text = field.value; persist(); }; add(id, title, field); }
- function ask(label: string, value: string): Promise<string | null> { return new Promise(resolve => { const dialog = document.createElement('dialog'); dialog.className = 'workspace-name-dialog'; const form = document.createElement('form'); form.method = 'dialog'; const heading = document.createElement('h2'); heading.textContent = label; const input = document.createElement('input'); input.value = value; input.required = true; input.maxLength = 80; input.setAttribute('aria-label', label); const cancel = document.createElement('button'); cancel.type = 'button'; cancel.textContent = 'Cancel'; cancel.onclick = () => dialog.close(); const ok = document.createElement('button'); ok.textContent = 'Save'; form.append(heading, input, cancel, ok); form.onsubmit = e => { e.preventDefault(); if (input.value.trim()) dialog.close('save'); }; dialog.append(form); document.body.append(dialog); dialog.onclose = () => { resolve(dialog.returnValue === 'save' ? input.value.trim() : null); dialog.remove(); }; dialog.showModal(); input.select(); }); }
- const newNote = document.createElement('button'); newNote.textContent = '+ New notes window…'; newNote.onclick = async () => { const title = await ask('Window name', 'Notes'); if (!title) return; const id = 'note-' + Date.now(); store.notes[id] = { title, text: '' }; note(id, title, ''); openWindow(id); windows.open = false; }; menu.append(newNote);
+ function ask(label:string,value:string):Promise<string|null>{return new Promise(resolve=>{const dialog=document.createElement('dialog');dialog.className='workspace-name-dialog';renderView(dialog,createElement(WorkspaceName,{label,value,onSave:name=>dialog.close(name),onCancel:()=>dialog.close()}));document.body.append(dialog);dialog.onclose=()=>{resolve(dialog.returnValue||null);unmountView(dialog);dialog.remove()};dialog.showModal()})}
  function choices(): void { picker.replaceChildren(); for (const name of new Set([...Object.keys(presets), ...Object.keys(store.layouts)])) picker.add(new Option(name, name)); picker.add(new Option('Edit ↗','__edit'));picker.value = active; }
  let switching = false;
  function select(name: string): void {

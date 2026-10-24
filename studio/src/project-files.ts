@@ -1,12 +1,13 @@
+import {createElement} from 'react';
 import { SC } from './scene';
 import { SHELL } from './shell';
 import { projectFiles } from './project-files-index';
+import {renderView} from './react/render';
+import {ProjectFilesView} from './react/project-files';
 export function mountProjectFiles():HTMLElement{
- const root=document.createElement('div');root.className='project-files';root.setAttribute('aria-label','Current project media');let selected='';
- function render(){const files=projectFiles(SC.get('osh-director'),SC.get('osh-workspace'),SC.get('osh-elements')||[],SC.get('osh-project'),SC.get('osh-project-files')||[]);SC.set('osh-project-files',files);const open=new Set([...root.querySelectorAll<HTMLDetailsElement>('details[open]')].map(e=>e.dataset.kind));const initial=!root.querySelector('details');root.replaceChildren();
-  if(!files.length){const empty=document.createElement('p');empty.className='files-empty';empty.textContent='Your images, videos and audio appear here as you create them.';root.append(empty);return}
-  for(const [kind,title]of [['video','Videos'],['image','Images'],['audio','Audio']] as const){const items=files.filter(f=>f.kind===kind);if(!items.length)continue;const folder=document.createElement('details');folder.dataset.kind=kind;folder.open=initial||open.has(kind);const summary=document.createElement('summary');summary.textContent=`${title} · ${items.length}`;folder.append(summary);
-   for(const file of items){const row=document.createElement('div');row.className='project-file';const button=document.createElement('button');button.textContent=file.label;button.title=file.url.split('/').pop()!;button.setAttribute('aria-pressed',String(selected===file.url));button.onclick=()=>{selected=file.url;root.querySelectorAll('button[aria-pressed]').forEach(b=>b.setAttribute('aria-pressed',String(b===button)));SHELL.select({type:file.kind==='video'?'shot':'keyframe',label:file.label,...(file.kind==='image'?{img:file.url}:file.kind==='video'?{video:file.url}:{audio:file.url})});dispatchEvent(new CustomEvent('osh-project-file-selected',{detail:file}))};button.ondblclick=()=>dispatchEvent(new CustomEvent('osh-project-file-open',{detail:file}));const download=document.createElement('a');download.href=file.url;download.download=file.url.split('/').pop()!;download.textContent='↓';download.title='Download '+file.label;download.setAttribute('aria-label','Download '+file.label);row.append(button,download);folder.append(row)}root.append(folder)}
+ const root=document.createElement('div');root.className='project-files';root.setAttribute('aria-label','Current project media');
+ function render(){const files=projectFiles(SC.get('osh-director'),SC.get('osh-workspace'),SC.get('osh-elements')||[],SC.get('osh-project'),SC.get('osh-project-files')||[]);SC.set('osh-project-files',files);
+  renderView(root,createElement(ProjectFilesView,{files,onSelect:file=>{SHELL.select({type:file.kind==='video'?'shot':'keyframe',label:file.label,...(file.kind==='image'?{img:file.url}:file.kind==='video'?{video:file.url}:{audio:file.url})});dispatchEvent(new CustomEvent('osh-project-file-selected',{detail:file}))},onOpen:file=>dispatchEvent(new CustomEvent('osh-project-file-open',{detail:file}))}));
  }
  let pending=false;addEventListener('osh-project-media',()=>{if(pending)return;pending=true;requestAnimationFrame(()=>{pending=false;render()})});render();return root;
 }

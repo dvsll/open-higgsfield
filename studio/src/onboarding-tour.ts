@@ -1,8 +1,11 @@
+import {createElement} from 'react';
+import {renderView,unmountView} from './react/render';
+import {TourChoice,TourPopover} from './react/onboarding';
 import './onboarding-tour.css';
 import './onboarding-focus.css';
 import './onboarding-guidance.css';
 import { SC } from './scene';
-import { canResumeWorkflow, firstVisit, profileKey, readProfile, windowLesson, workflowForSetup, type Experience, type Workflow } from './onboarding-progress';
+import { continuesImageTour, canResumeWorkflow, firstVisit, profileKey, readProfile, windowLesson, workflowForSetup, type Experience, type Workflow } from './onboarding-progress';
 export type TourState = { step:string; shotId:string; images:string[]; dismissed?:boolean; suspended?:boolean; experience?:Experience; entry?:Workflow; firstVideo?:string|null };
 type Options = { get:()=>TourState|null; set:(state:TourState)=>void; save:()=>void; choose:(entry:Workflow)=>void; begin:(entry:Workflow)=>TourState; current:()=>Workflow };
 type Tip = { title:string; text:string; target?:string; secondary?:string; next?:string; diagram?:'add'|'position' };
@@ -62,16 +65,13 @@ export function mountOnboardingTour(options:Options) {
  function selection(){
   if(chooser?.open)return;const state=options.get();if(!state)return;
   chooser=document.createElement('dialog');chooser.className='tour-choice';chooser.setAttribute('aria-label','Personalize your Studio walkthrough');
-  const heading=document.createElement('h2');heading.textContent=state.experience?'What would you like to create?':'How familiar are you with ComfyUI?';const intro=document.createElement('p');intro.textContent=state.experience?'Choose a starting workspace. Other workflows have their own walkthroughs.':'Choose once. We’ll use this level across your workflow walkthroughs.';
-  const grid=document.createElement('div');grid.className='tour-choice-grid';grid.dataset.kind=state.experience?'workflow':'experience';
-  const entries=state.experience?[['image','Image','Workshop one image, then bring it into motion.'],['video','Video','Prompt a video, then direct it with keyframes.'],['3d','3D','Explore the preview; generation is not connected yet.'],['audio','Audio · planned','A dedicated sound workspace is planned.']]:[['beginner','ComfyUI beginner','Explain the tools and guide me step by step.'],['seasoned','Seasoned','Show the Studio workflow with a little guidance.'],['professional','Professional','Keep it brief. Show the essential controls.']];
-  for(const [index,[key,label,description]] of entries.entries()){
-   const button=document.createElement('button');button.type='button';if(!state.experience){const icons=document.createElement('span');icons.className='tour-level-icons';icons.setAttribute('aria-hidden','true');for(let n=0;n<=index;n++){const icon=document.createElementNS(shade.namespaceURI,'svg');icon.setAttribute('viewBox','0 0 16 16');const path=document.createElementNS(shade.namespaceURI,'path');path.setAttribute('d','M4 2 13 8 4 14Z');icon.append(path);icons.append(icon)}button.append(icons)}
-   const name=document.createElement('strong');name.textContent=label;const text=document.createElement('span');text.textContent=description;button.append(name,text);button.disabled=key==='audio';button.onclick=()=>{if(!state.experience){state.experience=key as Experience;profile.experience=state.experience;saveProfile();persist();chooser?.close();selection()}else{profile.experience=state.experience;saveProfile();chooser?.close();start(key as Workflow,true)}};grid.append(button);
-  }
-  const skip=document.createElement('button');skip.className='tour-skip';skip.textContent='Skip walkthrough';skip.onclick=()=>end(true);chooser.append(heading,intro);
-  if(state.experience){const back=document.createElement('button');back.className='tour-back';back.textContent='← Experience level';back.onclick=()=>{state.experience=undefined;persist();chooser?.close();selection()};chooser.append(back)}
-  chooser.append(grid,skip);chooser.addEventListener('cancel',e=>{e.preventDefault();end(true)});const currentDialog=chooser;chooser.addEventListener('close',()=>{currentDialog.remove();if(chooser===currentDialog)chooser=null});document.body.append(chooser);chooser.showModal();
+  const currentDialog=chooser;
+  renderView(chooser,createElement(TourChoice,{experience:state.experience,onChoose:key=>{
+   if(!state.experience){state.experience=key as Experience;profile.experience=state.experience;saveProfile();persist();chooser?.close();selection()}
+   else{profile.experience=state.experience;saveProfile();chooser?.close();start(key as Workflow,true)}
+  },onBack:()=>{state.experience=undefined;persist();chooser?.close();selection()},onSkip:()=>end(true)}));
+  chooser.addEventListener('cancel',e=>{e.preventDefault();end(true)});
+  chooser.addEventListener('close',()=>{unmountView(currentDialog);currentDialog.remove();if(chooser===currentDialog)chooser=null});document.body.append(chooser);chooser.showModal();
  }
  function prepare(step:string){
   if(['add','position'].includes(step))dispatchEvent(new Event('osh-tour-keyframe-view'));
@@ -104,16 +104,6 @@ export function mountOnboardingTour(options:Options) {
    'edit-review':{title:'Compare before you apply',text:'Compare the original, keep Undo available, and apply a finished edit back to its shot. Render edits is the real action; this guide does not run it for you.',target:'.video-edit-toolbar, #acts',next:'Explore other workflows'},
   };return tips[state.step]||tips.prompt;
  }
- function diagram(kind:'add'|'position'){
-  const figure=document.createElement('figure');figure.className='tour-drag-demo';figure.dataset.kind=kind;figure.setAttribute('role','img');figure.setAttribute('aria-label',kind==='add'?'Drag an image result onto the timeline':'Drag the left keyframe to START and the right keyframe to END');
-  const source=document.createElement('span');source.className='demo-source';source.textContent=kind==='add'?'IMAGE':'◆';const track=document.createElement('div');track.className='demo-track';for(const text of ['START','END']){const end=document.createElement('span');end.textContent=text;track.append(end)}const cursor=document.createElement('span');cursor.className='demo-cursor';cursor.textContent='◆';figure.append(source,track,cursor);return figure;
- }
- function teaser(state:TourState){
-  const title=document.createElement('h2');title.textContent='More ways to create';const text=document.createElement('p');text.textContent=`Your ${names[state.entry!]} walkthrough is complete. Explore another workflow with the same ${state.experience} guidance.`;popup.append(title,text);
-  const grid=document.createElement('div');grid.className='tour-workflow-teasers';const descriptions:Record<Workflow,string>={image:'Workshop one image.',video:'Bring a scene into motion.',director:'Direct with movable keyframes.',rendering:'Inspect size, timing and takes.',edit:'Trim, retime and resize a take.','3d':'Preview · generation not connected.'};
-  for(const entry of ['image','video','director','edit','rendering','3d'] as Workflow[]){if(entry===state.entry)continue;const button=document.createElement('button');button.className='tour-workflow-card';const name=document.createElement('strong');name.textContent=names[entry];const desc=document.createElement('span');desc.textContent=descriptions[entry];button.append(name,desc);button.onclick=()=>start(entry);grid.append(button)}
-  const audio=document.createElement('p');audio.className='tour-planned';audio.textContent='Coming later: a dedicated Audio workflow.';const finish=document.createElement('button');finish.className='tour-secondary';finish.textContent='Keep creating';finish.onclick=()=>end();popup.append(grid,audio,finish);
- }
  function render(){
   const state=options.get();popup.hidden=!state||!!state.dismissed||!!state.suspended;shade.style.display='none';rings.forEach(r=>r.hidden=true);if(popup.hidden){chooser?.close();return}
   if(profile.experience)state!.experience=profile.experience;
@@ -121,10 +111,13 @@ export function mountOnboardingTour(options:Options) {
   persist();if(!profile.experience){profile.experience=state!.experience;saveProfile()}
   if(!profile.workflows[state!.entry!]){profile.workflows[state!.entry!]='started';saveProfile()}
   if(lastStage!==state!.step){lastStage=state!.step;localStep=0;prepare(state!.step)}
-  popup.replaceChildren();const top=document.createElement('div');top.className='tour-popover-top';const progress=document.createElement('span');progress.textContent=`${state!.experience} · ${names[state!.entry!]} walkthrough`;const skip=document.createElement('button');skip.textContent=state!.step==='done'?'Close':'Skip';skip.onclick=()=>end(state!.step!=='done');top.append(progress,skip);popup.append(top);
-  if(state!.step==='done'){profile.workflows[state!.entry!]='completed';saveProfile();targets=[];teaser(state!);return}
-  const current=tip(state!);targets=[current.target,current.secondary].filter(Boolean) as string[];const title=document.createElement('h2');title.textContent=current.title;const body=document.createElement('p');body.textContent=current.text;popup.append(title,body);if(current.diagram)popup.append(diagram(current.diagram));
-  if(current.next){const action=document.createElement('button');action.className='tour-primary';action.textContent=current.next;action.onclick=()=>{if(['prompt','image'].includes(state!.step)&&localStep===0){localStep=1;const target=state!.step==='image'?'#kgo':'#gen';document.querySelector(target)?.scrollIntoView({block:'nearest'});render();return}state!.step=state!.step==='render-settings'?'render-takes':state!.step==='edit-settings'?'edit-review':'done';persist();render()};popup.append(action)}else{const hint=document.createElement('p');hint.className='tour-wait-hint';hint.textContent=current.diagram?'Continue by dragging in the highlighted workspace.':'Use the highlighted control to continue.';popup.append(hint)}
+  const done=state!.step==='done';
+  if(done){profile.workflows[state!.entry!]='completed';saveProfile();targets=[]}
+  const current=done?undefined:tip(state!);if(current)targets=[current.target,current.secondary].filter(Boolean) as string[];
+  renderView(popup,createElement(TourPopover,{experience:state!.experience!,entry:state!.entry!,done,tip:current,onSkip:()=>end(!done),onFinish:()=>end(),onWorkflow:entry=>start(entry),onNext:()=>{
+   if(['prompt','image'].includes(state!.step)&&localStep===0){localStep=1;document.querySelector(state!.step==='image'?'#kgo':'#gen')?.scrollIntoView({block:'nearest'});render();return}
+   state!.step=state!.step==='render-settings'?'render-takes':state!.step==='edit-settings'?'edit-review':'done';persist();render();
+  }}));
  }
  function clipped(selector:string){const element=selector.split(',').map(s=>document.querySelector<HTMLElement>(s.trim())).find(e=>e&&e.getBoundingClientRect().width&&e.getBoundingClientRect().height);if(!element)return null;let r=element.getBoundingClientRect();if(!r.width||!r.height)return null;let left=Math.max(4,r.left),top=Math.max(4,r.top),right=Math.min(innerWidth-4,r.right),bottom=Math.min(innerHeight-4,r.bottom);
   for(let p=element.parentElement;p;p=p.parentElement){const style=getComputedStyle(p);if(style.display==='none'||style.visibility==='hidden')return null;const b=p.getBoundingClientRect();if(/auto|scroll|hidden|clip/.test(style.overflowX)){left=Math.max(left,b.left);right=Math.min(right,b.right)}if(/auto|scroll|hidden|clip/.test(style.overflowY)){top=Math.max(top,b.top);bottom=Math.min(bottom,b.bottom)}}
@@ -138,7 +131,7 @@ export function mountOnboardingTour(options:Options) {
   popup.style.left=x+'px';popup.style.top=y+'px';shade.style.display='block';shade.setAttribute('viewBox',`0 0 ${innerWidth} ${innerHeight}`);shadePath.setAttribute('d',`M0 0H${innerWidth}V${innerHeight}H0Z`+rects.map(b=>`M${b.left-3} ${b.top-3}h${b.width+6}v${b.height+6}h-${b.width+6}Z`).join(''));
   rings.forEach((ring,i)=>{const b=rects[i];ring.hidden=!b;if(b)Object.assign(ring.style,{left:b.left-3+'px',top:b.top-3+'px',width:b.width+6+'px',height:b.height+6+'px'})});
  }
- document.addEventListener('osh-workspace-selected',((event:CustomEvent<{name:string;mode:string}>)=>{if(switching||chooser?.open)return;const state=options.get();if(state&&!state.dismissed&&(!state.experience||!state.entry))return;const entry=workflowForSetup(event.detail.name,event.detail.mode);if(state?.entry===entry&&!state.dismissed&&!state.suspended)return;if(profile.experience)start(entry,false,false)}) as EventListener);
+ document.addEventListener('osh-workspace-selected',((event:CustomEvent<{name:string;mode:string}>)=>{if(switching||chooser?.open)return;const state=options.get();if(state&&!state.dismissed&&(!state.experience||!state.entry))return;const entry=workflowForSetup(event.detail.name,event.detail.mode);if(continuesImageTour(state,entry))return;if(state?.entry===entry&&!state.dismissed&&!state.suspended)return;if(profile.experience)start(entry,false,false)}) as EventListener);
  const refreshWindows=()=>{if(!chooser?.open)render()};
  document.addEventListener('osh-window-layout-changed',refreshWindows);
  document.addEventListener('toggle',event=>{if((event.target as HTMLElement)?.matches('.window-menu'))refreshWindows()},true);
@@ -147,5 +140,3 @@ export function mountOnboardingTour(options:Options) {
  if(initial&&!initial.dismissed&&!initial.suspended){if(initial.entry)profile.workflows[initial.entry]??='started';saveProfile();render()}else if(firstVisit(profile,options.current())||profile.workflows[options.current()]==='started'&&suspended[options.current()]&&!suspended[options.current()]!.dismissed)start(options.current(),false,false);else render();
  requestAnimationFrame(position);return {render,visit:(entry:Workflow)=>start(entry)};
 }
-
-

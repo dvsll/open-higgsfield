@@ -1,3 +1,7 @@
+import {createElement} from 'react';
+import {StyleSelector,StyleMaker} from './react/styles';
+import {renderView,unmountView} from './react/render';
+import {SharedSurface,SelectedMedia} from './react/shared-panels';
 // Shared left sidebar for every studio workflow:
 //   selected media (+ open in another workflow) · Stylemaxxer (style, fit meter, Stylemaxx) · Elements wall.
 // Project-level state (selected style, user styles) lives in localStorage 'osh-project' so it follows you between apps.
@@ -79,7 +83,7 @@ const css = `
 .shm .box{width:min(720px,94vw);max-height:88vh;overflow:auto;background:var(--col);border:1px solid var(--line);padding:18px;display:flex;flex-direction:column;gap:14px}
 .shm h3{margin:0;font-size:15px;font-weight:600;display:flex;align-items:center}.shm h3 button{margin-left:auto}
 .shm .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
-.shm .card{border:1px solid var(--line);background:var(--card);cursor:pointer;padding:0;color:var(--txt);text-align:left;position:relative}
+.shm .style-card-select{width:100%;padding:0;border:0;background:none;color:inherit;text-align:inherit;font:inherit;cursor:pointer}.shm .card{border:1px solid var(--line);background:var(--card);cursor:pointer;padding:0;color:var(--txt);text-align:left;position:relative}
 .shm .card:hover,.shm .card.on{border-color:var(--acc)}
 .shm .card canvas{width:100%;aspect-ratio:16/10;display:block}.shm .card div{padding:6px 8px;font-size:12px}
 .shm .card .ed{position:absolute;right:4px;top:4px;background:rgba(0,0,0,.6);border:0;color:#fff;font-size:11px;padding:2px 6px;cursor:pointer}
@@ -177,13 +181,7 @@ function mount(o: Opts) {
   str = st.str ?? 0.8;
   const s = document.createElement('style'); s.textContent = css; document.head.append(s);
   const root = $('#shared');root.classList.add('shared-section');
-  root.innerHTML = `<div class="sec">Selected media</div><div class="media"></div>
-    <div class="apps">${APPS.map(([id, n, href]) => `<a data-app="${id}" href="${href}" class="${id === o.app ? 'on' : ''}">${n}</a>`).join('')}</div>
-    <section id="studioStylization" class="shared-section"><div class="sec">Stylization</div>
-    <button class="style" title="Change style"><canvas width="480" height="160"></canvas><div><span class="sn"></span><small>change ▸</small></div></button>
-    <div class="fit"><div class="row"><span>Palette match · selected media</span><b class="fv">—</b></div><div class="meter"><i style="left:0"></i></div></div>
-    <button class="maxx" title="Try three prompt-based variations and keep the closest palette. This does not train or apply a LoRA.">Try style variations</button>
-    </section><section id="studioElements" class="shared-section"><div class="sec">Elements <span>${o.elementHint || ''}</span></div><div class="wall"></div></section>`;
+  renderView(root,createElement(SharedSurface,{app:o.app,apps:APPS,elementHint:o.elementHint}));
   ($('.style', root) as HTMLButtonElement).onclick = () => selector();
   ($('.maxx', root) as HTMLButtonElement).onclick = () => maxx();
   elementLibrary($('.wall',root),ELEMENTS,e=>o.onElement?.(e),()=>o.mediaPool?.()||[]);
@@ -225,73 +223,16 @@ async function maxx() {
 }
 
 // ---------- modals: style selector + style maker ----------
-function modal(title: string): { box: HTMLElement; close: () => void } {
-  const m = document.createElement('div'); m.className = 'shm';
-  m.innerHTML = `<div class="box"><h3>${title}<button class="btn" data-x>✕</button></h3></div>`;
-  const close = () => { m.remove(); removeEventListener('keydown', esc); };
-  const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
-  m.onclick = (e) => { if (e.target === m || (e.target as HTMLElement).closest('[data-x]')) close(); };
-  addEventListener('keydown', esc); document.body.append(m);
-  return { box: $('.box', m), close };
+function styleDialog(title:string,render:(close:()=>void)=>import('react').ReactNode){
+ const host=document.createElement('div');host.className='shm';host.setAttribute('role','dialog');host.setAttribute('aria-modal','true');host.setAttribute('aria-label',title);const previous=document.activeElement as HTMLElement|null;
+ const close=()=>{unmountView(host);host.remove();removeEventListener('keydown',escape);if(previous?.isConnected)previous.focus()};
+ const escape=(event:KeyboardEvent)=>{if(event.key==='Escape')close()};host.onclick=event=>{if(event.target===host)close()};addEventListener('keydown',escape);document.body.append(host);renderView(host,render(close));
 }
-function selector() {
-  const { box, close } = modal('Styles');
-  const grid = document.createElement('div'); grid.className = 'grid'; box.append(grid);
-  for (const st of allStyles()) {
-    const c = document.createElement('button'); c.className = 'card' + (st.id === style.id ? ' on' : '');
-    c.innerHTML = `<canvas width="320" height="200"></canvas><div>${st.n}</div>${st.user ? '<button class="ed" title="Edit style">✎</button>' : ''}`;
-    drawStyle($('canvas', c) as HTMLCanvasElement, st);
-    c.onclick = (e) => { if ((e.target as HTMLElement).closest('.ed')) { close(); maker(st); return; } setStyle(st); close(); };
-    grid.append(c);
-  }
-  const add = document.createElement('button'); add.className = 'add'; add.innerHTML = '<span style="font-size:22px">＋</span>add style';
-  add.onclick = () => { close(); maker(); }; grid.append(add);
-}
-function maker(edit?: Style) {
-  const { box, close } = modal(edit ? 'Edit style' : 'Style maker');
-  const draft: Style = edit ? structuredClone(edit) : { id: 'u' + Date.now().toString(36), n: '', prompt: '', sw: ['#2a2a2e', '#55555c', '#8b8b93', '#c9c9cf'], refs: [], user: true };
-  box.insertAdjacentHTML('beforeend', `
-    <input class="title" placeholder="Style title" value="${(draft.n || '').replace(/"/g, '&quot;')}">
-    <canvas class="prev" width="720" height="240"></canvas>
-    <div class="sec" style="font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.09em">Media to use as reference</div>
-    <div class="refs"></div>
-    <textarea rows="2" placeholder="Describe the look (added to every prompt), e.g. 'grainy 16mm, teal shadows, warm skin'">${draft.prompt || ''}</textarea>
-    <div class="note">Colours are taken from the reference media; the description steers generation.</div>
-    <div class="acts">${edit ? '<button class="btn" data-del>Delete style</button>' : ''}<button class="btn" data-x>Cancel</button><button class="btn solid" data-save>Save style</button></div>`);
-  const title = $('input.title', box) as HTMLInputElement, prompt = $('textarea', box) as HTMLTextAreaElement, prev = $('.prev', box) as HTMLCanvasElement, refs = $('.refs', box);
-  const recolor = async () => {
-    if (draft.refs?.length) {
-      const px = (await Promise.all(draft.refs.map((u) => loadImg(u).then((im) => pixels(im, 24, 14))))).flat();
-      draft.sw = palette(px);
-      draft.sky = [draft.sw[1], draft.sw[3]];
-    }
-    prev.getContext('2d')!.clearRect(0, 0, prev.width, prev.height); drawStyle(prev, draft);
-  };
-  const drawRefs = () => {
-    refs.innerHTML = '';
-    draft.refs!.forEach((u, i) => { const d = document.createElement('div'); d.className = 'ref'; d.innerHTML = `<img src="${u}"><button title="Remove">✕</button>`; ($('button', d) as HTMLButtonElement).onclick = () => { draft.refs!.splice(i, 1); drawRefs(); recolor(); }; refs.append(d); });
-    const add = document.createElement('button'); add.className = 'add'; add.style.minHeight = '0'; add.style.aspectRatio = '16/10'; add.innerHTML = '＋<small>add more</small>';
-    add.onclick = () => pick(); refs.append(add);
-  };
-  const pick = () => {
-    const pool = opts.mediaPool?.() || [];
-    let el = $('.pool', box);
-    if (el) { el.remove(); return; }
-    el = document.createElement('div'); el.className = 'pool';
-    if (!pool.length) el.innerHTML = '<span class="note">No generated media yet. Generate some keyframes first.</span>';
-    pool.forEach((p) => { const b = document.createElement('button'); b.title = p.label; b.className = draft.refs!.includes(p.url) ? 'on' : ''; b.innerHTML = `<img src="${p.url}">`;
-      b.onclick = () => { const i = draft.refs!.indexOf(p.url); if (i >= 0) draft.refs!.splice(i, 1); else draft.refs!.push(p.url); b.classList.toggle('on'); drawRefs(); recolor(); }; el.append(b); });
-    refs.after(el);
-  };
-  drawRefs(); recolor(); title.focus();
-  ($('[data-save]', box) as HTMLButtonElement).onclick = () => {
-    draft.n = title.value.trim() || 'Untitled style'; draft.prompt = prompt.value.trim();
-    const list = userStyles().filter((x) => x.id !== draft.id); list.push(draft);
-    save({ styles: list }); close();
-    style = { ...draft, id: '' }; setStyle(draft);   // force refresh even when editing the selected style
-  };
-  const del = $('[data-del]', box) as HTMLButtonElement | null;
-  if (del) del.onclick = () => { if (!confirm(`Delete style "${draft.n}"?`)) return; save({ styles: userStyles().filter((x) => x.id !== draft.id) }); close(); if (style.id === draft.id) { style = { ...style, id: '' }; setStyle(STYLEBOARD.looks[0]); } };
+function selector(){styleDialog('Styles',close=>createElement(StyleSelector,{styles:allStyles(),selected:style.id,paint:drawStyle,onSelect:next=>{setStyle(next);close()},onEdit:next=>{close();maker(next)},onNew:()=>{close();maker()},onClose:close}))}
+async function recolorStyle(refs:string[]):Promise<{sw:string[];sky:[string,string]}> {const px=(await Promise.all(refs.map(url=>loadImg(url).then(image=>pixels(image,24,14))))).flat();const sw=palette(px);return {sw,sky:[sw[1],sw[3]]}}
+function maker(edit?:Style){
+ const draft:Style=edit?structuredClone(edit):{id:'u'+Date.now().toString(36),n:'',prompt:'',sw:['#2a2a2e','#55555c','#8b8b93','#c9c9cf'],refs:[],user:true};
+ styleDialog(edit?'Edit style':'Style maker',close=>createElement(StyleMaker,{initial:draft,pool:opts.mediaPool?.()||[],paint:drawStyle,recolor:recolorStyle,onSave:next=>{const list=userStyles().filter(item=>item.id!==next.id);list.push(next);save({styles:list});close();style={...next,id:''};setStyle(next)},onDelete:edit?()=>{if(!confirm(`Delete style "${draft.n}"?`))return;save({styles:userStyles().filter(item=>item.id!==draft.id)});close();if(style.id===draft.id){style={...style,id:''};setStyle(STYLEBOARD.looks[0])}}:undefined,onClose:close}));
 }
 
 // ---------- selected media: what's selected in this app, and which workflows can open it ----------
@@ -303,18 +244,14 @@ function select(m: Media | null) {
 function drawMedia() {
   const box = $('#shared .media'); if (!box) return;
   updateFit();
-  if (!media) { box.innerHTML = '<div class="none">Select a shot, keyframe or frame to open it in another workflow.</div>'; return; }
-  box.innerHTML = `<canvas width="320" height="180"></canvas><div class="mt"><span class="ty">${TYPES[media.type]}</span><b>${media.label}</b></div><div class="openin"></div>`;
-  const cv = $('canvas', box) as HTMLCanvasElement, g = cv.getContext('2d')!;
-  if (media.img) loadImg(media.img).then((im) => { const r = Math.max(cv.width / im.naturalWidth, cv.height / im.naturalHeight); g.drawImage(im, (cv.width - im.naturalWidth * r) / 2, (cv.height - im.naturalHeight * r) / 2, im.naturalWidth * r, im.naturalHeight * r); });
-  else if(media.video){SC.blank(g);const source=media.video,video=document.createElement('video');video.muted=true;video.preload='auto';video.src=source+'#t=0.1';let drawn=false;video.onloadeddata=()=>{if(drawn||media?.video!==source||!cv.isConnected)return;drawn=true;const scale=Math.min(cv.width/video.videoWidth,cv.height/video.videoHeight);g.fillStyle='#08090b';g.fillRect(0,0,cv.width,cv.height);g.drawImage(video,(cv.width-video.videoWidth*scale)/2,(cv.height-video.videoHeight*scale)/2,video.videoWidth*scale,video.videoHeight*scale);video.removeAttribute('src');video.load()}}
-  else SC.blank(g);
-  const list = $('.openin', box);
-  for (const [id, n, , types] of APPS) {
-    const b = document.createElement('button'), ok = types.includes(media.type)&&!(id==='edit'&&media.type==='shot'&&!media.video), here = id === opts.app;
-    b.innerHTML = `<span>${here ? '● ' : ''}${n}</span><small>${here ? 'open here' : ok ? 'open in →' : `can't edit a ${media.type}`}</small>`;
-    b.disabled = here || !ok; b.onclick = () => open(id); list.append(b);
-  }
+  renderView(box,createElement(SelectedMedia,{media,app:opts.app,apps:APPS,onOpen:open,paint:paintSelectedMedia}));
+}
+function paintSelectedMedia(cv:HTMLCanvasElement,selected:Media){
+ const g=cv.getContext('2d')!;let cancelled=false;
+ if(selected.img){loadImg(selected.img).then(im=>{if(cancelled)return;const r=Math.max(cv.width/im.naturalWidth,cv.height/im.naturalHeight);g.drawImage(im,(cv.width-im.naturalWidth*r)/2,(cv.height-im.naturalHeight*r)/2,im.naturalWidth*r,im.naturalHeight*r)}).catch(()=>{if(!cancelled)SC.blank(g)});return()=>{cancelled=true}}
+ if(selected.video){SC.blank(g);const video=document.createElement('video');video.muted=true;video.preload='auto';video.src=selected.video+'#t=0.1';video.onloadeddata=()=>{if(cancelled)return;const scale=Math.min(cv.width/video.videoWidth,cv.height/video.videoHeight);g.fillStyle='#08090b';g.fillRect(0,0,cv.width,cv.height);g.drawImage(video,(cv.width-video.videoWidth*scale)/2,(cv.height-video.videoHeight*scale)/2,video.videoWidth*scale,video.videoHeight*scale);video.removeAttribute('src');video.load()};return()=>{cancelled=true;video.onloadeddata=null;video.removeAttribute('src');video.load()}}
+ SC.blank(g);
+
 }
 /** Hand the selected media to another workflow. */
 function open(app: string) {

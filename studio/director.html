@@ -163,47 +163,4 @@ body{height:100dvh;grid-template-rows:auto minmax(0,1fr)}
 main,aside{min-height:0;min-width:0;overscroll-behavior:contain}
 main{overflow-x:hidden;overflow-y:auto}main>*{flex-shrink:0}
 @media(max-width:1000px){.app{overflow-y:auto;grid-template-rows:none;grid-auto-rows:max-content;align-content:start;overscroll-behavior:contain}main,aside{overflow:visible;max-height:none}}
-</style></head><body>
-<header><a href="../index.html">←</a><h1>Director</h1><span class="proj">/ The Robot in the Junkyard</span><button class="pill" id="testOnboarding" title="Start a fresh test project; keep your current work">Try onboarding</button><span class="sp"></span>
- <span id="rt" class="rt" title="Generation: Vite /api (shared/runtime/api.ts) → @comfyorg/sdk → ComfyUI">○ placeholders</span>
- <button class="pill" id="genAll">Generate all shots</button></header>
-<div class="app">
- <aside class="l" id="shared"></aside>
- <main>
-  <div class="title"><h2 id="sTitle"><span id="sNum"></span><span id="sName" contenteditable="plaintext-only" spellcheck="false" title="Click to rename (F2)"></span><span class="pen">✎</span></h2><span id="sMeta"></span><span class="sp"></span><span id="sState"></span></div>
-  <div class="view"><canvas id="cv"></canvas><video id="vid" muted playsinline preload="auto"></video>
-   <div class="empty" id="empty"><div class="msg"><h3 id="emT">Bring your scene to life</h3><p id="emP">Press Generate to get started.</p></div>
-    </div><span class="tag" id="tag"></span><span class="tc" id="tc"></span>
-   <div class="ov" id="ov"><div id="ovt"></div><div class="prog"><i id="pb"></i></div></div></div>
-  <div class="modelbar"><label for="videoModel">Video</label><select id="videoModel" disabled><option>Connecting…</option></select><div id="videoModelDetails" class="model-card" aria-live="polite"></div></div>
-  <div class="row">
-   <button class="play" id="play" title="Play / pause (space)">▶</button>
-   <div class="prompt-field" data-model-kind="video" data-model-control="shotPromptInput"><label for="shotPromptInput">Shot prompt</label><textarea id="shotPromptInput" rows="2" placeholder="Describe the scene and visual details…"></textarea></div>
-   <div class="prompt-field" data-model-kind="video" data-model-control="motion"><label for="motion">Motion prompt</label><textarea id="motion" rows="2" placeholder="Describe subject and camera movement…"></textarea></div>
-   <div class="generate-action"><button class="pill solid" id="gen"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m12 3 2.4 6.6L21 12l-6.6 2.4L12 21l-2.4-6.6L3 12l6.6-2.4Z"/><path d="m20 2 .6 1.4L22 4l-1.4.6L20 6l-.6-1.4L18 4l1.4-.6Z"/></svg><span>Generate video</span></button><div id="videoGenerationEstimate" aria-live="polite">Est: connecting…</div></div>
-  </div>
-  <div class="audio-prompt-row"><label for="audioPrompt">Audio prompt</label><textarea id="audioPrompt" rows="2" placeholder="Describe sounds, ambience or music… Generated with your video."></textarea><div class="audio-actions"><button id="generateAudio" hidden>Generate audio</button><button id="editAudio" hidden>Edit audio ↗</button><span id="audioEditHint"></span><span id="audioStatus" role="status">Powered by Stability AI · local audio</span></div><div class="audio-actions" id="audioSelectionControls" hidden><button id="audioLink" disabled>Unlink audio</button><label class="audio-position">Start (s)<input id="audioStart" type="number" min="0" max="600" step="0.01" disabled></label><label><input type="checkbox" id="audioMute"> Mute audio</label></div></div>
-  <div class="tlw">
-   <div class="tlh"><span class="crumb" id="crumb"></span><span id="tot"></span><span class="sp"></span><span class="hint" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0"><span id="hintT"></span></span><button id="trashBtn" class="trashb" title="Deleted shots (restorable)"></button><button id="addKeyBtn" title="Add a keyframe at the playhead (copies the nearest one)">＋ Keyframe</button><button id="editKey" title="Open the selected keyframe in Edit Anything">✎ Edit keyframe</button><button id="delKey">Remove key</button></div>
-   <div class="tl" id="tl"><div class="ruler" id="ruler"></div><button class="track-toggle" id="videoTrackToggle" aria-expanded="false" aria-controls="videoTrackAttributes" title="Expand video properties">▸ Video properties</button><div class="trk" id="trk"></div><div class="track-attributes" id="videoTrackAttributes" hidden></div><button class="track-toggle audio-toggle" id="audioTrackToggle" aria-expanded="false" aria-controls="audioTrackAttributes" title="Expand audio properties">▸ Audio properties</button><div id="audioTrack" class="audio-track"></div><div class="track-attributes" id="audioTrackAttributes" hidden></div><div class="gph" id="gph" role="img" aria-label="Playhead"></div></div>
-   <div class="stash" id="stash"></div><div class="trashpop" id="trashpop"></div>
-  </div>
-  <div class="hist" id="hist"></div>
- </main>
- <aside class="r">
-  <div class="sec">Generate keyframe</div>
-  <div class="modelbar image-modelbar"><label for="keyframeModel">Image</label><select id="keyframeModel" disabled><option>Connecting…</option></select><div id="keyframeModelDetails" class="model-card" aria-live="polite"></div></div>
-  <details class="local-models"><summary>Local models · <span id="modelCount">connecting</span></summary><button id="refreshModels" type="button">Refresh models</button><p id="modelStatus" role="status"></p><div id="modelInventory"></div></details>
-  <div class="prompt-field" data-model-kind="keyframe" data-model-control="kp"><label for="kp">Image prompt</label><textarea id="kp" rows="3">Mia holds Bolt up to the window, first light on his face</textarea></div>
-  <div class="sec">Elements</div>
-  <div class="chips" id="els"></div>
-  <div class="sec">Framing</div>
-  <div class="chips" id="frm"></div>
-  <div style="color:var(--faint);font-size:12px">Look: <span id="lookUse"></span>, from Stylization</div>
-  <div class="keyframe-batch"><label for="keyframeBatch">Keyframes <output id="keyframeBatchValue">4</output></label><input id="keyframeBatch" type="range" min="0" max="2" step="1" value="2" aria-label="Number of keyframes" aria-valuetext="4 keyframes"><div class="batch-stops" aria-hidden="true"><span>1</span><span>2</span><span>4</span></div></div>
-  <button class="pill solid" id="kgo" style="width:100%">Generate 4 keyframes</button>
-  <div class="sec">Results <span>click = add to selected shot<br>or drag onto a clip</span></div>
-  <div id="res"><div class="empty">Generated keyframes show up here.</div></div>
- </aside>
-</div>
-<svg id="generateArrow" aria-hidden="true"><defs><marker id="generateArrowTip" viewBox="0 0 20 20" refX="16" refY="10" markerWidth="7" markerHeight="7" orient="auto"><path d="M3 3 L17 10 L3 17" /></marker></defs><path id="generateArrowCurve" marker-end="url(#generateArrowTip)" /></svg><script type="module" src="./src/director.ts"></script></body></html>
+</style></head><body><div id="studio-root"></div><script type="module" src="./src/react/director-app.tsx"></script></body></html>

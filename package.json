@@ -11,15 +11,20 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "models": "node shared/runtime/fetch-models.ts"
+    "models": "node shared/runtime/fetch-models.ts",
+    "test:studio": "node --test studio/scripts/react-ui.test.mjs studio/scripts/panel-lifecycle.test.mjs studio/scripts/projects.test.mjs studio/scripts/window-layout.test.mjs studio/scripts/edit-history.test.mjs studio/scripts/onboarding-progress.test.mjs studio/scripts/timeline-interaction.test.mjs studio/scripts/project-files.test.mjs studio/scripts/mention-matching.test.mjs studio/scripts/model-estimates.test.mjs studio/scripts/server-estimates.test.mjs studio/scripts/runtime-setup.test.mjs"
   },
   "license": "MIT",
   "devDependencies": {
     "@types/node": "^26.6.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
     "typescript": "^7.0.2",
     "vite": "^8.3.5"
   },
   "dependencies": {
-    "@comfyorg/sdk": "^0.5.0"
+    "@comfyorg/sdk": "^0.5.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
   }
 }

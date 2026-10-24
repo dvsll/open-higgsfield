@@ -10,7 +10,16 @@ export default defineConfig(({ mode }) => {
   const deny = [".env", ".env.*", "*.{crt,pem,key}", "**/.git/**", "**/.venv/**", "**/.runtime/**", "**/.claude/**", "**/node_modules/.vite/**"];
   return {
     appType: "mpa",
-    plugins: [comfyApi(env)],
+    plugins: [comfyApi(env), {
+      name: 'studio-controller-reload',
+      // Controllers own native media/pointer services for a page lifetime. Never hot-mount a second copy.
+      handleHotUpdate({ file, server }) {
+        if (/[/\\]studio[/\\]src[/\\].*\.(ts|tsx)$/.test(file)) {
+          server.ws.send({ type: 'full-reload' });
+          return [];
+        }
+      },
+    }],
     server: { watch: { ignored: ['**/.runtime/**','**/.venv/**','**/outputs/**'] }, port, strictPort: true, host: env.OSH_HOST || "127.0.0.1", allowedHosts, fs: { strict: true, deny } },
     preview: { port, strictPort: true, host: env.OSH_HOST || "127.0.0.1", allowedHosts },
     build: {

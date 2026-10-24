@@ -28,3 +28,9 @@ api.addKey(0,0,{img:'a',spec:{},u:.5});api.addKey(0,0,{img:'a',spec:{},u:.5});as
 shot.keys[0].anchor='start';api.checkTourPlacement();assert.equal(context.onboarding.step,'position');shot.keys[1].anchor='end';api.checkTourPlacement();assert.equal(context.onboarding.step,'regenerate');
 context.onboarding.step='add';shot.keys=[];context.dragV={img:'a',u:.5,spec:{}};const el={classList:{remove(){},add(){}},getBoundingClientRect:()=>({left:10})};api.dropTarget(el,0);el.ondrop({preventDefault(){},clientX:10});context.dragV={img:'b',u:.5,spec:{}};el.ondrop({preventDefault(){},clientX:410});assert.equal(shot.keys[0].anchor,'start');assert.equal(shot.keys[1].anchor,'end');assert.equal(context.onboarding.step,'regenerate');
 console.log('PASS: shared experience, first-visit suppression, setup mapping, actual click/drop attachment, START/END milestones; no GPU or generation calls.');
+
+const {continuesImageTour}=await import('../src/onboarding-progress.ts');
+assert.equal(continuesImageTour({entry:'image',step:'image-review'},'video'),true);
+assert.equal(continuesImageTour({entry:'image',step:'image-video'},'video'),true);
+assert.equal(continuesImageTour({entry:'image',step:'image-review',suspended:true},'video'),false);
+assert.equal(continuesImageTour({entry:'image',step:'image-review'},'rendering'),false);

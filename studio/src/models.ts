@@ -1,3 +1,6 @@
+import {createElement} from 'react';
+import {renderView,unmountView} from './react/render';
+import {ModelInfo,ModelTiming,ModelChooser,type ModelInfoData} from './react/models';
 import { OSH, type LocalModels, type ShotKey } from '../../shared/runtime/client';
 import { serverEstimate } from './model-estimates';
 import { frameSize, mountFrameSizes, videoTiming } from './frame-size';
@@ -60,7 +63,7 @@ function renderDetails(): void {
   for (const kind of ['keyframe', 'video'] as const) {
     const el = document.getElementById(`${kind}ModelDetails`);
     if (!el) continue;
-    el.replaceChildren();
+
     const entry = catalog?.[kind].find(m => m.id === select(kind).value);
     if (catalog) document.querySelectorAll<HTMLElement>(`[data-model-kind="${kind}"][data-model-control]`).forEach(field => {
       field.hidden = !entry?.capabilities.some(capability => capability.control === field.dataset.modelControl && capability.status !== 'unavailable');
@@ -70,12 +73,12 @@ function renderDetails(): void {
       picker.textContent = `${entry?.label || 'Choose model'} ▾`; picker.disabled = !catalog;
       picker.setAttribute('aria-label', `${kind === 'video' ? 'Video' : 'Image'} model: ${entry?.label || 'unavailable'}. Choose model`);
     }
-    if (!entry) {if(kind==='video'){el.replaceChildren();const estimate=document.getElementById('videoGenerationEstimate');if(estimate)estimate.textContent='Est: unavailable'}else el.textContent='Est: unavailable';continue; }
+    if (!entry) {if(kind==='video'){renderView(el,null);const estimate=document.getElementById('videoGenerationEstimate');if(estimate)renderView(estimate,'Est: unavailable')}else renderView(el,'Est: unavailable');continue; }
     renderModelInfo(kind, entry, el);
   }
 }
-function renderModelInfo(kind: Kind, entry: ModelChoice, el: HTMLElement): void {
-    let size; try { size=frameSize(kind,false); } catch { el.textContent='Enter valid dimensions';return; }
+function modelInfo(kind: Kind, entry: ModelChoice): ModelInfoData {
+    let size; try { size=frameSize(kind,false); } catch { return {timing:'Enter valid dimensions',help:{title:'Frame dimensions',text:'Choose valid dimensions in Size & timing.'},badges:[]}; }
     const step=kind==='video'?32:16, width=Math.ceil(size.width/step)*step,height=Math.ceil(size.height/step)*step;
     const timingServer=catalog?.timing;
     const videoServer=kind==='video'&&context.missingKeys&&timingServer?{...timingServer,activeModel:select('keyframe').value}:timingServer;
@@ -83,62 +86,27 @@ function renderModelInfo(kind: Kind, entry: ModelChoice, el: HTMLElement): void 
     let total=estimate.seconds,extra=0;
     if(kind==='video'&&context.missingKeys){const image=catalog?.keyframe.find(m=>m.id===select('keyframe').value);if(image){const imageSize=frameSize('keyframe',false);const iw=Math.ceil(imageSize.width/16)*16,ih=Math.ceil(imageSize.height/16)*16;const first=serverEstimate(image,1,iw,ih,timingServer);const rest=serverEstimate(image,1,iw,ih,timingServer?{...timingServer,activeModel:image.id}:undefined);if(first.seconds!==null&&rest.seconds!==null){extra=first.seconds+(context.missingKeys-1)*rest.seconds;total=total===null?null:total+extra;}}}
     const audioRequested=kind==='video'&&!!(document.getElementById('audioPrompt') as HTMLTextAreaElement|null)?.value.trim();
-    const timing=document.createElement('button');timing.type='button';timing.className='model-time';timing.textContent=total===null?'Est: benchmark needed':audioRequested?`Video ~${total}s · audio extra`:`Est: ~${total}s`;
-    attachHelp(timing,'Server-based estimate',`${timingServer?.hardware?.name||'GPU unavailable'} · ${timingServer?.hardware?.vramGB||'?'} GB VRAM. ${size.width}×${size.height}${kind==='video'?` · ${context.duration}s clip`: ' per image'}. ${estimate.basis}. ${estimate.render??'?'}s rendering + ${estimate.load}s observed model-switch overhead${extra?` + ${extra}s for ${context.missingKeys} missing keyframes`:''}. ${timingServer?.queued?`${timingServer.queued} queued jobs; waiting is additional.`:'Queue empty at last refresh.'} Resolution/frame scaling is approximate; measured samples improve the estimate.`);    const label = document.createElement('span'); label.className = 'cap-label'; label.textContent = 'Capabilities';
-    const badges = document.createElement('div'); badges.className = 'cap-badges';
-    for (const capability of entry.capabilities.filter(capability => capability.status !== 'unavailable')) {
-      const badge = document.createElement('button'); badge.type = 'button'; badge.className = capability.status;
-      const state = capability.status === 'ready' ? 'Available' : capability.status === 'prompt' ? 'Prompt only' : 'Not connected';
-      badge.textContent = capability.name;
-      badge.setAttribute('aria-label', `${capability.name}: ${state}`);
-      attachHelp(badge, `${capability.name} · ${state}`, `${capability.detail} ${usage[capability.name] || ''}${capability.control ? ' Click to open this control.' : ''}`);
-      if (capability.control && capability.status !== 'unavailable') badge.onclick = () => {
-        select(kind).value = entry.id; chosen[kind] = entry.id;
-        localStorage.setItem(storageKey, JSON.stringify(chosen)); renderDetails(); chooser?.close();
-        requestAnimationFrame(() => {
-          if (tooltip) tooltip.hidden = true;
-          if (capability.control === 'timeline') dispatchEvent(new CustomEvent('osh-model-control', { detail: 'timeline' }));
-          const target = document.getElementById(capability.control!)!;
-          target?.scrollIntoView({ block: 'nearest' });
-          const focus = target?.matches('textarea,input,button') ? target : target?.querySelector<HTMLElement>('button');
-          (focus as HTMLElement | undefined)?.focus();
-        });
-      };
-      badges.append(badge);
-    }
-    if(kind==='video'&&el.id==='videoModelDetails'){document.getElementById('videoGenerationEstimate')?.replaceChildren(timing);el.append(label,badges)}else el.append(timing, label, badges);
+    const timing=total===null?'Est: benchmark needed':audioRequested?`Video ~${total}s · audio extra`:`Est: ~${total}s`;
+    const help={title:'Server-based estimate',text:`${timingServer?.hardware?.name||'GPU unavailable'} · ${timingServer?.hardware?.vramGB||'?'} GB VRAM. ${size.width}×${size.height}${kind==='video'?` · ${context.duration}s clip`:' per image'}. ${estimate.basis}. ${estimate.render??'?'}s rendering + ${estimate.load}s observed model-switch overhead${extra?` + ${extra}s for ${context.missingKeys} missing keyframes`:''}. ${timingServer?.queued?`${timingServer.queued} queued jobs; waiting is additional.`:'Queue empty at last refresh.'} Resolution/frame scaling is approximate; measured samples improve the estimate.`};
+    return {timing,help,badges:entry.capabilities.filter(capability=>capability.status!=='unavailable').map(capability=>{
+      const state=capability.status==='ready'?'Available':capability.status==='prompt'?'Prompt only':'Not connected';
+      return {name:capability.name,status:capability.status,label:`${capability.name}: ${state}`,help:{title:`${capability.name} · ${state}`,text:`${capability.detail} ${usage[capability.name]||''}${capability.control?' Click to open this control.':''}`},onClick:capability.control?()=>{
+        chooseEntry(kind,entry.id);requestAnimationFrame(()=>{if(tooltip)tooltip.hidden=true;if(capability.control==='timeline')dispatchEvent(new CustomEvent('osh-model-control',{detail:'timeline'}));const target=document.getElementById(capability.control!);target?.scrollIntoView({block:'nearest'});const focus=target?.matches('textarea,input,button')?target:target?.querySelector<HTMLElement>('button');(focus as HTMLElement|undefined)?.focus()});
+      }:undefined};
+    })};
 }
+function renderModelInfo(kind:Kind,entry:ModelChoice,el:HTMLElement):void{
+ const info=modelInfo(kind,entry),video=kind==='video'&&el.id==='videoModelDetails';
+ renderView(el,createElement(ModelInfo,{info,attach:attachHelp,timing:!video}));
+ if(video){const estimate=document.getElementById('videoGenerationEstimate');if(estimate)renderView(estimate,createElement(ModelTiming,{info,attach:attachHelp}))}
+}
+function chooseEntry(kind:Kind,id:string):void{select(kind).value=id;chosen[kind]=id;localStorage.setItem(storageKey,JSON.stringify(chosen));renderDetails();chooser?.close()}
 let chooser: HTMLDialogElement | null = null;
 function chooseModel(kind: Kind): void {
-  chooser?.remove();
-  chooser = document.createElement('dialog'); chooser.className = 'model-chooser';
-  chooser.setAttribute('aria-label', kind === 'video' ? 'Choose video model' : 'Choose image model');
-  const heading = document.createElement('header');
-  const title = document.createElement('h2'); title.textContent = kind === 'video' ? 'Choose video model' : 'Choose image model';
-  const close = document.createElement('button'); close.textContent = 'Close'; close.onclick = () => chooser?.close();
-  heading.append(title, close); chooser.append(heading);
-  const hint = document.createElement('small'); hint.textContent = 'Select a model name. Hover or focus capabilities for explanations and usage.'; chooser.append(hint);
-  for (const entry of catalog?.[kind] || []) {
-    const row = document.createElement('div'); row.className = `model-choice${entry.id === select(kind).value ? ' active' : ''}`;
-    const button = document.createElement('button'); button.type = 'button';
-    button.setAttribute('aria-pressed', String(entry.id === select(kind).value));
-    const name = document.createElement('b'); name.textContent = entry.label;
-    const description = document.createElement('small'); description.textContent = entry.description;
-    button.append(name, description);
-    button.onclick = () => {
-      select(kind).value = entry.id; chosen[kind] = entry.id;
-      localStorage.setItem(storageKey, JSON.stringify(chosen)); renderDetails(); chooser?.close();
-    };
-    const info = document.createElement('div'); info.className = 'model-card'; renderModelInfo(kind, entry, info);
-    row.append(button, info); chooser.append(row);
-  }
-  for (const research of kind === 'keyframe' ? catalog?.research || [] : []) {
-    const row = document.createElement('div'); row.className = 'model-research';
-    row.textContent = `${research.repo} · downloaded for LoRA training · generation workflow not connected · estimate unavailable`;
-    chooser.append(row);
-  }
-  chooser.onclose = () => { if (tooltip) tooltip.hidden = true; };
-  document.body.append(chooser); chooser.showModal();
+ if(chooser){unmountView(chooser);chooser.remove()}
+ chooser=document.createElement('dialog');chooser.className='model-chooser';chooser.setAttribute('aria-label',kind==='video'?'Choose video model':'Choose image model');
+ renderView(chooser,createElement(ModelChooser,{kind,rows:(catalog?.[kind]||[]).map(entry=>({...entry,info:modelInfo(kind,entry)})),selected:select(kind).value,research:kind==='keyframe'?(catalog?.research||[]).map(item=>item.repo):[],attach:attachHelp,onChoose:id=>chooseEntry(kind,id),onClose:()=>chooser?.close()}));
+ const current=chooser;chooser.onclose=()=>{if(tooltip)tooltip.hidden=true;unmountView(current);current.remove();if(chooser===current)chooser=null};document.body.append(chooser);chooser.showModal();
 }
 // The same selections apply to direct generation, automatic keyframes, and stylization.
 export const localGeneration = {

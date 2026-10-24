@@ -1,13 +1,9 @@
+import {createElement} from 'react';
+import {renderView} from './react/render';
+import {TrackAttributes} from './react/track-attributes';
 import './timeline-attributes.css';
-type Shot={n:string;d:number;fps?:number;renderFrames?:number;renderWidth?:number;renderHeight?:number;seed?:number;video?:string;audio?:string;audioPrompt?:string;audioStart?:number;audioLinked?:boolean;audioDuration?:number};
-type Options={selected:number;shots:Shot[];pixels:number;offset:number;start:number;size:{width:number;height:number};select:(index:number,audio:boolean)=>void;change:()=>void;generate:()=>void;settings:()=>void;audio:()=>void};
-export function drawTimelineAttributes(o:Options):void{
- for(const kind of ['video','audio'] as const){const root=document.getElementById(kind+'TrackAttributes')!;root.replaceChildren();let time=o.start;
-  o.shots.forEach((s,j)=>{const index=j+o.offset;if(index!==o.selected){time+=s.d;return}const card=document.createElement('div');card.className='clip-attributes';card.classList.add('selection-properties');card.setAttribute('aria-label',`${s.n} ${kind} attributes`);const name=document.createElement('strong');name.textContent=s.n;card.append(name);
-   const number=(label:string,value:number,min:number,max:number,step:number,write?:(n:number)=>void)=>{const row=document.createElement('label');row.textContent=label;const input=document.createElement('input');input.type='number';input.value=String(+value.toFixed(3));input.min=String(min);input.max=String(max);input.step=String(step);input.readOnly=!write;input.setAttribute('aria-label',`${s.n} ${label}`);input.onchange=()=>{input.setCustomValidity('');if(label==='Width'||label==='Height'){const w=label==='Width'?+input.value:s.renderWidth||o.size.width,h=label==='Height'?+input.value:s.renderHeight||o.size.height;if(Math.ceil(w/32)*32*Math.ceil(h/32)*32>768*768)input.setCustomValidity('Choose a smaller size for this local video model.')}if(!write||!input.reportValidity())return;o.select(index,kind==='audio');write(+input.value);o.change()};row.append(input);card.append(row)};
-   if(kind==='video'){const info=document.createElement('small');info.textContent=`${s.d.toFixed(2)} seconds · Detailed output settings are in the viewer.`;card.append(info);const button=document.createElement('button');button.textContent='Open size & timing';button.onclick=()=>{o.select(index,false);o.settings()};card.append(button)}
-   else{if(s.audio){number('Seconds',s.audioDuration||s.d,0,600,.001);number('Start',s.audioLinked===false?s.audioStart??time:time,0,600,.01,undefined);}const state=document.createElement('small');state.textContent=s.audio?s.audioLinked===false?'Unlinked':'Linked to video':'This scene has no sound. Add a prompt to create its soundtrack.';card.append(state);const button=document.createElement('button');button.textContent=s.audio?'Edit audio ↗':'Add sound';button.onclick=()=>{o.select(index,true);o.audio()};card.append(button)}
-   root.append(card);time+=s.d;
-  });
- }
+export type Shot={n:string;d:number;fps?:number;renderFrames?:number;renderWidth?:number;renderHeight?:number;seed?:number;video?:string;audio?:string;audioPrompt?:string;audioStart?:number;audioLinked?:boolean;audioDuration?:number};
+export type AttributeOptions={selected:number;shots:Shot[];pixels:number;offset:number;start:number;size:{width:number;height:number};select:(index:number,audio:boolean)=>void;change:()=>void;generate:()=>void;settings:()=>void;audio:()=>void};
+export function drawTimelineAttributes(options:AttributeOptions):void{
+ for(const kind of ['video','audio'] as const)renderView(document.getElementById(kind+'TrackAttributes')!,createElement(TrackAttributes,{options,kind}));
 }

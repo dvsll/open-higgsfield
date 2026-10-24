@@ -59,31 +59,4 @@ body{height:100dvh;grid-template-rows:auto minmax(0,1fr)}
 main,aside{min-height:0;min-width:0;overscroll-behavior:contain}
 main{overflow-x:hidden;overflow-y:auto}main>*{flex-shrink:0}
 @media(max-width:1000px){.app{overflow-y:auto;grid-template-rows:none;grid-auto-rows:max-content;align-content:start;overscroll-behavior:contain}main,aside{overflow:visible;max-height:none}}
-</style></head><body>
-<header><a href="../index.html" id="backLink">←</a><h1>Edit Anything</h1><span class="src" id="src"></span><span class="from hidden" id="from" style="display:none">from Director</span><span class="sp"></span>
- <span id="acts"></span></header>
-<div class="app">
- <aside class="l" id="shared"></aside>
- <main>
-  <div class="bar">
-   <div class="seg" id="tool"><button data-t="click" class="on">Click to select</button><button data-t="place">Whole place</button></div>
-   <span class="sp"></span>
-   <div class="seg" id="cmp"><button data-c="after" class="on">Edited</button><button data-c="wipe">Compare</button><button data-c="before">Original</button></div>
-  </div>
-  <div class="view" id="view"><canvas id="orig"></canvas><canvas id="cv"></canvas>
-   <div class="wipe" id="wipe" style="display:none"></div><span class="lab" id="lA" style="left:10px;display:none">Original</span><span class="lab" id="lB" style="right:10px;display:none">Edited</span></div>
-  <div class="bar"><span class="hint" id="hint">Click Mia, Bolt, the sky or the ground. Esc cancels.</span></div>
- </main>
- <aside class="r">
-  <div class="sec">Edits <span id="ecount"></span></div>
-  <div class="layers" id="layers"></div>
-  <div class="sec">Selected</div>
-  <div id="selp"><div class="empty">Nothing selected yet.</div></div>
-  <div class="sec">Reference <span>optional</span></div>
-  <div class="drop" data-toast="Drop an image to guide the edit">Drop a reference image</div>
-  <div class="sec">Keep</div>
-  <div class="chips" id="keep"><button class="chip on">Lighting</button><button class="chip on">Perspective</button><button class="chip on">Pose</button></div>
-  <div class="note">Own footage only. Costumes, props and places — no real-person face swaps.</div>
- </aside>
-</div>
-<script type="module" src="./src/edit.ts"></script></body></html>
+</style></head><body><div id="studio-root"></div><script type="module" src="./src/react/edit-app.tsx"></script></body></html>

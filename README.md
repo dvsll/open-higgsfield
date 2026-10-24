@@ -15,7 +15,7 @@ Two apps for Comfy Org's [Open Source Higgsfield](https://comfy.org/open-source-
 **Read first:** [`DEADLINES.md`](DEADLINES.md) (dates we must hit) and [`PLAN.md`](PLAN.md) (what to build, in priority order).
 
 ## Run locally
-One Vite + TypeScript dev server runs the whole repo (studio, adstudio, archive) with hot reload, and mounts the generation API:
+One Vite + TypeScript dev server runs the whole repo and mounts the generation API. Studio uses React components in `studio/src/react/`; Ad Studio keeps its own frontend. Studio code changes reload the page to keep native media/controller lifetimes consistent, while CSS updates live:
 
 ```
 browser → Vite :8288 ─ pages (HMR)

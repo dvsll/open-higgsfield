@@ -1,3 +1,9 @@
+# Current Qwen integration
+
+The Qwen adapter is now connected to Hero; see [QWEN_HERO_INTEGRATION.md](QWEN_HERO_INTEGRATION.md) for the current model selection, collapsed controls, concise prompt review and manual acceptance steps. Real app inference is still unverified. The text below records the original 012df48 brief-control milestone and its former standalone-only boundary.
+
+---
+
 # Source-grounded hero briefs
 
 Open `http://127.0.0.1:8301/adstudio/#hero` on the existing local server. Choose a saved brand/product and **the original source** (the old demo initially selects a supplied AI edit). Open **Source facts, controls and prompt review**.

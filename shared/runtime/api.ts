@@ -30,6 +30,8 @@ import {BrandError} from './brand-web.ts';
 import {exportStaticAd,StaticAdError} from './static-ad.ts';
 import {finishHero,exportHeroAd,heroSource,heroSha,HeroError} from './hero-ad.ts';
 import {validateHeroSettings} from '../lib/hero-ad.ts';
+import {generateQwenHero,qwenAvailability,verifyWeightFiles,qwenContract} from './qwen-hero.ts';
+import {qwenSDKTransport} from './qwen-sdk.ts';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const WORKFLOWS = join(ROOT, "shared", "workflows");
@@ -223,6 +225,7 @@ async function keyframe(body: any, env: Env) {
 /** Isolated experimental img2img. Production keyframes/video graphs are untouched. */
 async function reimagineHero(body:any,env:Env){
  let settings;try{settings=validateHeroSettings(body?.settings)}catch(e){throw new HttpError(400,(e as Error).message)}
+ if(settings.imageModel==='qwen-fp8')throw new HttpError(400,'Qwen requires /api/hero/qwen. No Z-Image fallback was started.');
  if(settings.method!=='reimagine'||!settings.prompt.trim())throw new HttpError(400,'Choose reimagine and provide a product-specific prompt.');
  const source=await heroSource(OUTPUTS,body.image),catalog=await localModels(env),nodes=await comfyJson(env,'/object_info');
  const graph=await loadGraph('hero_zimage_experimental');
@@ -522,7 +525,10 @@ function middleware(env: Env,setup:RuntimeSetup): Connect.NextHandleFunction {
         res.writeHead(200,{...headers,'Content-Length':size});if(req.method==='HEAD')return res.end();return createReadStream(p).pipe(res);
       }
       const route = `${req.method} ${url.pathname}`;
-      if(route==='GET /api/hero/capabilities'){try{const models=await localModels(env),nodes=await comfyJson(env,'/object_info'),graph=await loadGraph('hero_zimage_experimental');return send(res,200,{finish:true,reimagine:models.keyframe.length>0&&Object.values(graph).every(n=>nodes[n.class_type]),experimental:true});}catch{return send(res,200,{finish:true,reimagine:false,experimental:true});}}
+      if(route==='GET /api/hero/capabilities'){
+       const nodes=await comfyJson(env,'/object_info').catch(()=>({}));let reimagine=false;try{const models=await localModels(env),graph=await loadGraph('hero_zimage_experimental');reimagine=models.keyframe.length>0&&Object.values(graph).every(n=>nodes[n.class_type]);}catch{}
+       return send(res,200,{finish:true,reimagine,experimental:true,qwen:await qwenAvailability(nodes,setup.config?.modelsDir||env.COMFYUI_MODELS_DIR)});
+      }
       if(route==='POST /api/hero/finish')return send(res,200,await finishHero(await readBody(req),OUTPUTS,env));
       if(route==='POST /api/hero/export')return send(res,200,await exportHeroAd(await readBody(req),OUTPUTS));
       if(route==='GET /api/hero/demo'){const file=join(OUTPUTS,'benchmark-ad-v1','demo.json');if(!existsSync(file))return send(res,404,{error:'No private benchmark example prepared.'});if(statSync(file).size>45*1024*1024)throw new HttpError(400,'Example too large');return send(res,200,JSON.parse(await readFile(file,'utf8')));}
@@ -537,7 +543,7 @@ function middleware(env: Env,setup:RuntimeSetup): Connect.NextHandleFunction {
        if(req.method==='POST'){if(queued>0&&route!=='POST /api/setup/cancel')return send(res,409,{error:'Finish the current generation before changing the local runtime or model files.'});const body=await readBody(req);try{const result=route==='POST /api/setup/connect'?setup.connect(body):route==='POST /api/setup/install'?setup.install(body):route==='POST /api/setup/download'?setup.download(body):route==='POST /api/setup/start'?setup.start():route==='POST /api/setup/cancel'?setup.cancel():null;return send(res,result?202:404,result||{error:'Unknown setup action'})}catch(error:any){return send(res,400,{error:error.message})}}
       }
       if(req.method==='GET'&&/^\/api\/activity\/[a-f0-9]{32}$/.test(url.pathname)){const state=activity.get(url.pathname.split('/').pop()!);return send(res,state?200:404,state?{...state,serverNow:Date.now()}:{error:'No activity for this request'})}
-      const tracked=async(handler:(body:any)=>Promise<any>)=>{if(setup.task.busy)throw new HttpError(503,'Local runtime setup is in progress. Finish or stop setup before generating.');const body=await readBody(req);body._requestId=req.headers['x-osh-request']||body._requestId;let id:string|null;try{id=activity.begin(body._requestId)}catch(error:any){throw new HttpError(400,error.message)}try{const result=await handler(body);activity.update(id,'complete','Media ready.');return result}catch(error:any){activity.update(id,'error','Generation stopped: '+String(error.message||error));throw error}};
+      const tracked=async(handler:(body:any)=>Promise<any>,limit=MAX_BODY)=>{if(setup.task.busy)throw new HttpError(503,'Local runtime setup is in progress. Finish or stop setup before generating.');const body=await readBody(req,limit);if(!body||typeof body!=='object'||Array.isArray(body))throw new HttpError(400,'Expected a JSON request object.');body._requestId=req.headers['x-osh-request']||body._requestId;let id:string|null;try{id=activity.begin(body._requestId)}catch(error:any){throw new HttpError(400,error.message)}try{const result=await handler(body);activity.update(id,'complete','Media ready.');return result}catch(error:any){activity.update(id,'error','Generation stopped: '+String(error.message||error));throw error}};
       if (route === "GET /api/health") return send(res, 200, await health(env,setup.task.busy));
       if(route==='GET /api/brand/status')return send(res,200,await analysisStatus(env));
       if(route==='POST /api/brand/research')return send(res,200,await researchBrand(await readBody(req),env));
@@ -559,6 +565,15 @@ function middleware(env: Env,setup:RuntimeSetup): Connect.NextHandleFunction {
       if (route === "POST /api/product-video") return send(res, 200, await productVideo(await readBody(req), env));
       if (route === 'POST /api/audio') return send(res,200,await tracked(body=>generateAudio(body,env)));
       if (route === 'POST /api/edit-video') return send(res,200,await editVideo(await readBody(req),env));
+      if(route==='POST /api/hero/qwen')return send(res,200,await tracked(body=>serialize(async()=>{
+       const modelsDir=setup.config?.modelsDir||env.COMFYUI_MODELS_DIR;
+       return generateQwenHero(body,OUTPUTS,{
+        check:async()=>qwenAvailability(await comfyJson(env,'/object_info'),modelsDir),
+        weights:async()=>{if(!modelsDir)throw new HeroError(503,'Configure the connected ComfyUI models folder before Qwen generation.');return verifyWeightFiles(modelsDir,(await qwenContract()).files);},
+        execute:qwenSDKTransport(client(env),()=>ensureProxy(env)),
+        progress:(phase,message,more)=>activity.update(body._requestId,phase,message,more)
+       });
+      }),20*1024*1024));
       if(route==='POST /api/hero/reimagine')return send(res,200,await tracked(body=>reimagineHero(body,env)));
       if (route === "POST /api/keyframe") return send(res, 200, await tracked(body=>keyframe(body, env)));
       if (route === "POST /api/shot") return send(res, 200, await tracked(body=>shot(body, env)));

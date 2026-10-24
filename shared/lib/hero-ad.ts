@@ -1,8 +1,8 @@
 import {validateGenerationDraft,type GenerationDraft} from './product-brief.ts';
 // Ad Studio's bounded hero workflow. No model, browser or storage side effects.
 export const heroDirections={natural:{label:'Soft daylight',contrast:1.04,saturation:1.02,gamma:1.04,red:1.01,blue:1},warm:{label:'Warm bakery editorial',contrast:1.08,saturation:1.04,gamma:1.02,red:1.025,blue:.985},clean:{label:'Clean studio',contrast:1.03,saturation:.98,gamma:1.07,red:1,blue:1.01}};
-export type HeroSettings={briefDraft?:GenerationDraft;sourceId:string;originalId?:string;brandId:string;productId?:string;logoId?:string;sourceKind:'original'|'supplied-ai';direction:keyof typeof heroDirections;method:'finish'|'reimagine';zoom:number;x:number;y:number;seed:number;strength:number;prompt:string;headline:string;productName:string;website:string};
-export type HeroTake={id:string;assetId:string;url:string;created:number;settings:HeroSettings;sourceSha256:string;sha256:string;method:string;seconds:number;workflowSha256?:string};
+export type HeroSettings={imageModel?:'qwen-fp8'|'zimage-local';briefDraft?:GenerationDraft;sourceId:string;originalId?:string;brandId:string;productId?:string;logoId?:string;sourceKind:'original'|'supplied-ai';direction:keyof typeof heroDirections;method:'finish'|'reimagine';zoom:number;x:number;y:number;seed:number;strength:number;prompt:string;headline:string;productName:string;website:string};
+export type HeroTake={model?:string;jobId?:string;provenanceId?:string;originalSha256?:string;id:string;assetId:string;url:string;created:number;settings:HeroSettings;sourceSha256:string;sha256:string;method:string;seconds:number;workflowSha256?:string};
 export type HeroExport={id:string;assetId:string;url:string;created:number;takeId:string;sha256:string;headline:string;productName:string;website:string;logoId?:string};
 export type HeroWorkspace={version:1;settings:HeroSettings;activeId?:string;takes:HeroTake[];exports:HeroExport[];approvedId?:string};
 export const heroDefaults=():HeroWorkspace=>({version:1,settings:{sourceId:'',brandId:'',sourceKind:'original',direction:'warm',method:'finish',zoom:1,x:.5,y:.5,seed:1,strength:.3,prompt:'Premium editorial food photograph. Preserve the reference product, shape, texture, ingredients and packaging. Soft directional window light, restrained warm highlights, realistic food. No added ingredients, lettering or invented packaging.',headline:'Leave nothing\nbehind.',productName:'',website:''},takes:[],exports:[]});
@@ -11,6 +11,7 @@ export function validateHeroSettings(s:HeroSettings){
  for(const [key,max]of [['sourceId',120],['brandId',120],['prompt',16000],['headline',60],['productName',80],['website',80]] as const)if(typeof s[key]!=='string'||s[key].length>max)throw Error('Invalid hero '+key+'.');
  for(const key of ['originalId','productId','logoId'] as const)if(s[key]!==undefined&&(typeof s[key]!=='string'||s[key]!.length>120))throw Error('Invalid hero reference.');
  for(const [key,lo,hi]of [['zoom',1,1.5],['x',0,1],['y',0,1],['seed',0,4294967295],['strength',.2,.55]] as const)if(typeof s[key]!=='number'||!Number.isFinite(s[key])||s[key]<lo||s[key]>hi)throw Error('Invalid hero '+key+'.');
+ if(s.imageModel!==undefined&&!['qwen-fp8','zimage-local'].includes(s.imageModel))throw Error('Unknown hero model.');
  if(s.briefDraft!==undefined)validateGenerationDraft(s.briefDraft);
  if(!Number.isInteger(s.seed))throw Error('Use a whole seed.');return s;
 }

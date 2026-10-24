@@ -35,7 +35,7 @@ async function health(): Promise<{ online: boolean; info: Health | null; reason:
 export type GenerationActivity={id:string;phase:string;message:string;phaseStartedAt:number;startedAt:number;updatedAt:number;percent:number|null;step:number|null;steps:number|null};
 function emitActivity(detail:GenerationActivity){if(typeof window!=='undefined')window.dispatchEvent(new CustomEvent('osh-generation-progress',{detail}))}
 async function post<T>(name: string, body: unknown): Promise<T> {
-  const tracked=['shot','keyframe','audio','hero/reimagine'].includes(name),id=tracked?crypto.randomUUID().replaceAll('-',''):null;let finished=false,polling=false,failed=false;
+  const tracked=['shot','keyframe','audio','hero/reimagine','hero/qwen'].includes(name),id=tracked?crypto.randomUUID().replaceAll('-',''):null;let finished=false,polling=false,failed=false;
   const poll=async()=>{if(!id||finished||polling)return;polling=true;try{const r=await fetch('/api/activity/'+id,{cache:'no-store',signal:AbortSignal.timeout(3000)});if(r.ok&&!finished){const state=await r.json();if(typeof state.serverNow==='number')state.phaseStartedAt=Date.now()-Math.max(0,state.serverNow-state.phaseStartedAt);emitActivity(state)}}catch{/* Progress failure must never cancel a render. */}finally{polling=false}};
   let timer:ReturnType<typeof setInterval>|undefined;if(id){const now=Date.now();emitActivity({id,phase:'queued',message:'Waiting for the local runtime…',phaseStartedAt:now,startedAt:now,updatedAt:now,percent:null,step:null,steps:null});timer=setInterval(()=>void poll(),700)}
   try{
@@ -45,8 +45,9 @@ async function post<T>(name: string, body: unknown): Promise<T> {
   } catch(error){failed=true;throw error} finally{finished=true;if(timer)clearInterval(timer);if(id){const now=Date.now();emitActivity({id,phase:failed?'error':'complete',message:failed?'Generation failed. Check the message in the workspace.':'Media ready.',startedAt:now,phaseStartedAt:now,updatedAt:now,percent:null,step:null,steps:null})}}
 }
 
-export type HeroResult={url:string;width:number;height:number;sha256:string;sourceSha256:string;seconds:number;method:string;workflowSha256?:string};
+export type HeroResult={url:string;width:number;height:number;sha256:string;sourceSha256:string;seconds:number;method:string;workflowSha256?:string;model?:string;jobId?:string;provenanceId?:string;originalSha256?:string};
 export const OSH = {
+  qwenHero:(image:string,settings:import('../lib/hero-ad').HeroSettings,original:string)=>post<HeroResult>('hero/qwen',{image,settings,original}),
   finishHero:(image:string,settings:import('../lib/hero-ad').HeroSettings)=>post<HeroResult>('hero/finish',{image,settings}),
   reimagineHero:(image:string,settings:import('../lib/hero-ad').HeroSettings)=>post<HeroResult>('hero/reimagine',{image,settings}),
   heroAd:(body:{hero:string;logo?:string;reviewed:boolean;copy:{headline:string;productName:string;website:string}})=>post<{url:string;width:number;height:number;sha256:string}>('hero/export',body),

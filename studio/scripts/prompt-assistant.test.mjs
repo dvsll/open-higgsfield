@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
-import {applyPromptDetails,manualPromptFields} from '../src/prompt-assistant.ts';
-import {rewriteInput,validatePromptDetails,preserveRequestedSilence,PromptRewriter} from '../../shared/runtime/prompt-rewriter.ts';
+import {applyPromptDetails,manualPromptFields,shouldRewriteBeforeGeneration} from '../src/prompt-assistant.ts';
+import {rewriteInput,validatePromptDetails,preserveRequestedSilence,validateReviewDetails,PromptRewriter} from '../../shared/runtime/prompt-rewriter.ts';
+assert.equal(shouldRewriteBeforeGeneration(true,{}),false);assert.equal(shouldRewriteBeforeGeneration(false,{}),true);assert.equal(shouldRewriteBeforeGeneration(false,{promptAutofill:false}),false);
+assert.deepEqual(validateReviewDetails({motion:' Locked camera ',audio:''}),{motion:'Locked camera',audio:''});for(const invalid of [null,[],{secret:'x'},{motion:4},{audio:'x'.repeat(2001)}])assert.throws(()=>validateReviewDetails(invalid));
 const details={visual:'A robot and a yellow flower.',motion:'Slow push in.',audio:'Water droplets.'};
 const fresh={prompt:'Robot waters a flower.'};
 applyPromptDetails(fresh,fresh.prompt,details);

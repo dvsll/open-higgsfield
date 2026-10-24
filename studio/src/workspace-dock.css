@@ -102,3 +102,8 @@
 .studio-window[data-window=prompts] .composer .prompt-field .mention-editor>textarea{height:100%;min-height:0;flex:1;resize:none}
 .studio-window[data-window=prompts] .composer .advanced-prompt-content .prompt-field>textarea,
 .studio-window[data-window=prompts] .composer .advanced-prompt-content .prompt-field>.mention-editor{height:96px;min-height:72px;flex:none}
+.prompt-footer-buttons{display:flex;justify-content:flex-end;align-items:center;flex-wrap:wrap;gap:8px;max-width:100%}
+.studio-window[data-window=prompts] .composer #polishPrompt{height:44px;min-height:44px;padding:8px 12px;box-sizing:border-box;font:inherit;background:var(--ui-panel,#202329);color:var(--ui-text,#e8e9ed);border:1px solid var(--ui-border,#454954);cursor:pointer}
+.studio-window[data-window=prompts] .composer #polishPrompt[hidden]{display:none}
+.studio-window[data-window=prompts] .composer #polishPrompt:hover{border-color:var(--ui-accent)}
+.studio-window[data-window=prompts] .composer #polishPrompt:disabled{opacity:.5;cursor:wait}

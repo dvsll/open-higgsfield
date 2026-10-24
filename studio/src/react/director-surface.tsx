@@ -1,5 +1,5 @@
 import { ProjectPicker, tryOnboarding } from './projects';
-import {AdvancedPrompt} from './prompt-advanced';
+import {AdvancedPrompt,PromptPolishButton} from './prompt-advanced';
 export function DirectorSurface() {
   return (
     <>
@@ -176,6 +176,8 @@ export function DirectorSurface() {
               </AdvancedPrompt>
             </div>
             <div className="generate-action">
+              <div className="prompt-footer-buttons">
+              <PromptPolishButton />
               <button className="pill solid" id="gen">
                 <svg aria-hidden="true" viewBox="0 0 24 24">
                   <path d="m12 3 2.4 6.6L21 12l-6.6 2.4L12 21l-2.4-6.6L3 12l6.6-2.4Z"></path>
@@ -183,6 +185,7 @@ export function DirectorSurface() {
                 </svg>
                 <span>{'Generate video'}</span>
               </button>
+              </div>
               <div id="videoGenerationEstimate" aria-live="polite" />
             </div>
           </section>

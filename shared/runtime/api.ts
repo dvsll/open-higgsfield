@@ -541,7 +541,7 @@ function middleware(env: Env,setup:RuntimeSetup,rewriter:PromptRewriter): Connec
       const tracked=async(handler:(body:any)=>Promise<any>)=>{if(setup.task.busy)throw new HttpError(503,'Local runtime setup is in progress. Finish or stop setup before generating.');const body=await readBody(req);body._requestId=req.headers['x-osh-request']||body._requestId;let id:string|null;try{id=activity.begin(body._requestId)}catch(error:any){throw new HttpError(400,error.message)}try{const result=await handler(body);activity.update(id,'complete','Media ready.');return result}catch(error:any){activity.update(id,'error','Generation stopped: '+String(error.message||error));throw error}};
       if (route === "GET /api/health") return send(res, 200, await health(env,setup.task.busy));
       if(route==='GET /api/prompt-rewriter')return send(res,200,rewriter.status());
-      if(route==='POST /api/prompt-rewriter')return send(res,200,await rewriter.rewrite((await readBody(req)).prompt));
+      if(route==='POST /api/prompt-rewriter'){const body=await readBody(req);return send(res,200,await rewriter.rewrite(body.prompt,body.details));}
       if(route==='GET /api/brand/status')return send(res,200,await analysisStatus(env));
       if(route==='POST /api/brand/research')return send(res,200,await researchBrand(await readBody(req),env));
       if(route==='POST /api/brand/image')return send(res,200,await collectBrandImage(await readBody(req)));

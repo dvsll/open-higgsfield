@@ -66,6 +66,10 @@ git filter-repo --path studio/ --path shared/ --path notes/studio.md --path LICE
 
 For the ad studio, do the same with `--path adstudio/ --path notes/adstudio.md`. Each repo keeps `shared/` next to its app folder, so the `../shared/` paths still work. Then add a project README at the root, set the repo public, and submit.
 
+## Studio URLs
+
+Studio uses `/studio/director`, `/studio/edit` and `/studio/design-lab`. Dev and `npm run preview` serve these routes and redirect old `.html` links while preserving query strings. Other production hosts must map those three clean paths to their corresponding built `.html` files (and redirect old URLs); do not send unknown/API paths to the Director. Source HTML files remain Vite build entry points.
+
 ## Optional local prompt helper
 
 Studio starts with one expanding Prompt box. In simple view, auto-fill uses the main prompt after a pause in typing, and Generate waits for current details. Expand **Advanced** to inspect the video model, generated video/motion/audio prompts and audio controls. Advanced pauses automatic rewriting: **Polish prompt** sends the current boxes back to the local helper and returns its result for review, without generating media. Edit the result, polish again, or press **Generate video** to send the reviewed boxes directly, skipping the rewriter. Edits made during polishing are preserved. Turn off **Auto-fill in simple view** to use manual prompts without the helper. Rewriting never starts image/video/audio generation itself.

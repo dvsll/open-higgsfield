@@ -179,7 +179,7 @@ export function VideoEditor({
       audioPrompt: take.prompt,
       audioEdited: take.edited,
     });
-    location.href = 'director.html';
+    location.href = '/studio/director';
   };
   const choosePreset = (value: string) => {
     setPreset(value);

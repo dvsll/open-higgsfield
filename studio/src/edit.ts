@@ -22,10 +22,10 @@ const REG={mia:{n:'Mia',ic:'👧',sug:['astronaut suit','red raincoat','knight a
  sky:{n:'Sky',ic:'🌤',sug:['sunset','night sky with stars','storm clouds','aurora','clear blue']},place:{n:'Place',ic:'🌍',sug:['Mars','snow','beach','flooded street','forest']}};
 let layers=Object.entries(prior).map(([r,txt])=>({r,txt,on:true,id:Math.random()})),sel=null,tool='click',cmp='after',wx=.5,box={},busy=null;
 $('#src').textContent=hand?'/ '+hand.label:'/ sample frame';
-if(hand&&hand.from==='director'&&hand.ref?.key!=null){$('#from').style.display='';$('#backLink').href='director.html';
+if(hand&&hand.from==='director'&&hand.ref?.key!=null){$('#from').style.display='';$('#backLink').href='/studio/director';
  renderView($('#acts'),[h('button',{key:'cancel',className:'pill',id:'cancel'},'Cancel'),h('button',{key:'apply',className:'pill solid',id:'apply'},'Apply to keyframe →')]);
- $('#cancel').onclick=()=>location.href='director.html';
- $('#apply').onclick=()=>{writeBack();location.href='director.html'}}
+ $('#cancel').onclick=()=>location.href='/studio/director';
+ $('#apply').onclick=()=>{writeBack();location.href='/studio/director'}}
 else renderView($('#acts'),h('button',{className:'pill solid','data-toast':'mock: exports the edited frame'},'Export frame'));
 function writeBack(){const e=edits();SC.set('osh-edit-return',{shot:hand.ref.shot,key:hand.ref.key,spec:{...base,edits:e},n:Object.keys(e).length})}
 const edits=()=>Object.fromEntries(layers.filter(l=>l.on).map(l=>[l.r,l.txt]));

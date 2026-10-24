@@ -3,7 +3,7 @@ export function EditSurface() {
   return (
     <>
       <header className="studio-header">
-        <a href="../index.html" id="backLink">
+        <a href="/" id="backLink">
           {'←'}
         </a>
         <h1>{'Edit Anything'}</h1>

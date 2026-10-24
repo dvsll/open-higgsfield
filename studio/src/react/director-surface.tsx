@@ -4,7 +4,7 @@ export function DirectorSurface() {
   return (
     <>
       <header className="studio-header">
-        <a href="../index.html">{'←'}</a>
+        <a href="/">{'←'}</a>
         <h1>{'Director'}</h1>
         <span className="proj">
           <ProjectPicker />

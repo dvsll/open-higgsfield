@@ -1,5 +1,6 @@
 import { defineConfig, loadEnv } from "vite";
 import { comfyApi } from "./shared/runtime/api.ts";
+import {cleanStudioUrls} from './studio/clean-urls.ts';
 
 // One Vite server for the whole repo: studio + adstudio + archive, with the generation API mounted.
 // Settings come from .env (see .env.example). Defaults are local-only.
@@ -10,7 +11,7 @@ export default defineConfig(({ mode }) => {
   const deny = [".env", ".env.*", "*.{crt,pem,key}", "**/.git/**", "**/.venv/**", "**/.runtime/**", "**/.claude/**", "**/node_modules/.vite/**"];
   return {
     appType: "mpa",
-    plugins: [comfyApi(env), {
+    plugins: [cleanStudioUrls(),comfyApi(env), {
       name: 'studio-controller-reload',
       // Controllers own native media/pointer services for a page lifetime. Never hot-mount a second copy.
       handleHotUpdate({ file, server }) {

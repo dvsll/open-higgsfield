@@ -34,4 +34,4 @@ export function recycleProject(id:string):Project{
  saveProjects(next);return replacement;
 }
 export function restoreProject(id:string):void{saveProjects(readProjects().map(p=>p.id===id?{...p,deletedAt:undefined}:p))}
-export function switchProject(project:Project):void{localStorage.setItem(activeProjectKey,project.id);location.href='director.html'}
+export function switchProject(project:Project):void{localStorage.setItem(activeProjectKey,project.id);location.href='/studio/director'}

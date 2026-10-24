@@ -31,8 +31,8 @@ type Opts = {
 };
 
 const APPS: [string, string, string, MediaType[]][] = [
-  ['director', 'Director', 'director.html', ['shot', 'keyframe']],
-  ['edit', 'Edit Anything', 'edit.html', ['keyframe', 'frame','shot']],
+  ['director', 'Director', '/studio/director', ['shot', 'keyframe']],
+  ['edit', 'Edit Anything', '/studio/edit', ['keyframe', 'frame','shot']],
 ];
 const TYPES: Record<MediaType, string> = { shot: 'Shot', keyframe: 'Keyframe', frame: 'Frame' };
 const ELEMENTS: Element[] = [

@@ -70,7 +70,7 @@ export function DirectorSurface() {
           <section className="viewer" aria-label="Video viewer">
             <div className="view">
               <canvas id="cv"></canvas>
-              <video id="vid" muted playsInline preload="auto"></video>
+              <video id="vid" muted playsInline preload="auto"></video><div id="overlayPreview" aria-label="Sequence overlays"/>
               <div className="empty" id="empty">
                 <div className="msg">
                   <h3 id="emT">{'Bring your scene to life'}</h3>
@@ -216,7 +216,7 @@ export function DirectorSurface() {
               <button id="delKey">{'Remove key'}</button>
             </div>
             <div className="tl" id="tl">
-              <div className="ruler" id="ruler"></div>
+              <div className="ruler" id="ruler"></div><button className="track-toggle overlay-toggle" id="overlayTrackToggle" aria-expanded="false" aria-controls="overlayTrackAttributes"/><div id="overlayTrack"/><div id="overlayTrackAttributes" className="track-attributes" hidden/>
               <button
                 className="track-toggle"
                 id="videoTrackToggle"

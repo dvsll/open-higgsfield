@@ -9,6 +9,7 @@ export type ClipItem = {
   width: number;
   height: number;
   opened?: boolean;
+  hasAudio?:boolean;
   bind: (element: HTMLDivElement) => void;
   keys?: GuideItem[];
 };
@@ -68,6 +69,7 @@ function Clip({ item, index }: { item: ClipItem; index: number }) {
           </span>
         )}
       </span>
+      {item.hasAudio&&<span className="clip-linked-sound" title="Soundtrack attached to this video">♫ Linked sound</span>}
       <div className="grip" title="Drag to trim" />
       {item.keys?.map((key) => (
         <Guide key={key.id} item={key} />

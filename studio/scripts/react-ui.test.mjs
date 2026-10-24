@@ -14,7 +14,7 @@ try {
   const library=renderToStaticMarkup(createElement(ElementLibrary,{elements:[{id:'photo',n:'Copper Robot',d:'small robot',kind:'cast',ic:'',refs:['/outputs/1111111111111111.png']},{id:'plain',n:'Garden',d:'green plants',kind:'place',ic:''}],onSelect:()=>{},pool:()=>[]}));
   assert.match(library,/Copper Robot reference/);assert.match(library,/No reference/);assert.match(library,/Search elements/);assert.match(library,/Edit Copper Robot/);assert.match(library,/not identity conditioning/);
   const {DirectorSurface}=await server.ssrLoadModule('/studio/src/react/director-surface.tsx');
-  const director=renderToStaticMarkup(createElement(DirectorSurface));assert.doesNotMatch(director,/id="els"/);
+  const director=renderToStaticMarkup(createElement(DirectorSurface));assert.doesNotMatch(director,/id="els"/);assert.ok(director.indexOf('id="overlayTrack"')<director.indexOf('id="trk"'));assert.ok(director.indexOf('id="trk"')<director.indexOf('id="audioTrack"'));
   const {AdvancedPrompt}=await server.ssrLoadModule('/studio/src/react/prompt-advanced.tsx');
   const advanced=renderToStaticMarkup(createElement(AdvancedPrompt,null,createElement('textarea',{'aria-label':'Motion prompt'})));
   assert.match(advanced,/<details[^>]*id="promptAdvanced"/);assert.doesNotMatch(advanced,/<details[^>]* open/);assert.match(advanced,/<summary>Advanced<\/summary>/);assert.match(advanced,/Auto-fill in simple view/);

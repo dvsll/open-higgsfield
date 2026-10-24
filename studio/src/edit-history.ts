@@ -5,7 +5,7 @@ import {SC} from './scene';
 import {createHistory,recordHistory,historyTarget,validHistory,type HistoryTree} from './edit-history-tree';
 import './edit-history.css';
 type Shot={id?:string;n?:string;keys?:unknown[];[key:string]:unknown};
-export type EditState={SH:Shot[];STASH:unknown[];TRASH:unknown[];imageDraft:unknown;keyframeBatch:number};
+export type EditState={SH:Shot[];STASH:unknown[];TRASH:unknown[];imageDraft:unknown;keyframeBatch:number;LAYERS?:unknown};
 export function mountEditHistory(read:()=>EditState,restore:(state:EditState)=>void,busy:()=>boolean){
  const stored=SC.get('osh-edit-history');let tree:HistoryTree<EditState>=validHistory<EditState>(stored)&&stored.nodes.every(n=>Array.isArray(n.state.SH)&&n.state.SH.length&&Array.isArray(n.state.STASH)&&Array.isArray(n.state.TRASH))?stored:createHistory(read());
  const root=document.createElement('div');root.className='edit-history';let statusMessage='';
@@ -20,6 +20,7 @@ export function mountEditHistory(read:()=>EditState,restore:(state:EditState)=>v
    const changes=[['prompt','Shot prompt'],['m','Motion prompt'],['audioPrompt','Audio prompt'],['n','Rename scene'],['video','Video take'],['audio','Audio take'],['keys','Keyframes'],['renderWidth','Width'],['renderHeight','Height'],['frames','Frame count'],['fps','Frame rate'],['d','Duration'],['seed','Seed'],['audioLinked','Audio link'],['audioMuted','Audio mute'],['audioStart','Audio timing']];
    return (changes.find(([key])=>JSON.stringify(a[key])!==JSON.stringify(b[key]))?.[1]||'Edit scene')+': '+(a.n||`Scene ${i+1}`);
   }
+  if(JSON.stringify(before.LAYERS)!==JSON.stringify(after.LAYERS))return 'Edit sequence layers';
   return 'Edit image workshop';
  }
  function flush(){clearTimeout(timer);if(applying)return;const state=read(),before=tree.nodes.find(n=>n.id===tree.current)!.state;if(recordHistory(tree,state,label(before,state))){persist();draw()}}

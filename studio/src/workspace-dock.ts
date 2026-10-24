@@ -22,7 +22,7 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
  const app = document.querySelector<HTMLElement>('.app')!, main = app.querySelector('main')!;
  const wide = innerWidth >= 1150;
  const creation = split('x', panel('prompts'), panel('viewer'), .5);
- const bottom=Math.max(190,Math.min(300,innerHeight*.27)),topRatio=Math.max(.5,Math.min(.8,1-bottom/Math.max(300,innerHeight-110)));
+ const bottom=Math.max(260,Math.min(360,innerHeight*.34)),topRatio=Math.max(.5,Math.min(.8,1-bottom/Math.max(300,innerHeight-110)));
  const videoTop=wide?split('x',split('y',panel('assets'),panel('files'),.5),creation,.19):creation;
  const presets: Record<string, Setup> = custom?.presets||{
   Video: { tree: split('y', videoTop, panel('timeline'), topRatio), mode: 'video' },

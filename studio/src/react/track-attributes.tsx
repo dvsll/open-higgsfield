@@ -15,7 +15,7 @@ export function TrackAttributes({
       <strong>{s.n}</strong>
       {kind === 'video' ? (
         <>
-          <small>{s.d.toFixed(2)} seconds · Detailed output settings are in the viewer.</small>
+          <small>{s.d.toFixed(2)} seconds · {s.audio&&s.audioLinked!==false?"Soundtrack attached to video":"Video clip"}</small>{s.audio&&s.audioLinked!==false&&<><button onClick={o.audio}>Edit soundtrack</button><button onClick={o.unlink}>Unlink soundtrack to Audio</button></>}
           <button
             onClick={() => {
               o.select(o.selected, false);

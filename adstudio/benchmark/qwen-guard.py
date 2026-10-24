@@ -4,7 +4,11 @@ Remote boot starts the independent timer before SSH or any inference setup.
 import argparse,base64,ctypes,json,math,os,pathlib,re,subprocess,sys,threading,time,urllib.error,urllib.request
 _parents=pathlib.Path(__file__).resolve().parents
 ROOT=_parents[2] if len(_parents)>2 else pathlib.Path('/workspace')
-OUT=ROOT/'outputs/qwen-hero-benchmark/session'
+def session_dir(value=None):
+ path=pathlib.Path(value or ROOT/'outputs/qwen-hero-benchmark/session').resolve()
+ if not path.is_relative_to((ROOT/'outputs').resolve()) or path.name!='session':raise ValueError('Qwen session must be a separate outputs/.../session folder')
+ return path
+OUT=session_dir(os.environ.get('QWEN_SESSION_DIR'))
 KEY=''
 class NoRedirect(urllib.request.HTTPRedirectHandler):
  def redirect_request(self,*args,**kwargs):raise RuntimeError('Control-plane redirect refused')

@@ -48,13 +48,15 @@ class HardwareTests(unittest.TestCase):
 
 
 class CleanupTests(unittest.TestCase):
-    def exercise(self, failure):
+    def exercise(self, failure, campaign=False):
         with tempfile.TemporaryDirectory() as folder:
             out = pathlib.Path(folder)
             lease = {'version': 1, 'podId': 'owned', 'name': 'adstudio-qwen2511-fixture',
                      'created': time.time() - 100, 'deadline': time.time() + 7000,
                      'gpuRate': .59, 'storageHourly': .02, 'cap': 2, 'image': 'pinned'}
             (out / 'lease.json').write_text(json.dumps(lease))
+            kinds = ['authenticity','intimate','campaign'] if campaign else ['lighting','cinematic']
+            (out / 'plan.json').write_text(json.dumps({'cases':[{'id':k} for k in kinds]}))
             calls = []
             deleted = False
 
@@ -68,6 +70,8 @@ class CleanupTests(unittest.TestCase):
                 return (404, None) if deleted else (200, {'id': 'owned', 'name': lease['name']})
 
             def command(args, **kwargs):
+                if '--check-plan' in args:
+                    return
                 render = any('qwen-render-runpod.mjs' in str(arg) for arg in args)
                 setup = '--collect' not in args and not render
                 if (failure == 'setup' and setup) or (failure == 'render' and render):
@@ -75,7 +79,7 @@ class CleanupTests(unittest.TestCase):
                 if failure == 'interrupt' and setup:
                     raise KeyboardInterrupt()
                 if render:
-                    for kind in ['lighting', 'cinematic']:
+                    for kind in kinds:
                         target = out / 'candidates' / kind
                         target.mkdir(parents=True)
                         data = b'fixture output; this test does not claim inference'
@@ -94,7 +98,7 @@ class CleanupTests(unittest.TestCase):
                     patch.object(runner.subprocess, 'run', side_effect=command), \
                     patch.object(runner.subprocess, 'Popen', return_value=tunnel), \
                     patch('urllib.request.urlopen', return_value=response), \
-                    patch.object(sys, 'argv', ['qwen-execute.py', '--approved']):
+                    patch.object(sys, 'argv', ['qwen-execute.py', '--approved'] + (['--plan',str(out/'plan.json')] if campaign else [])):
                 if failure:
                     with self.assertRaises(KeyboardInterrupt if failure == 'interrupt' else subprocess.CalledProcessError):
                         runner.main()
@@ -105,7 +109,7 @@ class CleanupTests(unittest.TestCase):
             record = json.loads((out / 'execution.json').read_text())
             self.assertEqual(record['termination'], 'VERIFIED_404')
             self.assertLess(record['conservativeCostUpperEstimateUSD'], 2)
-            self.assertEqual(record['status'], 'failed' if failure else 'two-images-collected')
+            self.assertEqual(record['status'], 'failed' if failure else ('three-images-collected' if campaign else 'two-images-collected'))
             if failure not in ['setup', 'interrupt']:
                 tunnel.terminate.assert_called_once()
 
@@ -120,6 +124,12 @@ class CleanupTests(unittest.TestCase):
 
     def test_verified_collection_terminates(self):
         self.exercise(None)
+
+    def test_three_concept_collection_terminates(self):
+        self.exercise(None, campaign=True)
+
+    def test_three_concept_render_failure_terminates(self):
+        self.exercise('render', campaign=True)
 
 
 if __name__ == '__main__':

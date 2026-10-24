@@ -2,6 +2,10 @@ import importlib.util,json,pathlib,time,unittest
 from unittest.mock import patch
 spec=importlib.util.spec_from_file_location('qguard',pathlib.Path(__file__).with_name('qwen-guard.py'));g=importlib.util.module_from_spec(spec);spec.loader.exec_module(g)
 class GuardTests(unittest.TestCase):
+ def test_session_isolation(self):
+  self.assertEqual(g.session_dir(g.ROOT/'outputs/creative-quality-sprint/session'),(g.ROOT/'outputs/creative-quality-sprint/session').resolve())
+  for path in [g.ROOT/'.env',g.ROOT.parent/'session',g.ROOT/'outputs/not-a-session']:
+   with self.assertRaises(ValueError):g.session_dir(path)
  def setUp(self):
   self.lease={'version':1,'podId':'owned','name':'adstudio-qwen2511-fixture','created':time.time()-100,'deadline':time.time()+7000,'gpuRate':.59,'storageHourly':.02,'cap':2,'image':'pinned'}
   self.pod={'id':'owned','name':self.lease['name'],'cost':.59,'cloud':'SECURE','gpu':{'id':'NVIDIA A40','count':1,'memory':50,'vcpuCount':8},'image':'pinned','disk':30,'mounts':{'persistent':{'size':80,'path':'/workspace'}},'ports':['22/tcp']}

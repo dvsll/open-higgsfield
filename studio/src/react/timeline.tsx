@@ -81,7 +81,7 @@ function Clip({ item, index }: { item: ClipItem; index: number }) {
 export function SequenceTrack({ clips, onAdd,expanded=false }: { clips: ClipItem[]; onAdd?: () => void;expanded?:boolean }) {
   return (
     <>
-      {clips.length===0&&<div className="sequence-empty"><span>No video scenes</span><button onClick={onAdd}>＋ Add scene</button><small>Or write a prompt and generate your first video.</small></div>}
+      {clips.length===0&&<div className="sequence-empty"><button onClick={()=>openSequenceWorkflow('video')}>Open Video workflow →</button></div>}
       {clips.map((item, index) => (
         expanded?<div key={item.id} className="sequence-scene-row" style={{paddingLeft:item.offset||0}}><Clip item={item} index={index} /></div>:<Clip key={item.id} item={item} index={index} />
       ))}
@@ -133,3 +133,4 @@ export function BoundCard({
     </div>
   );
 }
+import {openSequenceWorkflow} from '../sequence-workflows';

@@ -32,7 +32,7 @@ export function TourChoice({
         ['image', 'Image', 'Workshop one image, then bring it into motion.'],
         ['video', 'Video', 'Prompt a video, then direct it with keyframes.'],
         ['3d', '3D', 'Explore the preview; generation is not connected yet.'],
-        ['audio', 'Audio · planned', 'A dedicated sound workspace is planned.'],
+        ['audio', 'Audio walkthrough · coming soon', 'The Audio workspace is available from the workspace selector.'],
       ]
     : [
         ['beginner', 'ComfyUI beginner', 'Explain the tools and guide me step by step.'],

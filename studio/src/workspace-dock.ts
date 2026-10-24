@@ -28,6 +28,8 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
   Video: { tree: split('y', videoTop, panel('timeline'), topRatio), mode: 'video' },
   Director:{tree:split('y',split('x',panel('viewer'),panel('prompts'),.6),panel('timeline'),.62),mode:'video'},
   Image: { tree: split('y', split('x', panel('viewer'), panel('keyframes'), .72), panel('takes'), .7), mode: 'image' },
+  Audio:{tree:split('y',split('x',panel('files'),panel('audio-create'),.35),panel('timeline'),topRatio),mode:'video'},
+  Overlays:{tree:split('y',split('x',panel('viewer'),panel('overlay-create'),.65),panel('timeline'),topRatio),mode:'video'},
   '3D': { tree: split('x', panel('stage'), panel('elements'), .75), mode: 'video' },
   Rendering: { tree: split('y', split('x', panel('viewer'), panel('properties'), .75), panel('takes'), .7), mode: 'video' }
  };
@@ -132,6 +134,7 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
  const assets = app.querySelector<HTMLElement>('aside.l')!, keys = app.querySelector<HTMLElement>('aside.r')!, viewer = main.querySelector<HTMLElement>('.viewer')!, image = main.querySelector<HTMLElement>('.image-stage')!, composer = main.querySelector<HTMLElement>('.composer')!, properties = document.getElementById('videoAttributes') as HTMLDetailsElement;
  properties.open = true; const viewContent = document.createElement('div'); viewContent.className = 'viewer-content'; viewContent.append(image, viewer);
  add('captions','Captions',document.getElementById('studioCaptions')!);add('edit-history','Edit history',document.getElementById('studioEditHistory')!);add('files','Project files',mountProjectFiles());add('stash','Stash',document.getElementById('stash')!);
+ add('audio-create','Audio prompts',document.getElementById('studioAudioCreator')!);add('overlay-create','Overlay tools',document.getElementById('studioOverlayCreator')!);
  const inspector=document.createElement('div');inspector.className='sequence-inspector';const identity=document.getElementById('videoTrackAttributes')!;identity.hidden=false;identity.className='scene-property-identity';inspector.append(identity,properties);
  add('stylization', 'Stylization', document.getElementById('studioStylization')!); add('elements', 'Elements', document.getElementById('studioElements')!); add('assets', 'Selected media', assets); add('viewer', 'Viewer', viewContent); add('prompts', 'Prompts', composer); add('keyframes', 'Image prompts', keys); add('properties', 'Properties', inspector); add('timeline', 'Sequence', main.querySelector<HTMLElement>('.tlw')!); add('takes', 'Takes', main.querySelector<HTMLElement>('.hist')!);
  const sequenceBar = panels.get('timeline')!.querySelector('.window-titlebar')!;

@@ -4,11 +4,19 @@ import {LayerEditor,LayerLane,OverlayPreview} from './react/sequence-layers';
 import './sequence-layers.css';
 import {selectCaptionSource} from './captions';
 import {type Layer,type LayerState} from './sequence-layer-state';
+import {openSequenceWorkflow} from './sequence-workflows';
 export {validLayers,layerRows} from './sequence-layer-state';
 type Options={read:()=>LayerState;change:(state:LayerState)=>void;time:()=>number;duration:()=>number;select:()=>void;legacy:()=>Layer[];selectLegacy:(id:string)=>void};
 export function mountSequenceLayers(options:Options){
  const root=document.getElementById('overlayPreview')!,players=new Map<string,HTMLAudioElement>();let previewKey='';
- let audioReady=false;void fetch('/api/models').then(r=>r.json()).then(result=>{audioReady=!!result.audio?.available}).catch(()=>{});
+ let audioReady=false;
+ const creators=new Map<'audio'|'overlays',{host:HTMLElement;revision:number}>();
+ function creator(kind:'audio'|'overlays'){
+  const entry=creators.get(kind)!;
+  renderView(entry.host,createElement(LayerEditor,{key:entry.revision,group:kind,embedded:true,audioReady,start:options.time(),duration:Math.min(4,Math.max(.1,options.duration()-options.time())),onClose:()=>{entry.revision++;creator(kind)},onSave:layer=>{const state=options.read();options.change({...state,[kind]:[...state[kind],layer]});entry.revision++;creator(kind)}}));
+ }
+ for(const kind of ['audio','overlays'] as const){const host=document.createElement('div');host.id=kind==='audio'?'studioAudioCreator':'studioOverlayCreator';creators.set(kind,{host,revision:0});document.body.append(host);creator(kind)}
+ void fetch('/api/models').then(r=>r.json()).then(result=>{audioReady=!!result.audio?.available;creator('audio')}).catch(()=>{});
  function edit(kind:'overlays'|'audio',existing?:Layer){
   const toggle=document.getElementById(kind==='audio'?'audioTrackToggle':'overlayTrackToggle');if(toggle?.getAttribute('aria-expanded')!=='true')toggle?.click();
   options.select();if(kind==='audio'&&existing?.url)selectCaptionSource({id:existing.id,url:existing.url,label:existing.name,start:existing.start,duration:existing.duration,origin:'timeline'});const host=document.createElement('div');document.body.append(host);
@@ -20,7 +28,7 @@ export function mountSequenceLayers(options:Options){
   for(const group of ['overlays','audio'] as const){
    const items=group==='audio'?[...options.legacy(),...state.audio]:state.overlays;
    const visible=items.filter(item=>item.start<origin+duration&&item.start+item.duration>origin);
-   renderView(document.getElementById(group==='audio'?'audioTrack':'overlayTrack')!,createElement(LayerLane,{group,items:visible,pixels,origin,onExpand:()=>document.getElementById(group==='audio'?'audioTrackToggle':'overlayTrackToggle')?.click(),expanded:document.getElementById(group==='audio'?'audioTrackToggle':'overlayTrackToggle')?.getAttribute('aria-expanded')==='true',onAdd:()=>edit(group),onEdit:item=>item.id.startsWith('legacy:')?(selectCaptionSource({id:item.id,url:item.url!,label:item.name,start:item.start,duration:item.duration,origin:'timeline'}),options.selectLegacy(item.id.slice(7))):edit(group,item)}));
+   renderView(document.getElementById(group==='audio'?'audioTrack':'overlayTrack')!,createElement(LayerLane,{group,items:visible,pixels,origin,onExpand:()=>document.getElementById(group==='audio'?'audioTrackToggle':'overlayTrackToggle')?.click(),expanded:document.getElementById(group==='audio'?'audioTrackToggle':'overlayTrackToggle')?.getAttribute('aria-expanded')==='true',onAdd:()=>openSequenceWorkflow(group),onEdit:item=>item.id.startsWith('legacy:')?(selectCaptionSource({id:item.id,url:item.url!,label:item.name,start:item.start,duration:item.duration,origin:'timeline'}),options.selectLegacy(item.id.slice(7))):edit(group,item)}));
   }
  }
  function play(time:number,playing:boolean,visible:boolean){

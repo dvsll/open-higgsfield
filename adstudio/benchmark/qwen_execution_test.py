@@ -26,12 +26,13 @@ runner = load('qwen-execute')
 class HardwareTests(unittest.TestCase):
     def setUp(self):
         self.stats = {'torch': '2.10.0+cu128', 'cuda': True, 'deviceCount': 1,
-                      'gpuName': 'NVIDIA A40', 'vramBytes': 46068 * 1024 ** 2,
+                      'gpuName': 'NVIDIA A40', 'vramBytes': 47699722240,
                       'cpuCount': 9, 'ramBytes': 50 * 1000 ** 3,
                       'diskFreeBytes': 79 * 1000 ** 3}
 
-    def test_ecc_memory_fixture_does_not_fail_nominal_48gb_card(self):
-        # Fixture, NOT an actual memory measurement from the deleted Pod.
+    def test_captured_a40_memory_passes_corrected_floor(self):
+        # CUDA-visible bytes captured on the second approved A40 attempt.
+        # Replay on CPU; this test itself neither allocates nor measures a GPU.
         self.assertLess(self.stats['vramBytes'], 45 * h.GIB)
         h.validate_hardware(self.stats)
 

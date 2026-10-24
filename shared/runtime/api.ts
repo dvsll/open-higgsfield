@@ -11,7 +11,7 @@
  *   and /outputs only serves files this API wrote (random hex names).
  */
 import { RuntimeSetup, setupAccess } from './setup.ts';
-import {PromptRewriter,PromptRewriteError} from './prompt-rewriter.ts';
+import {PromptRewriter,PromptRewriteError,promptInstruction,promptModel,promptDevice} from './prompt-rewriter.ts';
 import {precisionSources} from './precision-image.ts';
 import {captionSegments} from '../lib/captions.ts';
 import { JobActivity, phaseForProgress } from './job-activity.ts';
@@ -211,6 +211,7 @@ async function timedRun(c: Comfy, wf: Parameters<Comfy['run']>[0], env: Env, mod
 
 /** Prompt -> image. shared/workflows/keyframe_zimage.json (Z-Image Turbo). */
 async function keyframe(body: any, env: Env) {
+  const textDevice=promptDevice(body.textDevice);
   const prompt = str(body.prompt, 2000, "prompt");
   const seed = Math.floor(num(body.seed, 0, 2 ** 32, 1));
   const width=dimension(body.width,1536,768,16),height=dimension(body.height,1536,448,16);
@@ -219,6 +220,7 @@ async function keyframe(body: any, env: Env) {
   const graph=await loadGraph('keyframe_zimage');const {rw,rh}=cropOutput(graph,'9','10',width,height,16);
   const wf = c.workflows.fromJson(graph);
   wf.setInput("1", "unet_name", model);
+  wf.setInput("2", "device", textDevice);
   wf.setInput("5", "text", prompt);
   wf.setInput("8", "seed", seed);
   wf.setInput('7','width',rw);wf.setInput('7','height',rh);
@@ -267,6 +269,7 @@ function shotGraph(g: Record<string, any>, nKeys: number): Record<string, any> {
 
 /** Keyframes (images at times) + motion prompt -> video. shared/workflows/shot_ltxv.json (LTX-Video). */
 async function shot(body: any, env: Env) {
+  const textDevice=promptDevice(body.textDevice);
   if (body.keys === undefined) body.keys = [];
   if (!Array.isArray(body.keys) || body.keys.length > 8) throw new HttpError(400, "keys: 0–8 keyframes");
   const fps=num(body.fps,1,120,FPS);
@@ -287,7 +290,7 @@ async function shot(body: any, env: Env) {
   const height = dimension(body.height,1024,448,32);
   const graph=shotGraph(await loadGraph('shot_ltxv'),keys.length);const {rw,rh}=cropOutput(graph,'16','17',width,height,32);
   if (rw * rh > 768 * 768) throw new HttpError(400, "shot resolution too large");
-  const wf=c.workflows.fromJson(graph);wf.setInput('1','ckpt_name',model);
+  const wf=c.workflows.fromJson(graph);wf.setInput('1','ckpt_name',model);wf.setInput('2','device',textDevice);
   wf.setInput("7", "width", rw);
   wf.setInput("7", "height", rh);
   keys.forEach((_, i) => {
@@ -559,8 +562,8 @@ function middleware(env: Env,setup:RuntimeSetup,rewriter:PromptRewriter): Connec
       if(req.method==='GET'&&/^\/api\/activity\/[a-f0-9]{32}$/.test(url.pathname)){const state=activity.get(url.pathname.split('/').pop()!);return send(res,state?200:404,state?{...state,serverNow:Date.now()}:{error:'No activity for this request'})}
       const tracked=async(handler:(body:any)=>Promise<any>,limit=MAX_BODY)=>{if(setup.task.busy)throw new HttpError(503,'Local runtime setup is in progress. Finish or stop setup before generating.');const body=await readBody(req,limit);if(!body||typeof body!=='object'||Array.isArray(body))throw new HttpError(400,'Expected a JSON request object.');body._requestId=req.headers['x-osh-request']||body._requestId;let id:string|null;try{id=activity.begin(body._requestId)}catch(error:any){throw new HttpError(400,error.message)}try{const result=await handler(body);activity.update(id,'complete','Media ready.');return result}catch(error:any){activity.update(id,'error','Generation stopped: '+String(error.message||error));throw error}};
       if (route === "GET /api/health") return send(res, 200, await health(env,setup.task.busy));
-      if(route==='GET /api/prompt-rewriter')return send(res,200,rewriter.status());
-      if(route==='POST /api/prompt-rewriter'){const body=await readBody(req);return send(res,200,await rewriter.rewrite(body.prompt,body.details));}
+      if(route==='GET /api/prompt-rewriter')return send(res,200,await rewriter.status());
+      if(route==='POST /api/prompt-rewriter'){const body=await readBody(req);return send(res,200,await rewriter.rewrite(body.prompt,body.details,body.device));}
       if(route==='GET /api/brand/status')return send(res,200,await analysisStatus(env));
       if(route==='POST /api/brand/research')return send(res,200,await researchBrand(await readBody(req),env));
       if(route==='POST /api/brand/image')return send(res,200,await collectBrandImage(await readBody(req)));
@@ -646,18 +649,19 @@ function middleware(env: Env,setup:RuntimeSetup,rewriter:PromptRewriter): Connec
 /** Vite plugin: mounts /api + /outputs on the dev and preview servers. */
 export function comfyApi(env: Env): Plugin {
   const setup=new RuntimeSetup(ROOT,env,ensureProxy,()=>{comfy=null});
-  const rewriter=new PromptRewriter(ROOT);
+  const rewriter=new PromptRewriter({
+   status:async()=>{try{const nodes=await comfyJson(env,'/object_info');const available=!!nodes.TextGenerate?.input?.optional?.system_prompt&&!!nodes.SaveText&&nodes.CLIPLoader?.input?.required?.clip_name?.[0]?.includes(promptModel);return {available,cpuSupported:false,id:promptModel,model:'Qwen3 4B · ComfyUI',reason:available?'Uses installed Qwen3 through ComfyUI. GPU/offload is managed by ComfyUI unless CPU is selected.':'Prompt polishing needs current ComfyUI TextGenerate/SaveText nodes and the Qwen3 4B text encoder from the image model pack.'}}catch{return {available:false,id:promptModel,model:'Qwen3 4B · ComfyUI',reason:'Connect ComfyUI to polish prompts. Advanced manual editing is available.'}}},
+   generate:async(content,device)=>{if(queued>0)throw new PromptRewriteError(409,'ComfyUI is busy generating. Polish again when the current job finishes.');await ensureProxy(env);const c=client(env),wf=c.workflows.fromJson(await loadGraph('prompt_polish'));wf.setInput('1','device',device);wf.setInput('2','prompt',content);wf.setInput('2','system_prompt',promptInstruction);if(queued>0)throw new PromptRewriteError(409,'ComfyUI is busy generating. Polish again when the current job finishes.');const job=await serialize(()=>runWf(c,wf));const output=job.getOutputs('3')[0];if(!output)throw new PromptRewriteError(502,'ComfyUI returned no polished prompt. Your prompt is unchanged.');return Buffer.from(await output.toBytes()).toString('utf8')}
+  });
   return {
     name: "osh-comfy-api",
     async configureServer(server) {
       server.middlewares.use(middleware(env,setup,rewriter));
-      server.httpServer?.once('close',()=>rewriter.close());
       if(setup.config?.mode==='managed')setup.start();
       else void (async()=>{if (!(await up((env.COMFYUI_URL || "http://127.0.0.1:8188") + "/system_stats"))) console.warn("[api] ComfyUI not reachable; open Local setup in Studio.");else await ensureProxy(env)})().catch(error=>console.warn('[setup]',error.message));
     },
     async configurePreviewServer(server) {
       server.middlewares.use(middleware(env,setup,rewriter));
-      server.httpServer.once('close',()=>rewriter.close());
       if(setup.config?.mode==='managed')setup.start();else void ensureProxy(env).catch(error=>console.warn('[setup]',error.message));
     },
   };

@@ -1,6 +1,6 @@
 # Qwen real-app acceptance: prepared, not demonstrated
 
-2026-10-24, starting at44a5927. **Browser acceptance NOT RUN; live app inference NOT RUN.** The browser-specific controller returned `apps:[], browsers:[]`. The documented Windows Computer Use connection later found Chrome; one existing Ad Studio tab was observed at8300, then the owner stopped Computer Use with physical Escape while selecting another tab. No further Computer Use calls or alternate-controller bypass occurred. Target8301 Hero interaction, refresh and IndexedDB acceptance remain NOT RUN. Existing standalone Qwen images are prior evidence, not app acceptance. PR3 stays draft.
+2026-10-24, integrated main includes Ad Studio6f6b29b and Studio eb57686. **Browser Hero acceptance NOT RUN; live app inference NOT RUN.** Owner granted fresh unpaid browser permission. Computer Use recovered an initial geometry error, observed a saved Composer project at8300, then stopped because current-URL confidence was insufficient. No further browser calls or controller bypass. Target8301 review/isolation/refresh remains manual. Prior standalone images are not app acceptance. Repository integration follows the newer shared-main instruction; no PR merge operation or paid execution was initiated.
 
 The owner confirmed the saved project origin is **http://127.0.0.1:8301/adstudio/**. Keep this exact host/port/profile. Do not open the remote API as the UI, clear browser data, import a replacement demo over the existing project, or move to localhost/another port.
 
@@ -18,7 +18,7 @@ Existing browser / IndexedDB / Hero UI (127.0.0.1:8301)
 
 All GPU-host services bind loopback. Only SSH22 is allocated; no public HTTP/Comfy endpoints, network volumes or additional services. Ordinary local outputs, brand research, Composer, Director, project storage and other generation endpoints are not redirected. No storage schema changes. The remote package contains committed public `shared/`, pinned package lock and API startup files, never local outputs, .env, browser data or photos.
 
-`QWEN_APP_RELAY_URL` is opt-in, fixed to loopback28301. The normal local runtime is unchanged when unset. Local and remote one-job receipts use exclusive creation: restart, second click, timeout or corrupt delivery cannot automatically submit another job. Approval binds exact browser origin, original/normalized hashes, reviewed model-prompt hash, seed42 and tested code commit. A stale/missing independent Pod heartbeat fails closed; its local mirror is separate from the Windows watchdog heartbeat. Model verification is retained, not replaced by trusting a tunnel.
+`QWEN_APP_RELAY_URL` is opt-in, fixed to loopback28301. The normal local runtime is unchanged when unset. Local and remote one-job receipts use exclusive creation: restart, second click, timeout or corrupt delivery cannot automatically submit another job. Approval binds exact browser origin, real project/brand/source/product IDs, original/normalized hashes, reviewed model-prompt hash, seed42 and tested code commit. The UI manifest records project id/name; optional fourth OSH.qwenHero argument carries project identity without breaking old calls. A stale/missing independent Pod heartbeat fails closed; its local mirror is separate from the Windows watchdog heartbeat. Model verification is retained, not replaced by trusting a tunnel.
 
 Before returning success, the relay saves and fsyncs the raw PNG, original, reference, provenance and local opaque PNG, then reads back their hashes and publishes `collection.json` plus a local status receipt. Remote graph/model/source/job metadata and raw PNG CRC/pixels/executed prompt are checked. The collection monitor verifies all five files again and deletes the exact Pod. The browser receives a local URL; downloading/saving the take can finish after the Pod disappears. Original/reference/project Blobs and prior local takes remain local. Actual IndexedDB behavior still needs browser acceptance.
 
@@ -33,7 +33,7 @@ python adstudio/benchmark/qwen-app-prepare.py --draft "$env:USERPROFILE/Download
 python adstudio/benchmark/qwen-app-prepare.py --bundle --out outputs/qwen-app-acceptance/session
 ```
 
-The plan starts with `paidApproved:false`, `privateUploadApproved:false`, `podId:UNALLOCATED`. Preparation does not read credentials or contact any service. Package from committed tested HEAD only; do not package dirty working files. No reviewed browser manifest has been provided yet. The compiled direction is not automatically owner-approved.
+The plan starts with `paidApproved:false`, `privateUploadApproved:false`, `podId:UNALLOCATED`. Preparation does not read credentials or contact any service. Package from committed tested HEAD only; do not package dirty working files. No reviewed browser manifest has been provided yet. Exports without real project/brand/source identity must be re-exported from the existing browser project, not filled in by an agent. The compiled direction is not automatically owner-approved.
 
 ## Proposed resource limit (requires NEW explicit approval)
 
@@ -88,8 +88,11 @@ Confirm exact-Pod GET404 and full empty Pod/network/global-volume inventories; P
 
 ## Evidence and remaining blockers
 
-- PASS: typecheck/build;23 app/compiler/SDK/workflow tests plus actual private-API HTTP test;18 Python CPU tests including collection/finally cleanup; bash syntax/default dry runs. Explicit mocked inference tests are not real GPU or browser results.
+- PASS: integrated typecheck/build;18 Studio regressions,15 Ad Studio/client/adapter/workflow regressions and18 Python CPU tests including collection/finally cleanup; bash syntax/default dry runs. Explicit mocked inference tests are not real GPU or browser results.
 - PASS actual local HTTP8301: capability reports missing Qwen files, stale prompt409/activity error, malformed body400, wrong adapter400, Hero module200. Existing output/provenance access remains local in relay configuration.
 - Preserved: Director source, existing workflows, model pins, project schemas, old raw images/ad, originals and unrelated dirty working files. No UI changes.
-- NOT RUN: target8301 browser review/invalidation/project switching/IndexedDB refresh (Computer Use interrupted by owner Escape; no bypass); owner-approved browser request binding; Linux API startup, real app SDK job and collection against a GPU. No current local Qwen weights.
+- NOT RUN: target8301 browser review/invalidation/project switching/IndexedDB refresh (fresh authorized Computer Use stopped on insufficient current-URL confidence; no bypass); owner-approved browser request binding; Linux API startup, real app SDK job and collection against a GPU. No current local Qwen weights.
 - Next authorization gate: owner performs/confirms short browser checklist and approves exact exported direction/source, then explicitly approves the proposed single paid session. The milestone remains incomplete until the actual UI job and post-refresh retrieval pass.
+
+
+Integration findings: tracked Qwen graph uses LF; its previous CRLF-working-copy pin was corrected to8dc8cda519f67c812b77543990d14adb647ff413f92423718bf889515bed1bd6. Graph content/model/sampler are unchanged; strict validation now passes Git/archive bytes. See notes/cross-project-handoff.md for current shared capabilities and adstudio/REACT_MIGRATION.md for deferred service-first migration. Active main worktree outputs/adstudio-main-integration shares existing ignored outputs; use that worktree for subsequent source changes, never recursively copy the outputs junction. Current native prompt/precision/caption and Qwen discovery on8301 are unavailable even though Comfy/proxy are healthy. No setup/model download was performed.

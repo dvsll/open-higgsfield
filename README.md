@@ -74,13 +74,9 @@ Studio uses `/studio/director`, `/studio/edit` and `/studio/design-lab`. Dev and
 
 Studio starts with one expanding Prompt box. In simple view, auto-fill uses the main prompt after a pause in typing, and Generate waits for current details. Expand **Advanced** to inspect the video model, generated video/motion/audio prompts and audio controls. Advanced pauses automatic rewriting: **Polish prompt** sends the current boxes back to the local helper and returns its result for review, without generating media. Edit the result, polish again, or press **Generate video** to send the reviewed boxes directly, skipping the rewriter. Edits made during polishing are preserved. Turn off **Auto-fill in simple view** to use manual prompts without the helper. Rewriting never starts image/video/audio generation itself.
 
-On Windows x64, explicitly install the helper from the repo root:
+Prompt polishing runs entirely through ComfyUI: the Comfy SDK submits `shared/workflows/prompt_polish.json` through the local proxy. It uses core **CLIPLoader → TextGenerate → SaveText** nodes and the same Apache-2.0 `qwen_3_4b_fp8_mixed.safetensors` text encoder as our image model pack. No separate llama.cpp service, custom node or additional model is required. A compatible current ComfyUI and the installed encoder are required; missing support leaves manual editing available. Inference never downloads files.
 
-```powershell
-powershell -File shared/runtime/install-prompt-rewriter.ps1
-```
-
-This downloads the pinned [llama.cpp CPU runtime](https://github.com/ggml-org/llama.cpp/releases/tag/b11669) (MIT, about20MB) and [Qwen2.5-1.5B-Instruct Q4_K_M](https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF) (Apache-2.0, about1.12GB), checks SHA256, and stores them in ignored `.runtime/prompt-rewriter/`. It runs on CPU at loopback11435 with a per-process API key, starts on demand and exits after two idle minutes or server shutdown. No weights enter Git, no cloud API is used, and generation does not download anything. Non-Windows setups may place a compatible `llama-server` at `.runtime/prompt-rewriter/bin/llama-server` and the same GGUF at `.runtime/prompt-rewriter/model.gguf`.
+Open the model chooser → **Advanced · compute settings** to choose GPU/automatic offload or CPU for each image/video model's text encoder. Prompt polishing currently uses ComfyUI-managed placement; CPU-only native text generation is unavailable in the connected workflow (the installed ComfyUI build throws a CUDA-device error). The setting is saved per model on this browser. Image/video diffusion placement remains managed by the ComfyUI server; these controls do not force the entire video/image model onto CPU. Polishing shares the generation queue and declines while an app generation job is active. Native text generation returns validated visual/motion/audio suggestions; it does not generate media.
 
 Model-generated details are suggestions. Expand Advanced to review them; a small local model can misunderstand a prompt. Missing/failed rewriting shows an error and preserves authored text, with manual mode available.
 

@@ -4,6 +4,7 @@ import {readFile,writeFile,mkdir,mkdtemp,readdir,rm} from 'node:fs/promises';
 import {resolve,join} from 'node:path';
 import {crc32} from 'node:zlib';
 import {Resvg} from '@resvg/resvg-js';
+import {execFileSync} from 'node:child_process';
 import {heroSha,HeroError} from '../../shared/runtime/hero-ad.ts';
 import {generateQwenHero,qwenWorkflow,qwenContract,inspectQwenPNG,inspectQwenNodes,verifyWeightFiles,qwenAvailability} from '../../shared/runtime/qwen-hero.ts';
 import {OSH} from '../../shared/runtime/client.ts';
@@ -17,6 +18,7 @@ const synthetic=new Resvg('<svg xmlns="http://www.w3.org/2000/svg" width="48" he
 function withPrompt(graph){const type=Buffer.from('tEXt'),data=Buffer.from('prompt\0'+JSON.stringify(graph)),chunk=Buffer.alloc(data.length+12);chunk.writeUInt32BE(data.length,0);type.copy(chunk,4);data.copy(chunk,8);chunk.writeUInt32BE(crc32(Buffer.concat([type,data])),data.length+8);return Buffer.concat([synthetic.subarray(0,synthetic.length-12),chunk,synthetic.subarray(-12)]);}
 try{
  await writeFile(join(root,'aaaaaaaaaaaaaaaa.png'),synthetic);const sourceHash=heroSha(synthetic),contract=await qwenContract(),graph=await qwenWorkflow();
+ assert.equal(heroSha(execFileSync('git',['show','HEAD:shared/workflows/hero_qwen2511_benchmark.json'])),contract.graphSha256,'Pin must match Git/archive LF bytes, not a Windows working-copy newline variant');
  const nodes={};for(const n of Object.values(graph))nodes[n.class_type]={input:{required:Object.fromEntries(Object.entries(n.inputs).map(([k,v])=>[k,[["unet_name","clip_name","vae_name"].includes(k)?[v]:typeof v==='string'?'STRING':'FLOAT']]))}};
  assert.ok(inspectQwenNodes(graph,nodes).ready);const missingNodes=structuredClone(nodes);delete missingNodes.TextEncodeQwenImageEditPlus;assert.ok(!inspectQwenNodes(graph,missingNodes).ready);const missingWeight=structuredClone(nodes);missingWeight.UNETLoader.input.required.unet_name=[[]];assert.ok(inspectQwenNodes(graph,missingWeight).missingModels.length);assert.equal((await qwenAvailability(nodes)).available,false);
  const input={version:1,source:{id:'ref',name:'Synthetic fixture, not a product photograph',sha256:sourceHash,originalSha256:sourceHash,kind:'original'},facts:{description:'Two irregular cookies',count:2,arrangement:'Two side by side',texture:'Uneven baked surface',container:'Paper tray',confirmed:true},productType:'cookies',productName:'Cookies',notes:'UNVERIFIED review notes',brand:{id:'brand',name:'Fixture bakery',revision:1,signals:[{field:'story',text:'INTERNAL_WEBSITE_NARRATIVE_DO_NOT_SEND',status:'user',sourceIds:[]}],evidence:[],colors:[]},controls:briefDefaults(),execution:{adapter:'qwen-fp8',seed:42}};

@@ -35,8 +35,8 @@ class AppTests(unittest.TestCase):
  def test_prepare_remains_unapproved_and_origin_bound(self):
   with tempfile.TemporaryDirectory() as tmp:
    out=pathlib.Path(tmp);d={'reviewedSnapshot':'MOCK only','promptFormat':'concise-v2','modelPrompt':'Reviewed','input':{'source':{'sha256':'a'*64,'originalSha256':'b'*64}}}
-   settings={'imageModel':'qwen-fp8','seed':42,'sourceKind':'original','prompt':'Reviewed'}
-   path=out/'brief.json';path.write_text(json.dumps({'draft':d,'payload':{'settings':settings}}))
+   settings={'imageModel':'qwen-fp8','seed':42,'sourceKind':'original','brandId':'brand','sourceId':'ref','prompt':'Reviewed'}
+   path=out/'brief.json';path.write_text(json.dumps({'project':{'id':'MOCK-project'},'draft':d,'payload':{'settings':settings}}))
    with patch.object(prep.subprocess,'check_output',return_value='c'*40):prep.bind(path,'http://127.0.0.1:8301',out)
    plan=json.loads((out/'acceptance.json').read_text());self.assertFalse(plan['paidApproved']);self.assertFalse(plan['privateUploadApproved']);self.assertEqual(plan['maxJobs'],1);self.assertEqual(plan['browserOrigin'],'http://127.0.0.1:8301')
    with self.assertRaises(ValueError):prep.bind(path,'https://public.example',out)

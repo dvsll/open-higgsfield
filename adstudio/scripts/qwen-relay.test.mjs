@@ -19,9 +19,9 @@ const origin='http://127.0.0.1:8301',hash=heroSha(png),image='/outputs/aaaaaaaaa
 const input={version:1,source:{id:'ref',name:'MOCK orange rectangle',sha256:hash,originalSha256:hash,kind:'original'},facts:{description:'Fixture packaged product',count:1,arrangement:'Centered',texture:'Printed paper',container:'Paper box',confirmed:true},productType:'packaged-goods',productName:'Fixture',notes:'',brand:{id:'brand',name:'Fixture',revision:1,signals:[],evidence:[],colors:[]},controls:briefDefaults(),execution:{adapter:'qwen-fp8',seed:42}};
 const draft=prepareConciseDraft(newGenerationDraft(input));reviewDraft(draft);
 const settings={...heroDefaults().settings,method:'reimagine',imageModel:'qwen-fp8',sourceKind:'original',sourceId:'ref',brandId:'brand',productName:'Fixture',seed:42,briefDraft:draft,prompt:generationPrompt(draft)};
-const body={image,original:'data:image/png;base64,'+png.toString('base64'),settings,_requestId:'c'.repeat(32)};
+const body={image,projectId:'MOCK-project',original:'data:image/png;base64,'+png.toString('base64'),settings,_requestId:'c'.repeat(32)};
 async function fixture(name){const dir=join(root,name);await mkdir(dir);const now=Date.now()/1000,lease={version:1,podId:'MOCK-NOT-A-POD',name:'adstudio-qwen2511-CPU-MOCK',created:now-60,deadline:now+6800,cap:2,gpuRate:.59,storageHourly:.02,image:'runpod/comfyui@sha256:7ed65713a24c7c836cea8e5ba338ee140b0257b0a086cc3835784e0473efe2f2'};
- const plan={version:1,purpose:'qwen-app-acceptance',paidApproved:true,privateUploadApproved:true,maxJobs:1,maxSpendUSD:2,reserveUSD:4,seed:42,originalSha256:hash,referenceSha256:hash,promptSha256:heroSha(settings.prompt),codeCommit:'a'.repeat(40),remoteOrigin:'http://127.0.0.1:28301',browserOrigin:origin,podId:lease.podId};
+ const plan={version:1,projectId:'MOCK-project',brandId:'brand',sourceId:'ref',purpose:'qwen-app-acceptance',paidApproved:true,privateUploadApproved:true,maxJobs:1,maxSpendUSD:2,reserveUSD:4,seed:42,originalSha256:hash,referenceSha256:hash,promptSha256:heroSha(settings.prompt),codeCommit:'a'.repeat(40),remoteOrigin:'http://127.0.0.1:28301',browserOrigin:origin,podId:lease.podId};
  const files={approval:join(dir,'acceptance.json'),lease:join(dir,'lease.json'),watchdog:join(dir,'watchdog.json'),receipt:join(dir,'one-job.json')};
  const save=async(p,x)=>writeFile(p,JSON.stringify(x));await save(files.approval,plan);await save(files.lease,lease);await save(files.watchdog,{podId:lease.podId,state:'armed',checked:now,deadline:lease.deadline});return {files,plan,lease,save};}
 try{
@@ -42,6 +42,7 @@ try{
  await assert.rejects(()=>relay.generate(body,'http://localhost:8301',()=>{}),/approval\/origin/);
  first.plan.paidApproved=false;await first.save(first.files.approval,first.plan);await assert.rejects(()=>relay.generate(body,origin,()=>{}),/approval\/origin/);first.plan.paidApproved=true;await first.save(first.files.approval,first.plan);
  await first.save(first.files.watchdog,{podId:first.lease.podId,state:'armed',checked:Date.now()/1000-90,deadline:first.lease.deadline});await assert.rejects(()=>relay.generate(body,origin,()=>{}),/watchdog/);await first.save(first.files.watchdog,{podId:first.lease.podId,state:'armed',checked:Date.now()/1000,deadline:first.lease.deadline});
+ const wrongProject={...body,projectId:'other-project'};await assert.rejects(()=>relay.generate(wrongProject,origin,()=>{}),/approved project/);
  const stale=structuredClone(body);stale.settings.prompt+=' stale';await assert.rejects(()=>relay.generate(stale,origin,()=>{}));assert.equal(uploads,0);assert.equal(submits,0);
  available=false;await assert.rejects(()=>relay.generate(body,origin,()=>{}),/unavailable/);assert.equal(uploads,0);available=true;
  const delivered=await relay.generate(body,origin,()=>{});assert.equal(submits,1);assert.equal(delivered.collectionVerified,true);assert.equal(heroSha(await readFile(join(local,delivered.url.slice(9)))),delivered.sha256);

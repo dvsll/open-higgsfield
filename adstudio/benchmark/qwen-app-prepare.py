@@ -24,13 +24,15 @@ def bundle(out):
  (out/'public-package.json').write_text(json.dumps({'commit':commit,'sha256':sha(path.read_bytes()),'files':len(files)},indent=2))
  print('PASS committed public source package; no photos, outputs, credentials or uncommitted files')
 def bind(draft,origin,out):
+ import re
  from urllib.parse import urlsplit
  u=urlsplit(origin)
  if u.scheme!='http' or u.hostname not in ('127.0.0.1','localhost') or u.username or u.password or u.path not in ('','/') or u.query or u.fragment:raise ValueError('Use the exact existing browser loopback origin')
- record=json.loads(pathlib.Path(draft).read_text(encoding='utf-8-sig'));d=record['draft'];s=record['payload']['settings']
+ record=json.loads(pathlib.Path(draft).read_text(encoding='utf-8-sig'));d=record['draft'];s=record['payload']['settings'];project=record.get('project',{})
+ if any(not isinstance(v,str) or not re.fullmatch(r'[A-Za-z0-9_-]{1,160}',v) for v in [project.get('id'),s.get('brandId'),s.get('sourceId')]):raise ValueError('Re-export from the real saved project with selected brand/source identity')
  if s['imageModel']!='qwen-fp8' or s['seed']!=42 or s['sourceKind']!='original' or not d.get('reviewedSnapshot'):raise ValueError('Export the reviewed original Qwen direction with seed 42')
  if s['prompt']!=(d.get('modelPrompt') if d.get('promptFormat')=='concise-v2' else d['prompt']):raise ValueError('Exported reviewed prompt mismatch')
- plan={'version':1,'purpose':'qwen-app-acceptance','paidApproved':False,'privateUploadApproved':False,'podId':'UNALLOCATED','maxJobs':1,'maxSpendUSD':2,'reserveUSD':4,'seed':42,'browserOrigin':origin.rstrip('/'),'remoteOrigin':'http://127.0.0.1:28301','codeCommit':subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),'originalSha256':d['input']['source']['originalSha256'],'referenceSha256':d['input']['source']['sha256'],'promptSha256':sha(s['prompt'].encode())}
+ plan={'version':1,'projectId':project['id'],'brandId':s['brandId'],'sourceId':s['sourceId'],'productId':s.get('productId',''),'purpose':'qwen-app-acceptance','paidApproved':False,'privateUploadApproved':False,'podId':'UNALLOCATED','maxJobs':1,'maxSpendUSD':2,'reserveUSD':4,'seed':42,'browserOrigin':origin.rstrip('/'),'remoteOrigin':'http://127.0.0.1:28301','codeCommit':subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),'originalSha256':d['input']['source']['originalSha256'],'referenceSha256':d['input']['source']['sha256'],'promptSha256':sha(s['prompt'].encode())}
  for key in ('originalSha256','referenceSha256','promptSha256'):
   if len(plan[key])!=64 or any(c not in '0123456789abcdef' for c in plan[key]):raise ValueError('Invalid source/prompt digest')
  for name,data in [('acceptance.json',plan),('reviewed-request.json',record)]:

@@ -1,3 +1,4 @@
+import {modelDevice,setModelDevice,type TextDevice} from '../model-device';
 import { useEffect, useRef,useState,useLayoutEffect,useId } from 'react';
 import {createPortal} from 'react-dom';
 import {Popup} from './popup';
@@ -81,7 +82,9 @@ export function ModelInfo({
 }
 export type ModelRow = { id: string; label: string; description: string; info: ModelInfoData };
 export type ModelGroup={kind:'video'|'keyframe';label:string;rows:ModelRow[];selected:string};
+function ComputeSelect({id,label,cpuSupported=true}:{id:string;label:string;cpuSupported?:boolean}){const [device,setDevice]=useState<TextDevice>(()=>cpuSupported?modelDevice(id):'default');return <label>{label}<select aria-label={label+' text processing device'} value={device} onChange={event=>{const value=event.target.value as TextDevice;setDevice(value);setModelDevice(id,value)}}><option value="default">GPU / automatic offload</option><option value="cpu" disabled={!cpuSupported}>{cpuSupported?'CPU':'CPU · unavailable for this workflow'}</option></select></label>}
 export function ModelChooser({
+  polisher:initialPolisher,
   groups,
   research,
   attach,
@@ -95,7 +98,10 @@ export function ModelChooser({
   onChoose: (kind:'video'|'keyframe',id: string) => void;
   onClose: () => void;
   onDialog?:(dialog:HTMLDialogElement|null)=>void;
+  polisher?:{id:string;model:string;available:boolean;reason:string;cpuSupported?:boolean};
 }) {
+  const [polisher,setPolisher]=useState(initialPolisher);
+  useEffect(()=>{const controller=new AbortController();void fetch('/api/prompt-rewriter',{signal:controller.signal}).then(r=>r.json()).then(setPolisher).catch(()=>{});return()=>controller.abort()},[]);
   return (
     <Popup title="Choose model" closeLabel="Close model chooser" className="model-chooser" onClose={onClose} onDialog={onDialog}>
       <small>Select a model name. Hover or focus capabilities for explanations and usage.</small>
@@ -110,6 +116,12 @@ export function ModelChooser({
           </div>
         </div>
       ))}</section>)}
+      <details className="model-selection-advanced"><summary>Advanced · compute settings</summary>
+       <p>Choose where text processing runs. GPU mode lets ComfyUI offload when needed. Image/video generation stays managed by your ComfyUI server.</p>
+       <div className="model-compute-grid">{groups.flatMap(group=>group.rows.map(row=><ComputeSelect key={row.id} id={row.id} label={group.label+' · '+row.label}/>))}
+       {!polisher&&<p>Checking prompt model in ComfyUI…</p>}{polisher&&<ComputeSelect id={polisher.id} cpuSupported={!!polisher.cpuSupported} label={'Prompt polishing · '+polisher.model}/>}</div>
+       {polisher&&!polisher.available&&<p>{polisher.reason}</p>}{polisher&&!polisher.cpuSupported&&<p>Prompt polishing uses ComfyUI-managed placement. Forcing only text generation to CPU is unavailable in this workflow.</p>}
+      </details>
       {research.map((repo) => (
         <div key={repo} className="model-research">
           {repo} · downloaded for LoRA training · generation workflow not connected · estimate unavailable

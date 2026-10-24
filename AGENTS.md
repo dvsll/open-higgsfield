@@ -18,6 +18,7 @@ Two entries for Comfy Org's **Open Source Higgsfield** competition. **Hard deadl
 - `DEADLINES.md` beats `PLAN.md` whenever the two conflict.
 
 ## Working conventions
+- **Shared branch decision (user, 2026-10-23): both owners work on `main` now.** Ad Studio's workspace branch through `58dd62a` was merged into main in `656bab2`. Partner agents: preserve any uncommitted/new branch work, fetch origin, switch to main and integrate any remaining work without resetting or discarding it. Continue committing and pushing on main; do not keep developing on the old Ad Studio branch. Pull/reconcile remote main before pushing; never force-push. Coordinate shared runtime edits in both notes files. Ad Studio keeps its current UI until its owner starts the React migration described in `adstudio/REACT_MIGRATION.md`.
 - **Commit and push on your own** after each working change, using **Conventional Commits**: `feat(studio): …`, `fix(studio): …`, `style:`, `docs:`, `chore:`. Don't ask the user first; they don't want to think about commits.
 - Before ending a session (or when the user says they're switching agents), **update `notes/studio.md` → "Where we left off"** (state, what's running, next steps), then commit and push.
 - Keep the UI style: dark, Inter, **no rounded corners** (for now), tokens in each page's `:root`.

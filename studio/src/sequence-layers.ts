@@ -2,6 +2,7 @@ import {createElement} from 'react';
 import {renderView,unmountView} from './react/render';
 import {LayerEditor,LayerLane,LayerTools,OverlayPreview} from './react/sequence-layers';
 import './sequence-layers.css';
+import {selectCaptionSource} from './captions';
 import {type Layer,type LayerState} from './sequence-layer-state';
 export {validLayers,layerRows} from './sequence-layer-state';
 type Options={read:()=>LayerState;change:(state:LayerState)=>void;time:()=>number;duration:()=>number;select:()=>void;legacy:()=>Layer[];selectLegacy:(id:string)=>void};
@@ -9,7 +10,7 @@ export function mountSequenceLayers(options:Options){
  const root=document.getElementById('overlayPreview')!,players=new Map<string,HTMLAudioElement>();let previewKey='';
  let audioReady=false;void fetch('/api/models').then(r=>r.json()).then(result=>{audioReady=!!result.audio?.available}).catch(()=>{});
  function edit(kind:'overlays'|'audio',existing?:Layer){
-  options.select();const host=document.createElement('div');document.body.append(host);
+  options.select();if(kind==='audio'&&existing?.url)selectCaptionSource({id:existing.id,url:existing.url,label:existing.name,start:existing.start,duration:existing.duration,origin:'timeline'});const host=document.createElement('div');document.body.append(host);
   const close=()=>{queueMicrotask(()=>{unmountView(host);host.remove()})};
   renderView(host,createElement(LayerEditor,{group:kind,existing,start:options.time(),duration:Math.min(4,Math.max(.1,options.duration()-options.time())),audioReady,onClose:close,onSave:(layer:Layer)=>{const state=options.read(),next={...state,[kind]:[...state[kind].filter(item=>item.id!==layer.id),layer]};options.change(next);close()},onRemove:existing?()=>{const state=options.read();options.change({...state,[kind]:state[kind].filter(item=>item.id!==existing.id)});close()}:undefined}));
  }
@@ -18,7 +19,7 @@ export function mountSequenceLayers(options:Options){
   for(const group of ['overlays','audio'] as const){
    const items=group==='audio'?[...options.legacy(),...state.audio]:state.overlays;
    const visible=items.filter(item=>item.start<origin+duration&&item.start+item.duration>origin);
-   renderView(document.getElementById(group==='audio'?'audioTrack':'overlayTrack')!,createElement(LayerLane,{group,items:visible,pixels,origin,onAdd:()=>edit(group),onEdit:item=>item.id.startsWith('legacy:')?options.selectLegacy(item.id.slice(7)):edit(group,item)}));
+   renderView(document.getElementById(group==='audio'?'audioTrack':'overlayTrack')!,createElement(LayerLane,{group,items:visible,pixels,origin,onAdd:()=>edit(group),onEdit:item=>item.id.startsWith('legacy:')?(selectCaptionSource({id:item.id,url:item.url!,label:item.name,start:item.start,duration:item.duration,origin:'timeline'}),options.selectLegacy(item.id.slice(7))):edit(group,item)}));
    renderView(document.getElementById(group==='audio'?'audioTrackAttributes':'overlayTrackAttributes')!,createElement(LayerTools,{group,onAdd:()=>edit(group)}));
   }
  }

@@ -6,3 +6,5 @@ assert.equal(projectFiles(current,{}).length,3);assert.deepEqual(new Set(project
 console.log('PASS: project file indexing deduplicates, excludes remote/unsafe paths and trash, includes project image/audio/video references without reading other projects.');
 
 assert.equal(projectFiles({}, {}, [], {}, [{url:image,label:'Older generated image',kind:'image'}]).length,1,'saved project assets survive the bounded take history');
+
+assert.equal(projectFiles(null,null,[],{},[{url:'/outputs/1111111111111111.wav',label:'Voice',kind:'audio'}])[0].kind,'audio');

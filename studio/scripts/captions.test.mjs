@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import {captionSegments,captionSrt} from '../../shared/lib/captions.ts';
+import {applyCaptions} from '../src/caption-state.ts';
+const segments=[{start:0,end:1.25,text:'Hello there.'},{start:1.25,end:3,text:'Welcome back.'}];
+const source={id:'sound-1',url:'/outputs/1111111111111111.flac',label:'Voice',start:7,duration:2,origin:'timeline'};
+const state={overlays:[{id:'manual',kind:'text',name:'Title',start:0,duration:2,text:'Keep me'}],audio:[]};
+const applied=applyCaptions(state,source,segments);
+assert.equal(applied.overlays.length,3);assert.equal(applied.overlays[1].start,7);assert.equal(applied.overlays[2].duration,.75);
+assert.equal(applied.overlays[1].captionSource,'sound-1');
+const replaced=applyCaptions(applied,source,[{start:0,end:1,text:'Corrected'}]);
+assert.equal(replaced.overlays.length,2);assert.equal(replaced.overlays[0].text,'Keep me');assert.equal(replaced.overlays[1].text,'Corrected');
+assert.equal(state.overlays.length,1);assert.deepEqual(captionSegments([{start:-1,end:2,text:'bad'},{start:1,end:1,text:'bad'},{start:0,end:1,text:'  '}]),[]);
+assert.throws(()=>captionSegments(null));
+assert.match(captionSrt(segments),/00:00:01,250 --> 00:00:03,000/);
+assert.match(captionSrt([{start:59.9996,end:61,text:'Rounded'}]),/00:01:00,000 --> 00:01:01,000/);
+console.log('PASS: speech segment validation, source-relative timeline offsets, duration clipping, source-specific replacement, immutable history input and SRT timing.');

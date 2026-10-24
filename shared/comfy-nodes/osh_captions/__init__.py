@@ -38,14 +38,35 @@ class OSHWhisperCaptions:
         if np.max(np.abs(samples)) > 0.001:
             # CPU int8 deliberately avoids contention with video generation VRAM.
             engine = WhisperModel(MODEL, device='cpu', compute_type='int8', cpu_threads=4, local_files_only=True)
-            stream, info = engine.transcribe(samples, beam_size=5, temperature=0, vad_filter=False,
+            stream, info = engine.transcribe(samples, beam_size=5, temperature=0, vad_filter=False, word_timestamps=True,
                                               condition_on_previous_text=False, no_speech_threshold=0.6)
             language = info.language
             for segment in stream:
                 text = segment.text.strip()
                 start, end = max(0, float(segment.start)), min(duration, float(segment.end))
                 if text and end > start and segment.no_speech_prob < 0.6:
-                    segments.append({'start': start, 'end': end, 'text': text})
+                    # Readable caption phrases using actual word timestamps, never evenly guessed timing.
+                    words = segment.words or []
+                    chunk = None
+                    for word in words:
+                        first, last = max(0, float(word.start)), min(duration, float(word.end))
+                        if not word.word.strip() or last <= first:
+                            continue
+                        if chunk and (len(chunk['text'] + word.word) > 42 or last - chunk['start'] > 4):
+                            segments.append(chunk)
+                            chunk = None
+                        if chunk is None:
+                            chunk = {'start': first, 'end': last, 'text': word.word.strip()}
+                        else:
+                            chunk['text'] += word.word
+                            chunk['end'] = last
+                        if word.word.rstrip().endswith(('.', '!', '?')):
+                            segments.append(chunk)
+                            chunk = None
+                    if chunk:
+                        segments.append(chunk)
+                    if not words:
+                        segments.append({'start': start, 'end': end, 'text': text})
             del engine
         payload = {'model': 'Whisper Tiny · CPU', 'language': language, 'duration': duration, 'segments': segments}
         folder = os.path.join(folder_paths.get_output_directory(), 'osh_captions')

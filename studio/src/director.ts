@@ -20,6 +20,7 @@ import {captureViewerFrame,keyframeAtFrame} from './frame-keyframe';
 import {mountPromptAssistant,shouldRewriteBeforeGeneration} from './prompt-assistant';
 import {mountSequenceLayers,validLayers} from './sequence-layers';
 import {independentSoundtracks} from './sequence-layer-state';
+import {mountCaptions,selectCaptionSource} from './captions';
 import { drawTimelineAttributes } from './timeline-attributes';
 import './viewer.css';
 import './timeline-readability.css';
@@ -97,7 +98,7 @@ function shotFrame(g,s,lt,t){const k=[...s.keys].sort((a,b)=>a.t-b.t);if(!k.leng
 // After Effects-style: in the sequence every shot is just a video clip. Open one (double-click / "Open")
 // and the timeline becomes that shot alone: it loops by itself and shows only its keyframes.
 let open=null;
-function selectClip(i){selectedTrack="video";clipSelected=true;cur=i;selKey=null;$$('#trk>.clip').forEach((el,j)=>{el.classList.toggle('on',j===i);el.setAttribute('aria-selected',String(j===i));el.tabIndex=j===i?0:-1});head();save()}
+function selectClip(i){const selectedSource=captionSources().find(source=>source.id==="shot:"+shotId(SH[i]));if(selectedSource)selectCaptionSource(selectedSource);selectedTrack="video";clipSelected=true;cur=i;selKey=null;$$('#trk>.clip').forEach((el,j)=>{el.classList.toggle('on',j===i);el.setAttribute('aria-selected',String(j===i));el.tabIndex=j===i?0:-1});head();save()}
 addEventListener('pointerdown',e=>{if(e.target.closest('.clip,.k,button,a,input,textarea,select,summary,aside,header,dialog,[contenteditable]'))return;clipSelected=false;selKey=null;$$('#trk>.clip,.k,.audio-clip').forEach(el=>{el.classList.remove('on');if(el.hasAttribute('aria-selected'))el.setAttribute('aria-selected','false')});$('#play').title='Play sequence / pause (space)';head()});
 let suppressClipClickUntil=0,cancelShotDrag=null;
 function clearDragFeedback(){document.body.classList.remove('shot-drag');$$('.dragging,.dropzone,.drop').forEach(el=>el.classList.remove('dragging','dropzone','drop'));$('#trk').querySelector('.insert-line')?.remove();$('.shot-ghost')?.remove()}
@@ -368,6 +369,8 @@ $('#editWorkshopImage').textContent='Download image';$('#editWorkshopImage').onc
 $('#growFilm').onclick=()=>{cinema=true;SH.push({n:`Scene ${SH.length+1}`,d:4,spec:SP({mia:false,bolt:false,scene:''}),m:'',keys:[],r:false});cur=SH.length-1;shotId(SH[cur]);open=null;G=start(cur);selKey=null;syncWorkspace();timeline();head();save();$('#shotPromptInput').focus()};
 syncWorkspace();$('#kgo').textContent=workspaceMode==='image'?'Generate image':'Generate '+keyframeBatch+' keyframe'+(keyframeBatch===1?'':'s');
 if(touring()&&onboarding.images?.length){results=onboarding.images.map(url=>({img:url,spec:SH.find(s=>s.id===onboarding.shotId)?.spec||SP({}),u:.5,p:imageDraft.prompt}));res()}
+function captionSources(){return [...SH.flatMap((s,i)=>{const url=s.audioLinked!==false?s.audio||s.video:s.video;return url?[{id:'shot:'+shotId(s),url,label:s.n,start:start(i),duration:s.d,origin:'timeline'}]:[]}),...independentSoundtracks(SH).map(layer=>({id:layer.id,url:layer.url,label:layer.name,start:layer.start,duration:layer.duration,origin:'timeline'})),...LAYERS.audio.filter(layer=>layer.url).map(layer=>({id:layer.id,url:layer.url,label:layer.name,start:layer.start,duration:layer.duration,origin:'timeline'}))]}
+mountCaptions({initial:()=>captionSources().find(source=>source.id==='shot:'+shotId(SH[cur]))||null,resolve:source=>source.origin==='library'?(SC.get('osh-project-files')||[]).some(file=>file.url===source.url)?source:null:captionSources().find(current=>current.id===source.id&&current.url===source.url)||null,state:()=>LAYERS,change:state=>{LAYERS=state;timeline();head();save()}});
 sequenceLayers=mountSequenceLayers({read:()=>LAYERS,change:state=>{LAYERS=state;timeline();head();save()},time:()=>G,duration:tot,select:()=>{setPlaying(false);clipSelected=false;selKey=null;head()},legacy:()=>independentSoundtracks(SH),selectLegacy:id=>{const i=SH.findIndex(s=>s.id===id);if(i<0)return;selectClip(i);selectedTrack='audio';head();focusPromptField('audioPrompt')}});
 const overlayToggle=$('#overlayTrackToggle');renderView(overlayToggle,[h(Glyph,{key:'icon',path:'m9 5 7 7-7 7'}),h('span',{key:'label'},'Overlays')]);overlayToggle.onclick=()=>{const expanded=overlayToggle.getAttribute('aria-expanded')!=='true';overlayToggle.setAttribute('aria-expanded',String(expanded));$('#overlayTrackAttributes').hidden=!expanded};
 editHistory=mountEditHistory(

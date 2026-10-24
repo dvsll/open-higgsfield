@@ -12,7 +12,7 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "models": "node shared/runtime/fetch-models.ts",
-    "test:studio": "node --test studio/scripts/prompt-assistant.test.mjs studio/scripts/react-ui.test.mjs studio/scripts/panel-lifecycle.test.mjs studio/scripts/projects.test.mjs studio/scripts/window-layout.test.mjs studio/scripts/edit-history.test.mjs studio/scripts/onboarding-progress.test.mjs studio/scripts/timeline-interaction.test.mjs studio/scripts/project-files.test.mjs studio/scripts/mention-matching.test.mjs studio/scripts/model-estimates.test.mjs studio/scripts/server-estimates.test.mjs studio/scripts/runtime-setup.test.mjs studio/scripts/precision-image.test.mjs studio/scripts/workspace-setups.test.mjs studio/scripts/sequence-layers.test.mjs"
+    "test:studio": "node --test studio/scripts/prompt-assistant.test.mjs studio/scripts/react-ui.test.mjs studio/scripts/panel-lifecycle.test.mjs studio/scripts/projects.test.mjs studio/scripts/window-layout.test.mjs studio/scripts/edit-history.test.mjs studio/scripts/onboarding-progress.test.mjs studio/scripts/timeline-interaction.test.mjs studio/scripts/project-files.test.mjs studio/scripts/mention-matching.test.mjs studio/scripts/model-estimates.test.mjs studio/scripts/server-estimates.test.mjs studio/scripts/runtime-setup.test.mjs studio/scripts/precision-image.test.mjs studio/scripts/workspace-setups.test.mjs studio/scripts/sequence-layers.test.mjs studio/scripts/captions.test.mjs"
   },
   "license": "MIT",
   "devDependencies": {

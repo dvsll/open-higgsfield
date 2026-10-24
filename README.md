@@ -86,3 +86,14 @@ Model-generated details are suggestions. Expand Advanced to review them; a small
 
 ## License
 MIT. See [LICENSE](LICENSE).
+
+### Optional local captions (Studio)
+Open **Windows → Captions**. Select a scene soundtrack or an Audio clip, select an audio file in Project files, or use **Import audio / video**. Generate a transcript, review its text/timing, then **Add to Overlays** or **Download SRT**. Captions remain editable; the source audio stays unchanged. Caption overlay previews work in Studio; burning them into exported video is a separate pending integration.
+
+Captions use the MIT-licensed [Whisper Tiny](https://huggingface.co/Systran/faster-whisper-tiny) model through [faster-whisper](https://github.com/SYSTRAN/faster-whisper), on CPU with no inference cloud service or GPU VRAM allocation. Run the setup script **using your connected ComfyUI instance's Python**:
+
+```text
+path/to/ComfyUI/.venv/Scripts/python.exe shared/runtime/setup-captions.py --comfy-root path/to/ComfyUI
+```
+
+On Linux/macOS use that instance's `.venv/bin/python`. Setup installs the optional runtime, downloads the pinned small model and installs the repo-owned Comfy node. Restart ComfyUI when idle, then press **Refresh model** in Captions. Recognition loads local model files only; no downloads occur during transcription. Sources are limited to 10 minutes and 32 MB. Silence/music may produce no captions; review speech-recognition results.

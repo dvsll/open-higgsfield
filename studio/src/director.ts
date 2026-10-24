@@ -16,6 +16,7 @@ import {renderView} from './react/render';
 import {Takes,Stash,Trash,Results} from './react/media-lists';
 import {SequenceTrack,Ruler} from './react/timeline';
 import { videoFrames, paintFilmstrip } from './video-frames';
+import {captureViewerFrame,keyframeAtFrame} from './frame-keyframe';
 import { drawAudioTrack } from './audio-track';
 import { drawTimelineAttributes } from './timeline-attributes';
 import './viewer.css';
@@ -63,6 +64,16 @@ function useTake(h){if(h.kind==='shot'){const i=SH.findIndex(s=>s.id===h.shotId)
 addEventListener('osh-project-file-open',e=>{const h=HISTORY.find(h=>h.url===e.detail.url);if(h)useTake(h)});
 function viewerSeek(t){setPlaying(false);G=start(cur)+Math.max(0,Math.min(SH[cur].d-.001,t));head()}
 function updateViewer(){if(!$('#viewerTime'))return;const s=SH[cur];$('#viewerTime').max=String(s.d);for(const id of ['previousFrame','nextFrame','viewerTime','editViewer'])$('#'+id).disabled=!s.video}
+let capturingFrame=false;
+function frameCaptureState(){
+ const video=$('#vid'),button=$('#captureKeyframe');if(!button)return;
+ const [i]=clipSelected&&!playing?[cur]:at(G),s=SH[i];
+ const ready=workspaceMode==='video'&&s?.r&&s.video&&video.style.display!=='none'&&video.src.endsWith(s.video)&&!video.seeking&&video.readyState>=2;
+ const existing=ready&&keyframeAtFrame(s.keys,video.currentTime,s.fps||24);
+ button.disabled=capturingFrame||!ready||!!existing;
+ button.textContent=capturingFrame?'Saving frame…':existing?'Keyframe here':'Make keyframe';
+ button.title=existing?'This video frame already has a keyframe':'Save the displayed video frame as a keyframe';
+}
 let selectedTrack="video";let clipSelected=true;let cur=saved?.cur||0,selKey=null,G=saved?.G||0,playing=false,pxs=1,results=[],dragV=null;
 const tot=()=>Math.max(SH.reduce((a,s)=>a+s.d,0),...SH.filter(s=>s.audio&&s.audioLinked===false).map(s=>(s.audioStart||0)+(s.audioDuration||s.d))),start=i=>SH.slice(0,i).reduce((a,s)=>a+s.d,0);
 function at(g){let a=0;for(let i=0;i<SH.length;i++){if(g<a+SH[i].d||i===SH.length-1)return[i,Math.min(SH[i].d,g-a)];a+=SH[i].d}}
@@ -269,8 +280,9 @@ addEventListener('resize',()=>timeline());
 K.loop(t=>{const now=performance.now(),dt=(now-last)/1000;last=now;if(playing){const[a,b]=span();if(G<a)G=a;G+=dt;if(G>=b-.01){G=b-.01;setPlaying(false)}}
  const[i,lt]=clipSelected&&!playing?[cur,Math.max(0,Math.min(SH[cur].d-.001,G-start(cur)))]:at(G),s=SH[i];
  const vid=$('#vid');if(s.r&&s.video){if(!vid.src.endsWith(s.video)){vid.src=s.video;vid.currentTime=lt}vid.style.display='block';
-  if(playing){if(vid.paused)vid.play().catch(()=>{});if(Math.abs(vid.currentTime-lt)>.35)vid.currentTime=lt}else{vid.pause();if(Math.abs(vid.currentTime-lt)>.05)vid.currentTime=lt}}
+  if(playing){if(vid.paused)vid.play().catch(()=>{});if(Math.abs(vid.currentTime-lt)>.35)vid.currentTime=lt}else{vid.pause();if(Math.abs(vid.currentTime-lt)>.001)vid.currentTime=lt}}
  else{if(vid.style.display!=='none'){vid.pause();vid.style.display='none'}}
+ frameCaptureState();
  for(const [index,shot] of SH.entries()){const id=shotId(shot),begin=shot.audioLinked===false?shot.audioStart??start(index):start(index),duration=shot.audioLinked===false?shot.audioDuration||shot.d:shot.d,local=G-begin;let player=audioPlayers.get(id);if(!player&&shot.audio){player=new Audio();player.preload='auto';audioPlayers.set(id,player)}if(!player)continue;if(playing&&workspaceMode==='video'&&shot.audio&&!shot.audioMuted&&local>=0&&local<duration){if(!player.src.endsWith(shot.audio)){player.src=shot.audio;player.currentTime=local}if(Math.abs(player.currentTime-local)>.2)player.currentTime=local;if(player.paused)player.play().catch(()=>{})}else player.pause()}for(const[id,player]of audioPlayers)if(!SH.some(shot=>shot.id===id)){player.pause();audioPlayers.delete(id)}
  shotFrame(g,s,lt,t);if(!s.r)mute(g);
  const em=workspaceMode==='video'&&!s.r;$('#empty').style.display=em?'block':'none';$('#tag').style.visibility=$('#tc').style.visibility=em?'hidden':'visible';$('#gen').classList.toggle('nudge',em);if($("#nextVideo"))$("#nextVideo").hidden=workspaceMode!=='video'||!SH[cur].r||touring();updateGenerateArrow(em&&!touring()&&$('#ov').style.display!=='flex');if(lt<.2&&i>0&&playing&&open==null){g.fillStyle=`rgba(0,0,0,${1-lt/.2})`;g.fillRect(0,0,W,H)}
@@ -312,6 +324,23 @@ const viewer=document.querySelector('.viewer'),composer=document.querySelector('
 const seedInput=$('#videoSeed');seedInput.onchange=()=>{if(seedInput.reportValidity()){SH[cur].seed=+seedInput.value;save()}};
 $('#previousFrame').onclick=()=>viewerSeek(Math.max(0,G-start(cur)-1/(SH[cur].fps||24)));$('#nextFrame').onclick=()=>viewerSeek(G-start(cur)+1/(SH[cur].fps||24));$('#viewerTime').onchange=e=>{if(e.target.reportValidity())viewerSeek(+e.target.value)};
 $('#editViewer').onclick=()=>{const s=SH[cur];if(!s.video)return;SC.set('osh-handoff',{type:'shot',label:s.n,video:s.video,audio:s.audio,audioPrompt:s.audioPrompt,audioLinked:s.audioLinked,duration:s.d,ref:{shot:cur,shotId:shotId(s)},from:'director'});location.href='edit.html?from=director'};
+$('#captureKeyframe').onclick=async()=>{
+ if(capturingFrame)return;
+ const [i]=clipSelected&&!playing?[cur]:at(G),s=SH[i],video=$('#vid'),url=s.video;
+ if(workspaceMode!=='video'||!s.r||!url||!video.src.endsWith(url))return;
+ setPlaying(false);video.pause();
+ const t=Math.min(s.d,Math.max(0,video.currentTime));
+ if(keyframeAtFrame(s.keys,t,s.fps||24))return;
+ capturingFrame=true;frameCaptureState();
+ try{
+  const image=captureViewerFrame(video),result=await OSH.upload(image);
+  const index=SH.indexOf(s);if(index<0||s.video!==url)throw new Error('The scene changed while saving. Try again on its current video.');
+  if(keyframeAtFrame(s.keys,t,s.fps||24))return;
+  const key={t,u:.5,spec:s.spec,img:result.url,...(t<.5/(s.fps||24)?{anchor:'start'}:{})};
+  s.keys.push(key);cur=index;open=index;selKey=key;clipSelected=true;selectedTrack='video';G=start(index)+Math.min(t,s.d-.001);
+  timeline();head();save();toast(`Video frame added as a keyframe at ${t.toFixed(3)}s`);
+ }catch(error){toast('Could not save this frame: '+error.message)}finally{capturingFrame=false;frameCaptureState()}
+};
 
 SH.forEach(s=>{s.renderWidth??=+$('#videoWidth').value;s.renderHeight??=+$('#videoHeight').value});
 addEventListener('osh-video-size',e=>{SH[cur].renderWidth=e.detail.width;SH[cur].renderHeight=e.detail.height;trackAttributes();save()});

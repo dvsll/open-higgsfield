@@ -12,3 +12,8 @@ assert.equal(movedIndex(2, 0), 0);
 assert.equal(movedIndex(1, 1), 1);
 assert.equal(movedIndex(1, 2), 1);
 console.log('PASS: clip midpoint insertion and forward/backward/no-op reorder boundaries.');
+import {keyframeAtFrame} from '../src/frame-keyframe.ts';
+const preciseGuide={t:1/24};
+if(keyframeAtFrame([preciseGuide],2/24,24))throw new Error('Adjacent video frames must remain distinct');
+if(keyframeAtFrame([preciseGuide],.041667,24)!==preciseGuide)throw new Error('Decoded frame precision must not create duplicate guides');
+if(keyframeAtFrame([{t:0}],1/60,60))throw new Error('60 fps stepping must remain distinct');

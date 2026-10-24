@@ -112,6 +112,9 @@ export function DirectorSurface() {
               <button id="editViewer" className="edit-video">
                 Edit video ↗
               </button>
+              <button id="captureKeyframe" title="Save the displayed video frame as a keyframe" disabled>
+                Make keyframe
+              </button>
             </div>
           </section>
           <section className="composer" aria-label="Generation prompts">

@@ -90,6 +90,7 @@ try {
   );
   assert.ok(model.includes('Motion prompt: Available'));
   assert.ok(model.includes('Est: ~20s'));
+  const chooser=renderToStaticMarkup(createElement(ModelChooser,{groups:[],research:[],attach:()=>{},onChoose:()=>{},onClose:()=>{},polisher:{id:'qwen',model:'Qwen3',available:true,cpuSupported:false,reason:''}}));assert.match(chooser,/Advanced · compute settings/);assert.match(chooser,/text processing device/);assert.match(chooser,/CPU · unavailable for this workflow/);assert.match(chooser,/value="cpu" disabled/);
   const { HistoryView,PromptHistory } = await server.ssrLoadModule('/studio/src/react/history.tsx');
   const history = renderToStaticMarkup(
     createElement(HistoryView, {

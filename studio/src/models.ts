@@ -1,3 +1,4 @@
+import {modelDevice} from './model-device';
 import {createElement} from 'react';
 import {renderView,unmountView} from './react/render';
 import {ModelInfo,ModelTiming,ModelChooser,ModelCapabilities,type ModelInfoData} from './react/models';
@@ -113,11 +114,11 @@ function chooseModel(kind: Kind): void {
 // The same selections apply to direct generation, automatic keyframes, and stylization.
 export const localGeneration = {
   async keyframe(prompt: string, seed = 1) {
-    const id = model('keyframe'); const result = await OSH.keyframe(expandMentions(prompt, SHELL.ELEMENTS), seed, frameSize('keyframe'), id);
+    const id = model('keyframe'); const result = await OSH.keyframe(expandMentions(prompt, SHELL.ELEMENTS), seed, {...frameSize('keyframe'),textDevice:modelDevice(id)}, id);
     catalog=await OSH.models().catch(()=>catalog);renderDetails();return result;
   },
   async shot(keys: ShotKey[], prompt: string, duration: number, seed = 1,timing:{frames:number;fps:number;width?:number;height?:number}=videoTiming()) {
-    const id = model('video'); const result = await OSH.shot(keys, expandMentions(prompt, SHELL.ELEMENTS), duration, seed, {...frameSize('video'),...timing,model:id});
+    const id = model('video'); const result = await OSH.shot(keys, expandMentions(prompt, SHELL.ELEMENTS), duration, seed, {...frameSize('video'),...timing,model:id,textDevice:modelDevice(id)});
     catalog=await OSH.models().catch(()=>catalog);renderDetails();return result;
   },
 };

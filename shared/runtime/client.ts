@@ -66,7 +66,7 @@ export const OSH = {
   exportVideo: (video: string, overlay?: string) => post<{ url: string; seconds: number }>("export", { video, overlay }),
   productVideo: (options: ProductVideoOptions) => post<ProductVideoResult>('product-video', options),
   editVideo:(options:{video:string;keepAudio?:boolean;start:number;end:number;speed:number;reverse:boolean;width:number;height:number})=>post<{url:string;seconds:number;width:number;height:number}>('edit-video',options),
-  keyframe: (prompt: string, seed = 1, size: { width?: number; height?: number } = {}, model?: string) => post<KeyframeResult>("keyframe", { prompt, seed, ...size, model }),
+  keyframe: (prompt: string, seed = 1, size: { width?: number; height?: number;textDevice?:'default'|'cpu' } = {}, model?: string) => post<KeyframeResult>("keyframe", { prompt, seed, ...size, model }),
   // Preserve Director's model argument and Ad Studio's size argument; options can combine both.
-  shot: (keys: ShotKey[], prompt: string, duration: number, seed = 1, options: string | { width?: number; height?: number; model?: string;frames?:number;fps?:number } = {}) => post<ShotResult>("shot", { keys, prompt, duration, seed, ...(typeof options === 'string' ? { model: options } : options) }),
+  shot: (keys: ShotKey[], prompt: string, duration: number, seed = 1, options: string | { width?: number; height?: number; model?: string;textDevice?:'default'|'cpu';frames?:number;fps?:number } = {}) => post<ShotResult>("shot", { keys, prompt, duration, seed, ...(typeof options === 'string' ? { model: options } : options) }),
 };

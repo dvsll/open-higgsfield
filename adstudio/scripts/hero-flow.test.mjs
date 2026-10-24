@@ -14,6 +14,7 @@ const html=await readFile('adstudio/index.html','utf8'),markup=parseFragment(htm
 const walk=node=>{for(const a of node.attrs||[])if(a.name==='id'){assert.equal(ids.has(a.value),false,'duplicate id '+a.value);ids.add(a.value);}for(const child of node.childNodes||[])walk(child);};walk(markup);
 for(const id of ['hero-selection','hero-use-original','hero-readiness','hero-request-actions','hero-sourceKind','hero-imageModel','hero-develop','hero-seed'])assert.ok(ids.has(id),id);
 assert.match(html,/<option value="finish">Local photographic finish \(no AI\)<\/option>/);
+assert.ok(html.indexOf('id="hero-imageModel"')<html.indexOf('id="hero-brief-panel"'),'choose method before review so default finishing drafts do not lead into an incompatible Z-Image review');
 const elements=new Map(),downloads=[],blobs=new Map();
 class Element {
  constructor(tag='div'){this.tagName=tag;this.children=[];this.disabled=false;this.checked=false;this.value='';this.textContent='';this.open=false;}

@@ -53,7 +53,7 @@ export function inspectQwenPNG(bytes:Buffer,expected:Graph){
 }
 type Progress=(phase:'preparing'|'queued'|'generating'|'encoding'|'running',message:string,more?:{percent?:number|null;step?:number|null;steps?:number|null})=>void;
 export type QwenTransport={check:()=>Promise<any>;weights:()=>Promise<Weight[]>;execute:(graph:Graph,reference:string,output:string,progress:Progress)=>Promise<{jobId:string}>;progress:Progress};
-export async function generateQwenHero(body:any,root:string,transport:QwenTransport){
+export async function validateQwenRequest(body:any,root:string){
  if(!body||Object.keys(body).some(k=>!['image','settings','original','_requestId'].includes(k)))throw new HeroError(400,'Unsupported Qwen request fields.');
  let s;try{s=validateHeroSettings(body?.settings);}catch(e){throw new HeroError(400,(e as Error).message);}const d=s.briefDraft as GenerationDraft;
  if(s.method!=='reimagine'||s.imageModel!=='qwen-fp8'||s.sourceKind!=='original'||!d)throw new HeroError(400,'Select Qwen and an original photograph with a reviewed brief.');
@@ -62,10 +62,14 @@ export async function generateQwenHero(body:any,root:string,transport:QwenTransp
  const match=typeof body.original==='string'&&body.original.match(/^data:image\/(png|jpeg|webp);base64,([A-Za-z0-9+/]+={0,2})$/);if(!match)throw new HeroError(400,'Send the saved original photograph for hash verification.');const original=Buffer.from(match[2],'base64');
  if(original.length>10*1024*1024||original.length<16||heroSha(original)!==d.input.source.originalSha256)throw new HeroError(409,'Original photograph bytes do not match the reviewed source.');
  const originalType=original.subarray(0,8).toString('hex')==='89504e470d0a1a0a'?'png':original.subarray(0,3).toString('hex')==='ffd8ff'?'jpeg':original.subarray(0,4).toString()==='RIFF'&&original.subarray(8,12).toString()==='WEBP'?'webp':null;if(originalType!==match[1])throw new HeroError(400,'Original photo format does not match its media type.');
+ return {s,d,source,original,originalType};
+}
+export async function generateQwenHero(body:any,root:string,transport:QwenTransport){
+ const {s,d,source,original,originalType}=await validateQwenRequest(body,root);
  const ready=await transport.check();if(!ready.available)throw new HeroError(503,ready.reason||'Qwen is unavailable. No fallback or download.');
  transport.progress('preparing','Verifying pinned Qwen weights before inference.');const weights=await transport.weights(),contract=await qwenContract();if(weights.length!==contract.files.length||contract.files.some(f=>!weights.some(w=>w.file===f.file&&w.bytes===f.bytes&&w.sha256===f.sha256)))throw new HeroError(503,'Pinned model verification is incomplete.');
  const id=randomBytes(8).toString('hex'),folder=join(root,'hero-qwen',id),raw=join(folder,'comfy-output.png'),target=join(root,id+'.png'),graph=await qwenWorkflow();graph['6'].inputs.prompt=s.prompt;graph['13'].inputs.seed=s.seed;graph['15'].inputs.filename_prefix='adstudio-qwen-'+id;
- await mkdir(folder,{recursive:true});await writeFile(join(folder,'reference.png'),source.bytes,{flag:'wx'});await writeFile(join(folder,'original.'+(match[1]==='jpeg'?'jpg':match[1])),original,{flag:'wx'});
+ await mkdir(folder,{recursive:true});await writeFile(join(folder,'reference.png'),source.bytes,{flag:'wx'});await writeFile(join(folder,'original.'+(originalType==='jpeg'?'jpg':originalType)),original,{flag:'wx'});
  const record:any={version:1,status:'preparing',ownerApproved:false,model:contract.id,weights,sourceSha256:source.sha256,originalSha256:heroSha(original),sourceId:s.sourceId,brief:structuredClone(d),fullEvidencePrompt:d.prompt,modelPrompt:s.prompt,workflow:graph,workflowSha256:heroSha(JSON.stringify(graph)),started:new Date().toISOString()};const save=()=>writeFile(join(folder,'provenance.json'),JSON.stringify(record,null,2));await save();const started=Date.now();
  try{transport.progress('queued','Qwen ready; submitting the reviewed reference and prompt.');const result=await transport.execute(graph,join(folder,'reference.png'),raw,transport.progress);if(typeof result.jobId!=='string'||!result.jobId)throw new HeroError(422,'Missing real Comfy job identity.');record.jobId=result.jobId;
   transport.progress('encoding','Checking raw Comfy PNG and executed-workflow metadata.');const bytes=await readFile(raw),checked=inspectQwenPNG(bytes,graph);record.executedWorkflowSha256=heroSha(JSON.stringify(checked.executedGraph));record.sha256=heroSha(bytes);record.width=checked.width;record.height=checked.height;record.seconds=(Date.now()-started)/1000;record.status='complete';record.url='/outputs/'+id+'.png';await writeFile(target,bytes,{flag:'wx'});await save();

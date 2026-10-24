@@ -32,6 +32,8 @@ import {finishHero,exportHeroAd,heroSource,heroSha,HeroError} from './hero-ad.ts
 import {validateHeroSettings} from '../lib/hero-ad.ts';
 import {generateQwenHero,qwenAvailability,verifyWeightFiles,qwenContract} from './qwen-hero.ts';
 import {qwenSDKTransport} from './qwen-sdk.ts';
+import {createQwenRelay} from './qwen-relay.ts';
+import {acceptanceGate,acceptanceRequest,claimAcceptanceJob} from './qwen-app-session.ts';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const WORKFLOWS = join(ROOT, "shared", "workflows");
@@ -487,8 +489,14 @@ function sameToken(a: string | undefined, b: string): boolean {
   return x.length === y.length && timingSafeEqual(x, y);
 }
 
+function requirePathSeparator(){return process.platform==='win32'?'\\':'/';}
+
 function middleware(env: Env,setup:RuntimeSetup): Connect.NextHandleFunction {
   const token = env.OSH_TOKEN || "";
+  const session=env.QWEN_APP_SESSION_DIR?resolve(env.QWEN_APP_SESSION_DIR):'';
+  if(env.QWEN_APP_RELAY_URL&&(!session.startsWith(OUTPUTS+requirePathSeparator())||!session.endsWith(requirePathSeparator()+'session')))throw new Error('Qwen acceptance session must be an outputs/.../session folder.');
+  const gateFiles=(folder:string)=>({approval:join(folder,'acceptance.json'),lease:join(folder,'lease.json'),watchdog:join(folder,'pod-watchdog-ready.json'),receipt:join(folder,'one-job.json')});
+  const relay=env.QWEN_APP_RELAY_URL?createQwenRelay(OUTPUTS,env.QWEN_APP_RELAY_URL,gateFiles(session)):null;
   return async (req, res, next) => {
     const url = new URL(req.url || "/", "http://x");
     // ?token=… on any page: set the access cookie, then strip the token from the URL.
@@ -525,9 +533,12 @@ function middleware(env: Env,setup:RuntimeSetup): Connect.NextHandleFunction {
         res.writeHead(200,{...headers,'Content-Length':size});if(req.method==='HEAD')return res.end();return createReadStream(p).pipe(res);
       }
       const route = `${req.method} ${url.pathname}`;
+      if(req.method==='GET'&&/^\/api\/hero\/qwen\/provenance\/[a-f0-9]{16}$/.test(url.pathname)){
+       const path=join(OUTPUTS,'hero-qwen',url.pathname.split('/').pop()!,'provenance.json');if(!existsSync(path))return send(res,404,{error:'No saved Qwen provenance'});if(statSync(path).size>512*1024)throw new HttpError(413,'Qwen provenance too large');return send(res,200,JSON.parse(await readFile(path,'utf8')));
+      }
       if(route==='GET /api/hero/capabilities'){
        const nodes=await comfyJson(env,'/object_info').catch(()=>({}));let reimagine=false;try{const models=await localModels(env),graph=await loadGraph('hero_zimage_experimental');reimagine=models.keyframe.length>0&&Object.values(graph).every(n=>nodes[n.class_type]);}catch{}
-       return send(res,200,{finish:true,reimagine,experimental:true,qwen:await qwenAvailability(nodes,setup.config?.modelsDir||env.COMFYUI_MODELS_DIR)});
+       return send(res,200,{finish:true,reimagine,experimental:true,qwen:relay?await relay.capability('http://'+req.headers.host):await qwenAvailability(nodes,setup.config?.modelsDir||env.COMFYUI_MODELS_DIR)});
       }
       if(route==='POST /api/hero/finish')return send(res,200,await finishHero(await readBody(req),OUTPUTS,env));
       if(route==='POST /api/hero/export')return send(res,200,await exportHeroAd(await readBody(req),OUTPUTS));
@@ -565,12 +576,16 @@ function middleware(env: Env,setup:RuntimeSetup): Connect.NextHandleFunction {
       if (route === "POST /api/product-video") return send(res, 200, await productVideo(await readBody(req), env));
       if (route === 'POST /api/audio') return send(res,200,await tracked(body=>generateAudio(body,env)));
       if (route === 'POST /api/edit-video') return send(res,200,await editVideo(await readBody(req),env));
+      if(route==='POST /api/hero/qwen'&&relay)return send(res,200,await tracked(body=>relay.generate(body,String(req.headers.origin||'http://'+req.headers.host),(phase,message,more)=>activity.update(body._requestId,phase,message,more)),20*1024*1024));
       if(route==='POST /api/hero/qwen')return send(res,200,await tracked(body=>serialize(async()=>{
        const modelsDir=setup.config?.modelsDir||env.COMFYUI_MODELS_DIR;
        return generateQwenHero(body,OUTPUTS,{
         check:async()=>qwenAvailability(await comfyJson(env,'/object_info'),modelsDir),
         weights:async()=>{if(!modelsDir)throw new HeroError(503,'Configure the connected ComfyUI models folder before Qwen generation.');return verifyWeightFiles(modelsDir,(await qwenContract()).files);},
-        execute:qwenSDKTransport(client(env),()=>ensureProxy(env)),
+        execute:async(graph,reference,output,progress)=>{
+         if(env.QWEN_APP_REMOTE_SESSION){const files={approval:env.QWEN_APP_REMOTE_SESSION,lease:'/workspace/qwen-lease.json',watchdog:'/workspace/qwen-watchdog.json',receipt:join(OUTPUTS,'qwen-app-one-job.json')},gate=await acceptanceGate(files);acceptanceRequest(gate.plan,body);await claimAcceptanceJob(files,{podId:gate.lease.podId,requestId:body._requestId});}
+         return qwenSDKTransport(client(env),()=>ensureProxy(env))(graph,reference,output,progress);
+        },
         progress:(phase,message,more)=>activity.update(body._requestId,phase,message,more)
        });
       }),20*1024*1024));

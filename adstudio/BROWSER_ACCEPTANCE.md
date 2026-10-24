@@ -1,4 +1,22 @@
-# Hero / Benchmark Ad V1 - browser acceptance
+# P0 real Qwen app acceptance - current checklist
+
+**NOT RUN on target8301 (2026-10-24).** Browser-specific inventory was empty. Windows Computer Use subsequently found Chrome and observed a saved No Crumbs Brand DNA page at8300. The owner then stopped Computer Use with physical Escape during tab selection. No further browser calls or alternative-controller bypass. Hero review/invalidation/project isolation/refresh at8301 remain untested. HTTP/DOM/memory-driver tests are not browser acceptance. Real app Qwen inference has not run; PR3 remains draft.
+
+Owner-confirmed saved origin: **http://127.0.0.1:8301/adstudio/#hero**. Use the same browser profile, host and port; keep existing site data. Record commit/browser and PASS/FAIL with observations. Do not click any live generation during the unpaid phase.
+
+1. Open the existing project/No Crumbs brand and select the **original** product photograph (not the supplied AI version). Inspect original versus prior takes; download an older hero and original where available, retain their hashes. Do not reopen a demo over edited work. Confirm prior video/Composer/static projects and exports still open.
+2. Choose experimental AI generation -> **Qwen-Image-Edit-2511 FP8**. Expect an explicit missing-model/setup reason and disabled **Generate with Qwen** on this machine. No photo finishing/Z-Image fallback, model download or fabricated new take should occur.
+3. Choose Authentic enhancement, seed42, check/correct visible facts, then **Prepare direction from these inputs**. Edit creative direction -> **Update prompt from edited direction** -> **Use this reviewed direction**. Expand Advanced only to inspect evidence/model prompt. Change direction/prompt/seed/source after review: it must become unreviewed. Inspect and explicitly review again. Model unavailability must still prevent submission.
+4. Wait for Saved, refresh at the SAME origin. Brand/source/original Blob, direction/review state and older takes must return. Switch to a second project, verify isolation and return. DevTools IndexedDB osh-adstudio-projects must retain original/normalized Blobs; large images must not enter localStorage. Record actual observations, not expected results.
+5. In Advanced -> Exact model prompt / request manifest -> **Download brief and request JSON**. Review its source hashes, exact direction and seed; this downloads settings only and runs nothing. Retain it for the one-job approval binding in QWEN_APP_ACCEPTANCE.md.
+6. **Only after separate paid-session approval:** retry model connection through the SSH-only relay; verify Qwen available. Click Generate once. Observe real queue/generation progress, raw image, actual job/provenance ID and saved history. No automatic quality/owner approval. The server must collect raw PNG/provenance locally before returning success and terminating the Pod.
+7. After remote termination, download hero, verify raw SHA against provenance, wait for Saved and refresh. The image must remain visible/retrievable; project switching must preserve it and all old takes/source assets. Keep original and raw generation separate from an ad export. If storage fails, keep tab open and Retry saving; never submit a second job to recover a saved local image. Log errors and any missing manual test.
+
+Local/remote architecture, approval/budget gates and exact future startup commands: [QWEN_APP_ACCEPTANCE.md](QWEN_APP_ACCEPTANCE.md). Until steps6-7 actually pass, the complete Qwen app path is **NOT PROVEN**.
+
+---
+
+# Hero / Benchmark Ad V1 - historical browser acceptance
 
 **NOT RUN.** Computer Use returned apps=[], browsers=[]. No session interruption bypassed. Actual PNG inspection/API/Blob-domain tests do not establish browser UI or IndexedDB acceptance. PR3 remains draft.
 

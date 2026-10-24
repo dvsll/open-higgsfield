@@ -19,6 +19,8 @@ try {
   const advanced=renderToStaticMarkup(createElement(AdvancedPrompt,null,createElement('textarea',{'aria-label':'Motion prompt'})));
   assert.match(advanced,/<details[^>]*id="promptAdvanced"/);assert.doesNotMatch(advanced,/<details[^>]* open/);assert.match(advanced,/<summary>Advanced<\/summary>/);assert.match(advanced,/Auto-fill in simple view/);
   const { SequenceTrack, Ruler } = await server.ssrLoadModule('/studio/src/react/timeline.tsx');
+  const {FileDropOverlay}=await server.ssrLoadModule('/studio/src/react/file-drop.tsx');
+  const dropOverlay=renderToStaticMarkup(createElement(FileDropOverlay,{active:true,busy:false,message:'',errors:[],onDismiss:()=>{},onFiles:()=>{}}));assert.match(dropOverlay,/Add to project files/);assert.match(dropOverlay,/type="file"/);assert.doesNotMatch(dropOverlay,/<dialog/);
   const {LayerLane,LayerEditor}=await server.ssrLoadModule('/studio/src/react/sequence-layers.tsx');
   for(const group of ['audio','overlays']){
    const lane=renderToStaticMarkup(createElement(LayerLane,{group,items:[],pixels:100,origin:0,onAdd:()=>{},onEdit:()=>{}}));

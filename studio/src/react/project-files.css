@@ -37,3 +37,4 @@
 .project-files .files-empty{font-size:var(--ui-small);color:var(--ui-muted);line-height:1.6;margin:0;padding:8px 0}
 .project-files .file-group summary{cursor:pointer;color:var(--ui-text)}
 .project-files .file-add-keyframe{font:inherit;flex-shrink:0;margin-bottom:8px;padding:6px 8px;text-align:left}
+.file-library-actions{display:flex;gap:4px;align-items:center}.file-library-actions svg{width:16px;height:16px;stroke:currentColor;stroke-width:1.3;fill:none}.project-files .file-library-tools{flex-wrap:wrap}

@@ -27,12 +27,12 @@ let staticWorkspace:ReturnType<typeof mountStaticAds>|undefined;
 type Card={take:Take;video:HTMLVideoElement;button:HTMLButtonElement;message:HTMLElement;exportLinks:HTMLElement};
 const cards:Card[]=[];
 const errorText=(error:unknown)=>error instanceof Error?error.message:String(error);
-function storageNotice(text:string){el('storage-status').textContent=text;}
+function storageNotice(text:string){el('storage-status').textContent=text;heroWorkspace?.storageChanged();}
 async function persist(asset?:ProductAsset|ProductAsset[],media?:MediaAsset|MediaAsset[]) {
  for(const file of asset?(Array.isArray(asset)?asset:[asset]):[])pendingAssets.set(file.id,{projectId:project.id,asset:file});
  for(const file of media?(Array.isArray(media)?media:[media]):[])pendingMedia.set(file.id,{projectId:project.id,asset:file});
  project.updated=Date.now();projects.set(project.id,project);
- dirtyProjects.add(project.id);const revision=(writeVersions.get(project.id)||0)+1;writeVersions.set(project.id,revision);
+ dirtyProjects.add(project.id);const revision=(writeVersions.get(project.id)||0)+1;writeVersions.set(project.id,revision);storageNotice('Saving changes...');
  const snapshot=structuredClone(project),assets=[...pendingAssets.values()].filter(a=>a.projectId===snapshot.id).map(a=>a.asset);
  const mediaFiles=[...pendingMedia.values()].filter(a=>a.projectId===snapshot.id).map(a=>a.asset);
  const task=saving.then(async()=>{await repository.save(snapshot,assets,mediaFiles);if(!durable)throw new Error('Browser database unavailable; this session is not saved.');for(const a of assets)pendingAssets.delete(a.id);for(const a of mediaFiles)pendingMedia.delete(a.id);if(writeVersions.get(snapshot.id)===revision)dirtyProjects.delete(snapshot.id);storageNotice(dirtyProjects.size?`Unsaved changes in ${dirtyProjects.size} project(s). Retry saving if this persists.`:'Saved on this browser.');});
@@ -244,7 +244,7 @@ async function start(){
  let active='';try{active=localStorage.getItem(ACTIVE_KEY)||'';}catch{}
  project=projects.get(active)||[...projects.values()][0]||newProject();projects.set(project.id,project);
  composer=mountComposer({project:()=>project,save:asset=>persist(undefined,asset),asset:id=>repository.media(id),changed:ready,show:()=>showWorkspace(true)});
- heroWorkspace=mountHero({project:()=>project,repository:()=>repository,asset:async id=>pendingAssets.get(id)?.asset||await repository.asset(id),save:persist,changed:ready,brand:()=>showWorkspace('brand'),demo:async()=>{
+ heroWorkspace=mountHero({project:()=>project,storage:()=>({saved:durable&&!dirtyProjects.has(project.id),message:el('storage-status').textContent||'Storage status unknown'}),repository:()=>repository,asset:async id=>pendingAssets.get(id)?.asset||await repository.asset(id),save:persist,changed:ready,brand:()=>showWorkspace('brand'),demo:async()=>{
   const r=await fetch('/api/hero/demo');if(!r.ok)throw Error('No private benchmark example prepared.');const demo=await r.json(),example=migrateProject(demo.project),existing=projects.get(example.id);if(existing){project=existing;await openProject(existing);return;}
   const files:ProductAsset[]=await Promise.all(demo.files.map(async(f:any)=>{const original=await(await fetch(f.original)).blob(),normalized=f.normalized?await(await fetch(f.normalized)).blob():original;return {id:f.assetId,name:f.name,original,normalized,width:f.width,height:f.height,created:Date.now()};}));
   if(!(await repository.brands()).some(b=>b.id===demo.brand.id))await repository.saveBrand(demo.brand,files);await saving;project=example;projects.set(example.id,example);await persist(files);await openProject(example);await brandWorkspace?.refreshList();

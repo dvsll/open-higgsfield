@@ -1,3 +1,4 @@
+import {resolve} from 'node:path';
 import { defineConfig, loadEnv } from "vite";
 import { comfyApi } from "./shared/runtime/api.ts";
 import {cleanStudioUrls} from './studio/clean-urls.ts';
@@ -8,6 +9,9 @@ export default defineConfig(({ mode }) => {
   const env = { ...loadEnv(mode, process.cwd(), ""), ...process.env } as Record<string, string | undefined>;
   const allowedHosts = (env.OSH_ALLOWED_HOSTS || "").split(",").map((h) => h.trim()).filter(Boolean);
   const port = Number(env.OSH_PORT || 8288);
+  // Worktrees may themselves live under an ancestor outputs/. Ignore only this
+  // app's media directory; **/outputs/** also silences all source invalidation.
+  const outputFiles = resolve(process.cwd(), 'outputs').replace(/\\/g, '/') + '/**';
   const deny = [".env", ".env.*", "*.{crt,pem,key}", "**/.git/**", "**/.venv/**", "**/.runtime/**", "**/.claude/**", "**/node_modules/.vite/**"];
   return {
     appType: "mpa",
@@ -21,7 +25,7 @@ export default defineConfig(({ mode }) => {
         }
       },
     }],
-    server: { watch: { ignored: ['**/.runtime/**','**/.venv/**','**/outputs/**'] }, port, strictPort: true, host: env.OSH_HOST || "127.0.0.1", allowedHosts, fs: { strict: true, deny } },
+    server: { watch: { ignored: ['**/.runtime/**','**/.venv/**',outputFiles] }, port, strictPort: true, host: env.OSH_HOST || "127.0.0.1", allowedHosts, fs: { strict: true, deny } },
     preview: { port, strictPort: true, host: env.OSH_HOST || "127.0.0.1", allowedHosts },
     build: {
       outDir: "dist",

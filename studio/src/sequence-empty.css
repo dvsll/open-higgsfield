@@ -1,0 +1,6 @@
+/* One scroll owner: nested tracks must not trap the wheel at their edges. */
+.studio-window[data-window=timeline]>.window-body{overflow:auto;overscroll-behavior:contain}
+.studio-window[data-window=timeline] .tl{overflow:visible;min-height:100%}
+.sequence-empty{display:flex;align-items:center;gap:12px;width:100%;min-height:58px;box-sizing:border-box;padding:8px 12px;border:1px dashed var(--ui-border);color:var(--ui-muted);font-size:var(--ui-small)}
+.sequence-empty small{font:inherit}.sequence-empty button{white-space:nowrap}
+@container(max-width:650px){.sequence-empty{flex-wrap:wrap;gap:6px 10px}.sequence-empty small{flex-basis:100%}}

@@ -303,3 +303,9 @@ Do not broaden scope into closed model APIs, unimplemented 3D controls, simulate
 ## 12. Final direction
 
 The target is a calm creative workspace with enough structure to make the next action obvious. Higgsfield is useful for curated creative choices and reusable production context. After Effects is useful for selection, timing, disclosures and editable values. Swiss design gives both a common visual grammar. Evaluate each future change against the task it clarifies, the grid it belongs to and the behavior it actually delivers.
+
+## 2026-10-24: empty Sequence and scroll ownership
+
+Adobe references: [Work with compositions](https://www.adobe.com/learn/after-effects/web/create-composition-animation) explicitly supports creating an empty composition before adding footage; [Add layers to a composition](https://www.adobe.com/learn/after-effects/web/add-layers-to-composition) distinguishes layer selection from empty timeline space. Adaptation for Studio: keep the ruler, playhead and aligned track gutters when there is no video; do not invent a footage clip to fill the panel. Use a small Add scene action in the empty video lane. Prompt drafts are independent from footage. Audio/overlays can exist without video. The finite10-second empty ruler is a viewing extent, not generated content or a claimed AE default.
+
+The Sequence dock body owns both scrolling axes. Wheel gestures over clips, expanded properties, numeric controls and titlebar scroll this same body. Shift-wheel scrolls horizontally; Ctrl-wheel remains browser zoom. Nested track containers must not trap wheel events or allow document scrolling at panel boundaries. No timeline redesign into AE per-layer rows is claimed.

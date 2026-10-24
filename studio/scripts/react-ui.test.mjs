@@ -19,6 +19,7 @@ try {
   const advanced=renderToStaticMarkup(createElement(AdvancedPrompt,null,createElement('textarea',{'aria-label':'Motion prompt'})));
   assert.match(advanced,/<details[^>]*id="promptAdvanced"/);assert.doesNotMatch(advanced,/<details[^>]* open/);assert.match(advanced,/<summary>Advanced<\/summary>/);assert.match(advanced,/Auto-fill in simple view/);
   const { SequenceTrack, Ruler } = await server.ssrLoadModule('/studio/src/react/timeline.tsx');
+  const empty=renderToStaticMarkup(createElement(SequenceTrack,{clips:[],onAdd:()=>{}}));assert.match(empty,/No video scenes/);assert.match(empty,/Add scene/);assert.doesNotMatch(empty,/class="clip/);
   const name = '<img src=x onerror=alert(1)>';
   const html = renderToStaticMarkup(
     createElement(SequenceTrack, {

@@ -80,10 +80,11 @@ function Clip({ item, index }: { item: ClipItem; index: number }) {
 export function SequenceTrack({ clips, onAdd }: { clips: ClipItem[]; onAdd?: () => void }) {
   return (
     <>
+      {clips.length===0&&<div className="sequence-empty"><span>No video scenes</span><button onClick={onAdd}>＋ Add scene</button><small>Or write a prompt and generate your first video.</small></div>}
       {clips.map((item, index) => (
         <Clip key={item.id} item={item} index={index} />
       ))}
-      {onAdd && (
+      {onAdd && clips.length>0 && (
         <button className="addclip" title="Add shot" onClick={onAdd}>
           ＋
         </button>

@@ -1,4 +1,5 @@
-import { useState, type CSSProperties } from 'react';
+import { useState, useId, type CSSProperties } from 'react';
+import {Popup} from './popup';
 export type HistoryRow = { id: string; label: string; at: number; depth: number };
 export function HistoryView({
   rows,
@@ -90,56 +91,50 @@ function Difference({ value, other }: { value: string; other: string }) {
 export function PromptHistory({
   title,
   revisions,
-  current,
   initialText,
   onClose,
   onRestore,
 }: {
   title: string;
   revisions: Revision[];
-  current: string;
+  current?: string;
   initialText: string;
   onClose: () => void;
   onRestore: (id: string) => string | void;
 }) {
-  const [selected, setSelected] = useState(revisions[0]?.id),
-    [error, setError] = useState('');
-  const revision = revisions.find((r) => r.id === selected);
+  const ordered=[...revisions].sort((a,b)=>a.at-b.at);
+  const [selected,setSelected]=useState(()=>ordered.findLast(r=>r.text===initialText)?.id||ordered.at(-1)?.id),
+    [error,setError]=useState('');
+  const index=Math.max(0,ordered.findIndex(r=>r.id===selected)),revision=ordered[index];
+  const sliderId=useId(),descriptionId=useId();
+  const timestamp=(at:number)=>new Date(at).toLocaleString();
   return (
-    <>
-      <header>
-        <h2>{title}</h2>
-        <button onClick={onClose}>Close</button>
-      </header>
-      <p>{error || 'Exact prompt checkpoints across edit branches. Restore changes only this prompt.'}</p>
-      <div className="prompt-revisions">
-        {revisions.map((row) => (
-          <button
-            key={row.id}
-            data-revision={row.id}
-            aria-pressed={row.id === selected}
-            onClick={() => setSelected(row.id)}
-          >
-            {new Date(row.at).toLocaleString()} · {row.parent ? 'Revision' : 'Starting point'}
-            {row.id === current ? ' · current' : ''}
-          </button>
-        ))}
+    <Popup title={title} className="prompt-history-popup" closeLabel="Close prompt history" onClose={onClose}>
+      <p className="prompt-history-help">Scrub through saved edits to compare changes. Restore changes only this prompt.</p>
+      <div className="prompt-time-slider">
+        <div className="prompt-time-heading"><label htmlFor={sliderId}>Revision history</label><output htmlFor={sliderId} aria-live="polite">{revision?`${index+1} / ${ordered.length}`:'No saved edits'}</output></div>
+        <input id={sliderId} type="range" min={0} max={Math.max(1,ordered.length-1)} step={1} value={index} disabled={ordered.length<2}
+          aria-label="Prompt history time" aria-describedby={descriptionId}
+          aria-valuetext={revision?`${timestamp(revision.at)}, revision ${index+1} of ${ordered.length}`:'No saved edits'}
+          onChange={event=>{setSelected(ordered[+event.target.value]?.id);setError('')}}/>
+        <div className="prompt-time-ends"><span>Oldest</span><span>Latest</span></div>
+        <p id={descriptionId} className="prompt-time-selection">{revision?<><time dateTime={new Date(revision.at).toISOString()}>{timestamp(revision.at)}</time><span>{revision.text===initialText?'Current prompt':revision.parent?'Saved edit':'Starting point'}</span></>:'No saved revisions for this prompt yet.'}</p>
       </div>
       <div className="prompt-comparison">
         <section>
           <h3>Before</h3>
           <pre aria-label="Previous prompt">
-            <Difference value={revision?.before || ''} other={revision?.text || ''} />
+            <Difference value={revision?.before ?? initialText} other={revision?.text ?? initialText} />
           </pre>
         </section>
         <section>
           <h3>After</h3>
           <pre aria-label="Selected prompt">
-            <Difference value={revision?.text || ''} other={revision?.before || ''} />
+            <Difference value={revision?.text ?? initialText} other={revision?.before ?? initialText} />
           </pre>
         </section>
       </div>
-      <button
+      <div className="popup-actions"><p role="status">{error}</p><button
         disabled={!revision || initialText === revision.text}
         onClick={() => {
           if (revision) {
@@ -149,7 +144,7 @@ export function PromptHistory({
         }}
       >
         Restore this prompt
-      </button>
-    </>
+      </button></div>
+    </Popup>
   );
 }

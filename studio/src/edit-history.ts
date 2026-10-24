@@ -40,12 +40,13 @@ export function mountEditHistory(read:()=>EditState,restore:(state:EditState)=>v
   button.onclick=e=>{e.preventDefault();flush();const current=read();const index=Number(document.querySelector('#sNum')?.textContent?.match(/\d+/)?.[0]||1)-1;const shot=current.SH[index]||current.SH[0]||current.sceneDraft,shotId=shot?.id;
    const text=(state:EditState)=>String(field.key==='image'?(state.imageDraft as {prompt?:string})?.prompt||'':(state.SH.find(s=>s.id===shotId)||(state.sceneDraft?.id===shotId?state.sceneDraft:undefined))?.[field.key]||'');
    const revisions=tree.nodes.filter(n=>{const parent=tree.nodes.find(p=>p.id===n.parent);return (!parent||text(parent.state)!==text(n.state))&&(field.key==='image'||(n.state.SH.some(s=>s.id===shotId)||n.state.sceneDraft?.id===shotId))}).reverse();
-   const dialog=document.createElement('dialog');dialog.className='prompt-history-dialog';dialog.setAttribute('aria-label',`${field.name} revision history`);
-   renderView(dialog,createElement(PromptHistory,{title:field.name+' history',current:tree.current,initialText:text(read()),revisions:revisions.map(n=>({id:n.id,at:n.at,parent:n.parent,text:text(n.state),before:text(tree.nodes.find(p=>p.id===n.parent)?.state||n.state)})),onClose:()=>dialog.close(),onRestore:id=>{
+   const host=document.createElement('div');document.body.append(host);
+   const close=()=>{queueMicrotask(()=>{unmountView(host);host.remove();button.focus()})};
+   renderView(host,createElement(PromptHistory,{title:field.name+' history',current:tree.current,initialText:text(read()),revisions:revisions.map(n=>({id:n.id,at:n.at,parent:n.parent,text:text(n.state),before:text(tree.nodes.find(p=>p.id===n.parent)?.state||n.state)})),onClose:close,onRestore:id=>{
     if(busy())return 'Finish the current generation or drag before restoring a prompt.';
     const selected=tree.nodes.find(n=>n.id===id);if(!selected)return;
-    const next=read();if(field.key==='image')(next.imageDraft as {prompt:string}).prompt=text(selected.state);else{const target=next.SH.find(s=>s.id===shotId)||(next.sceneDraft?.id===shotId?next.sceneDraft:undefined);if(!target)return;target[field.key]=text(selected.state);if(field.key!=='audioPrompt')target.r=false}restore(next);flush();dialog.close();
-   }}));dialog.onclose=()=>{unmountView(dialog);dialog.remove()};document.body.append(dialog);dialog.showModal();
+    const next=read();if(field.key==='image')(next.imageDraft as {prompt:string}).prompt=text(selected.state);else{const target=next.SH.find(s=>s.id===shotId)||(next.sceneDraft?.id===shotId?next.sceneDraft:undefined);if(!target)return;target[field.key]=text(selected.state);if(field.key!=='audioPrompt')target.r=false}restore(next);flush();close();
+   }}));
   };
  }
  // Edits applied in another workflow since the last visit become a new branch node.

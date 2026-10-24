@@ -90,7 +90,7 @@ try {
   );
   assert.ok(model.includes('Motion prompt: Available'));
   assert.ok(model.includes('Est: ~20s'));
-  const { HistoryView } = await server.ssrLoadModule('/studio/src/react/history.tsx');
+  const { HistoryView,PromptHistory } = await server.ssrLoadModule('/studio/src/react/history.tsx');
   const history = renderToStaticMarkup(
     createElement(HistoryView, {
       rows: [{ id: 'n', label: 'Edit', at: 1, depth: 1 }],
@@ -106,6 +106,12 @@ try {
   assert.ok(history.includes('role="treeitem"'));
   assert.ok(history.includes('aria-level="2"'));
   assert.ok(history.includes('aria-selected="true"'));
+  const revisions=[{id:'new',at:2000,parent:'old',text:'New prompt',before:'Old prompt'},{id:'old',at:1000,parent:null,text:'Old prompt',before:''}];
+  const promptHistory=renderToStaticMarkup(createElement(PromptHistory,{title:'Audio prompt history',revisions,initialText:'New prompt',onClose:()=>{},onRestore:()=>{}}));
+  assert.match(promptHistory,/studio-popup prompt-history-popup/);assert.match(promptHistory,/aria-label="Close prompt history"/);assert.doesNotMatch(promptHistory,/>Close<|data-revision=/);
+  assert.match(promptHistory,/type="range"/);assert.match(promptHistory,/aria-label="Prompt history time"/);assert.match(promptHistory,/value="1"/);assert.match(promptHistory,/Current prompt/);
+  const noHistory=renderToStaticMarkup(createElement(PromptHistory,{title:'Prompt history',revisions:[],initialText:'Unsaved draft',onClose:()=>{},onRestore:()=>{}}));
+  assert.match(noHistory,/No saved edits/);assert.match(noHistory,/Unsaved draft/);assert.match(noHistory,/disabled=""/);
   console.log(
     'PASS: React timeline escaping/selection, frame ruler, tutorial action gating/experience icons, model capabilities and history tree semantics.',
   );

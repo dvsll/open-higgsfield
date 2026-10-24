@@ -14,7 +14,7 @@ try {
   const library=renderToStaticMarkup(createElement(ElementLibrary,{elements:[{id:'photo',n:'Copper Robot',d:'small robot',kind:'cast',ic:'',refs:['/outputs/1111111111111111.png']},{id:'plain',n:'Garden',d:'green plants',kind:'place',ic:''}],onSelect:()=>{},pool:()=>[]}));
   assert.match(library,/Copper Robot reference/);assert.match(library,/No reference/);assert.match(library,/Search elements/);assert.match(library,/Edit Copper Robot/);assert.match(library,/not identity conditioning/);
   const {DirectorSurface}=await server.ssrLoadModule('/studio/src/react/director-surface.tsx');
-  const director=renderToStaticMarkup(createElement(DirectorSurface));assert.doesNotMatch(director,/id="els"/);assert.ok(director.indexOf('id="overlayTrack"')<director.indexOf('id="trk"'));assert.ok(director.indexOf('id="trk"')<director.indexOf('id="audioTrack"'));
+  const director=renderToStaticMarkup(createElement(DirectorSurface));assert.doesNotMatch(director,/id="(?:audio|overlay)TrackAttributes"/);assert.doesNotMatch(director,/id="els"/);assert.ok(director.indexOf('id="overlayTrack"')<director.indexOf('id="trk"'));assert.ok(director.indexOf('id="trk"')<director.indexOf('id="audioTrack"'));
   const {AdvancedPrompt}=await server.ssrLoadModule('/studio/src/react/prompt-advanced.tsx');
   const advanced=renderToStaticMarkup(createElement(AdvancedPrompt,null,createElement('textarea',{'aria-label':'Motion prompt'})));
   assert.match(advanced,/<details[^>]*id="promptAdvanced"/);assert.doesNotMatch(advanced,/<details[^>]* open/);assert.match(advanced,/<summary>Advanced<\/summary>/);assert.match(advanced,/Auto-fill in simple view/);
@@ -42,6 +42,8 @@ try {
   assert.ok(!html.includes('<img src=x'));
   assert.ok(html.includes('aria-selected="true"'));
   assert.ok(html.includes('title="Add shot"'));
+  const expandedScenes=renderToStaticMarkup(createElement(SequenceTrack,{expanded:true,clips:[{id:'a',name:'First',duration:2,selected:true,generated:false,width:100,height:80,offset:0,bind:()=>{}},{id:'b',name:'Second',duration:3,selected:false,generated:false,width:150,height:80,offset:100,bind:()=>{}}]}));assert.equal((expandedScenes.match(/class="sequence-scene-row"/g)||[]).length,2);assert.match(expandedScenes,/padding-left:100px/);
+  const {TrackAttributes}=await server.ssrLoadModule('/studio/src/react/track-attributes.tsx');const noSelection=renderToStaticMarkup(createElement(TrackAttributes,{kind:'video',options:{selected:-1,offset:0,shots:[]}}));assert.match(noSelection,/Select a video scene/);
   const ruler = renderToStaticMarkup(createElement(Ruler, { duration: 2, pixels: 100, half: true }));
   assert.ok(ruler.includes('left:150px'));
   assert.ok(ruler.includes('2s'));

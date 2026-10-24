@@ -8,70 +8,7 @@ export function TrackAttributes({
 }) {
   const local = o.selected - o.offset,
     s = o.shots[local];
-  if (!s) return null;
+  if (!s) return <p className="properties-empty">Select a video scene to view its properties.</p>;
   const start = o.start + o.shots.slice(0, local).reduce((sum, shot) => sum + shot.d, 0);
-  return (
-    <div className="clip-attributes selection-properties" aria-label={`${s.n} ${kind} attributes`}>
-      <strong>{s.n}</strong>
-      {kind === 'video' ? (
-        <>
-          <small>{s.d.toFixed(2)} seconds · {s.audio&&s.audioLinked!==false?"Soundtrack attached to video":"Video clip"}</small>{s.audio&&s.audioLinked!==false&&<><button onClick={o.audio}>Edit soundtrack</button><button onClick={o.unlink}>Unlink soundtrack to Audio</button></>}
-          <button
-            onClick={() => {
-              o.select(o.selected, false);
-              o.settings();
-            }}
-          >
-            Open size & timing
-          </button>
-        </>
-      ) : (
-        <>
-          {s.audio && (
-            <>
-              <label>
-                Seconds
-                <input
-                  type="number"
-                  value={+(s.audioDuration || s.d).toFixed(3)}
-                  min={0}
-                  max={600}
-                  step="0.001"
-                  readOnly
-                  aria-label={`${s.n} Seconds`}
-                />
-              </label>
-              <label>
-                Start
-                <input
-                  type="number"
-                  value={+(s.audioLinked === false ? (s.audioStart ?? start) : start).toFixed(3)}
-                  min={0}
-                  max={600}
-                  step="0.01"
-                  readOnly
-                  aria-label={`${s.n} Start`}
-                />
-              </label>
-            </>
-          )}
-          <small>
-            {s.audio
-              ? s.audioLinked === false
-                ? 'Unlinked'
-                : 'Linked to video'
-              : 'This scene has no sound. Add a prompt to create its soundtrack.'}
-          </small>
-          <button
-            onClick={() => {
-              o.select(o.selected, true);
-              o.audio();
-            }}
-          >
-            {s.audio ? 'Edit audio ↗' : 'Add sound'}
-          </button>
-        </>
-      )}
-    </div>
-  );
+  return <section className="scene-properties" aria-label={s.n+' properties'}><h3>{s.n}</h3><dl><dt>Start</dt><dd>{+start.toFixed(3)} s</dd><dt>Duration</dt><dd>{+s.d.toFixed(3)} s</dd><dt>Soundtrack</dt><dd>{s.audio?(s.audioLinked===false?'Unlinked':'Linked to video'):'None'}</dd></dl>{s.audio&&<div className="scene-property-actions"><button onClick={o.audio}>Edit soundtrack</button>{s.audioLinked!==false&&<button onClick={o.unlink}>Unlink soundtrack</button>}</div>}</section>;
 }

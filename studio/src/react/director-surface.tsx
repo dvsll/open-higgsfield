@@ -216,12 +216,12 @@ export function DirectorSurface() {
               <button id="delKey">{'Remove key'}</button>
             </div>
             <div className="tl" id="tl">
-              <div className="ruler" id="ruler"></div><button className="track-toggle overlay-toggle" id="overlayTrackToggle" aria-expanded="false" aria-controls="overlayTrackAttributes"/><div id="overlayTrack"/><div id="overlayTrackAttributes" className="track-attributes" hidden/>
+              <div className="ruler" id="ruler"></div><button className="track-toggle overlay-toggle" id="overlayTrackToggle" aria-expanded="false" aria-controls="overlayTrack"/><div id="overlayTrack"/>
               <button
                 className="track-toggle"
                 id="videoTrackToggle"
                 aria-expanded="false"
-                aria-controls="videoTrackAttributes"
+                aria-controls="trk videoTrackAttributes"
                 title="Expand video properties"
               />
               <div className="trk" id="trk"></div>
@@ -230,11 +230,11 @@ export function DirectorSurface() {
                 className="track-toggle audio-toggle"
                 id="audioTrackToggle"
                 aria-expanded="false"
-                aria-controls="audioTrackAttributes"
+                aria-controls="audioTrack"
                 title="Expand audio properties"
               />
               <div id="audioTrack" className="audio-track"></div>
-              <div className="track-attributes" id="audioTrackAttributes" hidden></div>
+
               <div className="gph" id="gph" role="img" aria-label="Playhead"></div>
             </div>
             <div className="stash" id="stash"></div>

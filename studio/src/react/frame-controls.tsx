@@ -63,7 +63,7 @@ export function FrameControls({
         </select>
         {(['width', 'height'] as const).map((axis) => (
           <label key={axis}>
-            {axis === 'width' ? 'W' : 'H'}
+            {axis === 'width' ? 'Width' : 'Height'}
             <input
               type="number"
               id={kind + (axis === 'width' ? 'Width' : 'Height')}

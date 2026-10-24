@@ -1,0 +1,41 @@
+/* The gutter and its lane always share a row. Property editing belongs to the dock inspector. */
+.tl #overlayTrackToggle,.tl #overlayTrack{grid-row:2;margin-top:0}
+.tl #videoTrackToggle,.tl #trk{grid-row:3;margin-top:0!important}
+.tl #audioTrackToggle,.tl #audioTrack{grid-row:4;margin-top:0}
+.tl #videoTrackToggle{align-self:start}
+.window-body .tl #trk{height:80px;min-height:80px;overflow:visible}
+.window-body .tl #trk.expanded-scenes{display:block;height:auto!important;min-height:80px}
+.sequence-scene-row{height:84px;box-sizing:border-box;border-bottom:1px solid #ffffff09;min-width:0}
+.window-body .tl .clip{height:80px;box-sizing:border-box}
+.window-body .tl .clip .lbl{top:0!important;height:20px;background:#20232a}
+.window-body .tl .clip .strip{position:absolute;left:0;top:20px;height:58px;width:100%}
+.window-body .tl .addclip{height:80px;flex:none}
+.expanded-scenes>.addclip{position:absolute;right:0;bottom:0;height:28px!important;width:28px;margin:0}
+.tl[data-focus=video] :is(#overlayTrack,#overlayTrackToggle,#audioTrack,#audioTrackToggle),
+.tl[data-focus=overlays] :is(#trk,#videoTrackToggle,#audioTrack,#audioTrackToggle),
+.tl[data-focus=audio] :is(#trk,#videoTrackToggle,#overlayTrack,#overlayTrackToggle){opacity:.65}
+.tl .track-toggle[aria-expanded=true]{border-color:var(--ui-accent);box-shadow:inset 2px 0 var(--ui-accent)}
+.sequence-layer-lane .sequence-layer-clip{max-width:100%}
+.sequence-layer-lane[data-expanded=false] .sequence-layer-clip{opacity:.65}
+.sequence-layer-lane .layer-empty{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sequence-inspector{min-width:0;font-size:var(--ui-small)}
+.scene-properties h3{font-size:var(--ui-font);margin:0 0 12px;font-weight:600;overflow-wrap:anywhere}
+.scene-properties dl{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);margin:0 0 12px;gap:0}
+.scene-properties :is(dt,dd){margin:0;min-width:0;padding:6px 8px;border-bottom:1px solid var(--ui-border);overflow-wrap:anywhere}
+.scene-properties dt{color:var(--ui-muted)}.scene-properties dd{background:#ffffff04;font-variant-numeric:tabular-nums}
+.scene-property-actions{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.sequence-inspector .frame-controls,.sequence-inspector .frame-controls.video-timing{display:grid;grid-template-columns:minmax(0,1fr);gap:0}
+.sequence-inspector .frame-controls>select{width:100%;max-width:100%;margin-bottom:8px}
+.sequence-inspector .frame-controls label{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;align-items:center;min-width:0;padding:4px 8px;border-bottom:1px solid var(--ui-border)}
+.sequence-inspector .frame-controls input{width:100%;max-width:100%;min-width:0;box-sizing:border-box}
+.sequence-inspector :is(.fps-field,.sampling-preset){min-width:0}
+.sequence-inspector p{overflow-wrap:anywhere;line-height:1.5}
+.sequence-inspector .attributes-caption{padding:8px 0;border-top:1px solid var(--ui-border);font-weight:600;color:var(--ui-text)}
+
+.expanded-scenes{position:relative}.expanded-scenes .insert-line{width:100%;height:2px!important;bottom:auto;left:0}.expanded-scenes .insert-line:before{top:0}
+
+.sequence-inspector .fps-field{display:block}.sequence-inspector .fps-field label{width:100%;box-sizing:border-box}.sequence-inspector .fps-recommendation{margin:4px 8px}.sequence-inspector #videoDuration,.sequence-inspector .video-timing>small{padding:6px 8px}.sequence-inspector .properties-empty{color:var(--ui-muted)}
+
+.window-body .tl .track-toggle{position:sticky;top:20px}.window-body .tl #ruler{position:sticky;top:0;z-index:9;background:var(--ui-bg)}
+
+.sequence-layer-lane .layer-summary{position:absolute;inset:0;width:100%;height:30px;min-height:30px;text-align:left;padding:3px 34px 3px 8px;border:0;background:transparent;color:inherit;font:inherit;overflow:hidden}.layer-summary i{position:absolute;top:3px;height:24px;background:#507d6a55;border-left:1px solid #649b86}.overlays .layer-summary i{background:#506c8c55;border-color:#7092b8}.layer-summary span{position:relative;z-index:1;font-size:var(--ui-small);color:var(--ui-text);background:#121418b3;padding:2px 4px;white-space:nowrap}

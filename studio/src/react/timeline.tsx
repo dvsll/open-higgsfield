@@ -9,6 +9,7 @@ export type ClipItem = {
   width: number;
   height: number;
   opened?: boolean;
+  offset?:number;
   hasAudio?:boolean;
   bind: (element: HTMLDivElement) => void;
   keys?: GuideItem[];
@@ -77,12 +78,12 @@ function Clip({ item, index }: { item: ClipItem; index: number }) {
     </div>
   );
 }
-export function SequenceTrack({ clips, onAdd }: { clips: ClipItem[]; onAdd?: () => void }) {
+export function SequenceTrack({ clips, onAdd,expanded=false }: { clips: ClipItem[]; onAdd?: () => void;expanded?:boolean }) {
   return (
     <>
       {clips.length===0&&<div className="sequence-empty"><span>No video scenes</span><button onClick={onAdd}>＋ Add scene</button><small>Or write a prompt and generate your first video.</small></div>}
       {clips.map((item, index) => (
-        <Clip key={item.id} item={item} index={index} />
+        expanded?<div key={item.id} className="sequence-scene-row" style={{paddingLeft:item.offset||0}}><Clip item={item} index={index} /></div>:<Clip key={item.id} item={item} index={index} />
       ))}
       {onAdd && clips.length>0 && (
         <button className="addclip" title="Add shot" onClick={onAdd}>

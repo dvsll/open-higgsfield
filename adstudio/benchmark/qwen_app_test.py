@@ -6,6 +6,19 @@ def module(name,file):
  spec=importlib.util.spec_from_file_location(name,pathlib.Path(__file__).with_name(file));m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m);return m
 m=module('monitor','qwen-app-monitor.py');prep=module('prepare','qwen-app-prepare.py');ssh=module('sshhelper','qwen-app-ssh.py')
 class AppTests(unittest.TestCase):
+ def test_preparation_keeps_api_worktree_spelling_and_identity(self):
+  with tempfile.TemporaryDirectory() as tmp:
+   root=pathlib.Path(tmp);(root/'outputs').mkdir()
+   with patch.object(prep,'ROOT',root):
+    out=prep.output('outputs/isolated/session')
+    self.assertEqual(out,root/'outputs/isolated/session')
+    identity=json.loads((out/'local-session.json').read_text())
+    self.assertEqual(identity['sessionDir'],str(out));self.assertEqual(identity['relativeSession'],'outputs/isolated/session')
+    self.assertEqual(prep.output(out),out)
+    identity['repoRoot']='other';(out/'local-session.json').write_text(json.dumps(identity))
+    with self.assertRaisesRegex(ValueError,'different worktree'):prep.output(out)
+    for invalid in [root/'outside/session',root/'outputs/not-session',root/'outputs/../outside/session']:
+     with self.assertRaises(ValueError):prep.output(invalid)
  def test_startup_failure_signals_cleanup_without_upload(self):
   import sys
   with tempfile.TemporaryDirectory() as tmp:

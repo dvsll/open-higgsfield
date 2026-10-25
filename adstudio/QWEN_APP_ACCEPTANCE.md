@@ -48,7 +48,12 @@ Propose **$2 total cap, preserve at least$4, two hours from creation, stop at$1.
 These are operator commands for the future session, **not authorization**. First prepare/review the browser manifest and public package while free. Use a fresh isolated session folder; never reuse prior leases/receipts. Provision through the existing controlled MCP/guard procedure, not a new deployment system. Creation must start `qwen-guard.py --approved --boot` with temporary termination credential, exact image/name/creation/deadline and SSH public key. Start the existing retained Windows guard before creation:
 
 ```powershell
-$env:QWEN_SESSION_DIR = (Resolve-Path outputs/qwen-app-acceptance/session).Path
+# Run from the API's actual worktree, using its existing isolated Node22 runtime.
+# Preparation creates local-session.json WITHOUT resolving away outputs junctions.
+$binding = node adstudio/benchmark/qwen-app-local.mjs --session outputs/qwen-app-acceptance/session --check | ConvertFrom-Json
+if ($LASTEXITCODE -ne 0) { throw 'Local session/bundle validation failed' }
+$env:QWEN_SESSION_DIR = $binding.environment.QWEN_SESSION_DIR
+$env:QWEN_APP_SESSION_DIR = $binding.environment.QWEN_APP_SESSION_DIR
 python adstudio/benchmark/qwen-guard.py --approved --wait
 ```
 
@@ -71,10 +76,41 @@ GPU-host startup: `/workspace/qwen-app/adstudio/benchmark/qwen-app-start.sh --ap
 After confirming no local active jobs, restart only the existing Ad Studio server at its SAME origin/port with temporary process env (do not change runtime setup or .env):
 
 ```powershell
-$env:QWEN_APP_RELAY_URL = 'http://127.0.0.1:28301'
-$env:QWEN_APP_SESSION_DIR = (Resolve-Path outputs/qwen-app-acceptance/session).Path
-& 'outputs/runpod-integration/node-runtime/node-v22.20.0-win-x64/node.exe' node_modules/vite/bin/vite.js --host 127.0.0.1 --port 8301
+# Uses the same checked session for watchdog and API. Refuses an occupied port;
+# never stops another server itself. Existing8301 origin/profile must be retained.
+node adstudio/benchmark/qwen-app-local.mjs --session outputs/qwen-app-acceptance/session --serve --port 8301
 ```
+
+The launcher derives its repository root from its own source, checks the lexical
+worktree-local path AND physical containment (including junction escapes), checks
+the prepared worktree identity/public archive hash/HEAD/approval commit, then
+loads the real `vite.config.ts`. Both session environment variables are identical.
+Conflicting inherited session variables fail before launch. The API's independent
+`outputs/.../session` restriction and all existing approval/source/one-job/budget
+gates remain unchanged. `--check` makes no network/provider/SSH requests and never
+sets approval flags. Do not use `Resolve-Path`, Python `resolve()` or the outer
+repository path to construct `QWEN_APP_SESSION_DIR`. Older prepared sessions
+without `local-session.json` require fresh preparation; do not reopen closed leases.
+
+### Unpaid relay startup rehearsal
+
+```powershell
+node adstudio/scripts/qwen-relay-startup.test.mjs
+```
+
+This executes the real local preparation and launcher, production Vite config and
+API over HTTP on an isolated port, against a strict mock backend on loopback28301.
+It tests actual Windows nested-worktree/junction paths when run in that worktree,
+the Python watchdog's session identity, outer-path/API rejection, physical junction
+escape rejection, bundle/commit mismatch, missing approvals, budget/job limits,
+origin binding, stale watchdog, used receipts and local provenance/activity routing.
+No remote POST, source asset, GPU/model/inference/SSH/provider call is allowed.
+It refuses to auto-start a managed Comfy runtime. Optimizer caches are isolated
+from other dev servers;8301 and browser storage are untouched. Fixture approvals
+are synthetic and deleted; safe HTTP/result/Vite diagnostics remain under
+`outputs/qwen-startup-rehearsal-*/evidence/`. This is startup/HTTP acceptance only,
+not browser or real GPU-generation acceptance. Occupied28301 fails rather than
+stopping its owner or silently substituting another tunnel port.
 
 Keep this local server running after remote cleanup. Confirm `GET /api/hero/capabilities` shows Qwen available (nodes/names/file sizes); no inference from discovery. The API streams all three weight SHA256 checks before submitting. **Do not use qwen-execute.py or qwen-render-runpod.mjs**: those standalone benchmark runners do not establish app acceptance.
 

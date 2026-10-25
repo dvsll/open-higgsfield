@@ -1,12 +1,20 @@
 """Local-only public code package and unapproved one-job source binding. No network."""
-import argparse,hashlib,io,json,pathlib,subprocess,tarfile
+import argparse,hashlib,io,json,os,pathlib,subprocess,tarfile
 ROOT=pathlib.Path(__file__).resolve().parents[2]
 REQUIRED={'adstudio/benchmark/vite.app-api.config.ts','adstudio/benchmark/qwen-app-start.sh','package.json','package-lock.json'}
 def sha(data):return hashlib.sha256(data).hexdigest()
 def output(path):
- p=pathlib.Path(path).resolve()
- if not p.is_relative_to((ROOT/'outputs').resolve()):raise ValueError('Private preparation belongs in outputs/')
- p.mkdir(parents=True,exist_ok=True);return p
+ # Preserve the API worktree's lexical path. resolve()/Resolve-Path traverses
+ # outputs junctions and can produce a path outside this API's repository.
+ p=pathlib.Path(os.path.abspath(ROOT/pathlib.Path(path)))
+ base=ROOT/'outputs'
+ if not p.is_relative_to(base) or not p.resolve().is_relative_to(base.resolve()) or p.name!='session':raise ValueError('Use this worktree outputs/.../session path, not an outer repository alias')
+ p.mkdir(parents=True,exist_ok=True)
+ identity={'version':1,'repoRoot':str(ROOT),'sessionDir':str(p),'realSessionDir':str(p.resolve()),'relativeSession':p.relative_to(ROOT).as_posix()}
+ file=p/'local-session.json'
+ if file.exists() and json.loads(file.read_text())!=identity:raise ValueError('Existing session belongs to a different worktree; use a fresh session')
+ if not file.exists():file.write_text(json.dumps(identity,indent=2))
+ return p
 def bundle(out):
  commit=subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip()
  archive=subprocess.check_output(['git','archive','HEAD'],cwd=ROOT)

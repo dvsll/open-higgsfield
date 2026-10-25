@@ -5,8 +5,16 @@ import argparse,base64,ctypes,json,math,os,pathlib,re,subprocess,sys,threading,t
 _parents=pathlib.Path(__file__).resolve().parents
 ROOT=_parents[2] if len(_parents)>2 else pathlib.Path('/workspace')
 def session_dir(value=None):
- path=pathlib.Path(value or ROOT/'outputs/qwen-hero-benchmark/session').resolve()
- if not path.is_relative_to((ROOT/'outputs').resolve()) or path.name!='session':raise ValueError('Qwen session must be a separate outputs/.../session folder')
+ # Keep the worktree spelling shared with the API; check physical containment
+ # separately so an escaping junction still fails closed.
+ path=pathlib.Path(os.path.abspath(value or ROOT/'outputs/qwen-hero-benchmark/session'))
+ if not path.resolve().is_relative_to((ROOT/'outputs').resolve()) or path.name!='session':raise ValueError('Qwen session must be a separate outputs/.../session folder')
+ app=os.environ.get('QWEN_APP_SESSION_DIR')
+ if app and pathlib.Path(os.path.abspath(app))!=path:raise ValueError('Watchdog and local API must use the same session path')
+ identity=path/'local-session.json'
+ if identity.exists():
+  binding=json.loads(identity.read_text())
+  if binding!={'version':1,'repoRoot':str(ROOT),'sessionDir':str(path),'realSessionDir':str(path.resolve()),'relativeSession':path.relative_to(ROOT).as_posix()}:raise ValueError('Session worktree identity mismatch')
  return path
 OUT=session_dir(os.environ.get('QWEN_SESSION_DIR'))
 KEY=''

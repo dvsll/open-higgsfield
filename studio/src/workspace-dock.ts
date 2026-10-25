@@ -60,7 +60,7 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
  const panels = new Map<string, HTMLElement>();
  const registrations=new Map<string,{title:string;content:HTMLElement}>();
  const toolbar = document.createElement('nav'); toolbar.className = 'workspace-toolbar'; toolbar.setAttribute('aria-label', 'Workspace layout');
- renderView(toolbar,createElement(WorkspaceToolbar));
+ renderView(toolbar,createElement(WorkspaceToolbar,{studio:!custom}));
  const picker=toolbar.querySelector('select')!,windows=toolbar.querySelector('details')!,menu=windows.querySelector('div')!;
  function renderMenu(){renderView(menu,createElement(WindowsMenu,{panels:[...registrations].filter(([id])=>custom||id!=='keyframes'||setup.mode==='image').map(([id,p])=>({id,title:p.title})),visible:ids(setup.tree),onToggle:id=>{ids(setup.tree).includes(id)?closeWindow(id):openWindow(id);windows.open=false},onNew:async()=>{const title=await ask('Window name','Notes');if(!title)return;const id='note-'+Date.now();store.notes[id]={title,text:''};note(id,title,'');openWindow(id);windows.open=false}}))}
  const board = document.createElement('div'); board.className = 'window-board';
@@ -235,6 +235,7 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
  };
  const top = document.createElement('div'); top.className = 'workspace-context'; if(!custom)while (main.firstChild) top.append(main.firstChild);
  app.replaceChildren(toolbar, top, board, parking); app.classList.add('window-workspace');
+ if(!custom)document.body.classList.add('studio-single-bar');
  top.querySelectorAll<HTMLButtonElement>('[data-workflow]').forEach(button => button.addEventListener('click', () => select(button.dataset.workflow === 'image' ? 'Image' : 'Video')));
  document.addEventListener('osh-workflow-changed', ((event: CustomEvent) => { if (!switching && setup.mode !== event.detail) select(event.detail === 'image' ? 'Image' : 'Video'); }) as EventListener);
  const observer = new ResizeObserver(refresh); observer.observe(board); for (const element of panels.values()) observer.observe(element);

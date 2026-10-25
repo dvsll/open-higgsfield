@@ -134,7 +134,7 @@ export function ProjectPicker() {
           }
         }}
       >
-        {name} ▾
+        <svg className="project-folder-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h7l2 3h9l-2 12H3V6Z"/></svg><span>{name} ▾</span>
       </button>
       {open &&
         createPortal(

@@ -1,22 +1,8 @@
-import { ProjectPicker, tryOnboarding } from './projects';
 import {AdvancedPrompt,PromptPolishButton} from './prompt-advanced';
 export function DirectorSurface() {
   return (
     <>
       <header className="studio-header">
-        <a href="/">{'←'}</a>
-        <h1>{'Director'}</h1>
-        <span className="proj">
-          <ProjectPicker />
-        </span>
-        <button
-          className="pill"
-          id="testOnboarding"
-          onClick={tryOnboarding}
-          title="Start a fresh test project; keep your current work"
-        >
-          {'Try onboarding'}
-        </button>
         <span className="sp"></span>
         <span
           id="rt"

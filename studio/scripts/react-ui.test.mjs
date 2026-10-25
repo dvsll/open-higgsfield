@@ -74,6 +74,9 @@ try {
   assert.ok(tour.includes('Use the highlighted control'));
   assert.ok(!tour.includes('tour-primary'));
   assert.ok(!tour.includes('Focus'));
+  const invitation=renderToStaticMarkup(createElement(TourPopover,{experience:'beginner',entry:'video',done:false,tip:{title:'Try the Image workflow',text:'Create guides'},onLater:()=>{},onSkip:()=>{},onNext:()=>{},onWorkflow:()=>{},onFinish:()=>{}}));
+  assert.ok(invitation.includes('I’ll try it later'));
+  assert.ok(!tour.includes('I’ll try it later'));
   const choices = renderToStaticMarkup(
     createElement(TourChoice, { onChoose: () => {}, onBack: () => {}, onSkip: () => {} }),
   );

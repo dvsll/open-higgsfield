@@ -105,6 +105,7 @@ export function TourPopover({
   onNext,
   onWorkflow,
   onFinish,
+  onLater,
 }: {
   experience: Experience;
   entry: Workflow;
@@ -114,6 +115,7 @@ export function TourPopover({
   onNext: () => void;
   onWorkflow: (workflow: Workflow) => void;
   onFinish: () => void;
+  onLater?: () => void;
 }) {
   return (
     <>
@@ -150,6 +152,7 @@ export function TourPopover({
           <>
             <h2>{tip.title}</h2>
             <p>{tip.text}</p>
+            {onLater&&<button className="tour-secondary" onClick={onLater}>I’ll try it later</button>}
             {tip.diagram && <DragDiagram kind={tip.diagram} />}{' '}
             {tip.next ? (
               <button className="tour-primary" onClick={onNext}>

@@ -7,7 +7,7 @@ import './onboarding-guidance.css';
 import { SC } from './scene';
 import {lockTourInteraction} from './onboarding-interaction';
 import { workflowTourStep, canResumeWorkflow, firstVisit, profileKey, readProfile, windowLesson, workflowForSetup, type Experience, type Workflow } from './onboarding-progress';
-export type TourState = { step:string; shotId:string; images:string[]; dismissed?:boolean; suspended?:boolean; experience?:Experience; entry?:Workflow; firstVideo?:string|null };
+export type TourState = { step:string; shotId:string; images:string[]; dismissed?:boolean; suspended?:boolean; experience?:Experience; entry?:Workflow; firstVideo?:string|null; videoReviewed?:boolean; suppressAutomatic?:boolean };
 type Options = { get:()=>TourState|null; set:(state:TourState)=>void; save:()=>void; choose:(entry:Workflow)=>void; begin:(entry:Workflow)=>TourState; current:()=>Workflow };
 type Tip = { title:string; text:string; target?:string; secondary?:string; next?:string; diagram?:'add'|'position' };
 const names:Record<Workflow,string>={video:'Video',image:'Image',director:'Director',rendering:'Rendering',edit:'Edit', '3d':'3D'};
@@ -77,7 +77,7 @@ export function mountOnboardingTour(options:Options) {
  function end(skipped=false){const state=options.get();if(state){state.dismissed=true;const entry=state.entry||options.current();profile.workflows[entry]=skipped?'skipped':'completed';saveProfile();persist()}chooser?.close();render()}
  function pause(){const state=options.get();if(state?.entry&&!state.dismissed){state.suspended=true;persist()}}
  function start(entry:Workflow,force=false,changeSetup=true){
-  if(switching)return;switching=true;
+  if(switching||!force&&options.get()?.suppressAutomatic)return;switching=true;
   try{pause();const previous=suspended[entry];const shouldStart=force||firstVisit(profile,entry)||profile.workflows[entry]==='started'&&previous&&!previous.dismissed;
    if(shouldStart){const state=!force&&canResumeWorkflow(previous,entry)?{...previous!,suspended:false}:options.begin(entry);state.entry=entry;state.experience=profile.experience;state.dismissed=false;state.suspended=false;options.set(state);profile.workflows[entry]='started';saveProfile();persist();lastStage=''}
    if(changeSetup)options.choose(entry);
@@ -129,7 +129,7 @@ export function mountOnboardingTour(options:Options) {
  }
  function render(){
   workflowChoices();
-  const state=options.get();popup.hidden=!state||!!state.dismissed||!!state.suspended;shade.style.display='none';rings.forEach(r=>r.hidden=true);if(popup.hidden){chooser?.close();interaction.sync();return}
+  const state=options.get();popup.hidden=!state||!!state.dismissed||!!state.suspended||state.step==='watch-video';shade.style.display='none';rings.forEach(r=>r.hidden=true);if(popup.hidden){chooser?.close();interaction.sync();return}
   if(profile.experience)state!.experience=profile.experience;
   if(!state!.experience||!state!.entry){popup.hidden=true;selection();return}
   persist();if(!profile.experience){profile.experience=state!.experience;saveProfile()}
@@ -138,7 +138,7 @@ export function mountOnboardingTour(options:Options) {
   const done=state!.step==='done';
   if(done){profile.workflows[state!.entry!]='completed';if(state!.entry==='image')profile.workflows.video='completed';else if(['video','director'].includes(state!.entry!)&&new Set(state!.images).size>=2)profile.workflows.image='completed';saveProfile();targets=[]}
   const current=done?undefined:tip(state!);if(current)targets=[current.target,current.secondary].filter(Boolean) as string[];
-  renderView(popup,createElement(TourPopover,{experience:state!.experience!,entry:state!.entry!,done,tip:current,onSkip:()=>end(!done),onFinish:()=>end(),onWorkflow:entry=>start(entry),onNext:()=>{
+  renderView(popup,createElement(TourPopover,{experience:state!.experience!,entry:state!.entry!,done,tip:current,onLater:state!.step==='switch-image'?()=>end(true):undefined,onSkip:()=>end(!done),onFinish:()=>end(),onWorkflow:entry=>start(entry),onNext:()=>{
    if(['prompt','image','keyframes'].includes(state!.step)&&localStep===0){localStep=1;document.querySelector(state!.step==='prompt'?'#gen':'#kgo')?.scrollIntoView({block:'nearest'});render();return}
    state!.step=state!.step==='render-settings'?'render-takes':state!.step==='edit-settings'?'edit-review':'done';persist();render();
   }}));
@@ -161,7 +161,7 @@ export function mountOnboardingTour(options:Options) {
  document.addEventListener('osh-window-layout-changed',refreshWindows);
  document.addEventListener('toggle',event=>{if((event.target as HTMLElement)?.matches('.window-menu'))refreshWindows()},true);
  addEventListener('pagehide',()=>{disposed=true;interaction.dispose();for(const [option,disabled] of restrictedOptions)option.disabled=disabled});
- let initial=options.get();if(initial?.step==='keyframes'&&options.current()!=='image')initial.step='switch-image';if(initial?.entry&&initial.entry!=='edit'&&!initial.shotId){const fresh=options.begin(initial.entry);fresh.experience=profile.experience;options.set(fresh);persist();initial=fresh}if(initial?.experience&&!profile.experience){profile.experience=initial.experience;saveProfile()}
+ let initial=options.get();if(initial?.step==='switch-image'&&initial.firstVideo&&!initial.videoReviewed){initial.step='watch-video';persist()}if(initial?.step==='keyframes'&&options.current()!=='image')initial.step='switch-image';if(initial?.entry&&initial.entry!=='edit'&&!initial.shotId){const fresh=options.begin(initial.entry);fresh.experience=profile.experience;options.set(fresh);persist();initial=fresh}if(initial?.experience&&!profile.experience){profile.experience=initial.experience;saveProfile()}
  if(['Audio','Overlays'].includes(document.querySelector<HTMLSelectElement>('[aria-label="Workspace setup"]')?.value||'')){if(initial&&!initial.dismissed)initial.suspended=true;render()}else if(initial&&!initial.dismissed&&!initial.suspended){if(initial.entry)profile.workflows[initial.entry]??='started';saveProfile();render()}else if(firstVisit(profile,options.current())||profile.workflows[options.current()]==='started'&&suspended[options.current()]&&!suspended[options.current()]!.dismissed)start(options.current(),false,false);else render();
  requestAnimationFrame(position);return {render,visit:(entry:Workflow)=>start(entry)};
 }

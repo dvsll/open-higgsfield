@@ -87,3 +87,14 @@ const generateGuide=Function('ctx','with(ctx){'+imageCode+";return $('#kgo').onc
 await generateGuide();assert.equal(imageContext.onboarding.step,'keyframes');assert.equal(guideRenders,1);assert.equal(button.disabled,false);
 await generateGuide();assert.equal(imageContext.onboarding.step,'return-video');assert.equal(imageContext.onboarding.images.length,2);assert.equal(imageContext.imageDraft.url,'/outputs/2222222222222222.png');
 imageContext.onboarding={entry:'image',step:'image',images:[]};await generateGuide();assert.equal(imageContext.onboarding.step,'image-review');
+
+// The Image invitation waits for the actual decoded clip, not generation completion or a timer.
+const reviewLine=source.split('\n').find(line=>line.includes("onboarding.step==='watch-video'&&s.id"));
+const review=new Function('touring','onboarding','s','vid','advanceTour',reviewLine);
+const waiting={step:'watch-video',shotId:'scene',firstVideo:'/outputs/clip.webm'};
+const viewed={id:'scene',video:waiting.firstVideo};
+let next='';
+review(()=>true,waiting,viewed,{readyState:1,duration:4,currentTime:4},step=>next=step);assert.equal(next,'');
+review(()=>true,waiting,viewed,{readyState:4,duration:4,currentTime:1},step=>next=step);assert.equal(next,'');
+review(()=>true,waiting,{...viewed,video:'other'},{readyState:4,duration:4,currentTime:4},step=>next=step);assert.equal(next,'');
+review(()=>true,waiting,viewed,{readyState:4,duration:4,currentTime:3.99},step=>next=step);assert.equal(next,'switch-image');assert.equal(waiting.videoReviewed,true);

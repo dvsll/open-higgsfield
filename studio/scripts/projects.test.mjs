@@ -34,3 +34,8 @@ assert.equal(all.filter(p=>!p.deletedAt).length,1);
 assert.notEqual(replacement.projectKey('osh-director'),first.projectKey('osh-director'));
 assert.equal(data.get('osh:second:osh-director'),'second shot');
 console.log('PASS: recycled projects preserve data, current sorting and safe last-project replacement.');
+assert.deepEqual(JSON.parse(data.get(replacement.projectKey('osh-director'))).SH,[]);
+assert.equal(JSON.parse(data.get(replacement.projectKey('osh-onboarding'))).suppressAutomatic,true);
+const last=replacement.recycleProject(all.find(p=>!p.deletedAt).id);
+assert.deepEqual(JSON.parse(data.get(`osh:${last.id}:osh-director`)).SH,[]);
+assert.equal(JSON.parse(data.get(`osh:${last.id}:osh-onboarding`)).dismissed,true);

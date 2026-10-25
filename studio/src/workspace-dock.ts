@@ -1,6 +1,7 @@
 import {StagePlaceholder} from './react/controls';
 import {WorkspaceName} from './react/workspace-name';
 import {WorkspacePicker} from './react/workspace-picker';
+import {WorkspaceRecycleBin} from './react/workspace-recycle-bin';
 import {ConfirmDelete} from './react/confirm-delete';
 import {WorkspaceToolbar,WindowsMenu} from './react/workspace-toolbar';
 import {createElement} from 'react';
@@ -177,6 +178,7 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
   if(name==='__rename'){picker.value=active;void renameWorkspace();return false}
   if(name==='__recycle'){picker.value=active;deleteWorkspace();return false}
   if(name==='__restore'){picker.value=active;restoreButton.click();return false}
+  if(name==='__bin'){picker.value=active;openRecycleBin();return false}
   if(switching)return false;const next=clone(store.layouts[name]||presets[name]||fallback);
   if(!custom&&name==='Edit')document.dispatchEvent(new Event('osh-edit-entering'));
   if(next.tree&&!valid(next.tree,new Set(panels.keys())))next.tree=clone(fallback.tree);
@@ -201,7 +203,7 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
   if(document.querySelector('.workspace-picker-menu'))return;
   const host=document.createElement('div');document.body.append(host);const rect=picker.getBoundingClientRect();
   const close=()=>{picker.removeAttribute('aria-controls');picker.removeAttribute('aria-expanded');unmountView(host);host.remove();picker.focus()};picker.setAttribute('aria-controls','workspacePickerMenu');picker.setAttribute('aria-expanded','true');
-  renderView(host,createElement(WorkspacePicker,{disabled:[...picker.options].filter(option=>option.disabled).map(option=>option.value),canRestore:Object.keys(store.deletedLayouts||{}).length>0,groups:[{label:'Presets',names:Object.keys(presets)},{label:'My workspaces',names:Object.keys(store.layouts).filter(name=>!Object.hasOwn(presets,name)),editable:true}],active,left:Math.min(rect.left,Math.max(4,innerWidth-320)),top:rect.bottom+4,onClose:close,onSelect:name=>{close();select(name)},onRename:name=>{close();void renameWorkspace(name)},onRecycle:name=>{close();deleteWorkspace(name)}}));
+  renderView(host,createElement(WorkspacePicker,{disabled:[...picker.options].filter(option=>option.disabled).map(option=>option.value),recycled:Object.keys(store.deletedLayouts||{}),onRestore:name=>{close();restoreWorkspace(name)},onPurge:name=>{close();purgeWorkspace(name)},groups:[{label:'Presets',names:Object.keys(presets)},{label:'My workspaces',names:Object.keys(store.layouts).filter(name=>!Object.hasOwn(presets,name)),editable:true}],active,left:Math.min(rect.left,Math.max(4,innerWidth-320)),top:rect.bottom+4,onClose:close,onSelect:name=>{close();select(name)},onRename:name=>{close();void renameWorkspace(name)},onRecycle:name=>{close();deleteWorkspace(name)}}));
  }
  picker.onpointerdown=e=>{e.preventDefault();openPicker()};picker.onkeydown=e=>{if(['ArrowDown','ArrowUp','Enter',' '].includes(e.key)){e.preventDefault();openPicker()}};
  async function renameWorkspace(previous=active){
@@ -217,21 +219,26 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
  };
  function deleteWorkspace(removed=active){
   if(Object.hasOwn(presets,removed)||!store.layouts[removed])return;
-  const host=document.createElement('div');document.body.append(host);
-  const close=()=>{unmountView(host);host.remove()};
-  renderView(host,createElement(ConfirmDelete,{kind:'workspace',name:removed,onCancel:close,onConfirm:()=>{
-  close();if(!store.layouts[removed]||Object.hasOwn(presets,removed))return;
   // Change mode first; a running generation may reject a workflow switch.
   if(active===removed&&!select(custom?.active||'Video'))return;
   store.deletedLayouts||={};recycleWorkspace(store.layouts,store.deletedLayouts,presets,removed);persist();choices();
-  }}));
  };
+ function purgeWorkspace(name:string){
+  if(!store.deletedLayouts?.[name])return;
+  const host=document.createElement('div');document.body.append(host);const close=()=>{unmountView(host);host.remove()};
+  renderView(host,createElement(ConfirmDelete,{kind:'workspace',name,onCancel:close,onConfirm:()=>{close();delete store.deletedLayouts?.[name];persist();choices()}}));
+ }
+ function openRecycleBin(){
+  const host=document.createElement('div');document.body.append(host);const close=()=>{unmountView(host);host.remove()};
+  renderView(host,createElement(WorkspaceRecycleBin,{names:Object.keys(store.deletedLayouts||{}),onClose:close,onRestore:name=>{close();restoreWorkspace(name)},onDelete:name=>{close();purgeWorkspace(name)}}));
+ }
  toolbar.querySelector<HTMLButtonElement>('[data-delete-media]')!.onclick=()=>dispatchEvent(new Event('osh-delete-selected-media'));
- restoreButton.onclick=()=>{
-  const deleted=store.deletedLayouts||{},name=Object.keys(deleted).at(-1);if(!name)return;
+ function restoreWorkspace(name:string){
+  const deleted=store.deletedLayouts||{};if(!deleted[name])return;
   const restored=restoredWorkspaceName(name,names());store.layouts[restored]=clone(deleted[name]);
   if(select(restored)){delete deleted[name];persist()}else delete store.layouts[restored];choices();
  };
+ restoreButton.onclick=()=>{const name=Object.keys(store.deletedLayouts||{}).at(-1);if(name)restoreWorkspace(name)};
  reset.onclick=()=>{const next=clone(presets[active]|| (custom?fallback:basicVideoWorkspace()));workflow(next.mode);if(document.body.dataset.workflow!==next.mode)return;setup=next;render();persist()};
  const top = document.createElement('div'); top.className = 'workspace-context'; if(!custom)while (main.firstChild) top.append(main.firstChild);
  app.replaceChildren(toolbar, top, board, parking); app.classList.add('window-workspace');

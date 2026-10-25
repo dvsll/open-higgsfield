@@ -39,3 +39,9 @@ assert.equal(JSON.parse(data.get(replacement.projectKey('osh-onboarding'))).supp
 const last=replacement.recycleProject(all.find(p=>!p.deletedAt).id);
 assert.deepEqual(JSON.parse(data.get(`osh:${last.id}:osh-director`)).SH,[]);
 assert.equal(JSON.parse(data.get(`osh:${last.id}:osh-onboarding`)).dismissed,true);
+Object.defineProperty(localStorage,'length',{get:()=>data.size});localStorage.key=index=>[...data.keys()][index]??null;
+const purged=first.readProjects().find(p=>p.deletedAt);
+const protectedId=last.id;
+data.set(`osh:${purged.id}:purge-test`,'removed');data.set(`osh:${protectedId}:keep`,'retained');
+first.permanentlyDeleteProject(protectedId);assert.equal(data.get(`osh:${protectedId}:keep`),'retained');
+first.permanentlyDeleteProject(purged.id);assert.equal(first.readProjects().some(p=>p.id===purged.id),false);assert.equal(data.has(`osh:${purged.id}:purge-test`),false);assert.equal(data.get(`osh:${protectedId}:keep`),'retained');

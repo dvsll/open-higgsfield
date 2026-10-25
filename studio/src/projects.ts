@@ -38,4 +38,10 @@ export function recycleProject(id:string):Project{
  saveProjects(next);return replacement;
 }
 export function restoreProject(id:string):void{saveProjects(readProjects().map(p=>p.id===id?{...p,deletedAt:undefined}:p))}
+export function permanentlyDeleteProject(id:string):void{
+ const items=readProjects();if(!items.some(p=>p.id===id&&p.deletedAt))return;
+ const prefix=`osh:${id}:`;const keys=Array.from({length:localStorage.length},(_,i)=>localStorage.key(i)).filter((key):key is string=>!!key&&key.startsWith(prefix));
+ for(const key of keys)localStorage.removeItem(key);
+ saveProjects(items.filter(p=>p.id!==id));
+}
 export function switchProject(project:Project):void{localStorage.setItem(activeProjectKey,project.id);location.href='/studio/director'}

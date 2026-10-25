@@ -1,4 +1,10 @@
 /* Sequence navigation belongs to the track header, separate from the viewer. */
+.viewer-tools #play{background:#30343c;border:1px solid #737b89;color:#f4f5f7;display:inline-flex;align-items:center;justify-content:center}
+.viewer-tools #play svg{width:18px;height:18px;stroke-width:2}
+.viewer-tools #play[aria-pressed=false] svg{fill:currentColor;stroke-width:1.5}
+.viewer-tools #play:hover:not(:disabled){background:#414752;border-color:#b6becb}
+.viewer-tools #play:focus-visible{outline:2px solid var(--ui-accent,#e9c46a);outline-offset:2px}
+.viewer-tools #play[aria-pressed=true]{border-color:var(--ui-accent,#e9c46a);color:var(--ui-accent,#e9c46a)}
 .studio-window[data-window=timeline]>.window-titlebar{height:auto;min-height:29px;flex-wrap:wrap}
 .sequence-transport{display:flex;align-items:center;gap:4px;min-width:0;max-width:100%;padding:3px 0}
 .window-titlebar .sequence-transport :is(button,label,input){height:24px;min-height:24px;box-sizing:border-box;font-size:var(--ui-small)}

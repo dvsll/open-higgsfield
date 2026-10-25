@@ -3,6 +3,8 @@
 Append dated decisions, render times and requests here. Only the studio owner edits this file; the partner adds requests at the bottom.
 
 ## Where we left off (update this before switching agents)
+**Latest handoff - 2026-10-25, Play contrast:** Viewer Play now has filled18px triangle, stronger neutral background/border, clearer hover/focus and amber active Pause state. Existing control dimensions retained. Browser visually verified screenshot outputs/play-control-contrast.png; typecheck passes. CSS only, no model runs.
+
 **Latest handoff - 2026-10-25, quieter header:** Removed persistent docking instruction and redundant scene render-status text from workspace chrome. Existing control tooltips/onboarding remain. Browser8288 verified toolbar hint/status absent, screenshot outputs/clean-workspace-header.png; typecheck passes. No runtime/model changes.
 
 **Latest handoff - 2026-10-25, independent track expansion:** Overlays/Video/Audio disclosure states now toggle independently; opening or closing one preserves the others and only Video toggles reset opened-shot mode. Inspector remains tied to Video expansion. Dimming targets only collapsed lanes while any lane is expanded. Collapsed empty lanes retain plain labels; expanded empty lanes offer the corresponding workflow button. Browser8288 verified all three expanded, then Video collapsed while Audio/Overlays remained expanded with workflow buttons. Screenshot outputs/independent-track-expansion.png. Typecheck and React UI regression pass. No generation/runtime changes.

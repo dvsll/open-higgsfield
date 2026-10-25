@@ -12,8 +12,10 @@ export default defineConfig(({ mode }) => {
   // Worktrees may themselves live under an ancestor outputs/. Ignore only this
   // app's media directory; **/outputs/** also silences all source invalidation.
   const outputFiles = resolve(process.cwd(), 'outputs').replace(/\\/g, '/') + '/**';
-  const deny = [".env", ".env.*", "*.{crt,pem,key}", "**/.git/**", "**/.venv/**", "**/.runtime/**", "**/.claude/**", "**/node_modules/.vite/**"];
+  const deny = [".env", ".env.*", "*.{crt,pem,key}", "**/.git/**", "**/.venv/**", "**/.runtime/**", "**/.claude/**", "**/node_modules/.vite*/**"];
   return {
+    // Keep the live application's optimizer separate from standalone test servers.
+    cacheDir: 'node_modules/.vite-app',
     appType: "mpa",
     plugins: [cleanStudioUrls(),comfyApi(env), {
       name: 'studio-controller-reload',

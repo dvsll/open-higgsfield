@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {createServer} from 'vite';
-const server=await createServer({configFile:false,server:{middlewareMode:true,watch:null},appType:'custom'});
+const server=await createServer({configFile:false,cacheDir:'outputs/.sequence-scroll-test-cache',optimizeDeps:{noDiscovery:true,include:[]},server:{middlewareMode:true,watch:null,hmr:false},appType:'custom'});
 try{
  let listener,options,scroll;
  globalThis.document={addEventListener:(name,fn,opts)=>{assert.equal(name,'wheel');listener=fn;options=opts}};

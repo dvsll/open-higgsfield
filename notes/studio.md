@@ -4,6 +4,8 @@ Append dated decisions, render times and requests here. Only the studio owner ed
 
 ## Where we left off (update this before switching agents)
 
+**Ad Studio coordination - 2026-10-25, final one-shot attempt closed:** Exact a40d4b7 remote Node/API/Qwen setup passed, but local8301 relay rejected canonical session path versus nested-worktree outputs prefix. No browser click/private photo transfer/inference/history addition; no retry. Exact Pod jg4wnnmhtmoa9k terminated404, inventories empty/burn0. Ordinary8301 restored PID30808 without relay; origin/assets unchanged. Diagnostics and cost limitations in notes/adstudio.md. No Studio/shared source edits. Any future attempt needs unpaid local launcher/path validation and separate approval.
+
 
 **Ad Studio coordination - 2026-10-25, free startup fix tested:** Only production change is ownership-safe Node tar extraction (--no-same-owner --no-same-permissions), version/hash pins unchanged. Actual no-capability Linux root reproduces old exit2, fixed exit0; UID10001 also runs pinned Node and honors umask. Real CPU Comfy/proxy/API + production npm-ci pass without weights/inference/private mounts/host ports/GPU. Focused regression/harness, build/typecheck,19 Studio files,5 Ad Studio files and Python checks pass. No Studio/UI/shared API/source-asset edits, Runpod calls or paid resources. Failed session stays closed; future remote run requires new approval/bundle. Evidence outputs/qwen-startup-fix-20261025; see notes/adstudio.md.
 

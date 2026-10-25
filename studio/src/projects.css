@@ -9,3 +9,4 @@
 .projects-dialog .project-name{flex:1;min-width:0;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.projects-dialog .is-current .project-name{color:#f0d48e}.projects-dialog .project-name:disabled{opacity:1;cursor:default}
 .projects-dialog .project-name-form{display:flex;align-items:center;gap:4px;margin:0;width:100%;min-width:0}.projects-dialog .project-name-form input{flex:1;min-width:0;width:0;height:32px;padding:6px 8px;font:inherit;font-size:12px}.projects-dialog .project-name-form button[type=submit]{background:#e9c46a;color:#211b10}
 .projects-dialog .project-bin-toggle{margin-top:16px;color:var(--dim,#999)}.projects-dialog [data-error]{margin:8px 0 0}.projects-dialog [data-error]:empty{display:none}
+.projects-dialog .project-icon.muted-action{color:#89929f}.projects-dialog .project-icon.muted-action:hover,.projects-dialog .project-icon.muted-action:focus-visible{color:var(--txt,#eee)}

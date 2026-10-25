@@ -31,7 +31,7 @@ function IconButton({
   onClick: () => void;
 }) {
   return (
-    <button type="button" className="project-icon" title={label} aria-label={label} onClick={onClick}>
+    <button type="button" className={'project-icon'+(['pencil','bin'].includes(kind)?' muted-action':'')} title={label} aria-label={label} onClick={onClick}>
       <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.6">
         <path d={paths[kind]} />
       </svg>

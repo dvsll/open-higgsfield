@@ -12,12 +12,16 @@ export function VideoEditor({
   actions,
   onFrame,
   versionsHost,
+  onApply,
+  onBusy,
 }: {
   hand: VideoHandoff;
   right: HTMLElement;
   actions: HTMLElement;
   onFrame?:(image:string)=>void|Promise<void>;
   versionsHost?:HTMLElement;
+  onApply?:()=>void;
+  onBusy?:(busy:boolean)=>void;
 }) {
   const [take, setTake] = useState<Take>({
       video: hand.video,
@@ -41,6 +45,7 @@ export function VideoEditor({
     [preset, setPreset] = useState('original');
   const video = useRef<HTMLVideoElement>(null),
     url = comparing ? hand.video : take.video;
+  useEffect(()=>{onBusy?.(busy);return()=>onBusy?.(false)},[busy,onBusy]);
   useEffect(() => {
     let cancelled = false;
     queueMicrotask(() => {
@@ -184,7 +189,7 @@ export function VideoEditor({
       audioPrompt: take.prompt,
       audioEdited: take.edited,
     });
-    location.href = '/studio/director';
+    if(onApply)onApply();else location.href = '/studio/director';
   };
   const choosePreset = (value: string) => {
     setPreset(value);

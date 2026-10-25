@@ -1,6 +1,9 @@
 // @ts-nocheck -- existing canvas/media controller; React views are strictly typed.
 import {Glyph,Crumb,RenderStatus,Chips} from './react/controls';
 import {GenerationDiagnostics} from './react/generation-diagnostics';
+import {mountEditWorkflow} from './edit-workflow';
+let embeddedEdit;
+const inEditWorkspace=()=>document.querySelector('[aria-label="Workspace setup"]')?.value==='Edit';
 
 import '../../shared/lib/kit.js';
 import '../../shared/styleboard/looks.js';
@@ -8,7 +11,7 @@ import { SC } from './scene';
 import { updateGenerateArrow } from './generate-arrow';
 import { mountEditHistory } from './edit-history';
 import { mountOnboardingTour } from './onboarding-tour';
-import { guidesPlaced, ownsTour, workflowForSetup } from './onboarding-progress';
+import { guidesPlaced, workflowForSetup } from './onboarding-progress';
 let onboardingUI;
 let editHistory;
 
@@ -53,7 +56,7 @@ function focusTrack(kind){const previous=$('#tl').dataset.focus||'';const next=p
 addEventListener('osh-expand-video',()=>{if(!expandedVideo)focusTrack('video')});
 addEventListener('osh-collapse-video',()=>{if(expandedVideo)focusTrack('video')});let LAYERS=validLayers(saved?.LAYERS);let sequenceLayers;
 let onboarding=SC.get('osh-onboarding');
-if(onboarding&&!ownsTour('director',onboarding.entry))onboarding=null;
+
 const touring=()=>onboarding&&!onboarding.dismissed&&!onboarding.suspended&&onboarding.step!=='done'&&['video','image','director'].includes(onboarding.entry||'video');
 function advanceTour(step){if(!onboarding||onboarding.dismissed)return;onboarding.step=step;SC.set('osh-onboarding',onboarding);renderTour()}
 function renderTour(){onboardingUI?.render()}
@@ -203,7 +206,7 @@ $('#ruler').onpointerdown=e=>{const seek=ev=>{const r=$('#ruler').getBoundingCli
   if(open!=null){G=start(open)+Math.min(SH[open].d-.01,x)}else{G=Math.max(0,Math.min(tot()-.01,x))}head()};seek(e);$('#ruler').setPointerCapture(e.pointerId);$('#ruler').onpointermove=seek};
 $('#ruler').onpointerup=()=>$('#ruler').onpointermove=null;
 addEventListener('keydown',e=>{if(!e.defaultPrevented&&e.key==='Escape'&&open!=null&&!/TEXTAREA|INPUT/.test(e.target.tagName))closeShot()});
-function media(){if(workspaceMode==='image')return{type:'keyframe',label:'Image workshop',img:imageDraft.url,spec:SP({}),u:.5};const s=currentShot();if(!SH.length)return null;if(selKey&&s.keys.includes(selKey))return{type:'keyframe',label:`Shot ${cur+1} · keyframe @ ${selKey.t.toFixed(1)}s`,spec:selKey.spec,u:selKey.u,img:selKey.img,ref:{shot:cur,key:s.keys.indexOf(selKey)}};
+function media(ignoreEdit=false){if(!ignoreEdit&&inEditWorkspace()&&embeddedEdit)return embeddedEdit.selected();if(workspaceMode==='image')return{type:'keyframe',label:'Image workshop',img:imageDraft.url,spec:SP({}),u:.5};const s=currentShot();if(!SH.length)return null;if(selKey&&s.keys.includes(selKey))return{type:'keyframe',label:`Shot ${cur+1} · keyframe @ ${selKey.t.toFixed(1)}s`,spec:selKey.spec,u:selKey.u,img:selKey.img,ref:{shot:cur,key:s.keys.indexOf(selKey)}};
  return{type:'shot',label:`Shot ${cur+1} · ${s.n} · ${+s.d.toFixed(3)}s`,spec:(s.keys[0]||s).spec,u:.3,video:s.r?s.video:undefined,audio:s.audio,audioPrompt:s.audioPrompt,audioLinked:s.audioLinked,duration:s.d,ref:{shot:cur,shotId:shotId(s)}}}
 function head(){const s=currentShot();const attributesPanel=$('#videoAttributes');if(attributesPanel)attributesPanel.hidden=expandedVideo&&(!SH.length||!clipSelected);if(!SH.length)clipSelected=false;$('#tl').classList.toggle('empty-sequence',!SH.length);if(expandedVideo||expandedAudio)trackAttributes();$('#trk').classList.toggle('has-selection',clipSelected);updateViewer();document.getElementById("play").title=clipSelected?"Play selected scene / pause (space)":"Play sequence / pause (space)";cinema=SH.length>1;document.body.classList.toggle("single-scene",!cinema);document.body.classList.toggle('has-guides',s.keys.some(k=>k.img));SHELL.select(media());$('#sNum').textContent=SH.length?`Shot ${cur+1} — `:'Draft — ';if(document.activeElement!==$('#sName'))$('#sName').textContent=s.n;$('#sMeta').textContent=`${+s.d.toFixed(3)}s · ${s.keys.length} keyframe${s.keys.length===1?'':'s'}`;
  if(s.renderWidth)$('#videoWidth').value=String(s.renderWidth);if(s.renderHeight)$('#videoHeight').value=String(s.renderHeight);
@@ -231,11 +234,11 @@ nm.onfocus=()=>{nm0=currentShot().n;const r=document.createRange();r.selectNodeC
 nm.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();nm.blur()}if(e.key==='Escape'){nm.textContent=nm0;nm.blur()}e.stopPropagation()};
 nm.onblur=()=>{const v=nm.textContent.trim().slice(0,40)||nm0;nm.textContent=v;if(v!==currentShot().n){currentShot().n=v;timeline();save()}};
 $('#sTitle .pen').onclick=()=>nm.focus();
-addEventListener('keydown',e=>{if(e.key==='F2'&&!/TEXTAREA|INPUT/.test(e.target.tagName)&&!e.target.isContentEditable){e.preventDefault();nm.focus()}});
+addEventListener('keydown',e=>{if(!inEditWorkspace()&&e.key==='F2'&&!/TEXTAREA|INPUT/.test(e.target.tagName)&&!e.target.isContentEditable){e.preventDefault();nm.focus()}});
 $('#addKeyBtn').onclick=()=>{if(open==null)return toast('Open a shot first (double-click it)');const s=SH[open],t=Math.round((G-start(open))*10)/10,near=[...s.keys].sort((a,b)=>Math.abs(a.t-t)-Math.abs(b.t-t))[0];addKey(open,t,{spec:near?near.spec:s.spec,u:.5,img:near?.img})};
 function editKey(){if(!selKey)return toast('Select a keyframe first');head();SHELL.open('edit')}
 $('#editKey').onclick=editKey;
-addEventListener('keydown',e=>{if(e.target.closest('input,textarea,select,button,summary,[contenteditable=true]'))return;if(e.key==='Backspace'||e.key==='Delete')delKey();if(e.code==='Space'){e.preventDefault();$('#play').click()}});
+addEventListener('keydown',e=>{if(inEditWorkspace()||e.target.closest('input,textarea,select,button,summary,[contenteditable=true]'))return;if(e.key==='Backspace'||e.key==='Delete')delKey();if(e.code==='Space'){e.preventDefault();$('#play').click()}});
 $('#motion').oninput=e=>{currentShot().m=e.target.value;if(currentShot().r){currentShot().r=false;timeline()}head();save()};
 $('#shotPromptInput').oninput=e=>{currentShot().prompt=e.target.value;if(currentShot().r){currentShot().r=false;timeline()}head();save()};
 // Starts paused. Play runs to the end (of the sequence, or of the opened shot) and stops; pressing play at the end restarts.
@@ -254,7 +257,7 @@ $('#audioPrompt').oninput=e=>{currentShot().audioPrompt=e.target.value;$('#gener
 $('#audioLink').onclick=()=>{const s=currentShot();if(selectedTrack!=='audio'||!clipSelected)return;if(s.audioLinked===false){s.audioLinked=true;s.audioStart=start(cur)}else{s.audioLinked=false;s.audioStart=start(cur);s.audioDuration=s.audioDuration||s.d}G=Math.min(G,tot()-.01);timeline();head();save();dispatchEvent(new Event('osh-audio-prompt'))};
 $('#audioStart').onchange=e=>{const s=currentShot();if(selectedTrack!=='audio'||s.audioLinked!==false||!e.target.reportValidity())return;s.audioStart=+e.target.value;timeline();save()};
 async function renderAudio(s){if(!s.audioPrompt?.trim())throw new Error('Describe the sound in Audio prompt first');const linked=s.audioLinked!==false,duration=linked?s.d:s.audioDuration||s.d;if(duration>47)throw new Error('Audio currently supports clips up to 47 seconds');const result=await OSH.audio(s.audioPrompt,duration,Math.floor(Math.random()*1e9),linked?s.video:undefined);s.audio=result.audio;s.audioDuration=duration;s.audioMuted=false;if(result.video){s.video=result.video;s.r=true;pushHist({kind:'shot',url:s.video,audio:s.audio,label:s.n+' · with audio',shotId:shotId(s),duration:s.d})}save();timeline();head();return result}
-$('#editAudio').onclick=()=>{const s=currentShot();if(!s.video||!s.audio)return;SC.set('osh-handoff',{type:'shot',label:s.n,ref:{shot:cur,shotId:shotId(s)},duration:s.d,video:s.video,audio:s.audio,audioLinked:s.audioLinked,audioPrompt:s.audioPrompt||'',editTarget:'audio',from:'director'});location.href='/studio/edit?from=director'};
+$('#editAudio').onclick=()=>{const s=currentShot();if(!s.video||!s.audio)return;SC.set('osh-handoff',{type:'shot',label:s.n,ref:{shot:cur,shotId:shotId(s)},duration:s.d,video:s.video,audio:s.audio,audioLinked:s.audioLinked,audioPrompt:s.audioPrompt||'',editTarget:'audio',from:'director'});dispatchEvent(new CustomEvent('osh-open-edit',{detail:{type:'shot',label:s.n,video:s.video,audio:s.audio,audioPrompt:s.audioPrompt,audioLinked:s.audioLinked,duration:s.d,ref:{shot:cur,shotId:shotId(s)},from:'director'}}))};
 $('#generateAudio').onclick=async()=>{const s=currentShot();if(!s.video||s.audio||$('#ov').style.display==='flex'||$('#kgo').disabled)return;s.audioLinked=true;const button=$('#generateAudio');button.disabled=true;try{await busy('Generating audio locally',()=>renderAudio(s));toast('Audio ready')}catch(e){toast('Audio failed: '+e.message)}finally{head()}};
 // Busy overlay with elapsed time (real jobs have no known duration).
 async function busy(msg,job){const ov=$('#ov');ov.style.display='flex';$('#pb').style.width='100%';const t0=performance.now();let activity=null;
@@ -310,9 +313,11 @@ K.loop(t=>{const now=performance.now(),dt=(now-last)/1000;last=now;if(playing){c
  $('#gph').style.left=((open!=null?G-start(open):G)*pxs+$('#ruler').offsetLeft)+'px';$('#gph').setAttribute('aria-label',`Playhead ${G.toFixed(1)} seconds`);SHELL.select(media())});
 // Coming back from Edit Anything with an edited keyframe
 const precisionBack=SC.get('osh-precision-return');SC.set('osh-precision-return',null);
-if(precisionBack){const ref=precisionBack.ref;const index=ref?.shotId?SH.findIndex(s=>s.id===ref.shotId):ref?.shot;const key=SH[index]?.keys?.[ref?.key];if(key&&key.img===precisionBack.source){key.img=precisionBack.url;SH[index].r=false;cur=index;open=index;selKey=key;G=start(index)+Math.min(key.t,SH[index].d-.001);pushHist({kind:'keyframe',url:precisionBack.url,label:'Precision edit · '+(precisionBack.label||SH[index].n)})}else if(imageDraft.url===precisionBack.source){imageDraft.url=precisionBack.url;saveWorkshop();pushHist({kind:'keyframe',url:precisionBack.url,label:'Precision edit'})}else toast('Original selection changed. The edited image is saved in Edit versions.');}
+function applyPrecisionBack(precisionBack){if(!precisionBack)return;const ref=precisionBack.ref;const index=ref?.shotId?SH.findIndex(s=>s.id===ref.shotId):ref?.shot;const key=SH[index]?.keys?.[ref?.key];if(key&&key.img===precisionBack.source){key.img=precisionBack.url;SH[index].r=false;cur=index;open=index;selKey=key;G=start(index)+Math.min(key.t,SH[index].d-.001);pushHist({kind:'keyframe',url:precisionBack.url,label:'Precision edit · '+(precisionBack.label||SH[index].n)})}else if(imageDraft.url===precisionBack.source){imageDraft.url=precisionBack.url;saveWorkshop();pushHist({kind:'keyframe',url:precisionBack.url,label:'Precision edit'})}else toast('Original selection changed. The edited image is saved in Edit versions.');}
+applyPrecisionBack(precisionBack);
 const videoBack=SC.get('osh-video-edit-return');SC.set('osh-video-edit-return',null);
-if(videoBack){const i=SH.findIndex(s=>s.id===videoBack.ref?.shotId);if(i>=0&&SH[i].video===videoBack.original){const s=SH[i];s.video=videoBack.video;if(videoBack.audioEdited){s.audio=videoBack.audio;s.audioPrompt=videoBack.audioPrompt;s.audioMuted=false;s.audioDuration=videoBack.duration}else if(s.audioLinked!==false)s.audio=videoBack.hasAudio?s.video:undefined;s.d=Math.max(.1,Math.min(60,+videoBack.duration||s.d));s.keys.forEach(k=>k.t=Math.min(k.t,s.d));s.r=true;cur=i;G=Math.min(G,tot()-.01);pushHist({kind:'shot',url:s.video,label:s.n+' · edited video',audio:s.audio,shotId:s.id,duration:s.d})}else toast('Original shot changed; edited video is still available in Edit Anything.')}
+function applyVideoBack(videoBack){if(!videoBack)return;const i=SH.findIndex(s=>s.id===videoBack.ref?.shotId);if(i>=0&&SH[i].video===videoBack.original){const s=SH[i];s.video=videoBack.video;if(videoBack.audioEdited){s.audio=videoBack.audio;s.audioPrompt=videoBack.audioPrompt;s.audioMuted=false;s.audioDuration=videoBack.duration}else if(s.audioLinked!==false)s.audio=videoBack.hasAudio?s.video:undefined;s.d=Math.max(.1,Math.min(60,+videoBack.duration||s.d));s.keys.forEach(k=>k.t=Math.min(k.t,s.d));s.r=true;cur=i;G=Math.min(G,tot()-.01);pushHist({kind:'shot',url:s.video,label:s.n+' · edited video',audio:s.audio,shotId:s.id,duration:s.d})}else toast('Original shot changed; edited video is still available in Edit Anything.')}
+applyVideoBack(videoBack);
 const back=SC.get('osh-edit-return');SC.set('osh-edit-return',null);
 if(back&&SH[back.shot]&&SH[back.shot].keys[back.key]){const k=SH[back.shot].keys[back.key];k.spec=back.spec;SH[back.shot].r=false;cur=back.shot;open=back.shot;selKey=k;G=start(cur)+Math.min(k.t,currentShot().d-.01);playing=false;setTimeout(()=>toast(`Keyframe updated with ${back.n} edit${back.n===1?'':'s'} from Edit Anything`),300)}
 setInterval(save,1000);addEventListener('beforeunload',save);
@@ -346,7 +351,7 @@ mountModels();
 const viewer=document.querySelector('.viewer'),composer=document.querySelector('.composer');
 const seedInput=$('#videoSeed');seedInput.onchange=()=>{if(seedInput.reportValidity()){currentShot().seed=+seedInput.value;save()}};
 $('#previousFrame').onclick=()=>viewerSeek(Math.max(0,G-(clipSelected?start(cur):0)-1/(currentShot().fps||24)));$('#nextFrame').onclick=()=>viewerSeek(G-(clipSelected?start(cur):0)+1/(currentShot().fps||24));$('#viewerTime').onchange=e=>{if(e.target.reportValidity())viewerSeek(+e.target.value)};
-$('#editViewer').onclick=()=>{const s=currentShot();if(!s.video)return;SC.set('osh-handoff',{type:'shot',label:s.n,video:s.video,audio:s.audio,audioPrompt:s.audioPrompt,audioLinked:s.audioLinked,duration:s.d,ref:{shot:cur,shotId:shotId(s)},from:'director'});location.href='/studio/edit?from=director'};
+$('#editViewer').onclick=()=>{const s=currentShot();if(!s.video)return;SC.set('osh-handoff',{type:'shot',label:s.n,video:s.video,audio:s.audio,audioPrompt:s.audioPrompt,audioLinked:s.audioLinked,duration:s.d,ref:{shot:cur,shotId:shotId(s)},from:'director'});dispatchEvent(new CustomEvent('osh-open-edit',{detail:{type:'shot',label:s.n,video:s.video,audio:s.audio,audioPrompt:s.audioPrompt,audioLinked:s.audioLinked,duration:s.d,ref:{shot:cur,shotId:shotId(s)},from:'director'}}))};
 $('#captureKeyframe').onclick=async()=>{
  if(capturingFrame)return;
  const [i]=clipSelected&&!playing?[cur]:at(G),s=SH[i],video=$('#vid'),url=s.video;
@@ -389,12 +394,14 @@ const overlayToggle=$('#overlayTrackToggle');renderView(overlayToggle,[h(Glyph,{
 editHistory=mountEditHistory(
  ()=>JSON.parse(JSON.stringify({SH,STASH,TRASH,imageDraft,keyframeBatch,LAYERS,sceneDraft})),
  state=>{const id=currentShot()?.id;setPlaying(false);SH.splice(0,SH.length,...state.SH);sceneDraft=state.sceneDraft||newScene();STASH=state.STASH;TRASH=state.TRASH;LAYERS=validLayers(state.LAYERS);imageDraft=state.imageDraft;keyframeBatch=state.keyframeBatch;cur=Math.max(0,SH.findIndex(s=>s.id===id));open=null;selKey=null;clipSelected=true;selectedTrack='video';G=start(cur);$('#kp').value=imageDraft.prompt||'';batchSlider.value=String([1,2,4].indexOf(keyframeBatch));updateBatch();saveWorkshop();syncWorkspace();timeline();head();stashUI();trashUI();save()},
- ()=>$('#ov').style.display==='flex'||$('#kgo').disabled||!!cancelShotDrag||!!dragV||!!sequenceLayers?.busy()
+ ()=>inEditWorkspace()||$('#ov').style.display==='flex'||$('#kgo').disabled||!!cancelShotDrag||!!dragV||!!sequenceLayers?.busy()
 );
 editHistory.element.id='studioEditHistory';document.body.append(editHistory.element);
+embeddedEdit=mountEditWorkflow(()=>media(true),()=>{const image=SC.get('osh-precision-return'),video=SC.get('osh-video-edit-return');const target=image&&!image.ref&&imageDraft.url===image.source?'Image':'Video';SC.set('osh-precision-return',null);SC.set('osh-video-edit-return',null);applyPrecisionBack(image);applyVideoBack(video);timeline();head();save();syncWorkspace();document.dispatchEvent(new CustomEvent('osh-workspace-select',{detail:target}))},file=>{for(const [shot,s]of SH.entries()){if(file.kind==='video'&&s.video===file.url)return {type:'shot',video:s.video,label:file.label,audio:s.audio,audioPrompt:s.audioPrompt,audioLinked:s.audioLinked,duration:s.d,from:'director',ref:{shot,shotId:shotId(s)}};const key=s.keys.findIndex(k=>k.img===file.url);if(file.kind==='image'&&key>=0)return {type:'keyframe',img:file.url,label:file.label,from:'director',ref:{shot,shotId:shotId(s),key}}}if(file.kind==='image'&&imageDraft.url===file.url)return {type:'keyframe',img:file.url,label:file.label,from:'director'};return null});
 mountWorkspaceDock(()=>{timeline();head()},setWorkflow);
+if(inEditWorkspace())embeddedEdit.open();
 onboardingUI=mountOnboardingTour({
- get:()=>onboarding,set:state=>{onboarding=state},save:()=>{if(onboarding&&ownsTour('director',onboarding.entry))SC.set('osh-onboarding',onboarding)},
+ get:()=>onboarding,set:state=>{onboarding=state},save:()=>{if(onboarding)SC.set('osh-onboarding',onboarding)},
  current:()=>workflowForSetup(document.querySelector('[aria-label="Workspace setup"]')?.value||'Video',workspaceMode),
  begin:entry=>({step:entry==='image'?(imageDraft.url?'image-review':'image'):entry==='director'?(results.filter(r=>r.img).length>=2?'return-video':'switch-image'):entry==='3d'?'3d':entry==='rendering'?'render-settings':entry==='edit'?'edit-settings':currentShot().r?'switch-image':'prompt',shotId:shotId(currentShot()),images:results.filter(r=>r.img).map(r=>r.img),dismissed:false,entry}),
  choose:entry=>{if(entry==='edit'){SHELL.open('edit');return}setWorkflow(entry==='image'?'image':'video');document.dispatchEvent(new CustomEvent('osh-workspace-select',{detail:({image:'Image',video:'Video','3d':'3D',director:'Director',rendering:'Rendering'})[entry]}))}

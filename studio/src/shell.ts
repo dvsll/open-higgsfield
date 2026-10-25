@@ -259,6 +259,7 @@ function open(app: string) {
   if (!a || !media || !a[3].includes(media.type)) return;
   opts.beforeOpen?.(app, media);
   SC.set('osh-handoff', { ...media, from: opts.app });
+  if(app==='edit'&&opts.app==='director'){dispatchEvent(new CustomEvent('osh-open-edit',{detail:{...media,from:'director'}}));return}
   location.href = a[2] + '?from=' + opts.app;
 }
 /** Highlight elements in use (chips on in the generator, regions selected in Edit). */

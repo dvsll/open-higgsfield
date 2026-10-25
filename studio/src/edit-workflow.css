@@ -1,0 +1,4 @@
+.embedded-edit{height:100%;min-height:0;display:flex;flex-direction:column}.embedded-edit-view{display:flex;flex-direction:column;flex:1;min-height:0;overflow:auto}.embedded-edit-actions:empty{display:none}.embedded-edit-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px;border-bottom:1px solid var(--ui-border)}.embedded-edit-actions button{font:inherit;padding:6px 10px;background:#e9c46a;color:#211b10;border:1px solid #e9c46a;cursor:pointer}.embedded-edit .video-edit-preview{min-height:0;flex:1;max-height:100%;object-fit:contain}.embedded-edit .precision-stage{min-height:80px}.embedded-edit .video-edit-toolbar{flex-wrap:wrap;padding:8px}.embedded-edit .precision-toolbar{font-size:var(--ui-small)}
+
+#studioEditControls .video-properties label{flex-direction:row;align-items:center;justify-content:space-between;text-align:left}
+

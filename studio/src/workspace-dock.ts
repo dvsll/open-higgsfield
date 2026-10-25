@@ -7,7 +7,7 @@ import {DockTree,WindowChrome} from './react/docking';
 import './workspace-dock.css';
 import './sequence-transport.css';
 import { mountProjectFiles } from './project-files';
-import { SHELL } from './shell';
+
 import { panel, split, ids, remove, dock, valid, boundsOf, type Edge, type LayoutNode } from './window-layout';
 import {basicVideoWorkspace,workspaceNameError,recycleWorkspace,restoredWorkspaceName,type Setup} from './workspace-setups';
 
@@ -30,6 +30,7 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
   Image: { tree: split('y', split('x', panel('viewer'), panel('keyframes'), .72), panel('takes'), .7), mode: 'image' },
   Audio:{tree:split('y',split('x',panel('files'),panel('audio-create'),.35),panel('timeline'),topRatio),mode:'video'},
   Overlays:{tree:split('y',split('x',panel('viewer'),panel('overlay-create'),.65),panel('timeline'),topRatio),mode:'video'},
+  Edit:{tree:split('x',panel('files'),split('x',panel('edit-viewer'),split('y',panel('edit-controls'),panel('edit-versions'),.65),.7),.2),mode:'video'},
   '3D': { tree: split('x', panel('stage'), panel('elements'), .75), mode: 'video' },
   Rendering: { tree: split('y', split('x', panel('viewer'), panel('properties'), .75), panel('takes'), .7), mode: 'video' }
  };
@@ -135,6 +136,7 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
  properties.open = true; const viewContent = document.createElement('div'); viewContent.className = 'viewer-content'; viewContent.append(image, viewer);
  add('captions','Captions',document.getElementById('studioCaptions')!);add('edit-history','Edit history',document.getElementById('studioEditHistory')!);add('files','Project files',mountProjectFiles());add('stash','Stash',document.getElementById('stash')!);
  add('audio-create','Audio prompts',document.getElementById('studioAudioCreator')!);add('overlay-create','Overlay tools',document.getElementById('studioOverlayCreator')!);
+ add('edit-viewer','Edit viewer',document.getElementById('studioEditViewer')!);add('edit-controls','Edit controls',document.getElementById('studioEditControls')!);add('edit-versions','Edit versions',document.getElementById('studioEditVersions')!);
  const inspector=document.createElement('div');inspector.className='sequence-inspector';const identity=document.getElementById('videoTrackAttributes')!;identity.hidden=false;identity.className='scene-property-identity';inspector.append(identity,properties);
  add('stylization', 'Stylization', document.getElementById('studioStylization')!); add('elements', 'Elements', document.getElementById('studioElements')!); add('assets', 'Selected media', assets); add('viewer', 'Viewer', viewContent); add('prompts', 'Prompts', composer); add('keyframes', 'Image prompts', keys); add('properties', 'Properties', inspector); add('timeline', 'Sequence', main.querySelector<HTMLElement>('.tlw')!); add('takes', 'Takes', main.querySelector<HTMLElement>('.hist')!);
  const sequenceBar = panels.get('timeline')!.querySelector('.window-titlebar')!;
@@ -160,16 +162,17 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
    if(!names.length)continue;const group=document.createElement('optgroup');group.label=label;
    for(const name of names)group.append(new Option(name,name));picker.append(group);
   }
-  if(!custom)picker.add(new Option('Edit ↗','__edit'));picker.add(new Option('+ Create new workspace…','__new'));picker.value=active;
+  picker.add(new Option('+ Create new workspace…','__new'));picker.value=active;
   deleteButton.disabled=Object.hasOwn(presets,active);
   deleteButton.title=deleteButton.disabled?'Built-in presets stay available. Use Reset setup to restore their layout.':`Delete ${active}`;
   const last=Object.keys(store.deletedLayouts||{}).at(-1);restoreButton.hidden=!last;restoreButton.title=last?`Restore ${last}`:'';
  }
  let switching = false;
  function select(name: string): boolean {
-  if(name==='__edit'){SHELL.open('edit');picker.value=active;return false}
+  if(name==='__edit')name='Edit';
   if(name==='__new'){picker.value=active;void createWorkspace();return false}
   if(switching)return false;const next=clone(store.layouts[name]||presets[name]||fallback);
+  if(!custom&&name==='Edit')document.dispatchEvent(new Event('osh-edit-entering'));
   if(next.tree&&!valid(next.tree,new Set(panels.keys())))next.tree=clone(fallback.tree);
   switching=true;try{workflow(next.mode)}finally{switching=false}
   // A running generation can decline a creation-mode change. Keep its current layout and mode together.

@@ -11,9 +11,10 @@
 .window-body .tl .clip .strip{position:absolute;left:0;top:20px;height:58px;width:100%}
 .window-body .tl .addclip{height:80px;flex:none}
 .expanded-scenes>.addclip{position:absolute;right:0;bottom:0;height:28px!important;width:28px;margin:0}
-.tl[data-focus=video] :is(#overlayTrack,#overlayTrackToggle,#audioTrack,#audioTrackToggle),
-.tl[data-focus=overlays] :is(#trk,#videoTrackToggle,#audioTrack,#audioTrackToggle),
-.tl[data-focus=audio] :is(#trk,#videoTrackToggle,#overlayTrack,#overlayTrackToggle){opacity:.65}
+.tl:has(.track-toggle[aria-expanded=true]) .track-toggle:not([aria-expanded=true]),
+.tl:has(.track-toggle[aria-expanded=true]):has(#overlayTrackToggle:not([aria-expanded=true])) #overlayTrack,
+.tl:has(.track-toggle[aria-expanded=true]):has(#videoTrackToggle:not([aria-expanded=true])) #trk,
+.tl:has(.track-toggle[aria-expanded=true]):has(#audioTrackToggle:not([aria-expanded=true])) #audioTrack{opacity:.65}
 .tl .track-toggle[aria-expanded=true]{border-color:var(--ui-accent);box-shadow:inset 2px 0 var(--ui-accent)}
 .sequence-layer-lane .sequence-layer-clip{max-width:100%}
 .sequence-layer-lane[data-expanded=false] .sequence-layer-clip{opacity:.65}
@@ -45,7 +46,7 @@
 .window-body .tl #trk:not(.expanded-scenes):not(.scene) .strip{display:none}
 .window-body .tl #trk:not(.expanded-scenes):not(.scene) .clip .lbl{height:30px;display:flex;align-items:center}
 .tl .sequence-empty{min-height:32px;height:32px;border:1px solid var(--ui-border);padding:6px 8px;background:#131619}
-.tl[data-focus=video] .sequence-empty{height:80px}
+.tl:has(#videoTrackToggle[aria-expanded=true]) .sequence-empty{height:80px}
 .sequence-layer-lane .layer-empty{display:flex;align-items:center;box-sizing:border-box;height:100%;padding:6px 8px;font-size:var(--ui-small);color:var(--ui-muted)}
 .sequence-layer-lane[data-expanded=true] .sequence-layer-clip{height:80px;min-height:80px;padding:0}
 .sequence-layer-lane[data-expanded=true] .sequence-layer-clip>span{position:absolute;left:0;right:0;top:0;height:20px;box-sizing:border-box;padding:3px 6px;background:#20232a;text-align:left}

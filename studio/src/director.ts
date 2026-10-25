@@ -1,5 +1,5 @@
 // @ts-nocheck -- existing canvas/media controller; React views are strictly typed.
-import {Glyph,Crumb,RenderStatus,Chips} from './react/controls';
+import {Glyph,Crumb,Chips} from './react/controls';
 import {GenerationDiagnostics} from './react/generation-diagnostics';
 import {mountEditWorkflow} from './edit-workflow';
 let embeddedEdit;
@@ -220,7 +220,7 @@ function head(){const s=currentShot();const attributesPanel=$('#videoAttributes'
  [...$$('#trk .clip')].forEach((el,i)=>{const selected=clipSelected&&i===(open==null?cur:0)&&(!audioSelected||s.audioLinked!==false);el.classList.toggle('on',selected);el.setAttribute('aria-selected',String(selected))});
  const attributes=$('#selectedVideoAttributes');if(attributes){attributes.textContent=s.video?'Reading selected video…':`${s.n} · ${+s.d.toFixed(3)}s · not generated`;if(s.video){const url=s.video;videoFrames(url).then(info=>{if(currentShot()===s&&s.video===url)attributes.textContent=`Current take · ${info.width} × ${info.height} px · ${info.duration.toFixed(2)}s`}).catch(()=>{if(currentShot()===s)attributes.textContent=`${s.n} · video unavailable`})}}
  if(document.activeElement!==$('#shotPromptInput'))$('#shotPromptInput').value=s.prompt||'';
- renderView($('#sState'),h(RenderStatus,{generated:s.r}));if(document.activeElement!==$('#motion'))$('#motion').value=s.m;dispatchEvent(new Event('osh-prompt-values'))}
+ if(document.activeElement!==$('#motion'))$('#motion').value=s.m;dispatchEvent(new Event('osh-prompt-values'))}
 function checkTourPlacement(){const shot=SH.find(s=>s.id===onboarding?.shotId);if(touring()&&onboarding.step==='position'&&shot&&guidesPlaced(shot.keys))advanceTour('regenerate')}
 addEventListener('osh-tour-keyframe-view',()=>{const index=SH.findIndex(s=>s.id===onboarding?.shotId);if(index>=0)openShot(index)});
 addEventListener('osh-project-file-keyframe',event=>{if(workspaceMode!=='video')return;const file=(SC.get('osh-project-files')||[]).find(file=>file.kind==='image'&&file.url===event.detail?.url);if(!file)return;const[i,t]=keyTarget();addKey(i,t,{img:file.url,spec:currentShot().spec,u:.5})});

@@ -13,7 +13,6 @@ export function WorkspaceToolbar() {
       <button data-history-undo aria-label="Undo" title="Undo (Ctrl+Z)" className="workspace-delete" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5 3 11l6 6M3 11h11a6 6 0 0 1 6 6v2"/></svg></button>
       <button data-history-redo aria-label="Redo" title="Redo (Ctrl+Shift+Z)" className="workspace-delete" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5 6 6-6 6m6-6H10a6 6 0 0 0-6 6v2"/></svg></button>
       <button data-restore-setup hidden>Undo delete</button>
-      <span>Drag a window title · release on a docking guide</span>
     </>
   );
 }

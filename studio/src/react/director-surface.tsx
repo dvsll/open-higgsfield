@@ -50,7 +50,6 @@ export function DirectorSurface() {
             </h2>
             <span id="sMeta"></span>
             <span className="sp"></span>
-            <span id="sState"></span>
           </div>
           <section className="image-stage">
             <div id="imageWelcome">

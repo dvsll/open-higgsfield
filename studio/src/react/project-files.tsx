@@ -8,7 +8,8 @@ import './project-files.css';
 const kinds=[['video','Videos'],['image','Images'],['audio','Audio']] as const;
 export function ProjectFilesView({files,organization,onOrganize,onSelect,onOpen,onUseKeyframe}:{files:ProjectFile[];organization:FileOrganization;onOrganize:(value:FileOrganization)=>void;onSelect:(file:ProjectFile)=>void;onOpen:(file:ProjectFile)=>void;onUseKeyframe?:(file:ProjectFile)=>void}){
  const [selected,setSelected]=useState(''),[editing,setEditing]=useState<string|null>(null),[name,setName]=useState(''),[dragOver,setDragOver]=useState<string|null>(null);
- const current=files.find(file=>file.url===selected);
+ const [filter,setFilter]=useState<'all'|'generated'|'uploaded'>('all');const visible=files.filter(file=>filter==='all'||file.origin===filter);
+ const current=visible.find(file=>file.url===selected);
  const move=(url:string,folder:string)=>{if(!files.some(file=>file.url===url))return;const assignments={...organization.assignments};if(folder)assignments[url]=folder;else delete assignments[url];onOrganize({...organization,assignments})};
  const drop=(event:DragEvent,folder:string,kind?:string)=>{event.preventDefault();setDragOver(null);const url=event.dataTransfer.getData('application/x-studio-file');if(kind&&files.find(file=>file.url===url)?.kind!==kind)return;move(url,folder)};
  const row=(file:ProjectFile)=><div key={file.url} className="project-file" data-selected={selected===file.url} draggable onDragStart={event=>{event.dataTransfer.setData('application/x-studio-file',file.url);event.dataTransfer.setData('application/x-studio-file-'+file.kind,'1');event.dataTransfer.effectAllowed='copyMove'}}>
@@ -22,13 +23,14 @@ export function ProjectFilesView({files,organization,onOrganize,onSelect,onOpen,
   {items.length?items.map(row):<p className="file-folder-empty">Drop files here</p>}
  </details>;
  return <>
-  <div className="file-library-tools"><span>{files.length} {files.length===1?'file':'files'}</span><div className="file-library-actions"><button type="button" aria-label="Import files" title="Import files" onClick={()=>window.dispatchEvent(new Event('osh-import-files'))}><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 14V3m-4 4 4-4 4 4M4 14v3h12v-3"/></svg></button><button type="button" onClick={()=>{setName('');setEditing('new')}}><span aria-hidden="true">＋</span> New folder</button></div></div>
+  <div className="file-source-filters" role="group" aria-label="Media source">{(['all','generated','uploaded'] as const).map(value=><button key={value} type="button" aria-pressed={filter===value} onClick={()=>setFilter(value)}>{value[0].toUpperCase()+value.slice(1)}</button>)}</div>
+  <div className="file-library-tools"><span>{visible.length} {visible.length===1?'file':'files'}</span><div className="file-library-actions"><button type="button" aria-label="Import files" title="Import files" onClick={()=>window.dispatchEvent(new Event('osh-import-files'))}><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 14V3m-4 4 4-4 4 4M4 14v3h12v-3"/></svg></button><button type="button" onClick={()=>{setName('');setEditing('new')}}><span aria-hidden="true">＋</span> New folder</button></div></div>
   {current?.kind==='image'&&onUseKeyframe&&<button className="file-add-keyframe" type="button" onClick={()=>onUseKeyframe(current)}>Add as keyframe</button>}
   {current&&<label className="file-move"><span>Folder</span><select aria-label={'Folder for '+current.label} value={organization.assignments[current.url]||''} onChange={event=>move(current.url,event.target.value)}><option value="">Media type</option>{organization.folders.map(folder=><option key={folder.id} value={folder.id}>{folder.name}</option>)}</select></label>}
   <div className="file-library-list">
-   {organization.folders.map(folder=>section(folder.id,folder.name,files.filter(file=>organization.assignments[file.url]===folder.id),true))}
-   {kinds.map(([kind,title])=>{const items=files.filter(file=>file.kind===kind&&!organization.assignments[file.url]);return items.length?section(kind,title,items):null})}
-   {!files.length&&<p className="files-empty">Your images, videos and audio appear here as you create them.</p>}
+   {organization.folders.map(folder=>section(folder.id,folder.name,visible.filter(file=>organization.assignments[file.url]===folder.id),true))}
+   {kinds.map(([kind,title])=>{const items=visible.filter(file=>file.kind===kind&&!organization.assignments[file.url]);return items.length?section(kind,title,items):null})}
+   {!visible.length&&<p className="files-empty">{filter==='all'?'Your images, videos and audio appear here as you create them.':`No ${filter} media.`}</p>}
   </div>
   {editing!==null&&<Popup title={editing==='new'?'New folder':'Manage folder'} onClose={()=>setEditing(null)}><form className="file-folder-form" onSubmit={event=>{event.preventDefault();const clean=name.trim();if(!clean)return;const folders=editing==='new'?[...organization.folders,{id:crypto.randomUUID(),name:clean}]:organization.folders.map(folder=>folder.id===editing?{...folder,name:clean}:folder);onOrganize({...organization,folders});setEditing(null)}}>
    <label>Folder name<input autoFocus value={name} maxLength={60} onChange={event=>setName(event.target.value)} placeholder="e.g. Scene references"/></label>

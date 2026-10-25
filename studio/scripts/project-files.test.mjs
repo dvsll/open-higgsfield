@@ -43,3 +43,7 @@ try{
  globalThis.document.querySelector=selector=>selector==='.tour-popover'?{hidden:false}:null;drag('dragenter',['Files']);assert.equal(views.at(-1).active,false);drag('drop',['Files'],[new File(['wave'],'voice.wav')]);assert.equal(requests.length,1,'focused onboarding blocks external imports');
  window.dispatchEvent(new Event('pagehide'));
 }finally{await server.close();delete globalThis.__fileDropTest;for(const [key,value]of Object.entries(original)){if(value===undefined)delete globalThis[key];else globalThis[key]=value}}
+const uploaded=projectFiles({SH:[{video,r:true}]},{},[],{},[{url:video,label:'Uploaded clip',kind:'video',origin:'uploaded'}]);
+assert.equal(uploaded[0].origin,'uploaded','explicit import provenance survives timeline references');
+assert.equal(projectFiles({HISTORY:[{url:image}]},{})[0].origin,'generated');
+assert.equal(projectFiles({}, {},[],{},[{url:audio,label:'Legacy audio',kind:'audio'}])[0].origin,undefined,'unknown legacy origins are not guessed');

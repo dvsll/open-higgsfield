@@ -31,7 +31,7 @@ export function mountProjectFileDrop(){
    const context=canvas.getContext('2d');if(!context)throw Error('Could not read this image.');context.drawImage(bitmap,0,0,canvas.width,canvas.height);
    const png=canvas.toDataURL('image/png');if((png.length-22)*.75>5*1024*1024)throw Error('Image is too detailed for the 5 MB image import limit. Try a smaller copy.');
    const result=await fetch('/api/upload',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({image:png}),signal:abort.signal});
-   const value=await result.json();if(!result.ok)throw Error(value.error||'Image import failed.');return {url:value.url,label:input.name,kind:'image'};
+   const value=await result.json();if(!result.ok)throw Error(value.error||'Image import failed.');return {url:value.url,label:input.name,kind:'image',origin:'uploaded'};
   }finally{bitmap.close()}
  }
  async function run(){
@@ -43,7 +43,7 @@ export function mountProjectFileDrop(){
     if(type.startsWith('image/'))file=await image(input);
     else{
      const response=await fetch('/api/media',{method:'POST',headers:{'Content-Type':type},body:input,signal:abort.signal});
-     const value=await response.json();if(!response.ok)throw Error(value.error||'Media import failed.');file={url:value.url,label:input.name,kind:value.kind};
+     const value=await response.json();if(!response.ok)throw Error(value.error||'Media import failed.');file={url:value.url,label:input.name,kind:value.kind,origin:'uploaded'};
     }
     if(disposed)return;
     SC.set('osh-project-files',[...(SC.get('osh-project-files')||[]),file]);dispatchEvent(new Event('osh-project-media'));

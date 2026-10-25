@@ -140,26 +140,6 @@ export function WindowChrome({
         >
           {title}
         </button>
-        <select
-          aria-label={'Dock ' + title}
-          value=""
-          onChange={(e) => {
-            const [target, edge] = e.currentTarget.value.split(':');
-            if (target) onDock(id, target, edge as Edge);
-          }}
-        >
-          <option value="">Dock…</option>
-          {visible
-            .filter((other) => other !== id)
-            .flatMap((other) =>
-              (['left', 'right', 'top', 'bottom'] as Edge[]).map((edge) => (
-                <option key={other + edge} value={other + ':' + edge}>
-                  {edge === 'top' ? 'Above' : edge === 'bottom' ? 'Below' : edge + ' of'}{' '}
-                  {panels.get(other)?.getAttribute('aria-label')?.replace(' window', '')}
-                </option>
-              )),
-            )}
-        </select>
         <button
           className="window-close"
           title={'Close ' + title}

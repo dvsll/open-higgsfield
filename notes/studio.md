@@ -3,6 +3,8 @@
 Append dated decisions, render times and requests here. Only the studio owner edits this file; the partner adds requests at the bottom.
 
 ## Where we left off (update this before switching agents)
+**Latest handoff - 2026-10-25, remove Dock menus:** Removed the Dock select from shared React window headers. Title dragging/snap guides and close actions retained. Browser8288 confirms zero header selects; screenshot outputs/window-headers-no-dock-menu.png. Typecheck/layout/panel lifecycle tests pass.
+
 **Latest handoff - 2026-10-25, single dark Studio bar:** Consolidated Director header into workspace toolbar: folder/project picker first, separator, workspace selector/Windows/media trash/history; temporary Try onboarding at trailing edge. Removed back link/Director heading; old connection/setup header and scene context hidden while service DOM stays connected. Scoped Studio single-bar layout uses viewport-height two-row app grid; custom Edit host unchanged. Project picker is a React toolbar component, not moved event nodes. Browser8288 project picker opens/closes, document720px matches viewport; screenshot outputs/single-studio-topbar.png. Typecheck passes. One-shot reminder set-up-studio-admin-page created for Monday Oct26 at9AM user timezone, reminder only for admin page connection/setup controls. No runtime/model changes.
 
 **Latest handoff - 2026-10-25, minimal workspace toolbar:** Removed Save setup, Reset setup and Undo delete buttons and their handlers. Layouts still autosave; Create/current-layout copy and Recycle Bin restoration remain in workspace dropdown. Toolbar now picker/Windows/media-trash/undo/redo. Browser8288 verified buttons absent and ready render, screenshot outputs/minimal-workspace-toolbar.png; typecheck passes.

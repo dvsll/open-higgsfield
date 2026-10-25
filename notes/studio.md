@@ -3,6 +3,8 @@
 Append dated decisions, render times and requests here. Only the studio owner edits this file; the partner adds requests at the bottom.
 
 ## Where we left off (update this before switching agents)
+**Latest handoff - 2026-10-25, remove redundant Director preset:** Removed Director built-in workspace and tutorial teaser. Old stored Director layout/bin entries removed from built-in Studio store; active Director and legacy select requests route to Video. Other named layouts preserved; custom host presets unaffected. Browser verified picker lists Video/Image/Audio/Overlays/Edit/3D/Rendering without Director; screenshot outputs/workflows-without-director.png. Typecheck passes.
+
 **Latest handoff - 2026-10-25, separate timeline row spacing:** User clarified visual separation, not dock windows. Added shared6px timeline row gap, reset inherited disclosure margins, normalized all three gutter buttons32px and layer border-box sizing so each label remains aligned with its lane. Browser measured all three buttons32px with38px top increments; screenshot outputs/separate-timeline-rows.png. Typecheck passes; CSS-only, no generation.
 
 

@@ -133,7 +133,7 @@ export function TourPopover({
             {experience} guidance.
           </p>
           <div className="tour-workflow-teasers">
-            {(['image', 'video', 'director', 'edit', 'rendering', '3d'] as Workflow[])
+            {(['image', 'video', 'edit', 'rendering', '3d'] as Workflow[])
               .filter((next) => next !== entry)
               .map((next) => (
                 <button key={next} className="tour-workflow-card" onClick={() => onWorkflow(next)}>

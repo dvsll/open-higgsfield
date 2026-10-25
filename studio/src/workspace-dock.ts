@@ -29,7 +29,6 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
  const videoTop=wide?split('x',split('y',panel('assets'),panel('files'),.5),creation,.19):creation;
  const presets: Record<string, Setup> = custom?.presets||{
   Video: { tree: split('y', videoTop, panel('timeline'), topRatio), mode: 'video' },
-  Director:{tree:split('y',split('x',panel('viewer'),panel('prompts'),.6),panel('timeline'),.62),mode:'video'},
   Image: { tree: split('y', split('x', panel('viewer'), panel('keyframes'), .72), panel('takes'), .7), mode: 'image' },
   Audio:{tree:split('y',split('x',panel('files'),panel('audio-create'),.35),panel('timeline'),topRatio),mode:'video'},
   Overlays:{tree:split('y',split('x',panel('viewer'),panel('overlay-create'),.65),panel('timeline'),topRatio),mode:'video'},
@@ -54,6 +53,7 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
    store.layouts[name] = { tree: top && bottom ? split('y', top, bottom, .68) : top || bottom, mode: old.modes?.[name] || 'video' };
   }
  } catch {}
+ if(!custom){delete store.layouts.Director;delete store.deletedLayouts?.Director;if(store.active==='Director')store.active='Video'}
  let active = store.active;
  let setup = clone(store.layouts[active] || presets[active] || fallback);
  try{if(!custom&&!localStorage.getItem('osh-video-layout-reference-v2')){store.layouts.Video=clone(fallback);if(active==='Video')setup=clone(fallback);localStorage.setItem('osh-video-layout-reference-v2','1')}}catch{}
@@ -173,6 +173,7 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
  }
  let switching = false;
  function select(name: string): boolean {
+  if(!custom&&name==='Director')name='Video';
   if(name==='__edit')name='Edit';
   if(name==='__new'){picker.value=active;void createWorkspace();return false}
   if(name==='__rename'){picker.value=active;void renameWorkspace();return false}
@@ -190,7 +191,7 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
  }
  if(!custom)setup.tree=remove(setup.tree,'properties');
  addEventListener('osh-reveal-window',((event:CustomEvent)=>{if(panels.has(event.detail))openWindow(event.detail)}) as EventListener);
- document.addEventListener('osh-workspace-select',((event:CustomEvent)=>{if(presets[event.detail])select(event.detail)}) as EventListener);
+ document.addEventListener('osh-workspace-select',((event:CustomEvent)=>{if(presets[event.detail]||!custom&&event.detail==='Director')select(event.detail)}) as EventListener);
  const names=()=>[...new Set([...Object.keys(presets),...Object.keys(store.layouts)])];
  async function createWorkspace(){
   const next=clone(setup);

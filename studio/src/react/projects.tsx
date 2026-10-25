@@ -12,6 +12,7 @@ import {
   type Project,
 } from '../projects';
 import '../projects.css';
+import {profileKey} from '../onboarding-progress';
 
 const paths = {
   close: 'M6 6l12 12M18 6L6 18',
@@ -251,9 +252,9 @@ export function tryOnboarding() {
     document.querySelector<HTMLElement>('#ov')?.style.display === 'flex'
   )
     return;
-  switchProject(
-    createProject(
+  const project=createProject(
       `Onboarding test ${readProjects().filter((p) => p.name.startsWith('Onboarding test')).length + 1}`,
-    ),
   );
+  localStorage.removeItem(profileKey);
+  switchProject(project);
 }

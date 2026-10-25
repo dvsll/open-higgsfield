@@ -165,3 +165,45 @@ GPU inference, Pod filesystem behavior, owner submission or end-to-end acceptanc
 
 Current local evidence/fixture commands: outputs/qwen-startup-fix-20261025/.
 The failed session remains closed; this fix grants no new paid authorization.
+
+## Long-running inference HTTP transport (2026-10-25)
+
+Only the relay's long `POST http://127.0.0.1:28301/api/hero/qwen` uses the built-in
+Node HTTP client. Node22.20.0 fetch/Undici has a separate300s response-header
+timeout that a30min AbortSignal does not override. The scoped transport uses one
+request (no redirects/retries/pooled sockets), caps its response at512KiB while
+reading, and enforces a timer across connection/upload/headers/body. Its deadline
+is the earlier of30min from submission and the approved Pod deadline minus10min.
+Expired deadlines fail before connecting. Connection loss/malformed/oversized
+responses fail the existing receipt and collection-monitor cleanup path.
+
+Timeout audit: ordinary relay metadata/upload/activity requests retain15s limits;
+raw PNG transfer retains60s/32MiB. SDK `job.wait` retains30min, cancellation5s;
+the outer relay deadline also covers remote weight verification and SDK wait.
+SSH keepalive15s/three misses and the independent exact-Pod deadline/$1.80 guards
+are unchanged. The browser request has no application timeout; its progress polls
+have3s limits and do not cancel inference. Vite's incoming request/header timers
+cover request reception, not the period after receiving the complete POST body.
+The real long-duration test below exercises that response wait through Vite too.
+No global fetch/HTTP timeout or Director behavior changes.
+
+```powershell
+# Use existing isolated Node22.20.0; no installs, model files or cloud credentials.
+node --experimental-transform-types adstudio/scripts/qwen-inference-http.test.mjs
+node --experimental-transform-types adstudio/scripts/qwen-relay-long.test.mjs --run-long
+```
+
+The long test always withholds ALL inference response headers for315 REAL seconds
+(monotonic clock, no clock mocks), through the production Vite config/API/relay
+on an isolated local port. It keeps synthetic watchdog heartbeats valid every2s.
+Only an orange-rectangle PNG and explicit CPU mock job/model/lease records are
+used. The real provenance/raw-PNG checks, five-file local collection verifier,
+`heroTakeFromDelivery` and isolated memory project driver validate delivery and
+restore; the owner's IndexedDB is never opened. Success requires an observed
+header wait exceeding310s, exact hashes and no second job. Expired lease, remote
+connection abort and malformed response cases must fail closed without retries.
+Fast tests additionally cover in-flight deadlines, stalled response body, size
+limits, redirects and upstream errors. Safe evidence is saved under
+`outputs/qwen-long-http-*/evidence/`; fixture approvals are deleted afterward.
+Without `--run-long` the script is a dry run. These tests prove local transport
+and delivery contracts, not real GPU quality or browser persistence acceptance.

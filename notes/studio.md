@@ -3,6 +3,9 @@
 Append dated decisions, render times and requests here. Only the studio owner edits this file; the partner adds requests at the bottom.
 
 ## Where we left off (update this before switching agents)
+
+**Ad Studio coordination - 2026-10-25, long HTTP repair verified:** Only the opt-in Qwen relay inference POST now uses built-in node:http, fixed loopback/no redirects/retry/512KiB response cap and firm min30min/lease-minus10min overall timer. Director/client/SDK/other endpoints and one-job/source/provenance/termination gates unchanged. Actual production Vite/API request waited315 REAL seconds before mock response headers and delivered verified5-file collection plus isolated memory project history; expired/aborted/malformed/duplicate cases pass. Build/typecheck,19 Studio,17 Ad Studio transport/domain files and Python24 (2 Linux skips) pass;33bfc3c collaborator work retained. No owner browser storage/controller, model/provider calls or spend. See notes/adstudio.md and adstudio/QWEN_APP_ACCEPTANCE.md; paid approval remains consumed/closed.
+
 **Latest handoff - 2026-10-25, selected audio waveform:** Audio-only Selected media now draws the real cached audio-track waveform on its preview canvas, with loading/unavailable text instead of no-image; type badge and canvas accessible label identify Audio. Selection cache includes audio URL so same-label source swaps refresh. Async cleanup prevents stale waveform painting over a new selection. Browser8288 File import check selected existing11s WAV, visible waveform verified; screenshot outputs/selected-audio-waveform.png. Typecheck passes; no inference/runtime changes.
 
 

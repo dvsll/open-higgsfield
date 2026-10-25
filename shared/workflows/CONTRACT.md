@@ -140,6 +140,13 @@ Opt-in `QWEN_APP_RELAY_URL=http://127.0.0.1:28301` plus `QWEN_APP_SESSION_DIR=<r
 
 The local relay validates raw output/provenance and durably collects original/reference/raw/manifest/opaque PNG before returning success with a local URL; only then may the collection monitor terminate the exact Pod. An interrupted request is never automatically resubmitted. Unset env preserves the existing local Qwen path and Director behavior. Browser/real app GPU acceptance remains unverified. See adstudio/QWEN_APP_ACCEPTANCE.md.
 
+2026-10-25 transport correction: only the approved loopback inference POST uses
+Node's built-in HTTP client to avoid fetch/Undici's independent300s header timeout.
+The request still has a firm connect/upload/header/body deadline: min(30min,
+Pod-deadline minus10min). Response metadata is streamed with a512KiB cap; redirects
+and retries are forbidden. All source, provenance, one-job, approval, collection
+and termination contracts above remain unchanged. No shared API signature change.
+
 
 ## Integrated main acceptance metadata (2026-10-24)
 Captions/Qwen both retain X-OSH-Request activity tracking. OSH.qwenHero adds optional fourth projectId; POST accepts optional projectId and provenance records it. Existing three-argument calls remain valid; only opt-in one-job acceptance requires exact project/brand/source/product binding from a genuine browser export. Project schemas and Director APIs remain unchanged. The Qwen graph byte pin now matches canonical tracked LF bytes (8dc8cd...), fixing fresh checkout/archive readiness without changing graph content or weakening validation. Both current native Comfy prompt-polishing/textDevice and Qwen services coexist. See notes/cross-project-handoff.md.

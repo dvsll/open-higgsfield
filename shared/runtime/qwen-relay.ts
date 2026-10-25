@@ -5,6 +5,7 @@ import {join} from 'node:path';
 import {HeroError,heroSha} from './hero-ad.ts';
 import {validateQwenRequest,qwenWorkflow,qwenContract,inspectQwenPNG} from './qwen-hero.ts';
 import {acceptanceGate,acceptanceRequest,acceptanceUnused,claimAcceptanceJob,loopbackOrigin,type GateFiles} from './qwen-app-session.ts';
+import {qwenInferenceJSON,QWEN_INFERENCE_MAX_MS} from './qwen-inference-http.ts';
 type Progress=(phase:any,message:string,more?:any)=>void;
 export function createQwenRelay(root:string,remote:string,files:GateFiles){
  const base=loopbackOrigin(remote);if(base!=='http://127.0.0.1:28301')throw new HeroError(503,'Use the fixed private API SSH tunnel, not a public service.');
@@ -24,7 +25,8 @@ export function createQwenRelay(root:string,remote:string,files:GateFiles){
     await acceptanceGate(files,origin);progress('preparing','Transferring only the reviewed reference to the private app API.');
     const uploaded=await json('/api/upload',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({image:'data:image/png;base64,'+validated.source.bytes.toString('base64')})});if(!/^\/outputs\/[a-f0-9]{16}\.png$/.test(uploaded.url))throw new HeroError(502,'Invalid remote reference URL.');
     await acceptanceGate(files,origin);
-    const result=await json('/api/hero/qwen',{method:'POST',headers:{'Content-Type':'application/json','X-OSH-Request':id},body:JSON.stringify({...body,image:uploaded.url}),signal:AbortSignal.timeout(Math.min(30*60*1000,(lease.deadline-Date.now()/1000-600)*1000))});
+    const inferenceDeadline=Math.min(Date.now()+QWEN_INFERENCE_MAX_MS,lease.deadline*1000-600000);
+    const result=await qwenInferenceJSON(JSON.stringify({...body,image:uploaded.url}),id,inferenceDeadline);
     if(!/^[a-f0-9]{16}$/.test(result.provenanceId||'')||!/^\/outputs\/[a-f0-9]{16}\.png$/.test(result.url||'')||result.model!=='qwen-fp8'||!result.jobId)throw new HeroError(502,'Invalid real-job result contract.');
     progress('encoding','Collecting and verifying raw image and provenance on this PC before completion.');
     const record=await json('/api/hero/qwen/provenance/'+result.provenanceId),graph=await qwenWorkflow(),contract=await qwenContract();graph['6'].inputs.prompt=body.settings.prompt;graph['13'].inputs.seed=body.settings.seed;graph['15'].inputs.filename_prefix='adstudio-qwen-'+result.provenanceId;

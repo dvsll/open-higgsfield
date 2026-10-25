@@ -1,6 +1,7 @@
 import type {Connect,Plugin} from 'vite';
 
 const pages:Record<string,string>={
+ '/studio/admin':'/studio/admin.html',
  '/studio/director':'/studio/director.html',
  '/studio/edit':'/studio/edit.html',
  '/studio/design-lab':'/studio/design-lab.html',

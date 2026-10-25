@@ -36,6 +36,7 @@ export default defineConfig(({ mode }) => {
           home: "index.html",
           studio: "studio/index.html",
           director: "studio/director.html",
+          admin: "studio/admin.html",
           edit: "studio/edit.html",
           designLab: "studio/design-lab.html",
           adstudio: "adstudio/index.html",

@@ -9,7 +9,7 @@ for(const production of [false,true]){
  const options={configFile:false,plugins:[cleanStudioUrls()],appType:'mpa',cacheDir:'outputs/.route-test-vite-cache',server:{host:'127.0.0.1',port:0},preview:{host:'127.0.0.1',port:0}};
  const server=production?await preview(options):await createServer(options);if(!production)await server.listen();
  try{const address=server.httpServer.address(),base='http://127.0.0.1:'+address.port;
-  for(const [path,title]of [['director','Director Demo'],['edit','Edit Anything'],['design-lab','Cinema Studio']]){
+  for(const [path,title]of [['director','Director Demo'],['edit','Edit · Studio'],['design-lab','Cinema Studio'],['admin','Studio Admin']]){
    const response=await fetch(base+'/studio/'+path);assert.equal(response.status,200);assert.match(await response.text(),new RegExp(title));
    const old=await fetch(base+'/studio/'+path+'.html?from=test',{redirect:'manual'});assert.equal(old.status,308);assert.equal(old.headers.get('location'),'/studio/'+path+'?from=test');
   }
@@ -19,3 +19,4 @@ for(const production of [false,true]){
  }finally{if(production)await new Promise(resolve=>server.httpServer.close(resolve));else await server.close()}
 }
 console.log('PASS clean Studio routes in dev and built preview, legacy redirects/query preservation, HEAD, unknown404 and Ad Studio isolation.');
+assert.deepEqual(studioRoute('/studio/admin'),{rewrite:'/studio/admin.html'});assert.deepEqual(studioRoute('/studio/admin.html'),{redirect:'/studio/admin'});

@@ -6,7 +6,7 @@ type SetupState={rendering?:boolean;detectedInstances?:string[];connected:boolea
 let mounted=false;
 const gb=(n:number)=>(n/1e9).toFixed(2)+' GB';
 async function request(path:string,body?:unknown){const r=await fetch('/api/setup'+path,{method:body===undefined?'GET':'POST',headers:body===undefined?{}:{'Content-Type':'application/json'},body:body===undefined?undefined:JSON.stringify(body),cache:'no-store'});const j=await r.json();if(!r.ok)throw new Error(j.error||'Setup request failed');return j}
-export function mountRuntimeSetup():void{
+export function mountRuntimeSetup(autoOpen=true):void{
  if(mounted)return;mounted=true;
  const button=document.createElement('button');button.className='runtime-setup-button';button.textContent='Local setup';button.title='Connect ComfyUI, install a local runtime or download model packs';document.querySelector('.studio-header')?.append(button);
  const dialog=document.createElement('dialog');dialog.className='runtime-setup-dialog';dialog.setAttribute('aria-label','Local generation setup');
@@ -33,7 +33,7 @@ export function mountRuntimeSetup():void{
  q('[data-close]').onclick=()=>dialog.close();const openSetup=()=>{if(!dialog.open)dialog.showModal();void check()};button.onclick=openSetup;addEventListener('osh-open-runtime-setup',openSetup);dialog.querySelectorAll<HTMLButtonElement>('[data-mode]').forEach(b=>b.onclick=()=>setMode(b.dataset.mode!));
  q<HTMLFormElement>('[data-connect]').onsubmit=e=>{e.preventDefault();void action('/connect',{url:q<HTMLInputElement>('[name=url]').value,modelsDir:q<HTMLInputElement>('[name=models]').value})};q('[data-install]').onclick=()=>void action('/install',{gpu:q<HTMLSelectElement>('[data-gpu]').value});q('[data-start]').onclick=()=>void action('/start',{});q('[data-download]').onclick=()=>void action('/download',{packs:[...chosen]});q('[data-cancel]').onclick=()=>void action('/cancel',{});
  setInterval(()=>{if(dialog.open||state?.task.busy)void check()},1200);
- void request('').then((value:SetupState)=>{render(value);if((!value.connected||!value.proxy||!value.packs.find(p=>p.id==='shot_ltxv')?.models.every(m=>m.installed))&&!sessionStorage.getItem('osh-setup-later')){dialog.showModal();autoOpened=true}}).catch(()=>{});dialog.addEventListener('close',()=>{if(autoOpened)sessionStorage.setItem('osh-setup-later','1')});
+ void request('').then((value:SetupState)=>{render(value);if(autoOpen&&(!value.connected||!value.proxy||!value.packs.find(p=>p.id==='shot_ltxv')?.models.every(m=>m.installed))&&!sessionStorage.getItem('osh-setup-later')){dialog.showModal();autoOpened=true}}).catch(()=>{});dialog.addEventListener('close',()=>{if(autoOpened)sessionStorage.setItem('osh-setup-later','1')});
  const status=document.createElement('div');status.className='generation-stage';status.hidden=true;status.setAttribute('role','status');status.setAttribute('aria-live','polite');document.body.append(status);let current:any=null,hide:ReturnType<typeof setTimeout>|undefined;
  const draw=()=>{if(!current)return;const elapsed=Math.max(0,Math.floor((Date.now()-current.phaseStartedAt)/1000));status.textContent=current.message+(current.phase==='complete'?'':` · ${elapsed}s ${current.phase==='generating'?'generating':'in this stage'}`)};
  addEventListener('osh-generation-progress',((event:CustomEvent)=>{if(hide)clearTimeout(hide);current=event.detail;status.hidden=false;draw();if(['complete','error'].includes(current.phase))hide=setTimeout(()=>{status.hidden=true;current=null},3500)}) as EventListener);setInterval(draw,1000);

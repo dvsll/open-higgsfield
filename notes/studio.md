@@ -3,6 +3,8 @@
 Append dated decisions, render times and requests here. Only the studio owner edits this file; the partner adds requests at the bottom.
 
 ## Where we left off (update this before switching agents)
+**Latest handoff - 2026-10-25, full Admin page:** Replaced Admin popup with dedicated React /studio/admin route/build entry, dark full-page runtime view and return-to-Studio link. Existing connection polling and loopback Comfy link retained; Local setup mounts on page with automatic opening disabled so offline status does not obscure page. Default first-run auto-open elsewhere unchanged. Browser verified toolbar navigation to page, no initial dialog, Local setup open/close. Screenshot outputs/studio-admin-page.png. Build/typecheck and clean URL route tests pass. No runtime configuration/model operations.
+
 **Latest handoff - 2026-10-25, Admin entry:** Added Admin immediately after Try onboarding. In-app shared Popup preserves SPA/workspace state, polls existing read-only /api/setup only while open with abort cleanup, reports Comfy/connector/managed-existing status, exposes existing Local setup event and validated loopback Open ComfyUI link. Browser verified Admin and nested runtime setup open/close; current8188 reports offline, connector connected, config absent (no runtime changes attempted). Screenshot outputs/studio-admin-entry.png; typecheck passes. This is initial connection/admin surface, tomorrow reminder remains for further setup.
 
 **Latest handoff - 2026-10-25, remove Dock menus:** Removed the Dock select from shared React window headers. Title dragging/snap guides and close actions retained. Browser8288 confirms zero header selects; screenshot outputs/window-headers-no-dock-menu.png. Typecheck/layout/panel lifecycle tests pass.

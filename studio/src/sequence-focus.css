@@ -1,4 +1,7 @@
 /* The gutter and its lane always share a row. Property editing belongs to the dock inspector. */
+.window-body .tl{row-gap:6px}
+.window-body .tl :is(#overlayTrackToggle,#videoTrackToggle,#audioTrackToggle){margin:0!important;height:32px;min-height:32px;box-sizing:border-box;align-self:start}
+.sequence-layer-lane{box-sizing:border-box}
 .tl #overlayTrackToggle,.tl #overlayTrack{grid-row:2;margin-top:0}
 .tl #videoTrackToggle,.tl #trk{grid-row:3;margin-top:0!important}
 .tl #audioTrackToggle,.tl #audioTrack{grid-row:4;margin-top:0}

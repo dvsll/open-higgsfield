@@ -3,6 +3,8 @@
 Append dated decisions, render times and requests here. Only the studio owner edits this file; the partner adds requests at the bottom.
 
 ## Where we left off (update this before switching agents)
+**Latest handoff - 2026-10-25, separate timeline row spacing:** User clarified visual separation, not dock windows. Added shared6px timeline row gap, reset inherited disclosure margins, normalized all three gutter buttons32px and layer border-box sizing so each label remains aligned with its lane. Browser measured all three buttons32px with38px top increments; screenshot outputs/separate-timeline-rows.png. Typecheck passes; CSS-only, no generation.
+
 
 **Ad Studio coordination - 2026-10-25, real Qwen image delivered/cleaned:** Exact8763750 plus owner click generated ONE real Qwen42 image through app/SDK/proxy (jobfb86b7e8...). Long HTTP transport succeeded over400.985s. Raw880x1184 PNG and provenance/source copies locally verified at outputs/hero-qwen/d82fc2d73b12670a/; exact Podxme4dfcrqzxn8k auto-deleted after5-file verification, GET404/empty inventories/burn0 confirmed. ~20m10s, observed0.20505USD, balance7.42848, billing itemization pending. No retries/UI/Director/source-photo edits.8301 PID27396 left available while owner confirms save/refresh; browser history acceptance pending, no controller. Quality unapproved:9-roll layout preserved, enhancement subtle/icing details differ. Paid/private flags closed; see notes/adstudio.md.
 

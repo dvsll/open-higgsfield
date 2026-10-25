@@ -2,6 +2,7 @@ import {createElement} from 'react';
 import {StyleSelector,StyleMaker} from './react/styles';
 import {renderView,unmountView} from './react/render';
 import {SharedSurface,SelectedMedia} from './react/shared-panels';
+import {waveform} from './audio-track';
 // Shared left sidebar for every studio workflow:
 //   selected media (+ open in another workflow) · Stylemaxxer (style, fit meter, Stylemaxx) · Elements wall.
 // Project-level state (selected style, user styles) lives in localStorage 'osh-project' so it follows you between apps.
@@ -237,7 +238,7 @@ function maker(edit?:Style){
 
 // ---------- selected media: what's selected in this app, and which workflows can open it ----------
 function select(m: Media | null) {
-  const key = m ? JSON.stringify([m.type, m.label, m.spec, m.u, m.img,m.video]) : '';
+  const key = m ? JSON.stringify([m.type, m.label, m.spec, m.u, m.img,m.video,m.audio]) : '';
   if (key === mediaKey) return;
   mediaKey = key; media = m; drawMedia();
 }
@@ -250,6 +251,12 @@ function paintSelectedMedia(cv:HTMLCanvasElement,selected:Media){
  const g=cv.getContext('2d')!;let cancelled=false;
  if(selected.img){loadImg(selected.img).then(im=>{if(cancelled)return;const r=Math.max(cv.width/im.naturalWidth,cv.height/im.naturalHeight);g.drawImage(im,(cv.width-im.naturalWidth*r)/2,(cv.height-im.naturalHeight*r)/2,im.naturalWidth*r,im.naturalHeight*r)}).catch(()=>{if(!cancelled)SC.blank(g)});return()=>{cancelled=true}}
  if(selected.video){SC.blank(g);const video=document.createElement('video');video.muted=true;video.preload='auto';video.src=selected.video+'#t=0.1';video.onloadeddata=()=>{if(cancelled)return;const scale=Math.min(cv.width/video.videoWidth,cv.height/video.videoHeight);g.fillStyle='#08090b';g.fillRect(0,0,cv.width,cv.height);g.drawImage(video,(cv.width-video.videoWidth*scale)/2,(cv.height-video.videoHeight*scale)/2,video.videoWidth*scale,video.videoHeight*scale);video.removeAttribute('src');video.load()};return()=>{cancelled=true;video.onloadeddata=null;video.removeAttribute('src');video.load()}}
+ if(selected.audio){
+  const background=()=>{g.fillStyle='#101b18';g.fillRect(0,0,cv.width,cv.height)};background();
+  g.fillStyle='#899f98';g.font='12px Inter, sans-serif';g.textAlign='center';g.fillText('Loading waveform…',cv.width/2,cv.height/2);
+  void waveform(selected.audio).then(peaks=>{if(cancelled)return;background();g.fillStyle='#83baa7';const step=cv.width/peaks.length;peaks.forEach((peak,index)=>{const height=Math.max(1,peak*(cv.height-28));g.fillRect(index*step,(cv.height-height)/2,Math.max(1,step-1),height)})}).catch(()=>{if(cancelled)return;background();g.fillStyle='#a0b4ac';g.fillText('Waveform unavailable',cv.width/2,cv.height/2)});
+  return()=>{cancelled=true};
+ }
  SC.blank(g);
 
 }

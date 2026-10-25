@@ -76,9 +76,9 @@ export function SelectedMedia({
     return <div className="none">Select a shot, keyframe or frame to open it in another workflow.</div>;
   return (
     <>
-      <canvas ref={ref} width={320} height={180} />
+      <canvas ref={ref} width={320} height={180} aria-label={media.audio&&!media.img&&!media.video?'Selected audio waveform':'Selected media preview'} />
       <div className="mt">
-        <span className="ty">{{ shot: 'Shot', keyframe: 'Keyframe', frame: 'Frame' }[media.type]}</span>
+        <span className="ty">{media.audio&&!media.img&&!media.video?'Audio':{ shot: 'Shot', keyframe: 'Keyframe', frame: 'Frame' }[media.type]}</span>
         <b>{media.label}</b>
       </div>
       <div className="openin">

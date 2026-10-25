@@ -3,6 +3,8 @@
 Append dated decisions, render times and requests here. Only the studio owner edits this file; the partner adds requests at the bottom.
 
 ## Where we left off (update this before switching agents)
+**Latest handoff - 2026-10-25, selected audio waveform:** Audio-only Selected media now draws the real cached audio-track waveform on its preview canvas, with loading/unavailable text instead of no-image; type badge and canvas accessible label identify Audio. Selection cache includes audio URL so same-label source swaps refresh. Async cleanup prevents stale waveform painting over a new selection. Browser8288 File import check selected existing11s WAV, visible waveform verified; screenshot outputs/selected-audio-waveform.png. Typecheck passes; no inference/runtime changes.
+
 
 **Ad Studio coordination - 2026-10-25, actual Qwen app job failed/cleaned:** Exact898a88b path fix/startup passed and owner clicked once on8301; real SDK/Comfy Qwen42 job reached last observed29/40 steps. Local Node fetch then hit Undici's separate5min response-header timeout (UND_ERR_HEADERS_TIMEOUT), overriding the intended30min overall wait. Monitor automatically deleted exact Pod7kr0zeryt7crcg; GET404/empty resource inventories/burn0 verified. No generated image or history result delivered; no retry. Runtime~20m10s, observed debit~0.20375USD, balance~7.63353 (itemization pending).8301 restored PID8364 without relay, same project/originals preserved; no controller/UI/Director/shared source edits. Paid session closed; next blocker is unpaid long-response transport test/fix. Latest collaborator6d77a29 retained; details in notes/adstudio.md.
 

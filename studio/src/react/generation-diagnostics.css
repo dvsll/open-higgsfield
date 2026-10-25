@@ -1,0 +1,3 @@
+.generation-diagnostics{width:min(460px,calc(100vw - 64px));max-width:100%;font-size:var(--ui-small,12px);line-height:1.5;text-align:left;overflow-wrap:anywhere}
+.generation-diagnostics p{margin:8px 0;color:#d5dbe3}.generation-diagnostics summary{cursor:pointer;padding:6px 0;color:#e9c46a}.generation-diagnostics details[open]{max-height:180px;overflow:auto}.generation-diagnostics small{color:#a4afbf;font-size:inherit}.generation-diagnostics ul{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:6px}.generation-diagnostics li{display:grid;grid-template-columns:44px minmax(0,1fr);gap:8px}.generation-diagnostics li span{color:#a4afbf}
+.ov #ovDiagnostics{min-height:0;max-width:calc(100% - 24px);overflow:auto}.ov #ovt{max-width:calc(100% - 32px);overflow-wrap:anywhere}

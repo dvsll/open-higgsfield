@@ -1,5 +1,6 @@
 // @ts-nocheck -- existing canvas/media controller; React views are strictly typed.
 import {Glyph,Crumb,RenderStatus,Chips} from './react/controls';
+import {GenerationDiagnostics} from './react/generation-diagnostics';
 
 import '../../shared/lib/kit.js';
 import '../../shared/styleboard/looks.js';
@@ -257,7 +258,7 @@ $('#editAudio').onclick=()=>{const s=currentShot();if(!s.video||!s.audio)return;
 $('#generateAudio').onclick=async()=>{const s=currentShot();if(!s.video||s.audio||$('#ov').style.display==='flex'||$('#kgo').disabled)return;s.audioLinked=true;const button=$('#generateAudio');button.disabled=true;try{await busy('Generating audio locally',()=>renderAudio(s));toast('Audio ready')}catch(e){toast('Audio failed: '+e.message)}finally{head()}};
 // Busy overlay with elapsed time (real jobs have no known duration).
 async function busy(msg,job){const ov=$('#ov');ov.style.display='flex';$('#pb').style.width='100%';const t0=performance.now();let activity=null;
- const progress=e=>{activity=e.detail.phase==='complete'?null:e.detail};addEventListener('osh-generation-progress',progress);
+ renderView($('#ovDiagnostics'),null);const progress=e=>{activity=e.detail.phase==='complete'?null:e.detail;renderView($('#ovDiagnostics'),h(GenerationDiagnostics,{entries:activity?.diagnostics}))};addEventListener('osh-generation-progress',progress);
  const tick=setInterval(()=>{if(activity){$('#ovt').textContent=activity.message+' · '+Math.max(0,Math.round((Date.now()-activity.phaseStartedAt)/1000))+'s '+(activity.phase==='generating'?'generating':'in this stage');$('#pb').style.width=activity.percent==null?'100%':activity.percent+'%'}else $('#ovt').textContent=`${typeof msg==='function'?msg():msg} · ${((performance.now()-t0)/1000).toFixed(0)}s`},200);
  try{return await job()}finally{clearInterval(tick);removeEventListener('osh-generation-progress',progress);ov.style.display='none'}}
 

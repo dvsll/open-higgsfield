@@ -84,6 +84,7 @@ export function DirectorSurface() {
                 <div className="prog">
                   <i id="pb"></i>
                 </div>
+                <div id="ovDiagnostics" />
               </div>
             </div>
             <div className="viewer-tools">

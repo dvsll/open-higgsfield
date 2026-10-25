@@ -15,6 +15,7 @@ import {PromptRewriter,PromptRewriteError,promptInstruction,promptModel,promptDe
 import {precisionSources} from './precision-image.ts';
 import {captionSegments} from '../lib/captions.ts';
 import { JobActivity, phaseForProgress } from './job-activity.ts';
+import {ComfyDiagnostics,loadingLog,nodeProgressMessage} from './comfy-diagnostics.ts';
 import { Comfy } from "@comfyorg/sdk";
 import { spawn } from "node:child_process";
 import { randomBytes, timingSafeEqual } from "node:crypto";
@@ -54,9 +55,10 @@ type Key = { image: string; t: number; strength?: number };
 
 let comfy: Comfy | null = null;
 const activity=new JobActivity();
+const diagnostics=new ComfyDiagnostics(),clientUrls=new WeakMap<Comfy,string>();
 function client(env: Env): Comfy {
   process.env.COMFY_BASE_URL = env.COMFY_BASE_URL || "http://127.0.0.1:8189"; // read by the SDK
-  return (comfy ??= new Comfy());
+  const value=(comfy ??= new Comfy());clientUrls.set(value,env.COMFYUI_URL||'http://127.0.0.1:8188');return value;
 }
 
 async function up(url: string): Promise<boolean> {
@@ -119,13 +121,16 @@ function outputPath(url: unknown): string {
 async function runWf(c: Comfy, wf: Parameters<Comfy['run']>[0], requestId?:string) {
  async function execute(){
   activity.update(requestId,'preparing','Preparing model and prompt. First-time loading can take a few minutes; no generation steps yet.');
+  const stopDiagnostics=requestId?await diagnostics.watch(clientUrls.get(c)||'http://127.0.0.1:8188',entry=>activity.note(requestId,entry)):()=>{};
+  try{
   const job=await c.submit(wf),controller=new AbortController();
   const stream=(async()=>{try{for await(const event of job.events(controller.signal)){
-   if(event.kind==='progress'){const node=event.currentNode?(wf.json[event.currentNode] as any)?.class_type:null;const phase=phaseForProgress({...event,currentNodeClass:event.currentNodeClass||node});activity.update(requestId,phase,phase==='generating'?`Generating${event.step!=null&&event.steps?' · step '+event.step+'/'+event.steps:''}`:phase==='encoding'?'Encoding and saving your media.':phase==='running'?'Running ComfyUI. First run can include model loading; this server is not reporting detailed steps.':'Preparing model and prompt. First-time loading can take a few minutes.',{percent:phase!=='running'&&Number.isFinite(event.value)?Math.max(0,Math.min(100,event.value*100)):null,step:event.step,steps:event.steps})}
+   if(event.kind==='progress'){const node=event.currentNode?(wf.json[event.currentNode] as any):undefined;const phase=phaseForProgress({...event,currentNodeClass:event.currentNodeClass||node?.class_type});const detail=nodeProgressMessage(node);activity.update(requestId,phase,phase==='generating'?`Generating${event.step!=null&&event.steps?' · step '+event.step+'/'+event.steps:''}`:phase==='encoding'?'Encoding and saving your media.':detail|| (phase==='running'?'ComfyUI is running. Waiting for its next progress update.':'Preparing model and prompt.'),{percent:phase!=='running'&&Number.isFinite(event.value)?Math.max(0,Math.min(100,event.value*100)):null,step:event.step,steps:event.steps})}
    else if(event.kind==='statusChange'&&event.status==='queued')activity.update(requestId,'queued','Waiting for the local generation worker.');
-   else if(event.kind==='log'&&/downloading/i.test(event.message))activity.update(requestId,'downloading','Downloading model files reported by ComfyUI. This is preparation, not generation.');
+   else if(event.kind==='log'){const message=loadingLog(event.message);if(message){activity.note(requestId,{at:Date.now(),source:'sdk',message});if(/downloading/i.test(message))activity.update(requestId,'downloading',message);else if(/requested to load|loading (?:model|weights|checkpoint|text encoder)/i.test(message))activity.update(requestId,'preparing',message)}}
   }}catch{/* Completion polling remains authoritative if live progress is unavailable. */}})();
   try{await job.wait(30*60*1000);await job.result();return job}finally{controller.abort();void stream}
+  }finally{stopDiagnostics()}
  }
  try{return await execute()}catch(error:any){if(error?.code==='job_failed'&&/expired/i.test(String(error.message)))return execute();throw error}
 }
@@ -648,7 +653,7 @@ function middleware(env: Env,setup:RuntimeSetup,rewriter:PromptRewriter): Connec
 
 /** Vite plugin: mounts /api + /outputs on the dev and preview servers. */
 export function comfyApi(env: Env): Plugin {
-  const setup=new RuntimeSetup(ROOT,env,ensureProxy,()=>{comfy=null});
+  const setup=new RuntimeSetup(ROOT,env,ensureProxy,()=>{comfy=null},(url,text)=>diagnostics.capture(url,text));
   const rewriter=new PromptRewriter({
    status:async()=>{try{const nodes=await comfyJson(env,'/object_info');const available=!!nodes.TextGenerate?.input?.optional?.system_prompt&&!!nodes.SaveText&&nodes.CLIPLoader?.input?.required?.clip_name?.[0]?.includes(promptModel);return {available,cpuSupported:false,id:promptModel,model:'Qwen3 4B · ComfyUI',reason:available?'Uses installed Qwen3 through ComfyUI. GPU/offload is managed by ComfyUI unless CPU is selected.':'Prompt polishing needs current ComfyUI TextGenerate/SaveText nodes and the Qwen3 4B text encoder from the image model pack.'}}catch{return {available:false,id:promptModel,model:'Qwen3 4B · ComfyUI',reason:'Connect ComfyUI to polish prompts. Advanced manual editing is available.'}}},
    generate:async(content,device)=>{if(queued>0)throw new PromptRewriteError(409,'ComfyUI is busy generating. Polish again when the current job finishes.');await ensureProxy(env);const c=client(env),wf=c.workflows.fromJson(await loadGraph('prompt_polish'));wf.setInput('1','device',device);wf.setInput('2','prompt',content);wf.setInput('2','system_prompt',promptInstruction);if(queued>0)throw new PromptRewriteError(409,'ComfyUI is busy generating. Polish again when the current job finishes.');const job=await serialize(()=>runWf(c,wf));const output=job.getOutputs('3')[0];if(!output)throw new PromptRewriteError(502,'ComfyUI returned no polished prompt. Your prompt is unchanged.');return Buffer.from(await output.toBytes()).toString('utf8')}

@@ -32,7 +32,7 @@ async function health(): Promise<{ online: boolean; info: Health | null; reason:
   return { online, info, reason };
 }
 
-export type GenerationActivity={id:string;phase:string;message:string;phaseStartedAt:number;startedAt:number;updatedAt:number;percent:number|null;step:number|null;steps:number|null};
+export type GenerationActivity={id:string;phase:string;message:string;phaseStartedAt:number;startedAt:number;updatedAt:number;percent:number|null;step:number|null;steps:number|null;diagnostics?:{at:number;source:'sdk'|'comfy-server'|'managed-server';message:string}[]};
 function emitActivity(detail:GenerationActivity){if(typeof window!=='undefined')window.dispatchEvent(new CustomEvent('osh-generation-progress',{detail}))}
 async function post<T>(name: string, body: unknown): Promise<T> {
   const tracked=['shot','keyframe','audio','captions','hero/reimagine','hero/qwen'].includes(name),id=tracked?crypto.randomUUID().replaceAll('-',''):null;let finished=false,polling=false,failed=false;

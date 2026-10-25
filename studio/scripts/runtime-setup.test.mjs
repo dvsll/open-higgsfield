@@ -34,3 +34,38 @@ try{
  const failRoot=join(root,'failure');await mkdir(failRoot);const previousEnv={COMFYUI_URL:'http://127.0.0.1:8188',COMFY_BASE_URL:'http://127.0.0.1:8189'},failed=new RuntimeSetup(failRoot,previousEnv,async()=>{},()=>{});failed.python=async()=>({exe:'python-fixture',prefix:[]});failed.command=async(exe,args)=>{if(args[0]==='clone')throw new Error('fixture network failure');return''};failed.install({gpu:'nvidia'});for(let i=0;i<100&&failed.task.busy;i++)await new Promise(r=>setTimeout(r,10));assert.equal(failed.task.phase,'error');assert.equal(previousEnv.COMFYUI_URL,'http://127.0.0.1:8188');assert.equal(failed.config,null);assert.equal((await readdir(join(failRoot,'.runtime'))).filter(name=>name.startsWith('comfy-install-')).length,0,'failed staging clone is cleaned without touching an existing runtime');
  console.log('PASS: setup origin/loopback guards, installer orchestration, official sources, separate configs, atomic/resumable downloads, reuse, invalid files, cancellation and phase tracking.');
 }finally{globalThis.fetch=originalFetch;assert.ok(resolve(root).startsWith(outputs+'\\')||resolve(root).startsWith(outputs+'/'));await rm(root,{recursive:true,force:true})}
+
+const {ComfyDiagnostics,loadingLog,LogCursor,nodeProgressMessage,loopbackDiagnosticsUrl}=await import('../../shared/runtime/comfy-diagnostics.ts');
+assert.equal(loadingLog('Authorization: Bearer secret downloading token'),null);
+assert.equal(loadingLog('prompt: private text loading model'),null);
+assert.equal(loadingLog('Requested to load Qwen3'), 'Requested to load Qwen3');
+assert.equal(loadingLog('loading model C:\\Users\\private\\model.safetensors'),'loading model model.safetensors');
+assert.equal(loopbackDiagnosticsUrl('http://example.com:8188'),null);assert.equal(loopbackDiagnosticsUrl('http://user:pass@127.0.0.1:8188'),null);
+const cursor=new LogCursor();assert.deepEqual(cursor.read({entries:[{t:'1',m:'Requested to load old'}]},true),[]);assert.deepEqual(cursor.read({entries:[{t:'1',m:'Requested to load old'},{t:'2',m:'Requested to load LTXV\n'}]}),['Requested to load LTXV']);assert.deepEqual(cursor.read({entries:[{t:'2',m:'Requested to load LTXV\n'}]}),[]);
+assert.match(nodeProgressMessage({class_type:'UNETLoader',inputs:{unet_name:'folder/ltx.safetensors'}}),/Loading model · ltx.safetensors/);
+assert.equal(nodeProgressMessage({class_type:'CLIPTextEncode'}),'Encoding your prompt');
+const diagnosticTracker=new JobActivity(),diagnosticId='b'.repeat(32);diagnosticTracker.begin(diagnosticId);diagnosticTracker.note(diagnosticId,{at:1,source:'comfy-server',message:'Requested to load LTXV'});const snapshot=diagnosticTracker.get(diagnosticId);snapshot.diagnostics[0].message='mutated';assert.equal(diagnosticTracker.get(diagnosticId).diagnostics[0].message,'Requested to load LTXV');assert.equal(diagnosticTracker.get(diagnosticId).phase,'queued','global server logs do not claim per-job progress');diagnosticTracker.update(diagnosticId,'complete','Ready');diagnosticTracker.note(diagnosticId,{at:2,source:'sdk',message:'Requested to load stale'});assert.equal(diagnosticTracker.get(diagnosticId).diagnostics.length,1);
+const {createServer:createHttpServer}=await import('node:http');let reads=0,missing=false;
+const logServer=createHttpServer((req,res)=>{assert.equal(req.url,'/internal/logs/raw');res.setHeader('Content-Type','application/json');if(missing){res.statusCode=404;res.end('{}');return}reads++;res.end(JSON.stringify({entries:[{t:'old',m:'Requested to load old'},...(reads>1?[{t:'fresh',m:'Requested to load LTXV'}]:[])]}))});
+await new Promise(resolve=>logServer.listen(0,'127.0.0.1',resolve));
+try{
+ const url='http://127.0.0.1:'+logServer.address().port,monitor=new ComfyDiagnostics(),observed=[];
+ const stop=await monitor.watch(url,entry=>observed.push(entry));assert.equal(observed.length,0);
+ for(let i=0;i<30&&!observed.length;i++)await new Promise(resolve=>setTimeout(resolve,50));
+ stop();assert.equal(observed.length,1);assert.equal(observed[0].message,'Requested to load LTXV');assert.equal(observed[0].source,'comfy-server');
+ missing=true;const fallback=new ComfyDiagnostics(),managed=[];const close=await fallback.watch(url,entry=>managed.push(entry));fallback.capture(url,'Requested to lo');fallback.capture(url,'ad Qwen3\n');close();fallback.capture(url,'Requested to load after cleanup\n');assert.equal(managed.length,1);assert.equal(managed[0].source,'managed-server');
+}finally{logServer.closeAllConnections();await new Promise(resolve=>logServer.close(resolve))}
+
+// Exercise real SDK event handling and diagnostics cleanup without submitting a model job.
+const {stripTypeScriptTypes}=await import('node:module');
+const apiSource=await readFile('shared/runtime/api.ts','utf8'),runSource=apiSource.slice(apiSource.indexOf('async function runWf('),apiSource.indexOf('// One job at a time'));
+const {phaseForProgress:phaseFromEvent}=await import('../../shared/runtime/job-activity.ts');
+const sdkTracker=new JobActivity(),sdkId='c'.repeat(32);sdkTracker.begin(sdkId);
+let stopped=0,completed;
+const sdkEvents=[{kind:'progress',currentNode:'1',value:0},{kind:'log',message:'Requested to load Qwen3'},{kind:'progress',currentNode:'2',step:1,steps:8,value:.125}];
+const sdkClient={submit:async()=>({events:async function*(){for(const event of sdkEvents)yield event;completed()},wait:()=>new Promise(resolve=>{completed=resolve}),result:async()=>({})})};
+const sdkContext={activity:sdkTracker,phaseForProgress:phaseFromEvent,loadingLog,nodeProgressMessage,clientUrls:new WeakMap([[sdkClient,'http://127.0.0.1:8188']]),diagnostics:{watch:async(_url,receive)=>{receive({at:1,source:'comfy-server',message:'Requested to load LTXV'});return()=>stopped++}}};
+const runWorkflow=Function('ctx','with(ctx){'+stripTypeScriptTypes(runSource)+';return runWf}')(sdkContext);
+await runWorkflow(sdkClient,{json:{'1':{class_type:'CLIPLoader',inputs:{clip_name:'qwen3.safetensors'}},'2':{class_type:'SamplerCustom'}}},sdkId);
+assert.equal(stopped,1);assert.equal(sdkTracker.get(sdkId).phase,'generating');assert.equal(sdkTracker.get(sdkId).percent,12.5);assert.equal(sdkTracker.get(sdkId).diagnostics.length,2);
+const failingClient={submit:async()=>{throw Error('fixture submit failed')}};await assert.rejects(()=>runWorkflow(failingClient,{json:{}},sdkId),/fixture submit failed/);assert.equal(stopped,2,'failed submission still stops console polling');

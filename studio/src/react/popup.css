@@ -7,4 +7,7 @@ dialog.studio-popup{box-sizing:border-box;width:min(1040px,calc(100vw - 32px));m
 .studio-popup .popup-close:hover{background:#ffffff0d;color:var(--ui-text,#e8e9ed)}
 .studio-popup .popup-close:focus-visible{outline:2px solid var(--ui-accent,#e9c46a);outline-offset:-2px}
 .studio-popup .popup-content{padding:16px;min-width:0}
+.studio-popup .popup-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:20px}
+.studio-popup .popup-actions button{font:inherit;min-height:32px;padding:6px 12px;border:1px solid var(--ui-border,#3c414b);border-radius:0;background:var(--ui-panel,#20242b);color:var(--ui-text,#e8e9ed);cursor:pointer}
+.studio-popup .popup-actions button:focus-visible{outline:2px solid var(--ui-accent,#e9c46a);outline-offset:2px}
 @media(max-width:500px){.studio-popup{width:calc(100vw - 16px);max-height:calc(100dvh - 16px)}.studio-popup .popup-header{padding:8px 12px}.studio-popup .popup-content{padding:12px}}

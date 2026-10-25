@@ -12,6 +12,7 @@ import {
   type Project,
 } from '../projects';
 import '../projects.css';
+import {ConfirmDelete} from './confirm-delete';
 import {profileKey} from '../onboarding-progress';
 
 const paths = {
@@ -81,6 +82,7 @@ function NameForm({
   );
 }
 export function ProjectPicker() {
+  const [deleting,setDeleting]=useState<Project|null>(null);
   const [open, setOpen] = useState(false),
     [items, setItems] = useState(readProjects),
     [recycled, setRecycled] = useState(false),
@@ -207,12 +209,7 @@ export function ProjectPicker() {
                             <IconButton
                               kind="bin"
                               label={`Recycle ${p.name}`}
-                              onClick={() =>
-                                commit(() => {
-                                  const replacement = recycleProject(p.id);
-                                  if (p.id === currentProject.id) switchProject(replacement);
-                                })
-                              }
+                              onClick={() => setDeleting(p)}
                             />
                           </>
                         )}
@@ -243,6 +240,7 @@ export function ProjectPicker() {
           </dialog>,
           document.body,
         )}
+      {deleting&&createPortal(<ConfirmDelete kind="project" name={deleting.name} onCancel={()=>setDeleting(null)} onConfirm={()=>{const project=deleting;setDeleting(null);commit(()=>{const replacement=recycleProject(project.id);if(project.id===currentProject.id)switchProject(replacement)})}}/>,document.body)}
     </>
   );
 }

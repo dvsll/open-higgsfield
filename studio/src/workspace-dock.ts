@@ -1,5 +1,6 @@
 import {StagePlaceholder} from './react/controls';
 import {WorkspaceName} from './react/workspace-name';
+import {ConfirmDelete} from './react/confirm-delete';
 import {WorkspaceToolbar,WindowsMenu} from './react/workspace-toolbar';
 import {createElement} from 'react';
 import {renderView,unmountView} from './react/render';
@@ -198,9 +199,14 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
  };
  deleteButton.onclick=()=>{
   if(Object.hasOwn(presets,active))return;const removed=active;
+  const host=document.createElement('div');document.body.append(host);
+  const close=()=>{unmountView(host);host.remove()};
+  renderView(host,createElement(ConfirmDelete,{kind:'workspace',name:removed,onCancel:close,onConfirm:()=>{
+  close();if(active!==removed||Object.hasOwn(presets,removed))return;
   // Change mode first; a running generation may reject a workflow switch.
   if(!select(custom?.active||'Video'))return;
   store.deletedLayouts||={};recycleWorkspace(store.layouts,store.deletedLayouts,presets,removed);persist();choices();
+  }}));
  };
  restoreButton.onclick=()=>{
   const deleted=store.deletedLayouts||{},name=Object.keys(deleted).at(-1);if(!name)return;

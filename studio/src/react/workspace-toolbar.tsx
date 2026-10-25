@@ -2,7 +2,6 @@ export function WorkspaceToolbar() {
   return (
     <>
       <select aria-label="Workspace setup" />
-      <button data-new-setup>New workspace…</button>
       <details className="window-menu">
         <summary>Windows</summary>
         <div />

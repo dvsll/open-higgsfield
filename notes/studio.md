@@ -3,6 +3,8 @@
 Append dated decisions, render times and requests here. Only the studio owner edits this file; the partner adds requests at the bottom.
 
 ## Where we left off (update this before switching agents)
+**Latest handoff - 2026-10-25, create from current workspace:** Removed duplicate toolbar New workspace button. Picker action now lives in distinct Create optgroup, labeled plus Create workspace from current layout, with stronger weight where native options support it. Creation snapshots current setup before naming, deep-cloning panel tree/split ratios/mode rather than resetting to basic Video. Browser8288 created Current layout copy and verified exact five panel IDs and bounding rectangles match source; screenshot outputs/create-workspace-current-layout.png. Typecheck passes. Test copy retained as active workspace; no project/media/model changes.
+
 **Latest handoff - 2026-10-25, Play contrast:** Viewer Play now has filled18px triangle, stronger neutral background/border, clearer hover/focus and amber active Pause state. Existing control dimensions retained. Browser visually verified screenshot outputs/play-control-contrast.png; typecheck passes. CSS only, no model runs.
 
 **Latest handoff - 2026-10-25, quieter header:** Removed persistent docking instruction and redundant scene render-status text from workspace chrome. Existing control tooltips/onboarding remain. Browser8288 verified toolbar hint/status absent, screenshot outputs/clean-workspace-header.png; typecheck passes. No runtime/model changes.

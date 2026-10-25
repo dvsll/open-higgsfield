@@ -18,7 +18,7 @@ export function mountFrameSizes(change:()=>void):void {
     const persist=()=>{try{saved[kind]=frameSize(kind,false);localStorage.setItem(projectKey('osh-frame-sizes'),JSON.stringify(saved));if(kind==='video')dispatchEvent(new CustomEvent('osh-video-size',{detail:saved[kind]}));change()}catch{/* Keep invalid input visible until corrected. */}};
     const panel=document.createElement('details');panel.className='frame-properties';panel.open=kind==='video';if(kind==='video')panel.id='videoAttributes';
     renderView(panel,createElement(FrameControls,{kind,size:saved[kind]||{width:768,height:448},onChange:persist}));
-    if(kind==='video')document.querySelector('aside.r')!.prepend(panel);else document.getElementById(`${kind}ModelDetails`)!.closest('.modelbar')!.after(panel);
+    if(kind==='video')document.getElementById('advancedVideoSettings')!.append(panel);else document.getElementById(`${kind}ModelDetails`)!.closest('.modelbar')!.after(panel);
   }
   change();
 }

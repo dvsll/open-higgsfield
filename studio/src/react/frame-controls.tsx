@@ -34,14 +34,7 @@ export function FrameControls({
   return (
     <>
       <summary>{video ? 'Size & timing' : 'Image properties'}</summary>
-      {video && (
-        <>
-          <p id="selectedVideoAttributes" className="selected-video-attributes">
-            Select a clip to see its video size.
-          </p>
-          <p className="attributes-caption">Next render</p>
-        </>
-      )}
+      {video && <p id="selectedVideoAttributes" hidden />}
       <div className="frame-controls">
         <select
           aria-label={`${video ? 'Video' : 'Image'} frame preset`}
@@ -126,13 +119,10 @@ export function FrameControls({
           </div>
           <output id="videoDuration" />
           <small>LTX: 9, 17, 25…121 frames (8n+1). Local workflow limit: 121.</small>
-          <label>
-            Seed
-            <input id="videoSeed" aria-label="Video seed" type="number" min={0} max={2147483647} step={1} />
-          </label>
+          <input id="videoSeed" aria-label="Video seed" hidden type="number" min={0} max={2147483647} step={1} />
         </div>
       )}
-      {preferences.generation&&<div className="generation-preset"><span>Sampling steps</span><output aria-label={`${video?'Video':'Image'} sampling steps`}>{preferences.generation.steps}</output><span>Workflow preset</span><p>{preferences.generation.stepNote}</p></div>}
+      {!video&&preferences.generation&&<div className="generation-preset"><span>Sampling steps</span><output aria-label="Image sampling steps">{preferences.generation.steps}</output><span>Workflow preset</span><p>{preferences.generation.stepNote}</p></div>}
     </>
   );
 }

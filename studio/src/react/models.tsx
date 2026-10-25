@@ -80,7 +80,7 @@ export function ModelInfo({
     </>
   );
 }
-export type ModelRow = { id: string; label: string; description: string; info: ModelInfoData };
+export type ModelRow = { id: string; label: string; description: string; info: ModelInfoData;generation?:{steps:number;stepNote:string} };
 export type ModelGroup={kind:'video'|'keyframe';label:string;rows:ModelRow[];selected:string};
 function ComputeSelect({id,label,cpuSupported=true}:{id:string;label:string;cpuSupported?:boolean}){const [device,setDevice]=useState<TextDevice>(()=>cpuSupported?modelDevice(id):'default');return <label>{label}<select aria-label={label+' text processing device'} value={device} onChange={event=>{const value=event.target.value as TextDevice;setDevice(value);setModelDevice(id,value)}}><option value="default">GPU / automatic offload</option><option value="cpu" disabled={!cpuSupported}>{cpuSupported?'CPU':'CPU · unavailable for this workflow'}</option></select></label>}
 export function ModelChooser({
@@ -101,6 +101,8 @@ export function ModelChooser({
   polisher?:{id:string;model:string;available:boolean;reason:string;cpuSupported?:boolean};
 }) {
   const [polisher,setPolisher]=useState(initialPolisher);
+  const [seed,setSeed]=useState(()=>Number((typeof document!=='undefined'?(document.getElementById('videoSeed') as HTMLInputElement|null)?.value:undefined)||7));
+  const videoPreset=groups.find(group=>group.kind==='video');const generation=videoPreset?.rows.find(row=>row.id===videoPreset.selected)?.generation;
   useEffect(()=>{const controller=new AbortController();void fetch('/api/prompt-rewriter',{signal:controller.signal}).then(r=>r.json()).then(setPolisher).catch(()=>{});return()=>controller.abort()},[]);
   return (
     <Popup title="Choose model" closeLabel="Close model chooser" className="model-chooser" onClose={onClose} onDialog={onDialog}>
@@ -116,7 +118,9 @@ export function ModelChooser({
           </div>
         </div>
       ))}</section>)}
-      <details className="model-selection-advanced"><summary>Advanced · compute settings</summary>
+      <details className="model-selection-advanced"><summary>Advanced</summary>
+       <label>Video seed<input aria-label="Video seed" type="number" min={0} max={2147483647} step={1} value={seed} onChange={event=>{const value=Number(event.target.value);setSeed(value);if(event.target.checkValidity())dispatchEvent(new CustomEvent('osh-video-seed',{detail:value}))}}/></label>
+       {generation&&<div className="generation-preset"><span>Sampling steps</span><output aria-label="Video sampling steps">{generation.steps}</output><span>Workflow preset</span><p>{generation.stepNote}</p></div>}
        <p>Choose where text processing runs. GPU mode lets ComfyUI offload when needed. Image/video generation stays managed by your ComfyUI server.</p>
        <div className="model-compute-grid">{groups.flatMap(group=>group.rows.map(row=><ComputeSelect key={row.id} id={row.id} label={group.label+' · '+row.label}/>))}
        {!polisher&&<p>Checking prompt model in ComfyUI…</p>}{polisher&&<ComputeSelect id={polisher.id} cpuSupported={!!polisher.cpuSupported} label={'Prompt polishing · '+polisher.model}/>}</div>

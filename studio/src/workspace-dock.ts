@@ -35,7 +35,7 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
   Overlays:{tree:split('y',split('x',panel('viewer'),panel('overlay-create'),.65),panel('timeline'),topRatio),mode:'video'},
   Edit:{tree:split('x',panel('files'),split('x',panel('edit-viewer'),split('y',panel('edit-controls'),panel('edit-versions'),.65),.7),.2),mode:'video'},
   '3D': { tree: split('x', panel('stage'), panel('elements'), .75), mode: 'video' },
-  Rendering: { tree: split('y', split('x', panel('viewer'), panel('properties'), .75), panel('takes'), .7), mode: 'video' }
+  Rendering: { tree: split('y', split('x', panel('viewer'), panel('prompts'), .75), panel('takes'), .7), mode: 'video' }
  };
  const fallback=presets[custom?.active||'Video']||Object.values(presets)[0];
  let store: Store = { version: 2, active: custom?.active||(document.body.dataset.workflow === 'image' ? 'Image' : 'Video'), layouts: {}, notes: {} };
@@ -77,7 +77,7 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
  const refresh = () => { if (pending) return; pending = true; requestAnimationFrame(() => { pending = false; resize(); }); };
  function render(): void {
   if(!custom&&setup.mode!=='image')setup.tree=remove(setup.tree,'keyframes');
-  if(!custom&&document.getElementById('videoTrackToggle')?.getAttribute('aria-expanded')!=='true')setup.tree=remove(setup.tree,'properties');
+  if(!custom)setup.tree=remove(setup.tree,'properties');
   board.dataset.defaultLayout=String(active==='Video'&&JSON.stringify(setup.tree)===JSON.stringify(fallback.tree));
   const visible = new Set(ids(setup.tree));
   for(const [id,{title,content}] of registrations)renderView(panels.get(id)!,createElement(WindowChrome,{id,title,content,visible:[...visible],panels,onDrag:startDrag,onDock:(moving,target,edge)=>{setup.tree=dock(setup.tree,moving,target,edge);render();persist()},onClose:()=>closeWindow(id)}));
@@ -140,15 +140,15 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
  add('captions','Captions',document.getElementById('studioCaptions')!);add('edit-history','Edit history',document.getElementById('studioEditHistory')!);add('files','Project files',mountProjectFiles());add('stash','Stash',document.getElementById('stash')!);
  add('audio-create','Audio prompts',document.getElementById('studioAudioCreator')!);add('overlay-create','Overlay tools',document.getElementById('studioOverlayCreator')!);
  add('edit-viewer','Edit viewer',document.getElementById('studioEditViewer')!);add('edit-controls','Edit controls',document.getElementById('studioEditControls')!);add('edit-versions','Edit versions',document.getElementById('studioEditVersions')!);
- const inspector=document.createElement('div');inspector.className='sequence-inspector';const identity=document.getElementById('videoTrackAttributes')!;identity.hidden=false;identity.className='scene-property-identity';inspector.append(identity,properties);
- add('stylization', 'Stylization', document.getElementById('studioStylization')!); add('elements', 'Elements', document.getElementById('studioElements')!); add('assets', 'Selected media', assets); add('viewer', 'Viewer', viewContent); add('prompts', 'Prompts', composer); add('keyframes', 'Image prompts', keys); add('properties', 'Properties', inspector); add('timeline', 'Sequence', main.querySelector<HTMLElement>('.tlw')!); add('takes', 'Takes', main.querySelector<HTMLElement>('.hist')!);
+ const inspector=document.createElement('div');inspector.className='sequence-inspector';const identity=document.getElementById('videoTrackAttributes')!;identity.hidden=false;identity.className='scene-property-identity';inspector.append(identity);parking.append(inspector);
+ add('stylization', 'Stylization', document.getElementById('studioStylization')!); add('elements', 'Elements', document.getElementById('studioElements')!); add('assets', 'Selected media', assets); add('viewer', 'Viewer', viewContent); add('prompts', 'Prompts', composer); add('keyframes', 'Image prompts', keys); add('timeline', 'Sequence', main.querySelector<HTMLElement>('.tlw')!); add('takes', 'Takes', main.querySelector<HTMLElement>('.hist')!);
  const sequenceBar = panels.get('timeline')!.querySelector('.window-titlebar')!;
  const sequenceTransport=document.createElement('div');sequenceTransport.className='sequence-transport';sequenceTransport.setAttribute('role','group');sequenceTransport.setAttribute('aria-label','Sequence playback position');
  for(const id of ['previousFrame','nextFrame','viewerTime']){const control=panels.get('viewer')!.querySelector<HTMLElement>('#'+id)!;sequenceTransport.append(id==='viewerTime'?control.closest('label')!:control)}
  sequenceBar.insertBefore(sequenceTransport,sequenceBar.children[1]);
  for (const id of ['trashBtn', 'addKeyBtn']) { const control = document.getElementById(id); if (control) sequenceBar.insertBefore(control, sequenceBar.children[1]); }
  const stage = document.createElement('div'); stage.className = 'stage-placeholder'; renderView(stage,createElement(StagePlaceholder)); add('stage', '3D viewport', stage);
- document.getElementById('showVideoAttributes')?.addEventListener('click', () => { openWindow('properties'); properties.open = true; });
+ document.getElementById('showVideoAttributes')?.addEventListener('click', () => dispatchEvent(new Event('osh-open-prompt-advanced')));
  }
  for (const [id, value] of Object.entries(store.notes)) if (value && typeof value.title === 'string' && typeof value.text === 'string') note(id, value.title, value.text);
  function note(id: string, title: string, text: string): void { const field = document.createElement('textarea'); field.className = 'workspace-note'; field.placeholder = 'Ideas, shot notes, checklist…'; field.value = text; field.setAttribute('aria-label', title); field.oninput = () => { store.notes[id].text = field.value; persist(); }; add(id, title, field); }
@@ -181,13 +181,14 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
   if(name==='__bin'){picker.value=active;openRecycleBin();return false}
   if(switching)return false;const next=clone(store.layouts[name]||presets[name]||fallback);
   if(!custom&&name==='Edit')document.dispatchEvent(new Event('osh-edit-entering'));
+  if(!custom)next.tree=remove(next.tree,'properties');
   if(next.tree&&!valid(next.tree,new Set(panels.keys())))next.tree=clone(fallback.tree);
   switching=true;try{workflow(next.mode)}finally{switching=false}
   // A running generation can decline a creation-mode change. Keep its current layout and mode together.
   if(document.body.dataset.workflow!==next.mode){choices();return false}
   active=name;setup=next;choices();render();persist();document.dispatchEvent(new CustomEvent('osh-workspace-selected',{detail:{name,mode:setup.mode}}));return true;
  }
- if(!custom){setup.tree=remove(setup.tree,'properties');addEventListener('osh-sequence-inspector',((event:CustomEvent<boolean>)=>{if(event.detail)openWindow('properties');else closeWindow('properties')})as EventListener)}
+ if(!custom)setup.tree=remove(setup.tree,'properties');
  addEventListener('osh-reveal-window',((event:CustomEvent)=>{if(panels.has(event.detail))openWindow(event.detail)}) as EventListener);
  document.addEventListener('osh-workspace-select',((event:CustomEvent)=>{if(presets[event.detail])select(event.detail)}) as EventListener);
  const names=()=>[...new Set([...Object.keys(presets),...Object.keys(store.layouts)])];
@@ -245,5 +246,5 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
  top.querySelectorAll<HTMLButtonElement>('[data-workflow]').forEach(button => button.addEventListener('click', () => select(button.dataset.workflow === 'image' ? 'Image' : 'Video')));
  document.addEventListener('osh-workflow-changed', ((event: CustomEvent) => { if (!switching && setup.mode !== event.detail) select(event.detail === 'image' ? 'Image' : 'Video'); }) as EventListener);
  const observer = new ResizeObserver(refresh); observer.observe(board); for (const element of panels.values()) observer.observe(element);
- addEventListener('resize', refresh); if (setup.tree && !valid(setup.tree, new Set(panels.keys()))) setup = clone(fallback); choices(); render(); persist();
+ addEventListener('resize', refresh); if(!custom)setup.tree=remove(setup.tree,'properties'); if (setup.tree && !valid(setup.tree, new Set(panels.keys()))) setup = clone(fallback); choices(); render(); persist();
 }

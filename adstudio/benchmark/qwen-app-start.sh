@@ -36,7 +36,8 @@ if [[ ! -x node/bin/node ]]; then
     "https://nodejs.org/dist/v22.20.0/$node_archive" -o "$node_archive"
   echo "00bbd05e306ea68b6e13e17360d0e2f680b493ef95f2fea1c4296ff7437530bc  $node_archive" | sha256sum -c -
   mkdir node
-  tar -xJf "$node_archive" --strip-components=1 -C node
+  # Retain extractor ownership and honor umask on restricted Pod-local volumes.
+  tar --no-same-owner --no-same-permissions -xJf "$node_archive" --strip-components=1 -C node
 fi
 export PATH="$PWD/node/bin:$PATH"
 [[ "$(node --version)" == v22.20.0 ]]

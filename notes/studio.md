@@ -5,6 +5,9 @@ Append dated decisions, render times and requests here. Only the studio owner ed
 ## Where we left off (update this before switching agents)
 
 
+**Ad Studio coordination - 2026-10-25, free startup fix tested:** Only production change is ownership-safe Node tar extraction (--no-same-owner --no-same-permissions), version/hash pins unchanged. Actual no-capability Linux root reproduces old exit2, fixed exit0; UID10001 also runs pinned Node and honors umask. Real CPU Comfy/proxy/API + production npm-ci pass without weights/inference/private mounts/host ports/GPU. Focused regression/harness, build/typecheck,19 Studio files,5 Ad Studio files and Python checks pass. No Studio/UI/shared API/source-asset edits, Runpod calls or paid resources. Failed session stays closed; future remote run requires new approval/bundle. Evidence outputs/qwen-startup-fix-20261025; see notes/adstudio.md.
+
+
 **Ad Studio coordination - 2026-10-25, paid attempt terminated on startup failure:** Exactly one approved Secure A40 was created using88a2f52, with host+independent Pod watchdogs and collection monitor. Hardware/dependency/3-model SHA checks and Comfy/proxy passed; public app setup failed extracting pinned Node because tar ownership restoration is forbidden on /workspace. No owner click, private photo upload or inference occurred. Per user no retry/repair performed. Monitor automatically deleted exact Pod; GET404 and empty billable-resource inventories verified, all session processes/tunnel exited. ~13m22s, observed debit~0.13USD; itemized billing pending, not zero. Session closed against reuse;8301/local projects/history/source bytes untouched, no Studio/runtime/UI source edits. Private diagnostics/result in outputs/qwen-app-acceptance/accepted-request-20261025/session. Future step is unpaid ownership-safe extraction fix/test, then new paid approval if requested. See notes/adstudio.md.
 
 

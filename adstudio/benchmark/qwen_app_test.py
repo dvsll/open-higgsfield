@@ -1,5 +1,6 @@
 """CPU-only mocked lifecycle tests. Never contacts Runpod or uploads assets."""
 import hashlib,importlib.util,json,pathlib,tempfile,time,unittest
+import os,shlex,stat,subprocess,sys
 from unittest.mock import patch
 def module(name,file):
  spec=importlib.util.spec_from_file_location(name,pathlib.Path(__file__).with_name(file));m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m);return m
@@ -50,4 +51,70 @@ class AppTests(unittest.TestCase):
    with patch.object(prep.subprocess,'check_output',side_effect=['a'*40,raw.getvalue()]):prep.bundle(pathlib.Path(tmp))
    with tarfile.open(pathlib.Path(tmp)/'public-app.tar') as t:
     self.assertNotIn('.env',t.getnames());self.assertNotIn('outputs/private.jpg',t.getnames());self.assertNotIn('adstudio/src/private.ts',t.getnames())
+# Optional REAL Linux regression. Set QWEN_NODE_ARCHIVE to the genuine pinned
+# archive in a local container with --cap-drop=ALL; never provisions a GPU.
+NODE_VERSION='v22.20.0'
+NODE_SHA256='00bbd05e306ea68b6e13e17360d0e2f680b493ef95f2fea1c4296ff7437530bc'
+START=pathlib.Path(__file__).with_name('qwen-app-start.sh')
+def node_commands(archive):
+ lines=START.read_text().splitlines()
+ verify=next(line.strip() for line in lines if '| sha256sum -c -' in line)
+ extract=next(line.strip() for line in lines if line.strip().startswith('tar '))
+ return 'node_archive='+shlex.quote(str(archive))+'\n'+verify,extract
+LINUX_ARCHIVE=sys.platform.startswith('linux') and bool(os.environ.get('QWEN_NODE_ARCHIVE'))
+class NodeStartupTests(unittest.TestCase):
+ def test_cpu_harness_defaults_to_no_actions(self):
+  result=subprocess.run([sys.executable,str(START.with_name('qwen_app_cpu_check.py'))],capture_output=True,text=True)
+  self.assertEqual(result.returncode,0,result.stderr)
+  self.assertIn('DRY RUN',result.stdout)
+
+ def test_pin_verification_and_safe_extraction_contract(self):
+  source=START.read_text();verify,extract=node_commands('/fixture/archive.tar.xz')
+  self.assertIn('node_archive=node-'+NODE_VERSION+'-linux-x64.tar.xz',source)
+  self.assertIn('https://nodejs.org/dist/'+NODE_VERSION+'/$node_archive',source)
+  self.assertIn(NODE_SHA256,verify)
+  self.assertIn('--no-same-owner',shlex.split(extract))
+  self.assertIn('--no-same-permissions',shlex.split(extract))
+  self.assertIn('--strip-components=1',extract)
+  self.assertIn('[[ "$(node --version)" == '+NODE_VERSION+' ]]',source)
+  self.assertLess(source.index('| sha256sum -c -'),source.index(extract))
+  self.assertLess(source.index(extract),source.index('timeout 600 npm ci'))
+
+ @unittest.skipUnless(LINUX_ARCHIVE,'real archive regression requires explicit local Linux fixture')
+ def test_real_node_archive_when_chown_is_forbidden(self):
+  archive=pathlib.Path(os.environ['QWEN_NODE_ARCHIVE'])
+  self.assertEqual(hashlib.sha256(archive.read_bytes()).hexdigest(),NODE_SHA256)
+  caps=next(line.split(':',1)[1].strip() for line in pathlib.Path('/proc/self/status').read_text().splitlines() if line.startswith('CapEff:'))
+  self.assertEqual(int(caps,16),0,'run this regression without Linux capabilities')
+  with tempfile.TemporaryDirectory() as tmp:
+   root=pathlib.Path(tmp);probe=root/'ownership-probe';probe.touch()
+   with self.assertRaises(PermissionError):os.chown(probe,1000,1000)
+   verify,extract=node_commands(archive)
+   old=extract.replace(' --no-same-owner','').replace(' --no-same-permissions','')
+   # GNU tar defaults to restoring ownership as root. For the separate non-root
+   # run explicitly request the same behavior to prove the restriction still holds.
+   if os.geteuid()!=0:old=old.replace('tar ','tar --same-owner ',1)
+   env={**os.environ,'TAR_OPTIONS':''}
+   negative=root/'old';negative.mkdir()
+   result=subprocess.run(['bash','-e','-c',verify+'\nmkdir node\n'+old],cwd=negative,env=env,capture_output=True,text=True)
+   self.assertNotEqual(result.returncode,0)
+   self.assertIn('Cannot change ownership',result.stderr)
+   fixed=root/'fixed';fixed.mkdir()
+   command=verify+'\numask 027\nmkdir node\n'+extract+'\n./node/bin/node --version'
+   corrected=subprocess.run(['bash','-e','-c',command],cwd=fixed,env=env,capture_output=True,text=True)
+   self.assertEqual(corrected.returncode,0,corrected.stderr)
+   self.assertEqual(corrected.stdout.splitlines()[-1],NODE_VERSION)
+   binary=(fixed/'node/bin/node').stat()
+   self.assertEqual(binary.st_uid,os.geteuid())
+   self.assertEqual(stat.S_IMODE(binary.st_mode),0o750,'honor umask rather than archive permission bits')
+   print('REAL LINUX PASS '+json.dumps({'uid':os.geteuid(),'effectiveCapabilities':caps,'oldExit':result.returncode,'fixedExit':corrected.returncode,'node':NODE_VERSION,'sha256':NODE_SHA256,'binaryOwner':binary.st_uid,'binaryMode':oct(stat.S_IMODE(binary.st_mode))}),flush=True)
+
+ @unittest.skipUnless(LINUX_ARCHIVE,'real archive regression requires explicit local Linux fixture')
+ def test_bad_checksum_stops_before_extracting(self):
+  with tempfile.TemporaryDirectory() as tmp:
+   root=pathlib.Path(tmp);bad=root/'bad.tar.xz';bad.write_bytes(b'CORRUPT SOFTWARE ARCHIVE TEST FIXTURE')
+   verify,extract=node_commands(bad)
+   result=subprocess.run(['bash','-e','-c',verify+'\nmkdir node\n'+extract],cwd=root,capture_output=True,text=True)
+   self.assertNotEqual(result.returncode,0)
+   self.assertFalse((root/'node').exists(),'checksum gate must fail before extraction')
 if __name__=='__main__':unittest.main()

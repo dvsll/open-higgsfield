@@ -96,3 +96,36 @@ Confirm exact-Pod GET404 and full empty Pod/network/global-volume inventories; P
 
 
 Integration findings: tracked Qwen graph uses LF; its previous CRLF-working-copy pin was corrected to8dc8cda519f67c812b77543990d14adb647ff413f92423718bf889515bed1bd6. Graph content/model/sampler are unchanged; strict validation now passes Git/archive bytes. See notes/cross-project-handoff.md for current shared capabilities and adstudio/REACT_MIGRATION.md for deferred service-first migration. Active main worktree outputs/adstudio-main-integration shares existing ignored outputs; use that worktree for subsequent source changes, never recursively copy the outputs junction. Current native prompt/precision/caption and Qwen discovery on8301 are unavailable even though Comfy/proxy are healthy. No setup/model download was performed.
+
+
+## Local startup ownership regression (2026-10-25)
+
+The failed A40 session reached pinned Node archive verification, then tar failed
+restoring UID/GID1000 on the restricted Pod volume. Startup now uses
+`tar --no-same-owner --no-same-permissions -xJf ... --strip-components=1 -C node`.
+Node22.20.0 and SHA25600bbd05e306ea68b6e13e17360d0e2f680b493ef95f2fea1c4296ff7437530bc are unchanged.
+
+`qwen_app_test.py` contains opt-in real-archive Linux regressions. Provide the
+verified archive via `QWEN_NODE_ARCHIVE`, run with all Linux capabilities removed,
+and run once as UID0 and once as UID10001. The root/no-capabilities negative
+control executes the original command and must fail on ownership; corrected
+extraction must succeed and execute Node22.20.0. The separate non-root run forces
+old ownership restoration for its negative control, then tests the unmodified
+fixed production command, ownership/umask and checksum rejection. Ordinary host
+unit runs explicitly skip these two real-Linux cases when no archive is provided.
+
+`qwen_app_cpu_check.py --run-local` additionally runs the production npm-ci and API
+boot commands as UID10001 against real CPU-only ComfyUI/proxy in the existing
+cached `adstudio-ltx25-cpu-check` image. Docker must use `--pull never`,
+`--cap-drop ALL`, `--security-opt no-new-privileges`, no GPU requests or published
+ports, offline HF flags and empty account-token variables. Mount only public
+fixtures read-only at /fixtures (app public snapshot, current benchmark test
+files, verified Node archive), and a local diagnostic directory at /evidence.
+Do not mount the repository root, .env, browser data, accepted requests or photos.
+The harness defaults to DRY RUN; it installs locked software only when explicitly
+invoked inside that CPU container. It requires Qwen unavailable for missing
+weights and an empty queue. This does NOT run the guarded paid startup or prove
+GPU inference, Pod filesystem behavior, owner submission or end-to-end acceptance.
+
+Current local evidence/fixture commands: outputs/qwen-startup-fix-20261025/.
+The failed session remains closed; this fix grants no new paid authorization.

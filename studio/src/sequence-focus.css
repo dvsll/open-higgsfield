@@ -51,3 +51,4 @@
 .sequence-layer-lane[data-expanded=true] .sequence-layer-clip{height:80px;min-height:80px;padding:0}
 .sequence-layer-lane[data-expanded=true] .sequence-layer-clip>span{position:absolute;left:0;right:0;top:0;height:20px;box-sizing:border-box;padding:3px 6px;background:#20232a;text-align:left}
 .sequence-layer-lane[data-expanded=true] .layer-waveform{top:20px;height:58px}
+.tl .file-drop-compatible{outline:2px solid var(--ui-accent,#e9c46a);outline-offset:-2px;background-color:#e9c46a12!important;opacity:1!important}

@@ -47,3 +47,23 @@ const uploaded=projectFiles({SH:[{video,r:true}]},{},[],{},[{url:video,label:'Up
 assert.equal(uploaded[0].origin,'uploaded','explicit import provenance survives timeline references');
 assert.equal(projectFiles({HISTORY:[{url:image}]},{})[0].origin,'generated');
 assert.equal(projectFiles({}, {},[],{},[{url:audio,label:'Legacy audio',kind:'audio'}])[0].origin,undefined,'unknown legacy origins are not guessed');
+
+// Native drag routing validates project ownership and highlights compatible tracks.
+const track=new EventTarget(),classes=new Map();
+const laneIds=['trk','videoTrackToggle','audioTrack','audioTrackToggle','overlayTrack','overlayTrackToggle'];
+for(const id of laneIds)classes.set(id,new Set());
+const dropped=[];
+globalThis.__sequenceDropTest={get:()=>[{url:video,kind:'video',label:'Clip'},{url:image,kind:'image',label:'Picture'}]};
+const dropServer=await createServer({configFile:false,cacheDir:'outputs/.sequence-drop-test-cache',optimizeDeps:{noDiscovery:true,include:[]},server:{middlewareMode:true,watch:null,hmr:false},appType:'custom',plugins:[{name:'sequence-drop-storage',enforce:'pre',load(id){if(id.replaceAll('\\','/').endsWith('/studio/src/scene.ts'))return 'export const SC=globalThis.__sequenceDropTest'}}]});
+const originalDrop={document:globalThis.document,addEventListener:globalThis.addEventListener};
+try{
+ track.querySelector=()=>({});track.contains=()=>false;
+ globalThis.document={getElementById:id=>id==='tl'?track:{classList:{add:name=>classes.get(id).add(name),remove:name=>classes.get(id).delete(name)}}};globalThis.addEventListener=()=>{};
+ const {mountSequenceFileDrop}=await dropServer.ssrLoadModule('/studio/src/sequence-file-drop.ts');mountSequenceFileDrop((...args)=>dropped.push(args));
+ const drag=(action,kind,id,url=video)=>{const event=new Event(action,{cancelable:true});Object.defineProperties(event,{target:{value:{closest:selector=>selector==='#'+id}},clientX:{value:100},dataTransfer:{value:{types:['application/x-studio-file-'+kind],getData:()=>url}}});track.dispatchEvent(event);return event};
+ assert.equal(drag('dragover','video','trk').defaultPrevented,true);assert.equal(classes.get('trk').has('file-drop-compatible'),true);assert.equal(classes.get('audioTrack').size,0);
+ drag('drop','video','trk');assert.equal(dropped.length,1);assert.equal(dropped[0][1],'video');assert.equal(classes.get('trk').size,0);
+ drag('drop','video','audioTrack');drag('drop','video','trk','/outputs/ffffffffffffffff.webm');assert.equal(dropped.length,1,'wrong lane and non-project media rejected');
+ drag('dragover','image','overlayTrack');assert.equal(classes.get('overlayTrack').size,1);assert.equal(classes.get('trk').size,1,'images may also become scene guides');
+ drag('drop','image','overlayTrack',image);assert.equal(dropped[1][1],'overlays');assert.equal(drag('drop','image','trk',image).defaultPrevented,false,'legacy guide handler retains ownership');
+}finally{await dropServer.close();Object.assign(globalThis,originalDrop);delete globalThis.__sequenceDropTest}

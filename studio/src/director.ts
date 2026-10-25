@@ -2,6 +2,8 @@
 import {Glyph,Crumb,Chips} from './react/controls';
 import {GenerationDiagnostics} from './react/generation-diagnostics';
 import {mountEditWorkflow} from './edit-workflow';
+import {mountSequenceFileDrop} from './sequence-file-drop';
+let librarySelection=null;
 let embeddedEdit;
 const inEditWorkspace=()=>document.querySelector('[aria-label="Workspace setup"]')?.value==='Edit';
 
@@ -206,9 +208,9 @@ $('#ruler').onpointerdown=e=>{const seek=ev=>{const r=$('#ruler').getBoundingCli
   if(open!=null){G=start(open)+Math.min(SH[open].d-.01,x)}else{G=Math.max(0,Math.min(tot()-.01,x))}head()};seek(e);$('#ruler').setPointerCapture(e.pointerId);$('#ruler').onpointermove=seek};
 $('#ruler').onpointerup=()=>$('#ruler').onpointermove=null;
 addEventListener('keydown',e=>{if(!e.defaultPrevented&&e.key==='Escape'&&open!=null&&!/TEXTAREA|INPUT/.test(e.target.tagName))closeShot()});
-function media(ignoreEdit=false){if(!ignoreEdit&&inEditWorkspace()&&embeddedEdit)return embeddedEdit.selected();if(workspaceMode==='image')return{type:'keyframe',label:'Image workshop',img:imageDraft.url,spec:SP({}),u:.5};const s=currentShot();if(!SH.length)return null;if(selKey&&s.keys.includes(selKey))return{type:'keyframe',label:`Shot ${cur+1} · keyframe @ ${selKey.t.toFixed(1)}s`,spec:selKey.spec,u:selKey.u,img:selKey.img,ref:{shot:cur,key:s.keys.indexOf(selKey)}};
+function media(ignoreEdit=false){if(librarySelection&&!inEditWorkspace())return librarySelection;if(!ignoreEdit&&inEditWorkspace()&&embeddedEdit)return embeddedEdit.selected();if(workspaceMode==='image')return{type:'keyframe',label:'Image workshop',img:imageDraft.url,spec:SP({}),u:.5};const s=currentShot();if(!SH.length)return null;if(selKey&&s.keys.includes(selKey))return{type:'keyframe',label:`Shot ${cur+1} · keyframe @ ${selKey.t.toFixed(1)}s`,spec:selKey.spec,u:selKey.u,img:selKey.img,ref:{shot:cur,key:s.keys.indexOf(selKey)}};
  return{type:'shot',label:`Shot ${cur+1} · ${s.n} · ${+s.d.toFixed(3)}s`,spec:(s.keys[0]||s).spec,u:.3,video:s.r?s.video:undefined,audio:s.audio,audioPrompt:s.audioPrompt,audioLinked:s.audioLinked,duration:s.d,ref:{shot:cur,shotId:shotId(s)}}}
-function head(){const s=currentShot();const deleteMedia=document.querySelector('[data-delete-media]');if(deleteMedia)deleteMedia.disabled=inEditWorkspace()||workspaceMode!=='video'||!SH.length||(!selKey&&!clipSelected);const attributesPanel=$('#videoAttributes');if(attributesPanel)attributesPanel.hidden=expandedVideo&&(!SH.length||!clipSelected);if(!SH.length)clipSelected=false;$('#tl').classList.toggle('empty-sequence',!SH.length);if(expandedVideo||expandedAudio)trackAttributes();$('#trk').classList.toggle('has-selection',clipSelected);updateViewer();document.getElementById("play").title=clipSelected?"Play selected scene / pause (space)":"Play sequence / pause (space)";cinema=SH.length>1;document.body.classList.toggle("single-scene",!cinema);document.body.classList.toggle('has-guides',s.keys.some(k=>k.img));SHELL.select(media());$('#sNum').textContent=SH.length?`Shot ${cur+1} — `:'Draft — ';if(document.activeElement!==$('#sName'))$('#sName').textContent=s.n;$('#sMeta').textContent=`${+s.d.toFixed(3)}s · ${s.keys.length} keyframe${s.keys.length===1?'':'s'}`;
+function head(){const s=currentShot();const deleteMedia=document.querySelector('[data-delete-media]');if(deleteMedia)deleteMedia.disabled=!!librarySelection||inEditWorkspace()||workspaceMode!=='video'||!SH.length||(!selKey&&!clipSelected);const attributesPanel=$('#videoAttributes');if(attributesPanel)attributesPanel.hidden=expandedVideo&&(!SH.length||!clipSelected);if(!SH.length)clipSelected=false;$('#tl').classList.toggle('empty-sequence',!SH.length);if(expandedVideo||expandedAudio)trackAttributes();$('#trk').classList.toggle('has-selection',clipSelected);updateViewer();document.getElementById("play").title=clipSelected?"Play selected scene / pause (space)":"Play sequence / pause (space)";cinema=SH.length>1;document.body.classList.toggle("single-scene",!cinema);document.body.classList.toggle('has-guides',s.keys.some(k=>k.img));SHELL.select(media());$('#sNum').textContent=SH.length?`Shot ${cur+1} — `:'Draft — ';if(document.activeElement!==$('#sName'))$('#sName').textContent=s.n;$('#sMeta').textContent=`${+s.d.toFixed(3)}s · ${s.keys.length} keyframe${s.keys.length===1?'':'s'}`;
  if(s.renderWidth)$('#videoWidth').value=String(s.renderWidth);if(s.renderHeight)$('#videoHeight').value=String(s.renderHeight);
  if($('#videoSeed')&&document.activeElement!==$('#videoSeed'))$('#videoSeed').value=String(s.seed??7);
  const fps=s.fps||24,frames=s.renderFrames||Math.max(9,Math.min(121,Math.round(s.d*fps/8)*8+1));
@@ -227,7 +229,7 @@ addEventListener('osh-project-file-keyframe',event=>{if(workspaceMode!=='video')
 function addKey(i,t,v,source='click'){if(!SH.length)i=ensureScene();const s=SH[i],guided=touring()&&onboarding.step==='add'&&s.id===onboarding.shotId;if(guided){if(s.keys.some(k=>k.img===v.img))return toast('Choose a different image for the other frame');if(source==='click')t=s.d*(s.keys.filter(k=>k.img).length+1)/3;v={...v,spec:s.spec}}const k={t,u:v.u,spec:v.spec,img:v.img};if(source==='drop'){const edge=Math.min(.15,18/pxs);k.anchor=t<=edge?'start':t>=s.d-edge?'end':undefined;if(k.anchor){k.t=k.anchor==='start'?0:s.d;for(const other of s.keys)if(other.anchor===k.anchor){delete other.anchor;other.t=k.anchor==='start'?Math.min(.2,s.d/2):Math.max(0,s.d-.2)}}}open=i;s.keys.push(k);selKey=k;cur=i;s.r=false;G=start(i)+Math.min(k.t,s.d-.01);playing=false;setPlaying(false);timeline();head();save();if(guided&&s.keys.filter(k=>k.img).length>=2){advanceTour('position');checkTourPlacement()}toast(`Keyframe added to shot ${i+1} at ${k.t.toFixed(1)}s`)}
 addEventListener('osh-video-timing',e=>{if(playing)setPlaying(false);const s=currentShot();s.renderFrames=e.detail.frames;s.fps=e.detail.fps;s.d=s.renderFrames/s.fps;s.keys.forEach(k=>{k.t=k.anchor==='end'?s.d:Math.min(k.t,s.d)});G=Math.max(0,Math.min(G,tot()-.01));timeline();head();save()});
 function delKey(){if(!selKey&&!clipSelected)return;if(selectedTrack==='audio'){const s=currentShot();if(s.audioLinked!==false)return toast('Unlink audio to remove it separately');delete s.audio;timeline();head();save();return}if(!selKey&&open==null)return removeShot(cur,'trash');if(!selKey)return toast('Select a keyframe first');SH.forEach(s=>{const j=s.keys.indexOf(selKey);if(j>=0){s.keys.splice(j,1);s.r=false}});selKey=null;timeline();head()}
-addEventListener('osh-delete-selected-media',()=>{if(inEditWorkspace()||$('#ov').style.display==='flex'||$('#kgo').disabled||!SH.length)return;setPlaying(false);delKey();save()});
+addEventListener('osh-delete-selected-media',()=>{if(librarySelection||inEditWorkspace()||$('#ov').style.display==='flex'||$('#kgo').disabled||!SH.length)return;setPlaying(false);delKey();save()});
 $('#delKey').onclick=delKey;
 // Rename the current shot: click the title (or ✎ / F2), Enter to save, Esc to cancel.
 const nm=$('#sName');let nm0='';
@@ -393,6 +395,24 @@ if(touring()&&onboarding.images?.length){results=onboarding.images.map(url=>({im
 function captionSources(){return [...SH.flatMap((s,i)=>{const url=s.audioLinked!==false?s.audio||s.video:s.video;return url?[{id:'shot:'+shotId(s),url,label:s.n,start:start(i),duration:s.d,origin:'timeline'}]:[]}),...independentSoundtracks(SH).map(layer=>({id:layer.id,url:layer.url,label:layer.name,start:layer.start,duration:layer.duration,origin:'timeline'})),...LAYERS.audio.filter(layer=>layer.url).map(layer=>({id:layer.id,url:layer.url,label:layer.name,start:layer.start,duration:layer.duration,origin:'timeline'}))]}
 mountCaptions({initial:()=>captionSources().find(source=>source.id==='shot:'+shotId(currentShot()))||null,resolve:source=>source.origin==='library'?(SC.get('osh-project-files')||[]).some(file=>file.url===source.url)?source:null:captionSources().find(current=>current.id===source.id&&current.url===source.url)||null,state:()=>LAYERS,change:state=>{LAYERS=state;timeline();head();save()}});
 sequenceLayers=mountSequenceLayers({read:()=>LAYERS,change:state=>{LAYERS=state;timeline();head();save()},time:()=>G,duration:tot,select:()=>{setPlaying(false);clipSelected=false;selKey=null;head()},legacy:()=>independentSoundtracks(SH),selectLegacy:id=>{const i=SH.findIndex(s=>s.id===id);if(i<0)return;selectClip(i);selectedTrack='audio';head();focusPromptField('audioPrompt')}});
+addEventListener('osh-project-file-selected',event=>{const file=event.detail;librarySelection={type:file.kind==='video'?'shot':'keyframe',label:file.label,...(file.kind==='image'?{img:file.url}:file.kind==='video'?{video:file.url}:{audio:file.url})};head()});
+document.addEventListener('pointerdown',event=>{if(event.target.closest?.('#tl')){librarySelection=null;head()}},true);
+document.addEventListener('osh-workspace-selected',()=>{librarySelection=null;head()});
+mountSequenceFileDrop(async(file,lane,x)=>{
+ if($('#ov').style.display==='flex'||$('#kgo').disabled)return;
+ const track=$('#'+(lane==='video'?'trk':lane==='audio'?'audioTrack':'overlayTrack'));
+ const position=Math.max(0,Math.min(600,(open!=null?start(open):0)+(x-track.getBoundingClientRect().left)/pxs));
+ try{
+  let duration=4;
+  if(file.kind==='video')duration=(await videoFrames(file.url)).duration;
+  if(file.kind==='audio')duration=await new Promise((resolve,reject)=>{const audio=new Audio();const cleanup=()=>{clearTimeout(timer);audio.removeAttribute('src');audio.load()};const timer=setTimeout(()=>{cleanup();reject(Error('Audio metadata timed out'))},10000);audio.onloadedmetadata=()=>{const value=audio.duration;audio.onloadedmetadata=audio.onerror=null;cleanup();resolve(value)};audio.onerror=()=>{cleanup();reject(Error('Could not read audio'))};audio.preload='metadata';audio.src=file.url});
+  if(!Number.isFinite(duration)||duration<=0||duration>600)throw Error('Unsupported media duration');
+  librarySelection=null;setPlaying(false);
+  if(lane==='video'){const scene={...newScene(),n:file.label.slice(0,40),d:duration,video:file.url,r:true};const index=insertionIndex(SH.map(s=>s.d),position);SH.splice(index,0,scene);cur=index;open=null;selKey=null;clipSelected=true;selectedTrack='video';G=start(index)}
+  else{const layer={id:crypto.randomUUID(),name:file.label,kind:lane==='audio'?'sfx':'watermark',url:file.url,start:position,duration,position:'center'};LAYERS={...LAYERS,[lane]:[...LAYERS[lane],layer]}}
+  timeline();head();save();toast('Added '+file.label+' to '+lane);
+ }catch(error){toast('Could not add media: '+error.message)}
+});
 const overlayToggle=$('#overlayTrackToggle');renderView(overlayToggle,[h(Glyph,{key:'icon',path:'m9 5 7 7-7 7'}),h('span',{key:'label'},'Overlays')]);overlayToggle.onclick=()=>focusTrack('overlays');
 editHistory=mountEditHistory(
  ()=>JSON.parse(JSON.stringify({SH,STASH,TRASH,imageDraft,keyframeBatch,LAYERS,sceneDraft})),

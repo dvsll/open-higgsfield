@@ -7,9 +7,9 @@ export function validLayers(value:any):LayerState{
  const list=(items:any,overlay:boolean):Layer[]=>{
   if(!Array.isArray(items))return [];const seen=new Set<string>();
   return items.filter(item=>{
-   if(!item||typeof item.id!=='string'||seen.has(item.id)||typeof item.name!=='string'||!Number.isFinite(item.start)||item.start<0||item.start>(overlay?3600:600)||!Number.isFinite(item.duration)||item.duration<=0||item.duration>(overlay?600:47)||!(overlay?['text','watermark']:['music','sfx']).includes(item.kind))return false;
+   if(!item||typeof item.id!=='string'||seen.has(item.id)||typeof item.name!=='string'||!Number.isFinite(item.start)||item.start<0||item.start>(overlay?3600:600)||!Number.isFinite(item.duration)||item.duration<=0||item.duration>600||!(overlay?['text','watermark']:['music','sfx']).includes(item.kind))return false;
    if(item.text!==undefined&&(typeof item.text!=='string'||item.text.length>1500))return false;
-   if(item.url&&(typeof item.url!=='string'||!/^\/outputs\/[a-f0-9]{16}\.(png|flac|wav|mp3|webm|mp4)$/.test(item.url)))return false;
+   if(item.url&&(typeof item.url!=='string'||!/^\/outputs\/[a-f0-9]{16}\.(png|flac|wav|mp3|m4a|ogg|webm|mp4)$/.test(item.url)))return false;
    seen.add(item.id);return true;
   }).slice(0,overlay?600:100).map(item=>({...item,name:item.name.slice(0,80),size:Math.max(2,Math.min(12,Number(item.size)||5)),position:['top-left','top-center','top-right','center','bottom-left','bottom-center','bottom-right'].includes(item.position)?item.position:'bottom-center'}));
  };

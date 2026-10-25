@@ -26,6 +26,7 @@ export function mountEditHistory(read:()=>EditState,restore:(state:EditState)=>v
  }
  function flush(){clearTimeout(timer);if(applying)return;const state=read(),before=tree.nodes.find(n=>n.id===tree.current)!.state;if(recordHistory(tree,state,label(before,state))){persist();draw()}}
  function draw(){const rows:HistoryRow[]=[];const visit=(parent:string|null,depth:number)=>{for(const node of tree.nodes.filter(n=>n.parent===parent)){rows.push({id:node.id,label:node.label,at:node.at,depth});visit(node.id,depth+1)}};visit(null,0);
+  for(const direction of ['undo','redo'] as const){const button=document.querySelector<HTMLButtonElement>(`[data-history-${direction}]`);if(button){button.disabled=busy()||!historyTarget(tree,direction);button.onclick=()=>move(direction)}}
   renderView(root,createElement(HistoryView,{rows,current:tree.current,status:statusMessage,canUndo:!!historyTarget(tree,'undo'),canRedo:!!historyTarget(tree,'redo'),onUndo:()=>move('undo'),onRedo:()=>move('redo'),onGo:id=>{flush();go(id)}}));
  }
  function go(id:string|null){if(!id||id===tree.current)return;if(busy()){statusMessage='Finish the current generation or drag before changing history.';draw();return}const n=tree.nodes.find(n=>n.id===id);if(!n)return;applying=true;try{restore(JSON.parse(JSON.stringify(n.state)));const old=tree.nodes.find(p=>p.id===tree.current)!;tree.preferred??={};if(old.parent===id)tree.preferred[id]=old.id;else if(n.parent)tree.preferred[n.parent]=id;tree.current=id;statusMessage=n.label;persist()}finally{applying=false;draw()}}
@@ -50,5 +51,7 @@ export function mountEditHistory(read:()=>EditState,restore:(state:EditState)=>v
   };
  }
  // Edits applied in another workflow since the last visit become a new branch node.
+ document.addEventListener('osh-window-layout-changed',draw);
+ document.addEventListener('osh-workspace-selected',draw);
  flush();draw();return {element:root,record:schedule};
 }

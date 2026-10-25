@@ -39,3 +39,14 @@
 .window-body .tl .track-toggle{position:sticky;top:20px}.window-body .tl #ruler{position:sticky;top:0;z-index:9;background:var(--ui-bg)}
 
 .sequence-layer-lane .layer-summary{position:absolute;inset:0;width:100%;height:30px;min-height:30px;text-align:left;padding:3px 34px 3px 8px;border:0;background:transparent;color:inherit;font:inherit;overflow:hidden}.layer-summary i{position:absolute;top:3px;height:24px;background:#507d6a55;border-left:1px solid #649b86}.overlays .layer-summary i{background:#506c8c55;border-color:#7092b8}.layer-summary span{position:relative;z-index:1;font-size:var(--ui-small);color:var(--ui-text);background:#121418b3;padding:2px 4px;white-space:nowrap}
+/* Shared track proportions: compact summary, expanded media rows. */
+.window-body .tl #trk:not(.expanded-scenes):not(.scene){height:32px;min-height:32px}
+.window-body .tl #trk:not(.expanded-scenes):not(.scene) .clip,.window-body .tl #trk:not(.expanded-scenes):not(.scene) .addclip{height:32px;min-height:32px}
+.window-body .tl #trk:not(.expanded-scenes):not(.scene) .strip{display:none}
+.window-body .tl #trk:not(.expanded-scenes):not(.scene) .clip .lbl{height:30px;display:flex;align-items:center}
+.tl .sequence-empty{min-height:32px;height:32px;border:1px solid var(--ui-border);padding:6px 8px;background:#131619}
+.tl[data-focus=video] .sequence-empty{height:80px}
+.sequence-layer-lane .layer-empty{display:flex;align-items:center;box-sizing:border-box;height:100%;padding:6px 8px;font-size:var(--ui-small);color:var(--ui-muted)}
+.sequence-layer-lane[data-expanded=true] .sequence-layer-clip{height:80px;min-height:80px;padding:0}
+.sequence-layer-lane[data-expanded=true] .sequence-layer-clip>span{position:absolute;left:0;right:0;top:0;height:20px;box-sizing:border-box;padding:3px 6px;background:#20232a;text-align:left}
+.sequence-layer-lane[data-expanded=true] .layer-waveform{top:20px;height:58px}

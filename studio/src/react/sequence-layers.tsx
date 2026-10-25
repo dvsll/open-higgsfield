@@ -3,15 +3,15 @@ import {Popup} from './popup';
 import {waveform} from '../audio-track';
 import {selectCaptionSource} from '../captions';
 import {OSH} from '../../../shared/runtime/client';
-import {layerRows,type Layer} from '../sequence-layer-state';
-import {openSequenceWorkflow} from '../sequence-workflows';
+import {type Layer} from '../sequence-layer-state';
+
 function LayerWaveform({url}:{url:string}){const canvas=useRef<HTMLCanvasElement>(null);useEffect(()=>{let alive=true;void waveform(url).then(peaks=>{if(!alive||!canvas.current)return;const g=canvas.current.getContext('2d')!;g.clearRect(0,0,160,24);g.fillStyle='#78b8a3';peaks.forEach((peak,x)=>{const height=Math.max(1,peak*22);g.fillRect(x,12-height/2,1,height)})}).catch(()=>{});return()=>{alive=false}},[url]);return <canvas ref={canvas} className="layer-waveform" width={160} height={24} aria-hidden="true"/>}
 export function LayerLane({group,items,pixels,origin,onAdd,onEdit,expanded=false,onExpand}:{group:'overlays'|'audio';items:Layer[];pixels:number;origin:number;onAdd:()=>void;onEdit:(item:Layer)=>void;expanded?:boolean;onExpand?:()=>void}){
- const rows=expanded?new Map(items.map((item,index)=>[item.id,index])):layerRows(items),count=expanded?Math.max(1,items.length):1;
- return <div className={'sequence-layer-lane '+group} style={{height:Math.max(32,count*30)}} data-expanded={expanded}>
+ const rows=new Map(items.map((item,index)=>[item.id,index])),count=expanded?Math.max(1,items.length):1;
+ return <div className={'sequence-layer-lane '+group} style={{height:expanded?count*84:32}} data-expanded={expanded}>
   {!expanded&&items.length>0&&<button className="layer-summary" onClick={onExpand} aria-label={'Expand '+group+' track'}>{items.map(item=><i key={item.id} aria-hidden="true" style={{left:Math.max(0,item.start-origin)*pixels,width:Math.max(2,item.duration*pixels)}}/>)}<span>{items.length} {group==='audio'?'audio clip':'overlay'}{items.length===1?'':'s'}</span></button>}
-  {(expanded?items:[]).map(item=><button key={item.id} className="sequence-layer-clip" style={{left:Math.max(0,item.start-origin)*pixels,width:Math.max(16,(Math.min(item.start+item.duration,Infinity)-Math.max(origin,item.start))*pixels-3),top:expanded?(rows.get(item.id)||0)*30:0}} onClick={()=>onEdit(item)} title={`${item.name} · ${item.start}s · ${item.duration}s`} aria-label={`Edit ${item.kind}: ${item.name}`}>{group==='audio'&&item.url&&<LayerWaveform url={item.url}/>}<span>{item.kind==='text'?'T':item.kind==='watermark'?'◈':'♫'} {item.name}{item.muted?' · muted':''}</span></button>)}
-  <button className={items.length?'layer-add':'layer-empty'} onClick={items.length?onAdd:()=>openSequenceWorkflow(group)} aria-label={items.length?(group==='audio'?'Add independent audio':'Add overlay'):undefined}>{items.length?'+':group==='audio'?'Open Audio workflow →':'Open Overlays workflow →'}</button>
+  {(expanded?items:[]).map(item=><button key={item.id} className="sequence-layer-clip" style={{left:Math.max(0,item.start-origin)*pixels,width:Math.max(16,(Math.min(item.start+item.duration,Infinity)-Math.max(origin,item.start))*pixels-3),top:(rows.get(item.id)||0)*84}} onClick={()=>onEdit(item)} title={`${item.name} · ${item.start}s · ${item.duration}s`} aria-label={`Edit ${item.kind}: ${item.name}`}>{group==='audio'&&item.url&&<LayerWaveform url={item.url}/>}<span>{item.kind==='text'?'T':item.kind==='watermark'?'◈':'♫'} {item.name}{item.muted?' · muted':''}</span></button>)}
+  {items.length?<button className="layer-add" onClick={onAdd} aria-label={group==='audio'?'Add independent audio':'Add overlay'}>+</button>:<span className="layer-empty">No {group}</span>}
  </div>;
 }
 export function OverlayPreview({items}:{items:Layer[]}){return <>{items.map(item=><div key={item.id} className={'sequence-overlay '+(item.position||'bottom-center')} style={{fontSize:(item.size||5)+'cqw'}}>{item.kind==='watermark'?<img src={item.url} alt={item.name}/>:item.text}</div>)}</>}

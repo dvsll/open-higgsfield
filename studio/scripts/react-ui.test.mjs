@@ -26,11 +26,11 @@ try {
   const {LayerLane,LayerEditor}=await server.ssrLoadModule('/studio/src/react/sequence-layers.tsx');
   for(const group of ['audio','overlays']){
    const lane=renderToStaticMarkup(createElement(LayerLane,{group,items:[],pixels:100,origin:0,onAdd:()=>{},onEdit:()=>{}}));
-   assert.match(lane,group==='audio'?/Open Audio workflow/:/Open Overlays workflow/);assert.doesNotMatch(lane,/<dialog/);
+   assert.match(lane,group==='audio'?/No audio/:/No overlays/);assert.doesNotMatch(lane,/<dialog/);
    const creator=renderToStaticMarkup(createElement(LayerEditor,{group,embedded:true,start:0,duration:4,audioReady:false,onClose:()=>{},onSave:()=>{}}));
    assert.match(creator,/layer-workflow-editor/);assert.doesNotMatch(creator,/<dialog/);assert.match(creator,/Save to/);
   }
-  const empty=renderToStaticMarkup(createElement(SequenceTrack,{clips:[],onAdd:()=>{}}));assert.match(empty,/Open Video workflow/);assert.doesNotMatch(empty,/Add scene|No video scenes/);assert.doesNotMatch(empty,/class="clip/);
+  const empty=renderToStaticMarkup(createElement(SequenceTrack,{clips:[],onAdd:()=>{}}));assert.match(empty,/No video/);assert.doesNotMatch(empty,/Add scene|No video scenes/);assert.doesNotMatch(empty,/class="clip/);
   const name = '<img src=x onerror=alert(1)>';
   const html = renderToStaticMarkup(
     createElement(SequenceTrack, {

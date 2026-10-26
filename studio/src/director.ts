@@ -3,6 +3,7 @@ import {Glyph,Crumb,Chips} from './react/controls';
 import {GenerationDiagnostics} from './react/generation-diagnostics';
 import {mountEditWorkflow} from './edit-workflow';
 import {mountSequenceFileDrop} from './sequence-file-drop';
+import {guideDropPosition} from './guide-drop';
 let librarySelection=null;
 let embeddedEdit;
 const inEditWorkspace=()=>document.querySelector('[aria-label="Workspace setup"]')?.value==='Edit';
@@ -200,8 +201,9 @@ function strip(c,s){const cv=c.querySelector('.strip'),sg=cv.getContext('2d'),h=
 function trim(c,s){const gr=c.querySelector('.grip');gr.onpointerdown=ev=>{ev.preventDefault();ev.stopPropagation();gr.setPointerCapture(ev.pointerId);const x0=ev.clientX,d0=s.d,p0=pxs;
   gr.onpointermove=m=>{s.d=Math.max(1,Math.min(8,Math.round(d0+(m.clientX-x0)/p0)));c.style.width=(s.d*p0-3)+'px'};
   gr.onpointerup=()=>{gr.onpointermove=null;s.keys.forEach(k=>k.t=Math.min(k.t,s.d));if(s.d!==d0)s.r=false;G=Math.min(G,tot()-.01);timeline();head()}}}
-function dropTarget(el,i){const s=SH[i];el.ondragover=ev=>{if(!dragV&&!ev.dataTransfer.types.includes('application/x-studio-file-image'))return;ev.preventDefault();ev.dataTransfer.dropEffect='copy';el.classList.add('drop')};el.ondragleave=()=>el.classList.remove('drop');
- el.ondrop=ev=>{ev.preventDefault();el.classList.remove('drop');const url=ev.dataTransfer?.getData('application/x-studio-file');const file=url&&(SC.get('osh-project-files')||[]).find(file=>file.url===url&&file.kind==='image');const value=dragV||(file?{img:file.url,spec:s.spec,u:.5}:null);if(!value)return;const r=el.getBoundingClientRect();addKey(i,Math.round(Math.min(s.d,Math.max(0,(ev.clientX-r.left)/pxs))*10)/10,value,'drop')}}
+function dropTarget(el,i){const s=SH[i];const clear=()=>{el.classList.remove('drop');delete el.dataset.guideDrop;delete el.dataset.guideAnchor;el.style.removeProperty('--guide-drop-x')};const placement=x=>{const r=el.getBoundingClientRect();return guideDropPosition(s.d,r.width,x-r.left,s.fps||24)};el.ondragover=ev=>{if(!dragV&&!ev.dataTransfer.types.includes('application/x-studio-file-image'))return;ev.preventDefault();ev.dataTransfer.dropEffect='copy';const point=placement(ev.clientX);el.classList.add('drop');el.dataset.guideDrop=point.anchor?point.anchor.toUpperCase():`Keyframe · ${point.time.toFixed(2)}s`;el.dataset.guideAnchor=point.anchor||'timed';el.style.setProperty('--guide-drop-x',point.percent+'%')};el.ondragleave=ev=>{const r=el.getBoundingClientRect();if(el.contains(ev.relatedTarget)||ev.clientX>=r.left&&ev.clientX<=r.right&&ev.clientY>=r.top&&ev.clientY<=r.bottom)return;clear()};
+ el.ondrop=ev=>{ev.preventDefault();clear();const url=ev.dataTransfer?.getData('application/x-studio-file');const file=url&&(SC.get('osh-project-files')||[]).find(file=>file.url===url&&file.kind==='image');const value=dragV||(file?{img:file.url,spec:s.spec,u:.5}:null);if(!value)return;addKey(i,placement(ev.clientX).time,value,'drop')}}
+addEventListener('dragend',()=>document.querySelectorAll('.clip[data-guide-drop]').forEach(el=>{el.classList.remove('drop');delete el.dataset.guideDrop;delete el.dataset.guideAnchor;el.style.removeProperty('--guide-drop-x')}));
 for(const kind of ['video','audio']){const toggle=$('#'+kind+'TrackToggle');renderView(toggle,[h(Glyph,{key:'icon',path:'m9 5 7 7-7 7'}),h('span',{key:'label'},kind==='video'?'Video':'Audio')]);toggle.onclick=()=>focusTrack(kind)};
 $('#tl').addEventListener('pointerdown',e=>{if(e.target.closest('.clip,.k,.audio-clip,button,input,textarea,select,label,#ruler'))return;const rect=$('#ruler').getBoundingClientRect(),t=Math.max(0,(e.clientX-rect.left)/pxs);G=open==null?Math.max(0,Math.min(tot()-.01,t)):start(open)+Math.min(SH[open].d-.01,t);clipSelected=false;selKey=null;head()});
 $('#ruler').onpointerdown=e=>{const seek=ev=>{const r=$('#ruler').getBoundingClientRect(),x=Math.max(0,(ev.clientX-r.left)/pxs);

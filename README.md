@@ -1,11 +1,6 @@
 # Open Source Higgsfield
 
-Two creative apps built on open AI models and [ComfyUI](https://www.comfy.org/), made for Comfy Org's [Open Source Higgsfield](https://comfy.org/open-source-higgsfield/) competition.
-
-- **Studio:** a cinema studio. Write a prompt, generate keyframes and video shots, arrange them on a timeline, then edit.
-- **Ad Studio:** turn a product photo into ads.
-
-Everything runs on your own computer. No paid AI services are used.
+Open-model creative apps (Studio and Ad Studio) for Comfy Org's Open Source Higgsfield competition.
 
 ## Start
 

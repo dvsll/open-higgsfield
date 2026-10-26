@@ -3,6 +3,8 @@
 Append dated decisions, render times and requests here. Only the studio owner edits this file; the partner adds requests at the bottom.
 
 ## Where we left off (update this before switching agents)
+**Latest handoff - 2026-10-26, automatic dependency startup:** Added bounded local Comfy launcher discovery (saved/env COMFYUI_DIR, managed path, known Desktop and home installs), main.py plus own venv/portable Python validation, fixed argv/no shell/hidden console/loopback port and Desktop model-path YAML preservation. Existing /start now launches known existing installs, waits readiness, restores proxy and saves launchDirectory; future dev starts saved existing dependency as well as managed. Status optional canStart/launchDirectory drives Admin Start & reconnect. Running servers reused, task/cancel/generation guards retained, no auto model installs. Actual Admin click started this machine Desktop Comfy from offline8188 to Connected and ready for Comfy+proxy, config persisted existing launchDirectory. No inference/model downloads. Screenshot outputs/admin-started-local-comfy.png. Build/typecheck/all19 regressions pass; launcher fixtures cover missing Python, Desktop config and explicit standard venv paths. Shared contract and partner note updated. Current Comfy8188 now running as app-owned child; dev8288 remains running.
+
 **Latest handoff - 2026-10-26, prompt ordering:** Moved Advanced size/timing host after video/motion/audio prompt boxes and audio actions. Controller IDs/lifetimes unchanged. Browser verified motion/audioPrompt/advancedVideoSettings DOM order; screenshot outputs/advanced-prompts-before-settings.png. Typecheck passes.
 
 

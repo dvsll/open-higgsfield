@@ -69,3 +69,18 @@ const runWorkflow=Function('ctx','with(ctx){'+stripTypeScriptTypes(runSource)+';
 await runWorkflow(sdkClient,{json:{'1':{class_type:'CLIPLoader',inputs:{clip_name:'qwen3.safetensors'}},'2':{class_type:'SamplerCustom'}}},sdkId);
 assert.equal(stopped,1);assert.equal(sdkTracker.get(sdkId).phase,'generating');assert.equal(sdkTracker.get(sdkId).percent,12.5);assert.equal(sdkTracker.get(sdkId).diagnostics.length,2);
 const failingClient={submit:async()=>{throw Error('fixture submit failed')}};await assert.rejects(()=>runWorkflow(failingClient,{json:{}},sdkId),/fixture submit failed/);assert.equal(stopped,2,'failed submission still stops console polling');
+
+// Existing local installations are launchable without shell commands or reinstalling dependencies.
+const {existingComfyLaunch}=await import('../../shared/runtime/comfy-launch.ts');
+const launchRoot=await mkdtemp(join(outputs,'launcher-test-'));
+try{
+ const home=join(launchRoot,'home'),directory=join(home,'AppData/Local/Comfy-Desktop/ComfyUI-Installs/ComfyUI/ComfyUI');
+ await mkdir(join(directory,'.venv/Scripts'),{recursive:true});await writeFile(join(directory,'main.py'),'fixture');
+ assert.equal(existingComfyLaunch(launchRoot,{},undefined,home,'win32'),null,'missing interpreter is not launchable');
+ await writeFile(join(directory,'.venv/Scripts/python.exe'),'fixture');
+ const configs=join(home,'AppData/Roaming/Comfy Desktop/instance-model-paths');await mkdir(configs,{recursive:true});await writeFile(join(configs,'instance.yaml'),'models: fixture');
+ const found=existingComfyLaunch(launchRoot,{},undefined,home,'win32');assert.equal(found.directory,directory);assert.equal(found.modelPaths.length,1);assert.ok(found.python.endsWith('python.exe'));
+ assert.equal(existingComfyLaunch(launchRoot,{COMFYUI_DIR:'relative/path'},undefined,join(launchRoot,'empty'),'win32'),null);
+ const manual=join(launchRoot,'manual');await mkdir(join(manual,'.venv/bin'),{recursive:true});await writeFile(join(manual,'main.py'),'fixture');await writeFile(join(manual,'.venv/bin/python'),'fixture');
+ assert.equal(existingComfyLaunch(launchRoot,{COMFYUI_DIR:manual},undefined,home,'linux').directory,manual);
+}finally{await rm(launchRoot,{recursive:true,force:true})}

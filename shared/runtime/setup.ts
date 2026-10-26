@@ -6,12 +6,13 @@ import { homedir } from 'node:os';
 import { createServer } from 'node:net';
 import type { IncomingMessage } from 'node:http';
 import { downloadModels, type ModelFile } from './model-download.ts';
+import {existingComfyLaunch} from './comfy-launch.ts';
 
 export const COMFY_RELEASE='v0.41.3';
 export const COMFY_COMMIT='8713616fcc321624e306bbd36be5906203dcb0dc';
 
 type Env=Record<string,string|undefined>;
-type Config={mode:'existing'|'managed';url:string;proxy:string;modelsDir:string;proxyExe?:string;gpu?:string;release?:string};
+type Config={mode:'existing'|'managed';url:string;proxy:string;modelsDir:string;proxyExe?:string;gpu?:string;release?:string;launchDirectory?:string};
 type Task={phase:string;message:string;startedAt:number;updatedAt:number;busy:boolean;received?:number;total?:number|null;file?:string;index?:number;count?:number;error?:string;log:string[]};
 export function localComfyUrl(input:unknown):string{
  if(typeof input!=='string'||input.length>200)throw new Error('Enter a local ComfyUI URL.');const url=new URL(input);
@@ -62,7 +63,8 @@ export class RuntimeSetup{
    }));inventory=inventories.flat();
   }catch{}
 
-  return{connected,detectedInstances:connected?[url]:this.discoveries,proxy:await this.proxyReady(this.env.COMFY_BASE_URL||'http://127.0.0.1:8189'),url,config:this.config,modelsDirs:[...new Set(candidates)],platform:process.platform,managedDir:join(this.root,'.runtime/ComfyUI'),task:this.task,packs:['shot_ltxv','keyframe_zimage','audio_stable'].map(id=>({id,name:id==='shot_ltxv'?'Video · LTX':id==='keyframe_zimage'?'Images · Z-Image':'Audio · Stable Audio',models:models.filter(m=>m.used_by===id).map(m=>({...m,installed:inventory.includes(m.file)||(!connected&&!!this.config?.modelsDir&&existsSync(join(this.config.modelsDir,m.file)))}))}))};
+  const launcher=existingComfyLaunch(this.root,this.env,this.config?.launchDirectory);
+  return{connected,canStart:this.config?.mode==='managed'||!!launcher,launchDirectory:launcher?.directory,detectedInstances:connected?[url]:this.discoveries,proxy:await this.proxyReady(this.env.COMFY_BASE_URL||'http://127.0.0.1:8189'),url,config:this.config,modelsDirs:[...new Set(candidates)],platform:process.platform,managedDir:join(this.root,'.runtime/ComfyUI'),task:this.task,packs:['shot_ltxv','keyframe_zimage','audio_stable'].map(id=>({id,name:id==='shot_ltxv'?'Video · LTX':id==='keyframe_zimage'?'Images · Z-Image':'Audio · Stable Audio',models:models.filter(m=>m.used_by===id).map(m=>({...m,installed:inventory.includes(m.file)||(!connected&&!!this.config?.modelsDir&&existsSync(join(this.config.modelsDir,m.file)))}))}))};
  }
  connect(input:any){const url=localComfyUrl(input.url);const modelsDir=typeof input.modelsDir==='string'&&input.modelsDir.trim()?resolve(input.modelsDir.trim()):'';if(modelsDir&&(!isAbsolute(input.modelsDir.trim())||!existsSync(modelsDir)))throw new Error('Choose an existing absolute models-folder path, or leave it blank to connect without downloads.');return this.launch(async()=>{
   if(!await this.reachable(url))throw new Error('ComfyUI was not found at that address. Start it and retry.');const signal=this.abort!.signal;let proxy=this.env.COMFY_BASE_URL||'http://127.0.0.1:8189',proxyExe=this.env.COMFY_API_PROXY;
@@ -79,10 +81,31 @@ export class RuntimeSetup{
  })}
  async startManaged(signal?:AbortSignal){const config=this.config;if(config?.mode!=='managed')throw new Error('No managed ComfyUI has been installed.');if(await this.reachable(config.url))return;if(this.managed&&this.managed.exitCode===null)throw new Error('ComfyUI is already starting. Wait a moment and retry.');
   this.phase('starting','Starting your local ComfyUI. The first launch may take a moment.');const python=this.venvPython(join(this.root,'.runtime/comfy-python')),args=[join(this.root,'.runtime/ComfyUI/main.py'),'--listen','127.0.0.1','--port',new URL(config.url).port];if(config.gpu==='cpu')args.push('--cpu');
-  const child=spawn(python,args,{cwd:join(this.root,'.runtime/ComfyUI'),windowsHide:true,shell:false,stdio:['ignore','pipe','pipe'],env:{...process.env,PYTHONUNBUFFERED:'1'}});this.managed=child;let failure='';child.stdout.on('data',(chunk:Buffer)=>this.onServerLog(config.url,chunk.toString()));child.stderr.on('data',(chunk:Buffer)=>{failure=(failure+chunk.toString()).slice(-2000);this.onServerLog(config.url,chunk.toString())});child.on('error',e=>{failure=e.message});
-  const cancel=()=>child.kill();signal?.addEventListener('abort',cancel,{once:true});try{for(let i=0;i<120;i++){signal?.throwIfAborted();if(await this.reachable(config.url))return;if(child.exitCode!==null||failure.includes('ENOENT'))throw new Error('ComfyUI could not start. '+failure);await new Promise(r=>setTimeout(r,1000))}throw new Error('ComfyUI is taking too long to start. Check the local runtime and retry. '+failure)}finally{signal?.removeEventListener('abort',cancel)}
+  await this.startProcess(config.url,python,args,join(this.root,'.runtime/ComfyUI'),signal);
  }
- start(){return this.launch(async()=>{const signal=this.abort!.signal;await this.startManaged(signal);const previous=this.config!;if(await this.proxyReady(previous.proxy))return;const next={...previous,proxy:'http://127.0.0.1:'+await freePort(),proxyExe:await this.connector(signal)};await this.startProxy({...this.env,COMFYUI_URL:next.url,COMFY_BASE_URL:next.proxy,COMFY_API_PROXY:next.proxyExe});if(!await this.proxyReady(next.proxy))throw new Error('The SDK connector could not start. Check setup details and retry.');await this.save(next)})}
+ private async startProcess(url:string,python:string,args:string[],cwd:string,signal?:AbortSignal){
+  const child=spawn(python,args,{cwd,windowsHide:true,shell:false,stdio:['ignore','pipe','pipe'],env:{...process.env,PYTHONUNBUFFERED:'1'}});this.managed=child;let failure='';child.stdout.on('data',(chunk:Buffer)=>this.onServerLog(url,chunk.toString()));child.stderr.on('data',(chunk:Buffer)=>{failure=(failure+chunk.toString()).slice(-2000);this.onServerLog(url,chunk.toString())});child.on('error',e=>{failure=e.message});
+  const cancel=()=>child.kill();signal?.addEventListener('abort',cancel,{once:true});try{for(let i=0;i<120;i++){signal?.throwIfAborted();if(await this.reachable(url))return;if(child.exitCode!==null||failure.includes('ENOENT'))throw new Error('ComfyUI could not start. '+failure);await new Promise(r=>setTimeout(r,1000))}throw new Error('ComfyUI is taking too long to start. Check the local runtime and retry. '+failure)}finally{signal?.removeEventListener('abort',cancel)}
+ }
+ start(){return this.launch(async()=>{const signal=this.abort!.signal;let previous=this.config;
+  if(previous?.mode==='managed')await this.startManaged(signal);
+  else{
+   const url=localComfyUrl(previous?.url||this.env.COMFYUI_URL||'http://127.0.0.1:8188');
+   const launcher=existingComfyLaunch(this.root,this.env,previous?.launchDirectory);
+   if(!await this.reachable(url)){
+    if(!launcher)throw Error('No launchable local ComfyUI found. Install one in Local setup, or set COMFYUI_DIR to its folder.');
+    if(this.managed&&this.managed.exitCode===null)throw Error('ComfyUI is already starting. Wait a moment and retry.');
+    this.phase('starting','Starting your installed ComfyUI. No models are being generated.');
+    const args=[join(launcher.directory,'main.py'),'--listen','127.0.0.1','--port',new URL(url).port||'80','--disable-auto-launch'];
+    if(launcher.modelPaths.length)args.push('--extra-model-paths-config',...launcher.modelPaths);
+    await this.startProcess(url,launcher.python,args,launcher.directory,signal);
+   }
+   previous={...previous,mode:'existing',url,proxy:previous?.proxy||this.env.COMFY_BASE_URL||'http://127.0.0.1:8189',modelsDir:previous?.modelsDir||this.env.COMFYUI_MODELS_DIR||'',...(launcher?{launchDirectory:launcher.directory}:{})};
+  }
+  if(!previous)throw Error('Local runtime configuration missing.');
+  if(await this.proxyReady(previous.proxy)){await this.save(previous);return}
+  const next={...previous,proxy:'http://127.0.0.1:'+await freePort(),proxyExe:await this.connector(signal)};await this.startProxy({...this.env,COMFYUI_URL:next.url,COMFY_BASE_URL:next.proxy,COMFY_API_PROXY:next.proxyExe});if(!await this.proxyReady(next.proxy))throw new Error('The SDK connector could not start. Check setup details and retry.');await this.save(next)
+ })}
  download(input:any){const groups=input.packs;if(!Array.isArray(groups)||!groups.length||groups.some((g:unknown)=>!['shot_ltxv','keyframe_zimage','audio_stable'].includes(g as string)))throw new Error('Choose at least one model pack.');const root=this.config?.modelsDir;if(!root)throw new Error('Connect a models folder before downloading.');return this.launch(async()=>{
   const models=(JSON.parse(await readFile(join(this.root,'shared/runtime/models.json'),'utf8')).models as ModelFile[]).filter(m=>groups.includes(m.used_by));this.phase('downloading','Downloading selected models. This is a one-time setup step, not generation.');await downloadModels(root,models,{signal:this.abort!.signal,onProgress:update=>this.phase('downloading',`Downloading model ${update.index}/${update.count}: ${update.file}. Not generation.`,update)});
  })}

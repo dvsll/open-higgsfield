@@ -23,7 +23,7 @@ browser → Vite :8288 ─ pages (HMR)
 ```
 
 1. Install **Node 22.18+**, then run `npm install` and `npm run dev`.
-2. Open http://127.0.0.1:8288/studio/director.html. Click **Local setup** in the header. It opens automatically when the local runtime or video models are missing.
+2. Open http://127.0.0.1:8288/studio/director. Open **Admin → Local setup**. Setup also opens automatically when the local runtime or video models are missing.
 3. Choose a setup path:
    - **Use existing ComfyUI:** start your Desktop, portable or manual instance, enter its local URL (default `http://127.0.0.1:8188`), and connect. Existing models are reused. Enter its actual `models` folder only if you want Studio to download missing packs into it. Studio installs an isolated SDK connector only when needed.
    - **Set up a local instance:** with **Python 3.12/3.13 and Git** available, choose NVIDIA, Apple Silicon or CPU and click **Download & install ComfyUI**. Studio installs pinned ComfyUI v0.41.3 and its dependencies separately under `.runtime/`, binds it to loopback, and saves the selected release/connection locally. Existing ComfyUI installations are left alone. AMD/Intel users can install [ComfyUI Desktop](https://www.comfy.org/download), then use the existing-instance path.
@@ -33,6 +33,8 @@ browser → Vite :8288 ─ pages (HMR)
 The **Local setup** button stays available for reconnecting, changing models folders, starting the managed runtime, and downloading additional packs. Setup operations are only available from this computer and the app’s own origin; remote shared viewers cannot install software or write model files. Setup and generation cannot change the runtime underneath one another.
 
 Connection settings live in gitignored `outputs/runtime-config.json`; optional managed software is in gitignored `.runtime/`. The setup does not rewrite `.env`. The managed runtime starts again with the dev server after a successful install.
+
+Admin's **Start & reconnect** can also launch a detected existing local ComfyUI installation with its own Python environment. Known Desktop, standard home-folder, and Studio-managed paths are checked; set `COMFYUI_DIR` for a custom location. Desktop model-path configuration is retained. After successful startup, Studio remembers the launch directory and starts that dependency with the dev server on future runs. It binds to loopback, waits for readiness, and reconnects the SDK proxy without generating or downloading models. An installation without a discoverable Python environment still needs Local setup.
 
 Manual fallback remains supported:
 ```bash

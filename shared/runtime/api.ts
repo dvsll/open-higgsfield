@@ -674,12 +674,12 @@ export function comfyApi(env: Env): Plugin {
     name: "osh-comfy-api",
     async configureServer(server) {
       server.middlewares.use(middleware(env,setup,rewriter,creative));
-      if(setup.config?.mode==='managed')setup.start();
+      if(setup.config?.mode==='managed'||setup.config?.launchDirectory)setup.start();
       else void (async()=>{if (!(await up((env.COMFYUI_URL || "http://127.0.0.1:8188") + "/system_stats"))) console.warn("[api] ComfyUI not reachable; open Local setup in Studio.");else await ensureProxy(env)})().catch(error=>console.warn('[setup]',error.message));
     },
     async configurePreviewServer(server) {
       server.middlewares.use(middleware(env,setup,rewriter,creative));
-      if(setup.config?.mode==='managed')setup.start();else void ensureProxy(env).catch(error=>console.warn('[setup]',error.message));
+      if(setup.config?.mode==='managed'||setup.config?.launchDirectory)setup.start();else void ensureProxy(env).catch(error=>console.warn('[setup]',error.message));
     },
   };
 }

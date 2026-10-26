@@ -9,7 +9,7 @@ import type {CreativeWorkspace} from './creative-service.ts';
 export type Ratio = '16:9'|'9:16'|'1:1';
 export type Mode = 'camera'|'locked'|'creative';
 export type Settings = {template:string;mode:Mode;motion:'push'|'pan-left'|'pan-right';ratios:Ratio[];duration:number;seed:number;pitch:string;tagline:string;vibe:'studio'|'life'|'ugc';framing:'fit'|'crop';model?:string};
-export type ProductAsset = {id:string;name:string;original:Blob;normalized:Blob;width:number;height:number;created:number};
+export type ProductAsset = {provenance?:import('../../shared/lib/source-provenance.ts').WebsiteSource;originalWidth?:number;originalHeight?:number;id:string;name:string;original:Blob;normalized:Blob;width:number;height:number;created:number};
 export type EditRecipe = {start:number;end:number;speed:number;reverse:boolean;width:number;height:number};
 export type Take = {id:string;created:number;assetId:string;source:string;parentId?:string;kind:'generation'|'edit';mode:Mode;ratio:Ratio;settings:Settings;prompt:string;frames:number;fps:number;width:number;height:number;seconds:number;background?:string;edit?:EditRecipe;exports:{id:string;url:string;tagline:string;created:number}[]};
 export type Attempt = {id:string;status:'running'|'complete'|'failed'|'interrupted';created:number;takeIds:string[];error?:string};

@@ -1,5 +1,36 @@
 # Workflow contract
 
+## Website product source contract (2026-10-26, additive)
+
+Brand v1 research/products optionally retain `discovery:{key,sourceId,method,imageUrls}`.
+Methods are explicit Product JSON-LD, Product microdata, product-permalink DOM
+relationships or Product page OG metadata. Generic images/banners are not product
+fallbacks; shared/ambiguous references cannot be auto-imported. Product records
+retain stable IDs and customer corrections on repeat research of the same website.
+
+Existing POST `/api/brand/research` accepts `analyze:false` for source-only discovery;
+no model needed. Existing POST `/api/brand/image` still accepts `{url}` for legacy
+manual collection. Website-first callers add `{productKey,research}` containing
+only the selected relationship, under the unchanged64KiB body cap. Server re-reads
+the public page, proves the current unique product/image relationship and validates
+the bounded raster. It records both research and fresh page hashes (nonce-only
+HTML changes are not automatically identity changes). SSRF/DNS pinning/redirects,
+size limits, MIME/magic and no-cookie/no-script behavior are retained.
+
+ProductAsset optionally stores external WebsiteSource provenance plus decoded
+original dimensions. `BriefInput.source.provenance` carries the same public origin,
+source/normalized hashes, brand/product/key/method and separate timestamped user
+accuracy/use attestations. Original-input kind is not a claim of ownership or camera
+authenticity. Website copy stays sourced product data, never verified image facts.
+Photo observations still require the existing explicit direction/facts review.
+Provenance/permission changes invalidate the reviewed input; no request/generation
+or export through the primary app while required consent is absent. Unknown/stale
+website product evidence is not upgraded into an owner assertion.
+
+IndexedDB remainsv3; old assets, drafts, services and endpoints remain compatible.
+No new inference defaults, models, dependency, Director contract, budget/one-job
+receipt or long HTTP/lease guard changes. No automatic GPU rental/download/upload.
+
 ## Bounded visual proposals (2026-10-26, supersedes full-JSON planning)
 
 Creative routes and image/Director contracts remain compatible. Qwen3 outputs

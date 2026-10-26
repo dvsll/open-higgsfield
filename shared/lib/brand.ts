@@ -2,11 +2,12 @@
 export const dnaFields=['name','description','story','positioning','tone','visualStyle','audience','differentiators','guidelines'] as const;
 export type DNAField=typeof dnaFields[number];
 export type BrandDNA=Record<DNAField,string>;
-export type BrandProduct={id:string;name:string;description:string;sellingPoints:string;sourceUrl?:string;imageIds:string[]};
+export type ProductDiscovery={key:string;sourceId:string;method:'json-ld'|'microdata'|'product-link'|'product-metadata';imageUrls:string[]};
+export type BrandProduct={id:string;name:string;description:string;sellingPoints:string;sourceUrl?:string;imageIds:string[];discovery?:ProductDiscovery;overrides?:('name'|'description')[]};
 export type BrandAsset={id:string;name:string;role:'logo'|'product'|'reference';productId?:string;assetId:string;sourceUrl?:string};
 export type BrandSource={id:string;url:string;title:string;text:string;sha256:string;fetchedAt:number};
 export type BrandObservation={field:string;value:string;kind:'source'|'inference';sourceIds:string[];quote?:string};
-export type BrandImage={url:string;alt:string;role:'logo'|'product'|'reference';sourceId:string};
+export type BrandImage={url:string;alt:string;role:'logo'|'product'|'reference';sourceId:string;productKeys?:string[]};
 export type AnalysisProvider={provider:'ollama'|'none';available:boolean;model?:string;digest?:string;reason:string};
 export type BrandResearch={version:1;website:string;created:number;sources:BrandSource[];observations:BrandObservation[];images:BrandImage[];colors:string[];products:Omit<BrandProduct,'id'|'imageIds'>[];provider:AnalysisProvider;warnings:string[];aiCompleted:boolean};
 export type BrandProfile={version:1;id:string;created:number;updated:number;website:string;dna:BrandDNA;colors:string[];products:BrandProduct[];assets:BrandAsset[];overrides:string[];research?:BrandResearch;reviewedAt?:number};
@@ -20,6 +21,8 @@ export function validateResearch(value:unknown):BrandResearch{
  const ids=new Set<string>();for(const s of r.sources){if(!s||typeof s.id!=='string'||ids.has(s.id)||!publicLink(s.url)||typeof s.title!=='string'||typeof s.text!=='string'||s.text.length>20000||! /^[a-f0-9]{64}$/i.test(s.sha256))return fail();ids.add(s.id);}
  if(r.observations.some(o=>!o||typeof o.field!=='string'||typeof o.value!=='string'||o.value.length>5000||!['source','inference'].includes(o.kind)||!Array.isArray(o.sourceIds)||!o.sourceIds.length||o.sourceIds.some(id=>!ids.has(id))))return fail();
  if(r.images.some(i=>!i||!publicLink(i.url)||typeof i.alt!=='string'||!['logo','product','reference'].includes(i.role)||!ids.has(i.sourceId)))return fail();
+ if(r.products.some(p=>p.discovery&&(!validDiscovery(p.discovery)||!ids.has(p.discovery.sourceId)||p.discovery.imageUrls.some(url=>!r.images.some(i=>i.url===url&&i.role==='product'&&i.productKeys?.includes(p.discovery!.key))))))return fail();
+ if(r.images.some(i=>i.productKeys&&(!Array.isArray(i.productKeys)||i.productKeys.some(key=>!r.products.some(p=>p.discovery?.key===key&&p.discovery.imageUrls.includes(i.url))))))return fail();
  if(r.products.some(p=>!p||typeof p.name!=='string'||p.name.length>200||typeof p.description!=='string'||p.description.length>5000||typeof p.sellingPoints!=='string'||p.sellingPoints.length>5000||(p.sourceUrl&&!publicLink(p.sourceUrl))))return fail();
  return r;
 }
@@ -28,7 +31,7 @@ export function validateBrand(value:unknown):BrandProfile{
  if(!b||b.version!==1||typeof b.id!=='string'||!b.id||!b.dna||typeof b.website!=='string'||(b.website&&!publicLink(b.website)))return fail();
  for(const field of dnaFields)if(typeof b.dna[field]!=='string'||b.dna[field].length>(field==='name'?120:5000))return fail();
  if(!Array.isArray(b.colors)||b.colors.length>12||b.colors.some(c=>!/^#[a-f0-9]{6}$/i.test(c))||!Array.isArray(b.products)||b.products.length>100||!Array.isArray(b.assets)||b.assets.length>150||!Array.isArray(b.overrides)||b.overrides.some(s=>typeof s!=='string'))return fail();
- const ids=new Set<string>();for(const p of b.products){if(!p||typeof p.id!=='string'||ids.has(p.id)||typeof p.name!=='string'||p.name.length>200||typeof p.description!=='string'||p.description.length>5000||typeof p.sellingPoints!=='string'||p.sellingPoints.length>5000||!Array.isArray(p.imageIds)||p.imageIds.some(id=>typeof id!=='string')||(p.sourceUrl&&!publicLink(p.sourceUrl)))return fail();ids.add(p.id);}
+ const ids=new Set<string>();for(const p of b.products){if(p.discovery&&!validDiscovery(p.discovery)||p.overrides&&(!Array.isArray(p.overrides)||p.overrides.some(k=>!['name','description'].includes(k))))return fail();if(!p||typeof p.id!=='string'||ids.has(p.id)||typeof p.name!=='string'||p.name.length>200||typeof p.description!=='string'||p.description.length>5000||typeof p.sellingPoints!=='string'||p.sellingPoints.length>5000||!Array.isArray(p.imageIds)||p.imageIds.some(id=>typeof id!=='string')||(p.sourceUrl&&!publicLink(p.sourceUrl)))return fail();ids.add(p.id);}
  const assets=new Set<string>();for(const a of b.assets){if(!a||typeof a.id!=='string'||assets.has(a.id)||typeof a.assetId!=='string'||!a.assetId||typeof a.name!=='string'||!['logo','product','reference'].includes(a.role)||(a.productId&&!ids.has(a.productId))||(a.sourceUrl&&!publicLink(a.sourceUrl)))return fail();assets.add(a.id);}
  if(b.products.some(p=>p.imageIds.some(id=>!assets.has(id))))return fail();
  if(b.research)validateResearch(b.research);
@@ -40,8 +43,20 @@ export function applyResearch(brand:BrandProfile,research:BrandResearch){
  brand.website=research.website;brand.research=research;delete brand.reviewedAt;
  for(const field of dnaFields){if(brand.overrides.includes(field))continue;const found=research.observations.find(o=>o.field===field);brand.dna[field]=found?.value||'';}
  if(!brand.overrides.includes('colors'))brand.colors=[...research.colors];
- for(const p of research.products)if(brand.products.length<100&&!brand.products.some(x=>x.name.toLowerCase()===p.name.toLowerCase()))brand.products.push({...p,id:crypto.randomUUID(),imageIds:[]});
+ for(const p of research.products){const existing=brand.products.find(x=>p.discovery&&x.discovery?.key===p.discovery.key||x.name.toLowerCase()===p.name.toLowerCase()&&(!x.sourceUrl||x.sourceUrl===p.sourceUrl));if(existing){if(p.discovery&&(!existing.discovery||existing.discovery.key===p.discovery.key))existing.discovery=structuredClone(p.discovery);}else if(brand.products.length<100)brand.products.push({...structuredClone(p),id:crypto.randomUUID(),imageIds:[]});}
  return validateBrand(brand);
 }
 // Explicit reviewed snapshot for Composer/future generation. Hypotheses stay labeled.
 export function brandContext(brand:BrandProfile,productIds:string[]=[]){validateBrand(brand);return {version:1 as const,brandId:brand.id,revision:brand.updated,reviewed:Boolean(brand.reviewedAt),identity:{...brand.dna},colors:[...brand.colors],products:brand.products.filter(p=>!productIds.length||productIds.includes(p.id)).map(p=>({...p,images:brand.assets.filter(a=>p.imageIds.includes(a.id)).map(a=>({assetId:a.assetId,sourceUrl:a.sourceUrl}))})),logoAssetIds:brand.assets.filter(a=>a.role==='logo').map(a=>a.assetId),inferredFields:brand.research?.observations.filter(o=>o.kind==='inference'&&!brand.overrides.includes(o.field)).map(o=>o.field)||[]};}
+
+function validDiscovery(d:ProductDiscovery){return d&&typeof d.key==='string'&&/^[a-f0-9]{16}$/.test(d.key)&&typeof d.sourceId==='string'&&['json-ld','microdata','product-link','product-metadata'].includes(d.method)&&Array.isArray(d.imageUrls)&&d.imageUrls.length<=3&&d.imageUrls.every(publicLink);}
+// Only explicit, uniquely associated raster candidates are automatic imports.
+export function productImageChoices(b:BrandProfile,productId:string){const p=b.products.find(p=>p.id===productId),d=p?.discovery,r=b.research;if(!d||!r)return [];return d.imageUrls.filter(url=>r.images.some(i=>i.url===url&&i.role==='product'&&i.sourceId===d.sourceId&&i.productKeys?.length===1&&i.productKeys[0]===d.key)&&r.products.some(p=>p.discovery?.key===d.key&&p.discovery.imageUrls.includes(url)));}
+
+// Send only the selected relationship, not every collected page/body. The server
+// independently checks the current public DOM and never trusts this as proof.
+export function productImageProof(b:BrandProfile,productId:string,url:string):BrandResearch{
+ if(!productImageChoices(b,productId).includes(url))throw Error('No unique product/image relationship.');
+ const r=b.research!,d=b.products.find(p=>p.id===productId)!.discovery!,product=r.products.find(p=>p.discovery?.key===d.key)!,source=r.sources.find(s=>s.id===d.sourceId)!,image=r.images.find(i=>i.url===url)!;
+ return {...r,sources:[{...source,text:''}],observations:[],products:[{...product,discovery:{...product.discovery!,imageUrls:[url]}}],images:[image],colors:[],warnings:[]};
+}

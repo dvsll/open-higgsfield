@@ -1,6 +1,8 @@
 import {parse} from 'parse5';
 import {createHash} from 'node:crypto';
 import {type BrandResearch,type BrandSource,type BrandImage,type AnalysisProvider} from '../lib/brand.ts';
+import {validateResearch} from '../lib/brand.ts';
+import {discoverProducts} from './brand-products.ts';
 import {readPublic,safeURL,BrandError} from './brand-web.ts';
 type Env=Record<string,string|undefined>;
 type Node={nodeName:string;tagName?:string;value?:string;attrs?:{name:string;value:string}[];childNodes?:Node[]};
@@ -19,14 +21,18 @@ export function extractPage(html:string,url:string){
  const structured:any[]=[];function unpack(x:any,depth=0){if(!x||typeof x!=='object'||depth>10||structured.length>200)return;if(Array.isArray(x)){for(const n of x)unpack(n,depth+1);return;}structured.push(x);for(const k of ['@graph','itemListElement','item','mainEntity','hasOfferCatalog','itemOffered','offers'])if(x[k])unpack(x[k],depth+1);}
  for(const n of all.filter(n=>n.tagName==='script'&&attr(n,'type')==='application/ld+json'))try{unpack(JSON.parse((n.childNodes||[]).map(c=>c.value||'').join('')));}catch{}
  const types=(x:any)=>Array.isArray(x['@type'])?x['@type']:[x['@type']];
- const org=structured.find(x=>types(x).some((t:string)=>['Organization','Bakery','LocalBusiness','Store'].includes(t)));
- const products=structured.filter(x=>types(x).includes('Product')&&typeof x.name==='string').map(x=>({name:x.name.slice(0,200),description:typeof x.description==='string'?x.description.replace(/<[^>]+>/g,' ').slice(0,3000):'',sellingPoints:'',sourceUrl:url}));
+ const org=structured.find(x=>types(x).some((t:string)=>['Organization','Bakery','LocalBusiness','Store','OnlineStore','ClothingStore','ElectronicsStore','FurnitureStore'].includes(t)));
+ const discovered=discoverProducts(all,structured,text,resolve,url),products=discovered.products;
+ for(const link of discovered.links)if(!links.some(l=>l.url===link))links.unshift({url:link,label:'Product detail'});
  for(const x of structured){const list=typeof x.image==='string'?[x.image]:Array.isArray(x.image)?x.image:[];for(const i of list.slice(0,3)){const src=resolve(typeof i==='string'?i:typeof i?.url==='string'?i.url:'');if(src&&!images.some(y=>y.url===src))images.push({url:src,alt:typeof x.name==='string'?x.name:'Website image',role:types(x).includes('Product')?'product':'reference'});}}
  if(org?.logo){const logo=resolve(typeof org.logo==='string'?org.logo:org.logo.url||'');if(logo&&!images.some(i=>i.url===logo))images.unshift({url:logo,alt:'Website organization logo',role:'logo'});}
+ const productImages=products.flatMap(p=>p.discovery.imageUrls.map(src=>({url:src,alt:p.name,role:'product' as const,productKeys:products.filter(x=>x.discovery.imageUrls.includes(src)).map(x=>x.discovery.key)})));
+ const associated=[...new Map(productImages.map(i=>[i.url,i])).values()];
+ const collected:Omit<BrandImage,'sourceId'>[]=[...associated,...images.filter(i=>!associated.some(x=>x.url===i.url))].slice(0,40);
  const css=all.filter(n=>n.tagName==='style').map(n=>(n.childNodes||[]).map(c=>c.value||'').join('')).join('\n')+'\n'+all.map(n=>attr(n,'style')).join('\n');
  const stylesheets=all.filter(n=>n.tagName==='link'&&attr(n,'rel').split(' ').includes('stylesheet')).map(n=>resolve(attr(n,'href'))).filter(Boolean);
  const story=all.find(n=>['section','article'].includes(n.tagName||'')&&/^(about|story|our-story|ourstory)$/i.test(attr(n,'id')));
- return {title,description,name:siteName||(typeof org?.name==='string'?org.name.slice(0,120):''),body,story:story?text(story).slice(0,2000):'',links,images,products,css,stylesheets};
+ return {title,description,name:siteName||(typeof org?.name==='string'?org.name.slice(0,120):''),body,story:story?text(story).slice(0,2000):'',links,images:collected,products,css,stylesheets,positioning:typeof org?.slogan==='string'?org.slogan.slice(0,2000):'',differentiators:(()=>{const n=all.find(n=>['section','article'].includes(n.tagName||'')&&/^(why-us|why-choose-us|our-difference|our-values)$/i.test(attr(n,'id')));return n?text(n).slice(0,2000):'';})()};
 }
 export function palette(css:string){const counts=new Map<string,number>();for(const m of css.matchAll(/(?<![\w-])#([a-f0-9]{6}|[a-f0-9]{3})(?![\w-])/gi)){const raw=m[1],color='#'+(raw.length===3?raw.split('').map(x=>x+x).join(''):raw).toLowerCase();counts.set(color,(counts.get(color)||0)+1);}return [...counts].sort((a,b)=>b[1]-a[1]).slice(0,6).map(x=>x[0]);}
 const allowedModels=new Set(['qwen2.5:7b-instruct','qwen2.5:7b']);
@@ -50,42 +56,63 @@ export async function analyzeEvidence(sources:BrandSource[],colors:string[],prov
  return validateSuggestions(JSON.parse(response.message.content),sources);
 }
 let active=false;
-export async function researchBrand(input:any,env:Env):Promise<BrandResearch>{
+export async function researchBrand(input:any,env:Env,read=readPublic):Promise<BrandResearch>{
  const start=safeURL(input?.website);if(active)throw new BrandError(409,'Another website is being researched. Please wait.');active=true;
  try{
- const result:BrandResearch={version:1,website:start.href,created:Date.now(),sources:[],observations:[],images:[],colors:[],products:[],provider:await analysisStatus(env),warnings:[],aiCompleted:false};
- const first=await readPublic(start.href);if(!['text/html','application/xhtml+xml'].includes(first.type))throw new BrandError(422,'Enter a public HTML website page.');result.website=first.url;
- const queue=[first],visited=new Set([first.url]);let combinedCSS='';
- for(let index=0;index<queue.length&&index<4;index++){
-  const page=queue[index],html=page.bytes.toString('utf8'),parsed=extractPage(html,page.url),id='source-'+(index+1);
-  result.sources.push({id,url:page.url,title:parsed.title,text:[parsed.title,parsed.description,parsed.body].filter(Boolean).join('\n').slice(0,20000),sha256:createHash('sha256').update(page.bytes).digest('hex'),fetchedAt:Date.now()});
-  if(index===0){if(parsed.name)result.observations.push({field:'name',value:parsed.name,kind:'source',sourceIds:[id],quote:parsed.name});if(parsed.description)result.observations.push({field:'description',value:parsed.description,kind:'source',sourceIds:[id],quote:parsed.description});}
-  if(parsed.story&&!result.observations.some(o=>o.field==='story'))result.observations.push({field:'story',value:parsed.story,kind:'source',sourceIds:[id],quote:parsed.story});
-  for(const p of parsed.products)if(!result.products.some(x=>x.name.toLowerCase()===p.name.toLowerCase())&&result.products.length<40)result.products.push(p);
-  for(const image of parsed.images)if(!result.images.some(i=>i.url===image.url)&&result.images.length<40)result.images.push({...image,sourceId:id});
-  // Story is an exact page excerpt, never an invented business history.
+ const provider=input?.analyze===false?{provider:'none' as const,available:false,reason:'Source collection only. No AI brand analysis ran; creative planning may use the installed local model later.'}:await analysisStatus(env);
+ const result:BrandResearch={version:1,website:start.href,created:Date.now(),sources:[],observations:[],images:[],colors:[],products:[],provider,warnings:[],aiCompleted:false};
+ const pending=[start.href],visited=new Set<string>(),began=Date.now();let combinedCSS='';
+ while(pending.length&&result.sources.length<4&&visited.size<8&&Date.now()-began<45000){
+  const address=pending.shift()!;if(visited.has(address))continue;visited.add(address);let page;
+  try{page=await read(address);if(!['text/html','application/xhtml+xml'].includes(page.type))throw new BrandError(422,'Enter a public HTML website page.');}
+  catch(error){if(!result.sources.length)throw error;result.warnings.push('A linked public page could not be collected: '+(error instanceof BrandError?error.message:'Unavailable page')+' Continue with the available evidence.');continue;}
+  if(!result.sources.length&&/verify (?:that )?you are human|checking your browser|access denied/i.test(extractPage(page.bytes.toString('utf8'),page.url).body.slice(0,1000)))throw new BrandError(422,'This website restricts automated access. Use manual brand setup and an authorized photograph; no protection was bypassed.');
+  if(result.sources.some(s=>s.url===page.url))continue;
+  const parsed=extractPage(page.bytes.toString('utf8'),page.url),id='source-'+(result.sources.length+1),first=!result.sources.length;
+  if(first)result.website=page.url;
+  result.sources.push({id,url:page.url,title:parsed.title,text:[parsed.title,parsed.description,parsed.body,parsed.positioning,parsed.differentiators].filter(Boolean).join('\n').slice(0,20000),sha256:createHash('sha256').update(page.bytes).digest('hex'),fetchedAt:Date.now()});
+  if(first){if(parsed.name)result.observations.push({field:'name',value:parsed.name,kind:'source',sourceIds:[id],quote:parsed.name});if(parsed.description)result.observations.push({field:'description',value:parsed.description,kind:'source',sourceIds:[id],quote:parsed.description});}
+  for(const field of ['story','positioning','differentiators'] as const)if(parsed[field]&&!result.observations.some(o=>o.field===field))result.observations.push({field,value:parsed[field],kind:'source',sourceIds:[id],quote:parsed[field]});
+  for(const p of parsed.products)if(result.products.length<40&&!result.products.some(x=>x.discovery?.key===p.discovery.key))result.products.push({...p,discovery:{...p.discovery,sourceId:id}});
+  for(const image of parsed.images){const old=result.images.find(i=>i.url===image.url);if(old&&image.productKeys){if(!old.productKeys?.length)old.sourceId=id;old.productKeys=[...new Set([...(old.productKeys||[]),...image.productKeys])];old.role='product';}else if(!old){if(result.images.length>=40&&image.role==='product'){const spare=result.images.findLastIndex(i=>i.role==='reference'&&!i.productKeys?.length);if(spare>=0)result.images.splice(spare,1);}if(result.images.length<40)result.images.push({...image,sourceId:id});}}
   if(!result.observations.some(o=>o.field==='story')&&/about|story/i.test(new URL(page.url).pathname))result.observations.push({field:'story',value:parsed.body.slice(0,2000),kind:'source',sourceIds:[id],quote:parsed.body.slice(0,2000)});
   combinedCSS+=parsed.css;
-  if(index===0){for(const css of parsed.stylesheets.filter(s=>new URL(s).origin===new URL(page.url).origin).slice(0,2))try{const sheet=await readPublic(css,300000);if(sheet.type==='text/css')combinedCSS+='\n'+sheet.bytes.toString('utf8');}catch{result.warnings.push('An external stylesheet could not be collected.');}
-   const candidates=parsed.links.filter(l=>new URL(l.url).origin===new URL(page.url).origin&&/about|story|products|shop|menu/i.test(new URL(l.url).pathname+' '+l.label));
-   for(const link of candidates){const u=new URL(link.url);u.hash='';if(visited.has(u.href)||queue.length>=4||/cart|checkout|login|account|order/i.test(u.pathname))continue;visited.add(u.href);try{const next=await readPublic(u.href);if(['text/html','application/xhtml+xml'].includes(next.type))queue.push(next);}catch{result.warnings.push('A linked public page could not be collected.');}}
+  if(first)for(const css of parsed.stylesheets.filter(s=>new URL(s).origin===new URL(page.url).origin).slice(0,2)){
+   if(Date.now()-began>30000)break;
+   try{const sheet=await read(css,300000);if(sheet.type==='text/css')combinedCSS+='\n'+sheet.bytes.toString('utf8');}catch{result.warnings.push('A stylesheet could not be collected.');}
   }
+  const candidates=parsed.links.filter(l=>new URL(l.url).origin===new URL(result.website).origin&&!/\.(?:png|jpe?g|webp|svg|gif|pdf|zip)$/i.test(new URL(l.url).pathname)&&!/(?:^|\/)(?:cdn|images|assets|files|media)\//i.test(new URL(l.url).pathname)&&/about|story|products?|shop|menu|collections?/i.test(new URL(l.url).pathname+' '+l.label)&&!/(cart|checkout|login|account|order)(?:\/|$)/i.test(new URL(l.url).pathname));
+  candidates.sort((a,b)=>Number(!/\/products?\/[^/?#]+/i.test(a.url))-Number(!/\/products?\/[^/?#]+/i.test(b.url)));
+  const added=candidates.map(l=>{const u=new URL(l.url);u.hash='';return u.href;}).filter(u=>!visited.has(u));pending.unshift(...added.filter(u=>!pending.includes(u)).slice(0,20));
  }
+ // Bounds never leave dangling or ambiguous evidence links as usable imports.
+ for(const p of result.products)if(p.discovery)p.discovery.imageUrls=p.discovery.imageUrls.filter(url=>result.images.some(i=>i.url===url&&i.productKeys?.includes(p.discovery!.key)));
+ for(const i of result.images)if(i.productKeys)i.productKeys=i.productKeys.filter(key=>result.products.some(p=>p.discovery?.key===key));
  result.colors=palette(combinedCSS);if(result.colors.length)result.observations.push({field:'colors',value:result.colors.join(', '),kind:'source',sourceIds:['source-1'],quote:'CSS color candidates; frequency is not proof of primary brand colors.'});
- if(!result.products.length)result.warnings.push('No structured product records found. Add products from the source text manually. Prices and availability are intentionally not inferred.');
- if(!result.sources[0].text.trim())result.warnings.push('Little accessible text found. JavaScript-only or protected pages may require manual input.');
- if(result.provider.available){try{
-   result.observations.push(...await analyzeEvidence(result.sources,result.colors,result.provider));result.aiCompleted=true;
-  }catch{result.warnings.push('Local AI analysis failed or returned invalid evidence. No AI results were applied. Source collection is available for manual review.');}
- }else result.warnings.push(result.provider.reason);
- return result;
+ if(!result.products.length)result.warnings.push('No defensible product records found. Upload a photograph and add product details manually. Prices, appearance and availability are not inferred.');
+ if(result.products.some(p=>!p.discovery?.imageUrls.length))result.warnings.push('Some products have no explicitly associated image. Choose another product or upload its photograph; page banners are not substituted.');
+ if(result.images.some(i=>(i.productKeys?.length||0)>1))result.warnings.push('An image is shared by several product records. Automatic import is disabled for that ambiguous association.');
+ if(!result.observations.some(o=>o.field==='name'))result.warnings.push('A business name was not found in organization/site metadata. Add its actual name manually.');
+ if(result.sources[0].text.trim().length<50)result.warnings.push('Little accessible text found. JavaScript-only or protected pages may require manual input.');
+ if(provider.available){try{result.observations.push(...await analyzeEvidence(result.sources,result.colors,provider));result.aiCompleted=true;}catch{result.warnings.push('Local AI analysis failed or returned invalid evidence. No AI results were applied. Source collection remains usable.');}}else result.warnings.push(provider.reason);
+ return validateResearch(result);
  }finally{active=false;}
 }
-export async function collectBrandImage(body:any){
- const image=await readPublic(safeURL(body?.url).href,5*1024*1024,'asset'),ext=({'image/png':'png','image/jpeg':'jpg','image/webp':'webp'} as Record<string,string>)[image.type];
+export async function collectBrandImage(body:any,read=readPublic){
+ let association:undefined|{key:string;sourceId:string;pageUrl:string;pageSha256:string;researchPageSha256:string;method:string};
+ if(body?.productKey!==undefined){
+  const r=validateResearch(body.research),p=r.products.find(p=>p.discovery?.key===body.productKey),d=p?.discovery,source=r.sources.find(s=>s.id===d?.sourceId);
+  if(!d||!source||!d.imageUrls.includes(body.url)||!r.images.some(i=>i.url===body.url&&i.productKeys?.length===1&&i.productKeys[0]===d.key&&i.sourceId===d.sourceId))throw new BrandError(409,'This image is not uniquely associated with the chosen product. Upload the correct photograph manually.');
+  const page=await read(source.url);if(!['text/html','application/xhtml+xml'].includes(page.type))throw new BrandError(409,'Product evidence is no longer an accessible HTML page.');
+  const actual=extractPage(page.bytes.toString('utf8'),page.url),matches=actual.products.filter(p=>p.discovery.imageUrls.includes(body.url));
+  if(matches.length!==1||matches[0].discovery.key!==d.key)throw new BrandError(409,'The current page does not prove this product/image association. No image imported.');
+  association={key:d.key,sourceId:source.id,pageUrl:page.url,pageSha256:createHash('sha256').update(page.bytes).digest('hex'),researchPageSha256:source.sha256,method:d.method};
+ }
+
+ const image=await read(safeURL(body?.url).href,5*1024*1024,'asset'),ext=({'image/png':'png','image/jpeg':'jpg','image/webp':'webp'} as Record<string,string>)[image.type];
  // Only bounded raster files are served. SVG/HTML/script assets are never imported.
  const valid=ext==='png'?image.bytes.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10])):ext==='jpg'?image.bytes[0]===255&&image.bytes[1]===216:image.bytes.toString('ascii',0,4)==='RIFF'&&image.bytes.toString('ascii',8,12)==='WEBP';
  if(!valid)throw new BrandError(422,'The website image was not a supported raster file.');
  // .png outputs are the existing image boundary; JPEG/WebP are transported privately as data URLs.
- return {image:'data:'+image.type+';base64,'+image.bytes.toString('base64'),sourceUrl:image.url,sha256:createHash('sha256').update(image.bytes).digest('hex')};
+ return {image:'data:'+image.type+';base64,'+image.bytes.toString('base64'),requestedUrl:body.url,sourceUrl:image.url,contentType:image.type,sha256:createHash('sha256').update(image.bytes).digest('hex'),...(association?{association}:{})};
 }

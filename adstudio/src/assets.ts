@@ -9,6 +9,6 @@ export async function normalizeProduct(file:File):Promise<ProductAsset> {
   const ctx=canvas.getContext('2d')!;ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(bitmap,0,0,canvas.width,canvas.height);
   const normalized=await new Promise<Blob>((ok,fail)=>canvas.toBlob(b=>b?ok(b):fail(new Error('Could not prepare this photo.')),'image/png'));
   if(normalized.size>5*1024*1024)throw new Error('Photo is too complex; choose a smaller image.');
-  return {id:crypto.randomUUID(),name:file.name,original:file,normalized,width:canvas.width,height:canvas.height,created:Date.now()};
+  return {id:crypto.randomUUID(),name:file.name,original:file,originalWidth:bitmap.width,originalHeight:bitmap.height,normalized,width:canvas.width,height:canvas.height,created:Date.now()};
  } finally {bitmap.close();}
 }

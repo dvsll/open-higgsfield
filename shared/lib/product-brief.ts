@@ -1,4 +1,5 @@
 // Portable, deterministic creative planning. No vision inference, network or storage.
+import {validateWebsiteSource,type WebsiteSource} from './source-provenance.ts';
 import {brandContext,brandFieldStatus,type BrandProfile} from './brand.ts';
 export const intentLabels={enhancement:'Authentic enhancement',closeup:'Intimate indulgent close-up',campaign:'Brand campaign hero'};
 export type Intent=keyof typeof intentLabels;
@@ -6,7 +7,7 @@ export type BriefControls={fidelity:'low'|'medium'|'high'|'strict';exactCount:bo
 export const controlChoices={fidelity:['low','medium','high','strict'],arrangement:['roughly','exactly'],angle:['none','slight','moderate'],crop:['none','slight','moderate'],background:['keep','clean','replace'],cleanup:['low','medium','high'],creativity:['low','medium','high'],intent:Object.keys(intentLabels),brandEmphasis:['low','medium','high']} as const;
 export type SourceFacts={description:string;count?:number;arrangement:string;texture:string;container:string;confirmed:boolean};
 export type BrandSignals={id:string;revision:number;name:string;signals:{field:string;text:string;status:string;sourceIds:string[]}[];evidence:{id:string;url:string;sha256:string}[];product?:{name:string;description:string};colors:string[]};
-export type BriefInput={version:1;source:{id:string;name:string;sha256:string;originalSha256:string;kind:'original'|'supplied-ai'};facts:SourceFacts;productType:'cinnamon-rolls'|'cookies'|'packaged-goods'|'other';productName:string;productId?:string;notes:string;execution?:{adapter:'qwen-fp8'|'zimage-local';seed:number;strength?:number};brand?:BrandSignals;controls:BriefControls};
+export type BriefInput={version:1;source:{provenance?:WebsiteSource;id:string;name:string;sha256:string;originalSha256:string;kind:'original'|'supplied-ai'};facts:SourceFacts;productType:'cinnamon-rolls'|'cookies'|'packaged-goods'|'other';productName:string;productId?:string;notes:string;execution?:{adapter:'qwen-fp8'|'zimage-local';seed:number;strength?:number};brand?:BrandSignals;controls:BriefControls};
 export const sectionLabels={sourceFacts:'Source facts',productFacts:'Product facts / unverified descriptors',brandTone:'Brand tone and signals',preservation:'Preservation rules',transformation:'Transformation rules',composition:'Composition goal',background:'Background goal',texture:'Texture guidance',avoid:'Negative / avoid rules',uncertainties:'Uncertainties and review requirements'};
 export type BriefSections=Record<keyof typeof sectionLabels,string>;
 export type GenerationDraft={version:1;input:BriefInput;sections:BriefSections;prompt:string;basis:string;sectionsBasis:string;reviewedSnapshot?:string;promptFormat?:'concise-v2';modelPrompt?:string;modelBasis?:string;decisions?:{direction:string;lighting:string;background:string};legacyPrompt?:string};
@@ -20,6 +21,7 @@ export function signalsFromBrand(brand:BrandProfile,productId?:string):BrandSign
 const text=(v:unknown,max=5000):v is string=>typeof v==='string'&&v.length<=max;
 export function validateBriefInput(i:BriefInput){
  if(!i||i.version!==1||!i.source||!text(i.source.id,120)||!i.source.id||!text(i.source.name,500)||!['original','supplied-ai'].includes(i.source.kind)||![i.source.sha256,i.source.originalSha256].every(v=>/^[a-f0-9]{64}$/.test(v)))throw Error('Select and hash the saved source first.');
+ if(i.source.provenance)validateWebsiteSource(i.source.provenance,{originalSha256:i.source.originalSha256,sha256:i.source.sha256,brandId:i.brand?.id,productId:i.productId});
  if(!i.controls||typeof i.controls.exactCount!=='boolean')throw Error('Invalid preservation controls.');
  for(const [k,choices]of Object.entries(controlChoices))if(!(choices as readonly string[]).includes((i.controls as any)[k]))throw Error('Invalid brief control: '+k);
  if(!['cinnamon-rolls','cookies','packaged-goods','other'].includes(i.productType)||!text(i.productName,200)||!text(i.notes,3000)||!i.facts||typeof i.facts.confirmed!=='boolean')throw Error('Invalid product observations.');
@@ -35,6 +37,7 @@ export function validateBriefInput(i:BriefInput){
 }
 export function effectiveControls(c:BriefControls):BriefControls{return c.fidelity==='strict'?{...c,exactCount:true,arrangement:'exactly',angle:'none',crop:'none',creativity:'low'}:{...c};}
 export function briefIssues(i:BriefInput){validateBriefInput(i);const c=effectiveControls(i.controls),errors:string[]=[],warnings:string[]=[];
+ if(i.source.provenance&&(!i.source.provenance.accuracyConfirmed||!i.source.provenance.permissionConfirmed))errors.push('Confirm the pictured product and permission to use the website photograph. Website access does not establish reuse rights.');
  if(!i.facts.confirmed||!i.facts.description.trim())errors.push('Inspect the selected photo and confirm its source observations. No vision model extracted these facts.');
  if(c.exactCount&&i.facts.count===undefined)errors.push('Exact count needs an observed count; do not guess it.');
  if(c.arrangement==='exactly'&&!i.facts.arrangement.trim())errors.push('Describe the visible arrangement before locking it.');

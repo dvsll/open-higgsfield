@@ -104,6 +104,9 @@ export function ConnectionNotice() {
         >
           {checking ? 'Reconnecting…' : 'Retry connection'}
         </button>
+        <button onClick={()=>{location.href='/studio/admin'}}>
+          Reconnect in Admin
+        </button>
         <button
           onClick={() => {
             state.current.dismissed = true;

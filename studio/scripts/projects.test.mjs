@@ -45,3 +45,10 @@ const protectedId=last.id;
 data.set(`osh:${purged.id}:purge-test`,'removed');data.set(`osh:${protectedId}:keep`,'retained');
 first.permanentlyDeleteProject(protectedId);assert.equal(data.get(`osh:${protectedId}:keep`),'retained');
 first.permanentlyDeleteProject(purged.id);assert.equal(first.readProjects().some(p=>p.id===purged.id),false);assert.equal(data.has(`osh:${purged.id}:purge-test`),false);assert.equal(data.get(`osh:${protectedId}:keep`),'retained');
+// Ordinary projects remain empty; only the explicit tutorial entry seeds onboarding.
+const ordinary=first.createProject('Empty project');
+assert.deepEqual(JSON.parse(data.get(`osh:${ordinary.id}:osh-director`)).SH,[]);
+assert.equal(JSON.parse(data.get(`osh:${ordinary.id}:osh-onboarding`)).suppressAutomatic,true);
+const guided=first.createProject('Guided project',true);
+assert.equal(JSON.parse(data.get(`osh:${guided.id}:osh-director`)).SH.length,1);
+assert.equal(JSON.parse(data.get(`osh:${guided.id}:osh-onboarding`)).step,'prompt');

@@ -252,7 +252,7 @@ export function tryOnboarding() {
   )
     return;
   const project=createProject(
-      `Onboarding test ${readProjects().filter((p) => p.name.startsWith('Onboarding test')).length + 1}`,
+      `Onboarding test ${readProjects().filter((p) => p.name.startsWith('Onboarding test')).length + 1}`, true,
   );
   localStorage.removeItem(profileKey);
   switchProject(project);

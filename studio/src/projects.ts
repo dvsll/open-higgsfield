@@ -22,10 +22,10 @@ export const currentProject=projects.find(p=>p.id===localStorage.getItem(activeP
 export const projectKey=(key:string)=>`osh:${currentProject.id}:${key}`;
 export const orderedProjects=(items:Project[],currentId:string)=>items.filter(p=>!p.deletedAt).sort((a,b)=>Number(b.id===currentId)-Number(a.id===currentId)||b.created-a.created);
 export function saveProjects(items:Project[]):void{localStorage.setItem(projectRegistry,JSON.stringify(items))}
-export function createProject(name:string):Project{
+export function createProject(name:string,onboarding=false):Project{
  const project={id:crypto.randomUUID(),name:name.trim().slice(0,60),created:Date.now()};
  if(!project.name)throw new Error('Give your project a name.');
- seedOnboarding(project.id);saveProjects([...readProjects(),project]);return project;
+ if(onboarding)seedOnboarding(project.id);else seedReplacement(project.id);saveProjects([...readProjects(),project]);return project;
 }
 export function renameProject(id:string,name:string):void{
  const clean=name.trim().slice(0,60);if(!clean)return;

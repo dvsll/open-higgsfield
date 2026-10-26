@@ -24,25 +24,6 @@ The first time, a short setup asks a few yes/no questions. It does the rest itse
 
 After that, double-clicking **start** opens the app in your browser. Close the window to stop it.
 
-## What you need
-
-- A computer with an **NVIDIA graphics card** works best. Apple Silicon and CPU-only also work, but they are slower.
-- **30–90 GB of free disk space** for models. Setup tells you the exact size before it downloads anything.
-
-## Models
-
-Setup picks models based on your graphics card's memory:
-
-| Your GPU | Video | Images |
-|---|---|---|
-| 32 GB or more | LTX-2.5 22B | Qwen-Image 2512 |
-| 24 GB | LTX-Video 13B | Qwen-Image 2512 |
-| 12–23 GB | LTX-Video 13B | Z-Image |
-
-The best video model, LTX-2.5, needs a free Hugging Face account. Setup opens the page where you accept its license and paste a token.
-
-If you already have any of these models in ComfyUI, setup uses them instead of downloading them again. The small, fast draft models from earlier versions still work too, and you can choose any installed model in the app.
-
 ## If something goes wrong
 
 - **The app says "Not connected":** open **Admin** in the app and click **Start & reconnect**.

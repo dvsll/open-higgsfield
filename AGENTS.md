@@ -8,7 +8,6 @@ Two entries for Comfy Org's **Open Source Higgsfield** competition. **Hard deadl
 - `studio/`: **dvs's** cinema studio (Director + Edit Anything). The person driving you is usually dvs → work here.
 - `adstudio/`: the partner's ad studio. **Don't edit it** unless asked.
 - `shared/`: used by both: `runtime/` (local server), `workflows/` (ComfyUI API JSON + `CONTRACT.md`), `styleboard/`, `lib/`.
-- `archive/`: frozen concept mockups. Don't edit.
 
 ## Rules (non-negotiable, see RULES.md)
 - Categories: **Open Weights Only · LTX VFX bonus · Most Innovative**.

@@ -1,97 +1,77 @@
-# Open Source Higgsfield: two entries, one repo (for now)
+# Open Source Higgsfield
 
-Two apps for Comfy Org's [Open Source Higgsfield](https://comfy.org/open-source-higgsfield/) competition, built side by side so we can share workflows and the style board. **We split this into two repos before submitting** (see below).
+Two creative apps built on open AI models and [ComfyUI](https://www.comfy.org/), made for Comfy Org's [Open Source Higgsfield](https://comfy.org/open-source-higgsfield/) competition.
 
-| Folder | What | Owner |
-|---|---|---|
-| `studio/` | Cinema studio: mood board → keyframes → shots, plus Edit Anything | dvs |
-| `adstudio/` | Ad studio: product photo → ads in 3 aspect ratios | partner |
-| `shared/` | ComfyUI workflows + contract, comfy-sdk scripts, style board, placeholder renderer | both |
-| `archive/` | Concept wireframes and mockups from ideation (frozen) | — |
-| `notes/` | One running-notes file per project | each owns theirs |
+- **Studio** (`studio/`): a cinema studio. Write a prompt, generate keyframes and video shots, arrange them on a timeline, then edit.
+- **Ad Studio** (`adstudio/`): turn a product photo into ads.
 
-**Competing for:** Open Weights Only (fully open source) · LTX VFX bonus · Most Innovative. **Rules: [`RULES.md`](RULES.md).**
+Everything runs on your own computer. No paid AI services are used.
 
-**Read first:** [`DEADLINES.md`](DEADLINES.md) (dates we must hit) and [`PLAN.md`](PLAN.md) (what to build, in priority order).
+## What you need
 
-## Run locally
-One Vite + TypeScript dev server runs the whole repo and mounts the generation API. Studio uses React components in `studio/src/react/`; Ad Studio keeps its own frontend. Studio code changes reload the page to keep native media/controller lifetimes consistent, while CSS updates live:
+- **Node.js 22.18 or newer**: [nodejs.org](https://nodejs.org/)
+- **An NVIDIA GPU** is recommended. Apple Silicon and CPU also work, but they are slower.
+- **About 15 GB of free disk space** for the video models.
+- **ComfyUI** is optional. If you don't have it, the app can install it for you. That needs [Python 3.12 or 3.13](https://www.python.org/downloads/) and [Git](https://git-scm.com/downloads).
 
-```
-browser → Vite :8288 ─ pages (HMR)
-                      └ /api, /outputs → shared/runtime/api.ts → @comfyorg/sdk → comfy-api-proxy :8189 → ComfyUI :8188
-```
+## Get started
 
-1. Install **Node 22.18+**, then run `npm install` and `npm run dev`.
-2. Open http://127.0.0.1:8288/studio/director. Open **Admin → Local setup**. Setup also opens automatically when the local runtime or video models are missing.
-3. Choose a setup path:
-   - **Use existing ComfyUI:** start your Desktop, portable or manual instance, enter its local URL (default `http://127.0.0.1:8188`), and connect. Existing models are reused. Enter its actual `models` folder only if you want Studio to download missing packs into it. Studio installs an isolated SDK connector only when needed.
-   - **Set up a local instance:** with **Python 3.12/3.13 and Git** available, choose NVIDIA, Apple Silicon or CPU and click **Download & install ComfyUI**. Studio installs pinned ComfyUI v0.41.3 and its dependencies separately under `.runtime/`, binds it to loopback, and saves the selected release/connection locally. Existing ComfyUI installations are left alone. AMD/Intel users can install [ComfyUI Desktop](https://www.comfy.org/download), then use the existing-instance path.
-4. Select only the model packs you want. The setup screen lists missing file sizes, licenses and sources, and shows actual download bytes. Video needs roughly **11.5 GB**; image and audio packs are optional. Interrupted model downloads resume; complete files are reused; incomplete existing files are reported without overwriting them.
-5. Generate after setup completes. **Downloading**, **installing**, **preparing models**, **generating** and **encoding** are separate statuses. First-time model loading can take minutes. The generation counter only labels a stage as generation when the runtime reports it; an older proxy without detailed progress gets an explicit coarse-progress message.
+1. Download this project and open a terminal in its folder.
+2. Install and start the app:
+   ```bash
+   npm install
+   npm run dev
+   ```
+3. Open **http://127.0.0.1:8288/studio/director** in your browser.
+4. On first run, a **Local setup** window opens. Pick one option:
+   - **I already have ComfyUI:** start it, then click **Connect**. The app reuses your existing models.
+   - **I don't have ComfyUI:** choose your hardware (NVIDIA, Apple Silicon or CPU) and click **Download & install ComfyUI**.
+5. Tick the model packs you want. You need the **Video** pack (about 11.5 GB). The Image and Audio packs are optional. If a download stops, run it again and it continues where it left off.
+6. When setup finishes, type a prompt and press **Generate**.
 
-The **Local setup** button stays available for reconnecting, changing models folders, starting the managed runtime, and downloading additional packs. Setup operations are only available from this computer and the app’s own origin; remote shared viewers cannot install software or write model files. Setup and generation cannot change the runtime underneath one another.
+The first generation takes a few minutes because the models have to load. Later generations are faster.
 
-Connection settings live in gitignored `outputs/runtime-config.json`; optional managed software is in gitignored `.runtime/`. The setup does not rewrite `.env`. The managed runtime starts again with the dev server after a successful install.
+To change settings later, open **Admin** in the top bar.
 
-Admin's **Start & reconnect** can also launch a detected existing local ComfyUI installation with its own Python environment. Known Desktop, standard home-folder, and Studio-managed paths are checked; set `COMFYUI_DIR` for a custom location. Desktop model-path configuration is retained. After successful startup, Studio remembers the launch directory and starts that dependency with the dev server on future runs. It binds to loopback, waits for readiness, and reconnects the SDK proxy without generating or downloading models. An installation without a discoverable Python environment still needs Local setup.
+## Pages
 
-Manual fallback remains supported:
-```bash
-pip install -r shared/runtime/requirements.txt
-npm run models -- --models-dir "<ComfyUI>/models" --only shot_ltxv --dry-run
-```
-Drop `--dry-run` to download. The CLI and setup UI use the same resumable model downloader. Environment overrides remain documented in `.env.example`. Runtime installer sources and licenses are recorded in [Studio notes](notes/studio.md).
+| Page | Address |
+|---|---|
+| Studio | http://127.0.0.1:8288/studio/director |
+| Ad Studio | http://127.0.0.1:8288/adstudio/ |
 
-Other scripts: `npm run typecheck`, `npm run build` (to `dist/`), `npm run preview`.
-Outputs land in `outputs/` (gitignored). Workflow details and timings: `shared/workflows/CONTRACT.md`.
+## Optional extras
 
-### Security
-- ComfyUI and the proxy only listen on `127.0.0.1`. Only Vite is ever exposed.
-- `/api` works from localhost only. From any other host it needs `OSH_TOKEN` (set in `.env`, never committed). Share links as `https://<host>/?token=<OSH_TOKEN>`; that sets an HttpOnly cookie and strips the token from the URL.
-- Vite only answers hostnames listed in `OSH_ALLOWED_HOSTS` and refuses to serve `.env*`, keys, `.git`, `.venv`, `.claude`.
-- Inputs are validated; generation/export JSON is capped at 64 KB. PNG upload JSON is capped at 8 MB (5 MB decoded image, dimensions at most 2048×2048). Jobs run one at a time (max 4 queued), and `/outputs` serves API-owned PNG/WebM/MP4 files. Optional Ad Studio MP4 export uses local FFmpeg with a 90-second timeout; set `FFMPEG_PATH` in `.env` if it is not on PATH.
-- To share: copy `.env.example` to `.env`, set `OSH_HOST=0.0.0.0`, `OSH_ALLOWED_HOSTS` and a long random `OSH_TOKEN`, then `npm run dev`.
-
-## Rules that keep the split easy
-1. A project only loads files from **its own folder** and **`shared/`** (as `../shared/...`). Never from the other project.
-2. Anything both projects use goes in `shared/`. Change it only with a note in both `notes/` files.
-3. Each person edits only their own project folder and notes file. Write requests for the other person at the bottom of *their* notes file.
-
-## Splitting into two repos (Oct 28)
-Uses [git-filter-repo](https://github.com/newren/git-filter-repo) (`pip install git-filter-repo`). History is kept.
+### Captions
+Studio can turn speech into captions on your own computer. To set it up, run this once with **your ComfyUI's Python**:
 
 ```bash
-git clone https://github.com/dvsll/open-higgsfield studio-repo && cd studio-repo
-git filter-repo --path studio/ --path shared/ --path notes/studio.md --path LICENSE --path DEADLINES.md
-```
-
-For the ad studio, do the same with `--path adstudio/ --path notes/adstudio.md`. Each repo keeps `shared/` next to its app folder, so the `../shared/` paths still work. Then add a project README at the root, set the repo public, and submit.
-
-## Studio URLs
-
-Studio uses `/studio/director`, `/studio/edit` and `/studio/design-lab`. Dev and `npm run preview` serve these routes and redirect old `.html` links while preserving query strings. Other production hosts must map those three clean paths to their corresponding built `.html` files (and redirect old URLs); do not send unknown/API paths to the Director. Source HTML files remain Vite build entry points.
-
-## Optional local prompt helper
-
-Studio starts with one expanding Prompt box. In simple view, auto-fill uses the main prompt after a pause in typing, and Generate waits for current details. Expand **Advanced** to inspect the video model, generated video/motion/audio prompts and audio controls. Advanced pauses automatic rewriting: **Polish prompt** sends the current boxes back to the local helper and returns its result for review, without generating media. Edit the result, polish again, or press **Generate video** to send the reviewed boxes directly, skipping the rewriter. Edits made during polishing are preserved. Turn off **Auto-fill in simple view** to use manual prompts without the helper. Rewriting never starts image/video/audio generation itself.
-
-Prompt polishing runs entirely through ComfyUI: the Comfy SDK submits `shared/workflows/prompt_polish.json` through the local proxy. It uses core **CLIPLoader → TextGenerate → SaveText** nodes and the same Apache-2.0 `qwen_3_4b_fp8_mixed.safetensors` text encoder as our image model pack. No separate llama.cpp service, custom node or additional model is required. A compatible current ComfyUI and the installed encoder are required; missing support leaves manual editing available. Inference never downloads files.
-
-Open the model chooser → **Advanced · compute settings** to choose GPU/automatic offload or CPU for each image/video model's text encoder. Prompt polishing currently uses ComfyUI-managed placement; CPU-only native text generation is unavailable in the connected workflow (the installed ComfyUI build throws a CUDA-device error). The setting is saved per model on this browser. Image/video diffusion placement remains managed by the ComfyUI server; these controls do not force the entire video/image model onto CPU. Polishing shares the generation queue and declines while an app generation job is active. Native text generation returns validated visual/motion/audio suggestions; it does not generate media.
-
-Model-generated details are suggestions. Expand Advanced to review them; a small local model can misunderstand a prompt. Missing/failed rewriting shows an error and preserves authored text, with manual mode available.
-
-## License
-MIT. See [LICENSE](LICENSE).
-
-### Optional local captions (Studio)
-Open **Windows → Captions**. Select a scene soundtrack or an Audio clip, select an audio file in Project files, or use **Import audio / video**. Generate a transcript, review its text/timing, then **Add to Overlays** or **Download SRT**. Captions remain editable; the source audio stays unchanged. Caption overlay previews work in Studio; burning them into exported video is a separate pending integration.
-
-Captions use the MIT-licensed [Whisper Tiny](https://huggingface.co/Systran/faster-whisper-tiny) model through [faster-whisper](https://github.com/SYSTRAN/faster-whisper), on CPU with no inference cloud service or GPU VRAM allocation. Run the setup script **using your connected ComfyUI instance's Python**:
-
-```text
 path/to/ComfyUI/.venv/Scripts/python.exe shared/runtime/setup-captions.py --comfy-root path/to/ComfyUI
 ```
 
-On Linux/macOS use that instance's `.venv/bin/python`. Setup installs the optional runtime, downloads the pinned small model and installs the repo-owned Comfy node. Restart ComfyUI when idle, then press **Refresh model** in Captions. Recognition loads local model files only; no downloads occur during transcription. Sources are limited to 10 minutes and 32 MB. Silence/music may produce no captions; review speech-recognition results.
+On macOS or Linux, use `.venv/bin/python` instead. Restart ComfyUI afterwards, then open **Windows → Captions** in Studio.
+
+### Share with someone on your network
+1. Copy `.env.example` to `.env`.
+2. Set `OSH_HOST=0.0.0.0`, list your hostname in `OSH_ALLOWED_HOSTS`, and set `OSH_TOKEN` to a long random password.
+3. Run `npm run dev` and share `http://<your-host>:8288/?token=<your OSH_TOKEN>`.
+
+People you share with can use the app. They can't install anything or download models.
+
+## Troubleshooting
+
+- **"Not connected":** make sure ComfyUI is running, then open **Admin** and click **Start & reconnect**.
+- **ComfyUI is installed in an unusual folder:** set `COMFYUI_DIR` in `.env` to that folder.
+- **Video export fails:** install [FFmpeg](https://ffmpeg.org/download.html), or set `FFMPEG_PATH` in `.env`.
+- **Your generated files** are saved in the `outputs/` folder.
+
+## For developers
+
+- `npm run typecheck`, `npm run build` and `npm run preview`.
+- Generation path: browser → Vite `/api` → `@comfyorg/sdk` → comfy-api-proxy (:8189) → ComfyUI (:8188).
+- Workflows and API details: [`shared/workflows/CONTRACT.md`](shared/workflows/CONTRACT.md). Competition rules: [`RULES.md`](RULES.md). Plan and dates: [`PLAN.md`](PLAN.md) and [`DEADLINES.md`](DEADLINES.md).
+- Models can also be downloaded from the command line: `npm run models -- --models-dir "<ComfyUI>/models" --only shot_ltxv`.
+
+## License
+
+MIT. See [LICENSE](LICENSE). Each AI model has its own license, which the setup screen shows before you download it.

@@ -3,7 +3,7 @@ import { defineConfig, loadEnv } from "vite";
 import { comfyApi } from "./shared/runtime/api.ts";
 import {cleanStudioUrls} from './studio/clean-urls.ts';
 
-// One Vite server for the whole repo: studio + adstudio + archive, with the generation API mounted.
+// One Vite server for the whole repo: studio + adstudio, with the generation API mounted.
 // Settings come from .env (see .env.example). Defaults are local-only.
 export default defineConfig(({ mode }) => {
   const env = { ...loadEnv(mode, process.cwd(), ""), ...process.env } as Record<string, string | undefined>;

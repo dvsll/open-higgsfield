@@ -80,7 +80,7 @@ The user switches between Claude Code and ChatGPT/Codex. `AGENTS.md` is the shar
 Both projects compete for **Open Weights Only, LTX VFX bonus, Most Innovative**. Follow `RULES.md`: LTX-2.5 core, open models only (no partner nodes/closed APIs), generation via the Comfy SDK, demo explains the innovation. This overrides the per-concept targets above.
 
 ## Collaboration (two people, two projects, one GitHub repo until the split)
-**Since 2026-10-21 this supersedes the GPU/app lanes and the concept list above.** dvs builds `studio/` (cinema studio); the partner builds `adstudio/` (ad studio). Dates: `DEADLINES.md` (these take priority over everything else). Scope: `PLAN.md`. Ideation wireframes/mockups are frozen in `archive/`.
+**Since 2026-10-21 this supersedes the GPU/app lanes and the concept list above.** dvs builds `studio/` (cinema studio); the partner builds `adstudio/` (ad studio). Dates: `DEADLINES.md` (these take priority over everything else). Scope: `PLAN.md`.
 
 Live notes from each project:
 @notes/studio.md

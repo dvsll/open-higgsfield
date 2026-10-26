@@ -227,3 +227,21 @@ actual context/settings/provider/timing; no duplicate image data.
 Qwen image hashes, source binding, review freshness, paid/private gates, one-job
 receipts, long HTTP transport, exact-Pod watchdogs and provenance remain unchanged.
 Model absence still yields explicit deterministic suggestions, never fake AI.
+
+## Qwen3 planning contract repair (2026-10-26)
+
+Routes/Director defaults/image pins are unchanged. Planning now sends exact
+context-derived permittedEvidenceIds/permittedCopyIds, a complete compact JSON
+shape and physical framing/camera instructions. Appearance with confirmed:false
+may inform proposals but is absent from the evidence allowlist. CreativeContext
+optionally adds observedCount derived from existing owner input (no vision/schema
+migration); old plans stay readable and are never rewritten.
+
+`creative-json.ts` is a bounded strict parser, not general JSON repair: only known
+schema-key whitespace is normalized, with audited paths. Duplicate decoded keys,
+normalized collisions, unknown fields, malformed JSON and coerced/missing values
+fail closed. All original values/evidence IDs are retained. `planning.json` adds
+normalizations/validationIssues/rawTextReturned and exact model request. Invalid
+responses remain raw evidence and yield labeled deterministic fallback, not AI
+success. Local check reports actual returned text separately from validated AI.
+No automatic retry. Existing review/hash/one-job/lease/transport/budget checks remain.

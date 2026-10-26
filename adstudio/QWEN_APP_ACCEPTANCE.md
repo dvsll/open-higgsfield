@@ -1,5 +1,12 @@
 # Qwen real-app acceptance: current status and retained preparation history
 
+Current repair2026-10-26: genuine synthetic local planning passes stricter
+schema/evidence/camera/framing checks. Actual No Crumbs campaign failed malformed
+JSON and proposed extra food/single-roll/new-tray changes. Honest fallback retained.
+No ready AI campaign request or fabricated in-app review, Pod/private transfer/
+image job. Unused one-job authorization stays gated. See CREATIVE_ENGINE current
+repair and private outputs/creative-repair-20261026/ for real-model evidence.
+
 Latest2026-10-26 authorized execution stopped at its local text prerequisite:
 official Qwen3 encoder installed/exact SHA verified; real native inference~70s
 completed but returned contract-invalid concepts, so the app correctly fell back.

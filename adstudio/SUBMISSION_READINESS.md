@@ -4,6 +4,16 @@ Functional UI frozen. Simplified React concept selection/confirmation and
 historical-image export: **OWNER-REPORTED PASS**, not independent browser control.
 8301 origin, IndexedDB v3, original Blobs, takes and exports are unchanged.
 
+**Current repair:** reproducible lockfile dependency sync restored integrated
+build; versions/lock unchanged. Strict schema, explicit evidence allowlists and
+collision-safe key normalization implemented. Second real synthetic planning
+PASS76.237s; actual No Crumbs campaign FAIL45.564s: malformed JSON, extra food and
+count/container changes. No unsafe repair or AI success claim. Bounded model tests
+used; no new campaign image/owner approval. Evidence/gallery:
+`outputs/creative-repair-20261026/`. Read-only paid preflight passes; no Pod/spend.
+A valid actual product plan and fresh in-app acceptance/export remain blockers.
+Earlier activation/build notes below are retained history, now superseded.
+
 Latest authorized activation: official5.63GB Qwen3 encoder installed/exact SHA
 verified. App availability PASS; actual native text inference completed in~70s,
 but emitted unknown whitespace-prefixed keys and unconfirmed evidence references.

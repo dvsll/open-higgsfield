@@ -1,6 +1,59 @@
 # Creative engine V1
 
+## Current repair outcome — 2026-10-26
+
+`npm ci --ignore-scripts --no-audit --no-fund` synchronized only lockfile-declared
+dependencies in the integration worktree. Versions and lockfile unchanged;
+Three.js now resolves. Integrated typecheck/build and both apps' regressions pass.
+No authored Director/UI source changes or additional models.
+
+The model now receives a complete compact three-object JSON example, exact
+context-derived evidence/copy allowlists, and explicit camera/framing rules.
+Unconfirmed appearance stays separate from supported evidence. The bounded strict
+JSON reader trims only known schema-key whitespace; decoded duplicates/collisions,
+unknown fields and broken JSON fail. No factual value, missing field, evidence ID
+or source-review flag is repaired. All raw output/normalizations are recorded.
+The conservative claims filter remains strict; instructions explicitly avoid
+ambiguous material terms such as “organic” instead of silently certifying them.
+
+Offline replay exposed the first response's four independent semantic failures
+after nine safe key normalizations: ambiguous wording, two unconfirmed citations
+and generated brand text. Additional checks catch categorical camera jumps under
+slight-angle permission, repetitive centered campaigns, single-unit ideas against
+a counted batch and common unobserved props. These remain limited text checks,
+not image-quality measurements or guaranteed physical fidelity.
+
+| Genuine local text case | Result |
+|---|---|
+| Synthetic1,70.664s | Schema/evidence passed; inspection found camera overreach and three centered framings. Final tightened validators reject it. |
+| Synthetic2,76.237s | **PASS**, provider local-ai, three distinct concepts, permitted evidence and slight-camera instructions. Three environment-key spaces normalized; values unchanged. Final validators replay PASS. Label-obscuring wording in one proposal remains a human fidelity risk. |
+| Actual No Crumbs,45.564s | **FAIL**, honest deterministic fallback: malformed object boundaries (`},{` used as a key), extra milk/cutting board, single-roll closeup and a new wooden tray contradict source locks. No JSON repair, partial-concept extraction or substituted AI concepts. |
+
+The product job completed normally below its token/deadline limit. Native
+SaveText's json format attempts to pretty-print valid JSON but retains raw text
+when decoding fails; it does not constrain TextGenerate's output grammar. Thus
+successful native execution is not structured-planning acceptance. Raw validation
+must remain authoritative.
+
+The two permitted synthetic validations and one requested product planning call
+were used; no further inference/retry. Native jobs, exact settings/raw responses,
+original and returned fallback are private at
+`outputs/creative-repair-20261026/index.html` / `execution-evidence.json`.
+Nine original rolls/3×3/no named SKU and source hashes remain unchanged. No ready
+AI campaign image request or fresh owner review, Pod, remote source transfer or
+image job. Paid authorization is unused.
+
+Read-only preflight: balance7.4284796604USD, auto-pay off, zero burn, empty
+Pods/volumes/endpoints, Secure A40.59/hour and dedicated SSH key PASS. Published
+running [disk rate](https://www.runpod.io/pricing).10USD/GB/month keeps30+80GB below the existing.02/hour bound;
+two-hour conservative estimate1.22USD, cap2/stop1.80/reserve4 retained. Six mocked
+watchdog and ten session/collection tests (two skips) pass; no live Pod guard is
+claimed armed. Exact execution binding remains blocked on a valid freshly reviewed
+campaign. Historical enhancement manifests are not reused.
+
 ## Latest real activation — 2026-10-26
+
+Retained preceding activation attempt; the repair outcome above is current.
 
 Owner-authorized **single encoder install completed**: 5,631,994,051bytes,
 SHA256 `72450b19758172c5a7273cf7de729d1c17e7f434a104a00167624cba94f68f15`.

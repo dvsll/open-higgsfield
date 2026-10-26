@@ -7,7 +7,7 @@ import {creativeGrounding,conceptQuality,conceptConstraintIssues,conceptRecommen
 export type CreativeInput={version:1;projectId:string;brand:BrandProfile;productId?:string;source:BriefInput['source'];facts:SourceFacts;productType:BriefInput['productType'];request?:string;notes?:string;intent?:Intent;format?:keyof typeof staticSizes;seed?:number;constraints?:Partial<BriefControls>};
 export type CreativeFact={id:string;text:string;kind:'source'|'owner'|'inferred'|'unconfirmed';sourceIds:string[]};
 export type CreativeConcept={id:string;title:string;idea:string;composition:string;camera:string;environment:string;lighting:string;hierarchy:string;layout:StaticConcept;copyId:string;evidenceIds:string[];scores:{impact:number;relevance:number;accuracy:number;feasibility:number};rationale:string};
-export type CreativeContext={facts:CreativeFact[];missing:string[];copyOptions:{id:string;headline:string;body:string;kind:'identity'|'creative-proposal'|'source'}[];controls:BriefControls;productName:string;grounding?:CreativeGrounding};
+export type CreativeContext={facts:CreativeFact[];missing:string[];copyOptions:{id:string;headline:string;body:string;kind:'identity'|'creative-proposal'|'source'}[];controls:BriefControls;productName:string;grounding?:CreativeGrounding;observedCount?:number};
 export type CreativePlan={version:1;id:string;parentId?:string;projectId:string;created:number;input:CreativeInput;provider:{mode:'local-ai'|'deterministic';model?:string;reason:string};context:CreativeContext;concepts:(CreativeConcept&{evaluation:{score:number;method:string}})[];selectedId:string;selectionReason:string;draft:GenerationDraft;composition:StaticDesign;layout:{width:number;height:number;photoBox:{x:number;y:number;width:number;height:number};textBounds:{text:string;x:number;y:number;width:number;height:number;fontSize:number}[];fit:'contain';exportIntent:'png'};warnings:string[];reviewRequired:true;generationRun:false};
 export type CreativePrepared={version:1;planId:string;preparedId:string;projectId:string;draft:GenerationDraft;composition:StaticDesign;payload:{image:string;original:string;settings:HeroSettings;projectId:string};status:'REVIEWED_REQUEST_NOT_A_RUN';generationRun:false;paidApproved:false;privateUploadApproved:false};
 const identity=(s:unknown,max=160)=>typeof s==='string'&&/^[A-Za-z0-9_-]+$/.test(s)&&s.length<=max;
@@ -43,24 +43,32 @@ export function creativeContext(input:CreativeInput):CreativeContext{
  // creative language. The model cannot invent printed offers/ingredients/claims.
  const copyOptions:CreativeContext['copyOptions']=[{id:'identity',headline:(context.products[0]?.name||b.dna.name||'A closer look').slice(0,80),body:'',kind:'identity'},{id:'moment',headline:'Make room for a moment.',body:'',kind:'creative-proposal'},{id:'details',headline:'A closer look.',body:'',kind:'creative-proposal'},{id:'discover',headline:'Something worth discovering.',body:'',kind:'creative-proposal'}];
  for(const [i,o]of (b.research?.observations||[]).entries())if(o.kind==='source'&&o.value===o.quote&&o.value.length<=70&&!/\d|[$€£%]|\b(price|sale|offer|free|off|certified|organic|vegan)\b/i.test(o.value)&&o.sourceIds.some(id=>b.research!.sources.some(s=>s.id===id&&s.text.includes(o.value))))copyOptions.push({id:'source-'+i,headline:o.value,body:'',kind:'source'});
- return {facts,missing,copyOptions,controls:campaignControls(input),productName:context.products[0]?.name||'',grounding:creativeGrounding(input)};
+ return {facts,missing,copyOptions,controls:campaignControls(input),productName:context.products[0]?.name||'',grounding:creativeGrounding(input),observedCount:input.facts.count};
 }
 const visualKeys=['title','idea','composition','camera','environment','lighting','hierarchy','rationale'] as const;
 // Text proposals are not business facts. Refuse common unsupported physical /
 // commercial assertions; copy itself uses only the closed grounded catalog.
 const unsafe=/[$€£%]|\b(organic|vegan|gluten.free|sugar.free|certified|award.winning|guaranteed|sale|discount|free shipping|daily fresh|fresh daily|add ingredients|extra products|duplicate products|new logo|redesign the product|change the label|garnish|sprinkle|topped with|add steam|steaming hot)\b/i;
 export function validateCreativeConcepts(raw:unknown,context:CreativeContext):CreativeConcept[]{
- const value=raw as {concepts:CreativeConcept[]};if(!value||Object.keys(value).some(k=>k!=='concepts')||!Array.isArray(value.concepts)||value.concepts.length!==3)throw Error('Expected three distinct creative concepts.');
- const ids=new Set<string>(),directions=new Set<string>();
- for(const c of value.concepts){if(!c||Object.keys(c).some(k=>!['id',...visualKeys,'layout','copyId','evidenceIds','scores'].includes(k))||!identity(c.id,60)||ids.has(c.id))throw Error('Invalid concept identity.');ids.add(c.id);
-  for(const key of visualKeys)if(!str(c[key],key==='title'?100:700)||!c[key].trim()||unsafe.test(c[key]))throw Error('Unsupported assertion or invalid creative direction.');
-  if(!['spotlight','editorial','poster'].includes(c.layout)||!context.copyOptions.some(o=>o.id===c.copyId)||!Array.isArray(c.evidenceIds)||!c.evidenceIds.length||c.evidenceIds.some(id=>!context.facts.some(f=>f.id===id&&f.kind!=='inferred'&&f.kind!=='unconfirmed')))throw Error('Ungrounded concept/copy reference.');
-  if(!c.scores||Object.keys(c.scores).length!==4||(['impact','relevance','accuracy','feasibility'] as const).some(k=>!Number.isInteger(c.scores[k])||c.scores[k]<1||c.scores[k]>5))throw Error('Invalid concept evaluation.');
-  const signature=(c.environment+'|'+c.composition+'|'+c.lighting).toLowerCase().replace(/\W/g,'');if(directions.has(signature))throw Error('Concepts differ only in labels/copy.');directions.add(signature);
-  if(conceptConstraintIssues(c,context).length)throw Error(conceptConstraintIssues(c,context).join(' '));
+ const issues=creativeConceptIssues(raw,context);if(issues.length)throw Error(issues.join(' '));return structuredClone((raw as {concepts:CreativeConcept[]}).concepts);
+}
+// Report every blocking issue from a completed response. Nothing is repaired or
+// promoted by this audit; schema normalization lives solely in the strict reader.
+export function creativeConceptIssues(raw:unknown,context:CreativeContext):string[]{
+ const value=raw as {concepts:CreativeConcept[]};if(!value||typeof value!=='object'||Array.isArray(value)||Object.keys(value).some(k=>k!=='concepts')||!Array.isArray(value.concepts)||value.concepts.length!==3)return ['Expected three distinct creative concepts.'];
+ const ids=new Set<string>(),directions=new Set<string>(),issues:string[]=[],visual:CreativeConcept[]=[];
+ for(const [index,c]of value.concepts.entries()){
+  const prefix=`Concept ${index+1}: `;if(!c||typeof c!=='object'||Array.isArray(c)){issues.push(prefix+'Invalid concept identity.');continue;}
+  if(Object.keys(c).some(k=>!['id',...visualKeys,'layout','copyId','evidenceIds','scores'].includes(k))||!identity(c.id,60)||ids.has(c.id))issues.push(prefix+'Invalid concept identity/fields.');ids.add(c.id);
+  let validVisual=true;for(const key of visualKeys){if(!str(c[key],key==='title'?100:700)||!c[key].trim()){issues.push(prefix+'Invalid creative direction: '+key);validVisual=false;}else if(unsafe.test(c[key]))issues.push(prefix+'Unsupported assertion: '+key);else if(/<[^>]+>/.test(c[key]))issues.push(prefix+'Unfilled schema example: '+key);}
+  if(!['spotlight','editorial','poster'].includes(c.layout)||!context.copyOptions.some(o=>o.id===c.copyId)||!Array.isArray(c.evidenceIds)||!c.evidenceIds.length||c.evidenceIds.some(id=>!context.facts.some(f=>f.id===id&&f.kind!=='inferred'&&f.kind!=='unconfirmed')))issues.push(prefix+'Ungrounded concept/copy reference.');
+  if(!c.scores||Array.isArray(c.scores)||Object.keys(c.scores).length!==4||(['impact','relevance','accuracy','feasibility'] as const).some(k=>!Number.isInteger(c.scores[k])||c.scores[k]<1||c.scores[k]>5))issues.push(prefix+'Invalid concept evaluation.');
+  if(validVisual){
+   const signature=(c.environment+'|'+c.composition+'|'+c.lighting).toLowerCase().replace(/\W/g,'');if(directions.has(signature))issues.push(prefix+'Concepts differ only in labels/copy.');directions.add(signature);
+   issues.push(...conceptConstraintIssues(c,context).map(s=>prefix+s));visual.push(c);
+  }
  }
- const quality=conceptQuality(value.concepts,context);if(quality.issues.length)throw Error(quality.issues.join(' '));
- return structuredClone(value.concepts);
+ if(visual.length===3)issues.push(...conceptQuality(visual,context).issues);return issues;
 }
 export function fallbackConcepts(input:CreativeInput,context:CreativeContext):CreativeConcept[]{
  const bakery=['cinnamon-rolls','cookies'].includes(input.productType),g=context.grounding||creativeGrounding(input),c=context.controls;
@@ -75,7 +83,7 @@ export function fallbackConcepts(input:CreativeInput,context:CreativeContext):Cr
 const observation=(s:string)=>s.split(/[;\n]/).filter(v=>!/^\s*(preserve|keep|do not|never)\b/i.test(v)).join('; ').slice(0,900);
 export function compileCreativeDraft(input:CreativeInput,concept:CreativeConcept):GenerationDraft{
  const i=creativeBriefInput(input),c=i.controls,d=newGenerationDraft(i),enhancement=c.intent==='enhancement';
- const camera=c.angle==='none'?'Keep the source viewpoint.':concept.camera;
+ const camera=c.angle==='none'?'Keep the source viewpoint.':c.angle==='slight'?'At most a slight perspective change from the source viewpoint. '+concept.camera:concept.camera;
  const composition=c.crop==='none'?'Retain the original field of view, product boundaries and grouping; create separation through light and permitted surroundings.':concept.composition;
  const background=c.background==='keep'?'Retain the original surroundings.':c.background==='clean'?'Clean incidental distractions in the original surroundings without replacing the setting or materials.':concept.environment;
  d.sections.transformation=`${concept.idea}\nCamera proposal: ${camera}\nPermissions: angle ${c.angle}, crop ${c.crop}, creativity ${c.creativity}; explicit product locks win.`;

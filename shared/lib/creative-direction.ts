@@ -39,6 +39,7 @@ function similarity(a:string,b:string){const x=tokens(a),y=tokens(b);return [...
 // must still inspect the eventual images; passing these is never an ad rating.
 export function conceptQuality(concepts:CreativeConcept[],context:CreativeContext){
  const pairs:{ids:string[];differentChannels:number;overlap:number}[]=[],issues:string[]=[];
+ if(context.controls.intent==='campaign'&&context.controls.crop!=='none'&&concepts.every(c=>/\b(cent(?:er|re)(?:ed)?|middle)\b/i.test(c.composition)&&!/\b(off.?cent|third|diagonal|lower.left|upper.right|left third|right third)/i.test(c.composition)))issues.push('All three concepts use the same centered product framing; vary placement/scale/negative space within the locks.');
  for(const c of concepts)if(context.grounding?.identity.slice(1).some(s=>s.length>45&&[c.idea,c.environment,c.lighting].some(v=>v.toLowerCase().includes(s.toLowerCase().slice(0,100)))))issues.push(`${c.id}: business-description prose was copied into visual direction.`);
  for(let i=0;i<concepts.length;i++)for(let j=i+1;j<concepts.length;j++){
   const a=concepts[i],b=concepts[j],keys=['composition','environment','lighting'] as const;
@@ -55,9 +56,14 @@ export function conceptConstraintIssues(c:CreativeConcept,context:CreativeContex
  const p=context.controls,issues:string[]=[],physical=[c.idea,c.camera,c.composition,c.environment].join(' ');
  const clauses=physical.split(/[.!?;\n]/).filter(s=>!/^\s*(no|never|do not|without|avoid|retain|preserve|keep)\b/i.test(s)).join(' ');
  if(p.exactCount&&/\b(?:hide|remove|duplicate|add|merge)\s+(?:an?\s+|the\s+|some\s+)?(?:units?|products?|rolls?|cookies?|bottles?)\b/i.test(clauses))issues.push('Direction changes the locked product count.');
+ if(p.exactCount&&(context.observedCount??0)>1&&/\b(?:single|one|individual)\s+(?:cinnamon\s+)?(?:roll|cookie|bottle|item|unit|piece)\b/i.test(clauses))issues.push('Single-unit direction contradicts the exact full-batch count lock.');
+ const appearance=context.facts.find(f=>f.id==='photo')?.text||'';
+ for(const item of ['glass of milk','cup of coffee','cutting board','spoon','fork','hands','garnish'])if(new RegExp('\\b'+item+'\\b','i').test(clauses)&&!new RegExp('\\b'+item+'\\b','i').test(appearance))issues.push('Direction introduces an unobserved extra item: '+item+'.');
  if(p.crop==='none'&&/\b(tight crop|crop into|cut off|edge crop|extreme close.?up)\b/i.test(clauses))issues.push('Direction contradicts the no-crop lock.');
  if(p.angle==='none'&&/\b(rotate the|new viewpoint|change the angle|change viewpoint)\b/i.test(clauses))issues.push('Direction contradicts the source-viewpoint lock.');
+ if(p.angle==='slight'&&/\b(wide.angle|low.angle|bird.?s.eye|aerial|overhead|top.down|side|profile)\b/i.test(c.camera)&&!/\b(same|keep|retain|source|slight|small|modest)\b/i.test(c.camera))issues.push('Camera proposal exceeds the slight perspective-change permission.');
  if(p.arrangement==='exactly'&&/\b(rearrange|scatter|separate the|change spacing)\b/i.test(clauses))issues.push('Direction contradicts the exact-arrangement lock.');
+ if(/\b(?:with|add|render|generate|write|include)\s+(?:a\s+|new\s+)?(?:brand text|text on the|a new logo|typography on the)\b/i.test([c.idea,c.environment,c.camera,c.lighting].join(' ')))issues.push('Direction asks for generated typography/branding; leave it to separate composition.');
  return issues;
 }
 

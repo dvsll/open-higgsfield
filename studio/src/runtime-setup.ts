@@ -1,3 +1,4 @@
+import {shouldOfferInitialSetup} from './runtime-setup-policy';
 import {createElement} from 'react';
 import {renderView} from './react/render';
 import {RuntimeSetupSurface} from './react/runtime-setup';
@@ -12,7 +13,7 @@ export function mountRuntimeSetup(autoOpen=true):void{
  const dialog=document.createElement('dialog');dialog.className='runtime-setup-dialog';dialog.setAttribute('aria-label','Local generation setup');
  renderView(dialog,createElement(RuntimeSetupSurface));
  document.body.append(dialog);const q=<T extends HTMLElement=HTMLElement>(selector:string)=>dialog.querySelector<T>(selector)!;
- let state:SetupState|null=null,polling=false,mode='existing',chosen=new Set<string>(),initialized=false,autoOpened=false,lastReady=0;
+ let state:SetupState|null=null,polling=false,mode='existing',chosen=new Set<string>(),initialized=false,lastReady=0;
  function setMode(value:string){mode=value;q('[data-existing]').hidden=value!=='existing';q('[data-managed]').hidden=value!=='managed';dialog.querySelectorAll('[data-mode]').forEach(e=>e.setAttribute('aria-pressed',String((e as HTMLElement).dataset.mode===value)))}
  function selection(){if(!state)return;const missing=state.packs.filter(p=>chosen.has(p.id)).flatMap(p=>p.models.filter(m=>!m.installed));q('[data-download-size]').textContent=missing.length?`${missing.length} missing files · about ${missing.reduce((n,m)=>n+m.size_gb,0).toFixed(1)} GB`:'No missing models selected.';q<HTMLButtonElement>('[data-download]').disabled=state.task.busy||!!state.rendering||!state.config?.modelsDir||!missing.length}
  function render(next:SetupState){state=next;if(!initialized){q<HTMLInputElement>('[name=url]').value=!next.connected&&next.detectedInstances?.length?next.detectedInstances[0]:next.url;q<HTMLInputElement>('[name=models]').value=next.config?.modelsDir||next.modelsDirs[0]||'';q<HTMLSelectElement>('[data-gpu]').value=next.platform==='darwin'?'apple':'nvidia';setMode(next.config?.mode==='managed'?'managed':'existing');initialized=true}
@@ -33,7 +34,9 @@ export function mountRuntimeSetup(autoOpen=true):void{
  q('[data-close]').onclick=()=>dialog.close();const openSetup=()=>{if(!dialog.open)dialog.showModal();void check()};button.onclick=openSetup;addEventListener('osh-open-runtime-setup',openSetup);dialog.querySelectorAll<HTMLButtonElement>('[data-mode]').forEach(b=>b.onclick=()=>setMode(b.dataset.mode!));
  q<HTMLFormElement>('[data-connect]').onsubmit=e=>{e.preventDefault();void action('/connect',{url:q<HTMLInputElement>('[name=url]').value,modelsDir:q<HTMLInputElement>('[name=models]').value})};q('[data-install]').onclick=()=>void action('/install',{gpu:q<HTMLSelectElement>('[data-gpu]').value});q('[data-start]').onclick=()=>void action('/start',{});q('[data-download]').onclick=()=>void action('/download',{packs:[...chosen]});q('[data-cancel]').onclick=()=>void action('/cancel',{});
  setInterval(()=>{if(dialog.open||state?.task.busy)void check()},1200);
- void request('').then((value:SetupState)=>{render(value);if(autoOpen&&(!value.connected||!value.proxy||!value.packs.find(p=>p.id==='shot_ltxv')?.models.every(m=>m.installed))&&!sessionStorage.getItem('osh-setup-later')){dialog.showModal();autoOpened=true}}).catch(()=>{});dialog.addEventListener('close',()=>{if(autoOpened)sessionStorage.setItem('osh-setup-later','1')});
+ void request('').then((value:SetupState)=>{render(value);if(autoOpen&&shouldOfferInitialSetup(value,!!localStorage.getItem('osh-setup-dismissed'))){setTimeout(()=>void request('').then((latest:SetupState)=>{render(latest);if(shouldOfferInitialSetup(latest,!!localStorage.getItem('osh-setup-dismissed'))&&!dialog.open)dialog.showModal()}).catch(()=>{}),3000)}}).catch(()=>{});
+ dialog.addEventListener('close',()=>localStorage.setItem('osh-setup-dismissed','1'));
+
  const status=document.createElement('div');status.className='generation-stage';status.hidden=true;status.setAttribute('role','status');status.setAttribute('aria-live','polite');document.body.append(status);let current:any=null,hide:ReturnType<typeof setTimeout>|undefined;
  const draw=()=>{if(!current)return;const elapsed=Math.max(0,Math.floor((Date.now()-current.phaseStartedAt)/1000));status.textContent=current.message+(current.phase==='complete'?'':` · ${elapsed}s ${current.phase==='generating'?'generating':'in this stage'}`)};
  addEventListener('osh-generation-progress',((event:CustomEvent)=>{if(hide)clearTimeout(hide);current=event.detail;status.hidden=false;draw();if(['complete','error'].includes(current.phase))hide=setTimeout(()=>{status.hidden=true;current=null},3500)}) as EventListener);setInterval(draw,1000);

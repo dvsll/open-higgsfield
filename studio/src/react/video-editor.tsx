@@ -1,3 +1,4 @@
+import {NumberInput} from './number-input';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { OSH } from '../../../shared/runtime/client';
@@ -261,7 +262,7 @@ export function VideoEditor({
             <summary>Video properties</summary>
             <label>
               Trim start (seconds)
-              <input
+              <NumberInput
                 data-start
                 type="number"
                 min={0}
@@ -273,7 +274,7 @@ export function VideoEditor({
             </label>
             <label>
               Trim end (seconds)
-              <input
+              <NumberInput
                 data-end
                 type="number"
                 min={0}
@@ -325,7 +326,7 @@ export function VideoEditor({
             </label>
             <label>
               Width
-              <input
+              <NumberInput
                 data-width
                 type="number"
                 min={16}
@@ -340,7 +341,7 @@ export function VideoEditor({
             </label>
             <label>
               Height
-              <input
+              <NumberInput
                 data-height
                 type="number"
                 min={16}

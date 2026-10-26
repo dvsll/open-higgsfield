@@ -1,3 +1,4 @@
+import {ViewerTether} from './viewer-tether';
 import { parkPanel } from '../panel-lifecycle';
 import { useLayoutEffect, useRef, type CSSProperties, type PointerEvent } from 'react';
 import type { LayoutNode, Edge } from '../window-layout';
@@ -113,6 +114,7 @@ export function WindowChrome({
   onDrag,
   onDock,
   onClose,
+  tether,
 }: {
   id: string;
   title: string;
@@ -122,6 +124,7 @@ export function WindowChrome({
   onDrag: (id: string, e: globalThis.PointerEvent) => void;
   onDock: (id: string, target: string, edge: Edge) => void;
   onClose: () => void;
+  tether?:{target:string|null;onChange:(target:string|null)=>void};
 }) {
   const body = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
@@ -140,6 +143,7 @@ export function WindowChrome({
         >
           {title}
         </button>
+        {tether&&<ViewerTether {...tether}/>}
         <button
           className="window-close"
           title={'Close ' + title}

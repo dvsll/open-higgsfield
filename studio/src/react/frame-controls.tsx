@@ -1,3 +1,4 @@
+import {NumberInput} from './number-input';
 import type { FrameSize, GenerationKind } from '../frame-size';
 import {useEffect,useState} from 'react';
 import type {ModelChoice} from '../../../shared/runtime/model-catalog';
@@ -11,21 +12,24 @@ export function FrameControls({
   onChange: () => void;
 }) {
   const video = kind === 'video';
-  const [preferences,setPreferences]=useState<{label?:string;generation?:ModelChoice['generation']}>({});
+  const [preferences,setPreferences]=useState<{label?:string;generation?:ModelChoice['generation'];defaultSize?:FrameSize}>({});
   useEffect(()=>{const update=(event:Event)=>{const detail=(event as CustomEvent).detail;if(detail.kind===kind)setPreferences(detail)};addEventListener('osh-model-preferences',update);return()=>removeEventListener('osh-model-preferences',update)},[kind]);
   const sizes = video
     ? [
-        [768, 448, 'Default'],
-        [512, 288, 'Landscape 16:9'],
-        [288, 512, 'Portrait 9:16'],
-        [384, 384, 'Square'],
+        [768, 448, 'Local model preset'],
+        [768, 432, 'YouTube · 16:9'],
+        [512, 288, 'Landscape draft · 16:9'],
+        [432, 768, 'Shorts / Reels · 9:16'],
+        [512, 640, 'Portrait feed · 4:5'],
+        [512, 512, 'Instagram square · 1:1'],
         [1024, 576, 'HD landscape'],
       ]
     : [
-        [768, 448, 'Default'],
-        [768, 432, 'Landscape 16:9'],
-        [432, 768, 'Portrait 9:16'],
-        [512, 512, 'Square'],
+        [768, 448, 'Local model preset'],
+        [768, 432, 'YouTube / landscape · 16:9'],
+        [432, 768, 'Shorts / Reels · 9:16'],
+        [512, 640, 'Portrait feed · 4:5'],
+        [512, 512, 'Instagram square · 1:1'],
         [1024, 1024, 'Large square'],
       ];
   const preset = sizes.some(([w, h]) => w === size.width && h === size.height)
@@ -35,6 +39,7 @@ export function FrameControls({
     <>
       <summary>{video ? 'Size & timing' : 'Image properties'}</summary>
       {video && <p id="selectedVideoAttributes" hidden />}
+      {preferences.label&&<div className="frame-model-defaults"><span>{preferences.label}</span><button type="button" onClick={()=>{const defaults=preferences.defaultSize;if(defaults){(document.getElementById(kind+'Width') as HTMLInputElement).value=String(defaults.width);(document.getElementById(kind+'Height') as HTMLInputElement).value=String(defaults.height);const select=document.querySelector<HTMLSelectElement>(`[aria-label="${video?'Video':'Image'} frame preset"]`);if(select)select.value=`${defaults.width}x${defaults.height}`;onChange()}if(video&&preferences.generation?.preferredFps){const fps=document.getElementById('videoFPS') as HTMLInputElement;fps.value=String(preferences.generation.preferredFps);fps.dispatchEvent(new Event('input',{bubbles:true}))}}}>Use model defaults</button><small>{preferences.defaultSize?`${preferences.defaultSize.width}×${preferences.defaultSize.height} local preset`:''}{preferences.generation?.preferredFps?` · ${preferences.generation.preferredFps} FPS preferred`:''}</small></div>}
       <div className="frame-controls">
         <select
           aria-label={`${video ? 'Video' : 'Image'} frame preset`}
@@ -57,7 +62,7 @@ export function FrameControls({
         {(['width', 'height'] as const).map((axis) => (
           <label key={axis}>
             {axis === 'width' ? 'Width' : 'Height'}
-            <input
+            <NumberInput
               type="number"
               id={kind + (axis === 'width' ? 'Width' : 'Height')}
               min={256}
@@ -89,7 +94,7 @@ export function FrameControls({
         >
           <label>
             Frames
-            <input
+            <NumberInput
               id="videoFrames"
               aria-label="Video frames"
               type="number"
@@ -103,13 +108,14 @@ export function FrameControls({
           <div className="fps-field">
           <label>
             FPS
-            <input
+            <NumberInput
               id="videoFPS"
               aria-label="Video FPS"
               type="number"
               min={1}
               max={120}
-              step="0.01"
+              step="any"
+              data-scrub-step="1"
               defaultValue={24}
               required
               aria-describedby={preferences.generation?.preferredFps?'videoFpsRecommendation':undefined}
@@ -119,7 +125,7 @@ export function FrameControls({
           </div>
           <output id="videoDuration" />
           <small>LTX: 9, 17, 25…121 frames (8n+1). Local workflow limit: 121.</small>
-          <input id="videoSeed" aria-label="Video seed" hidden type="number" min={0} max={2147483647} step={1} />
+          <NumberInput id="videoSeed" aria-label="Video seed" hidden type="number" min={0} max={2147483647} step={1} />
         </div>
       )}
       {!video&&preferences.generation&&<div className="generation-preset"><span>Sampling steps</span><output aria-label="Image sampling steps">{preferences.generation.steps}</output><span>Workflow preset</span><p>{preferences.generation.stepNote}</p></div>}

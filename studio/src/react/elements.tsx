@@ -1,3 +1,5 @@
+import {useSemanticSearch} from './semantic-search';
+import '../media-model-picker.css';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Element, PoolItem } from '../shell';
@@ -30,9 +32,15 @@ export function ElementLibrary({
   const [query,setQuery]=useState(''),[category,setCategory]=useState('all'),[selected,setSelected]=useState<string[]>([]);
   useEffect(()=>{const update=(event:Event)=>setSelected((event as CustomEvent<string[]>).detail);addEventListener('osh-element-usage',update);dispatchEvent(new Event('osh-request-element-usage'));return()=>removeEventListener('osh-element-usage',update)},[]);
   const labels={cast:'Character',place:'Place',object:'Object'};
-  const filtered=items.filter(item=>(category==='all'||item.kind===category)&&`${item.n} ${item.d}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()));
+  const candidates=items.filter(item=>category==='all'||item.kind===category);
+  const semantic=useSemanticSearch(query,candidates.map(item=>({id:item.id,text:`${item.n}. ${item.kind}: ${item.d}`.slice(0,1200)})));
+  const scores=new Map(semantic.results.map(result=>[result.id,result.score]));
+  const semanticThreshold=Math.max(.28,Math.max(0,...semantic.results.map(result=>result.score))-.15);
+  const literal=(item:Element)=>`${item.n} ${item.d}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase());
+  const filtered=candidates.filter(item=>literal(item)||(scores.get(item.id)||0)>=semanticThreshold).sort((a,b)=>Number(literal(b))-Number(literal(a))||(scores.get(b.id)||0)-(scores.get(a.id)||0));
   return <div className="element-library">
     <div className="element-library-toolbar"><input type="search" aria-label="Search elements" placeholder="Search elements…" value={query} onChange={e=>setQuery(e.target.value)}/><button className="element-new" onClick={()=>setEditing(null)}><span aria-hidden="true">+</span> New</button></div>
+    {semantic.status&&<p className="semantic-search-status" role="status">{semantic.status}</p>}
     <div className="element-library-filter"><select aria-label="Element category" value={category} onChange={e=>setCategory(e.target.value)}><option value="all">All elements</option><option value="cast">Characters</option><option value="place">Places</option><option value="object">Objects</option></select><span>{filtered.length} {filtered.length===1?'element':'elements'}</span></div>
     <div className="element-gallery">{filtered.map(element=><article key={element.id} className="element-tile">
       <button className="el" data-id={element.id} aria-label={`Use @${element.n}`} aria-pressed={selected.includes(element.id)} title={element.d} onClick={()=>onSelect(element)}>

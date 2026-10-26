@@ -6,7 +6,7 @@ export function RuntimeSetupSurface() {
           <h2>{'Set up local generation'}</h2>
           <p>{'Use your ComfyUI, or let Studio set up a separate local instance.'}</p>
         </div>
-        <button data-close>{'Close'}</button>
+        <button data-close aria-label="Close local generation setup" title="Close"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" strokeWidth="1.5"/></svg></button>
       </header>
       <div className="setup-options">
         <button data-mode="existing" aria-pressed="true">

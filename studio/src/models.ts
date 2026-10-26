@@ -66,7 +66,7 @@ function renderDetails(): void {
     if (!el) continue;
 
     const entry = catalog?.[kind].find(m => m.id === select(kind).value);
-    dispatchEvent(new CustomEvent('osh-model-preferences',{detail:{kind,label:entry?.label,generation:entry?.generation}}));
+    dispatchEvent(new CustomEvent('osh-model-preferences',{detail:{kind,label:entry?.label,generation:entry?.generation,defaultSize:entry?{width:entry.timing.width,height:entry.timing.height}:undefined}}));
     if (catalog) document.querySelectorAll<HTMLElement>(`[data-model-kind="${kind}"][data-model-control]`).forEach(field => {
       field.hidden = !entry?.capabilities.some(capability => capability.control === field.dataset.modelControl && capability.status !== 'unavailable');
     });
@@ -109,7 +109,7 @@ function chooseModel(kind: Kind): void {
  if(chooserHost){unmountView(chooserHost);chooserHost.remove();chooser=null}
  const host=document.createElement('div');chooserHost=host;document.body.append(host);
  const close=()=>{if(tooltip)tooltip.hidden=true;unmountView(host);host.remove();if(chooserHost===host){chooserHost=null;chooser=null}};
- renderView(host,createElement(ModelChooser,{groups:(['video','keyframe'] as const).map(group=>({kind:group,label:group==='video'?'Video':'Image',rows:(catalog?.[group]||[]).map(entry=>({...entry,info:modelInfo(group,entry)})),selected:select(group).value})),research:(catalog?.research||[]).map(item=>item.repo),attach:attachHelp,onDialog:dialog=>{if(chooserHost===host)chooser=dialog},onChoose:(group,id)=>{chooseEntry(group,id);document.dispatchEvent(new CustomEvent('osh-workspace-select',{detail:group==='video'?'Video':'Image'}))},onClose:close}));
+ renderView(host,createElement(ModelChooser,{groups:([kind]).map(group=>({kind:group,label:group==='video'?'Video':'Image',rows:(catalog?.[group]||[]).map(entry=>({...entry,info:modelInfo(group,entry)})),selected:select(group).value})),research:kind==='keyframe'?(catalog?.research||[]).map(item=>item.repo):[],attach:attachHelp,onDialog:dialog=>{if(chooserHost===host)chooser=dialog},onChoose:(group,id)=>{chooseEntry(group,id)},onClose:close}));
 }
 // The same selections apply to direct generation, automatic keyframes, and stylization.
 export const localGeneration = {

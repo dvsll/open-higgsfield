@@ -1,3 +1,4 @@
+import {SC} from './scene';
 import {StagePlaceholder} from './react/controls';
 import {WorkspaceName} from './react/workspace-name';
 import {WorkspacePicker} from './react/workspace-picker';
@@ -58,6 +59,10 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
  let setup = clone(store.layouts[active] || presets[active] || fallback);
  try{if(!custom&&!localStorage.getItem('osh-video-layout-reference-v2')){store.layouts.Video=clone(fallback);if(active==='Video')setup=clone(fallback);localStorage.setItem('osh-video-layout-reference-v2','1')}}catch{}
  const panels = new Map<string, HTMLElement>();
+ let viewerSequence:string|null=SC.get('osh-viewer-sequence')==='unbound'?null:'timeline';
+ const applyViewerBinding=()=>{document.body.dataset.viewerBound=String(viewerSequence==='timeline');dispatchEvent(new CustomEvent('osh-viewer-sequence',{detail:viewerSequence}))};
+ const viewerTether=()=>({target:viewerSequence,onChange:(target:string|null)=>{viewerSequence=target==='timeline'?'timeline':null;SC.set('osh-viewer-sequence',viewerSequence||'unbound');applyViewerBinding();render()}});
+ if(!custom)applyViewerBinding();
  const registrations=new Map<string,{title:string;content:HTMLElement}>();
  const toolbar = document.createElement('nav'); toolbar.className = 'workspace-toolbar'; toolbar.setAttribute('aria-label', 'Workspace layout');
  renderView(toolbar,createElement(WorkspaceToolbar,{studio:!custom}));
@@ -79,7 +84,7 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
   if(!custom)setup.tree=remove(setup.tree,'properties');
   board.dataset.defaultLayout=String(active==='Video'&&JSON.stringify(setup.tree)===JSON.stringify(fallback.tree));
   const visible = new Set(ids(setup.tree));
-  for(const [id,{title,content}] of registrations)renderView(panels.get(id)!,createElement(WindowChrome,{id,title,content,visible:[...visible],panels,onDrag:startDrag,onDock:(moving,target,edge)=>{setup.tree=dock(setup.tree,moving,target,edge);render();persist()},onClose:()=>closeWindow(id)}));
+  for(const [id,{title,content}] of registrations)renderView(panels.get(id)!,createElement(WindowChrome,{id,title,content,tether:!custom&&id==='viewer'?viewerTether():undefined,visible:[...visible],panels,onDrag:startDrag,onDock:(moving,target,edge)=>{setup.tree=dock(setup.tree,moving,target,edge);render();persist()},onClose:()=>closeWindow(id)}));
   for (const [id, element] of panels) { element.hidden = !visible.has(id); element.classList.remove('is-dragging-window'); element.removeAttribute('style'); parking.append(element); menu.querySelector(`[data-window="${id}"]`)?.setAttribute('aria-pressed', String(visible.has(id))); }
   renderView(layout,createElement(DockTree,{node:setup.tree,panels,parking,onRatio:persist}));
   board.append(overlay); renderMenu();refresh();document.dispatchEvent(new Event('osh-window-layout-changed'));
@@ -130,17 +135,17 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
  function add(id: string, title: string, content: HTMLElement): void {
   const element = document.createElement('section'); element.className = 'studio-window'; element.dataset.window = id; element.setAttribute('aria-label', title + ' window');
   registrations.set(id,{title,content});panels.set(id,element);
-  renderView(element,createElement(WindowChrome,{id,title,content,visible:ids(setup.tree),panels,onDrag:startDrag,onDock:(moving,target,edge)=>{setup.tree=dock(setup.tree,moving,target,edge);render();persist()},onClose:()=>closeWindow(id)}));
+  renderView(element,createElement(WindowChrome,{id,title,content,tether:!custom&&id==='viewer'?viewerTether():undefined,visible:ids(setup.tree),panels,onDrag:startDrag,onDock:(moving,target,edge)=>{setup.tree=dock(setup.tree,moving,target,edge);render();persist()},onClose:()=>closeWindow(id)}));
   renderMenu();
  }
  if(custom){for(const item of custom.panels)add(item.id,item.title,item.content)}else{
  const assets = app.querySelector<HTMLElement>('aside.l')!, keys = app.querySelector<HTMLElement>('aside.r')!, viewer = main.querySelector<HTMLElement>('.viewer')!, image = main.querySelector<HTMLElement>('.image-stage')!, composer = main.querySelector<HTMLElement>('.composer')!, properties = document.getElementById('videoAttributes') as HTMLDetailsElement;
  properties.open = true; const viewContent = document.createElement('div'); viewContent.className = 'viewer-content'; viewContent.append(image, viewer);
  add('captions','Captions',document.getElementById('studioCaptions')!);add('edit-history','Edit history',document.getElementById('studioEditHistory')!);add('files','Project files',mountProjectFiles());add('stash','Stash',document.getElementById('stash')!);
- add('audio-create','Audio prompts',document.getElementById('studioAudioCreator')!);add('overlay-create','Overlay tools',document.getElementById('studioOverlayCreator')!);
+ add('audio-create','Audio prompt',document.getElementById('studioAudioCreator')!);add('overlay-create','Overlay tools',document.getElementById('studioOverlayCreator')!);
  add('edit-viewer','Edit viewer',document.getElementById('studioEditViewer')!);add('edit-controls','Edit controls',document.getElementById('studioEditControls')!);add('edit-versions','Edit versions',document.getElementById('studioEditVersions')!);
  const inspector=document.createElement('div');inspector.className='sequence-inspector';const identity=document.getElementById('videoTrackAttributes')!;identity.hidden=false;identity.className='scene-property-identity';inspector.append(identity);parking.append(inspector);
- add('stylization', 'Stylization', document.getElementById('studioStylization')!); add('elements', 'Elements', document.getElementById('studioElements')!); add('assets', 'Selected media', assets); add('viewer', 'Viewer', viewContent); add('prompts', 'Prompts', composer); add('keyframes', 'Image prompts', keys); add('timeline', 'Sequence', main.querySelector<HTMLElement>('.tlw')!); add('takes', 'Takes', main.querySelector<HTMLElement>('.hist')!);
+ add('stylization', 'Stylization', document.getElementById('studioStylization')!); add('elements', 'Elements', document.getElementById('studioElements')!); add('assets', 'Selected media', assets); add('viewer', 'Timeline viewer', viewContent); add('prompts', 'Video prompt', composer); add('keyframes', 'Image prompt', keys); add('timeline', 'Sequence', main.querySelector<HTMLElement>('.tlw')!); add('takes', 'Takes', main.querySelector<HTMLElement>('.hist')!);
  const sequenceBar = panels.get('timeline')!.querySelector('.window-titlebar')!;
  const sequenceTransport=document.createElement('div');sequenceTransport.className='sequence-transport';sequenceTransport.setAttribute('role','group');sequenceTransport.setAttribute('aria-label','Sequence playback position');
  for(const id of ['previousFrame','nextFrame','viewerTime']){const control=panels.get('viewer')!.querySelector<HTMLElement>('#'+id)!;sequenceTransport.append(id==='viewerTime'?control.closest('label')!:control)}

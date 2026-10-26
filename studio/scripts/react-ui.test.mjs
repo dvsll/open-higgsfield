@@ -106,6 +106,8 @@ try {
   );
   assert.ok(model.includes('Motion prompt: Available'));
   assert.ok(model.includes('Est: ~20s'));
+  const imageOnly=renderToStaticMarkup(createElement(ModelChooser,{groups:[{kind:'keyframe',label:'Image',selected:'i',rows:[]}],research:[],attach:()=>{},onChoose:()=>{},onClose:()=>{}}));assert.doesNotMatch(imageOnly,/Video seed|Video models/);assert.match(imageOnly,/Image models/);
+  const {ViewerTether}=await server.ssrLoadModule('/studio/src/react/viewer-tether.tsx');const tether=renderToStaticMarkup(createElement(ViewerTether,{target:'timeline',onChange:()=>{}}));assert.match(tether,/aria-label="Link Timeline viewer to a Sequence window"/);assert.doesNotMatch(tether,/<select|>Link sequence</);assert.match(tether,/viewer-pickwhip[^>]*aria-pressed="true"/);
   const chooser=renderToStaticMarkup(createElement(ModelChooser,{groups:[],research:[],attach:()=>{},onChoose:()=>{},onClose:()=>{},polisher:{id:'qwen',model:'Qwen3',available:true,cpuSupported:false,reason:''}}));assert.match(chooser,/<summary>Advanced<\/summary>/);assert.match(chooser,/text processing device/);assert.match(chooser,/CPU · unavailable for this workflow/);assert.match(chooser,/value="cpu" disabled/);
   const { HistoryView,PromptHistory } = await server.ssrLoadModule('/studio/src/react/history.tsx');
   const history = renderToStaticMarkup(

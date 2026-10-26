@@ -1,3 +1,4 @@
+import {searchInput,searchResults} from './semantic-search.ts';
 /**
  * Local generation API for both apps, as a Vite plugin (dev + preview).
  *
@@ -139,6 +140,8 @@ async function runWf(c: Comfy, wf: Parameters<Comfy['run']>[0], requestId?:strin
 // One job at a time on the GPU; small queue, then 429.
 let chain: Promise<unknown> = Promise.resolve();
 let queued = 0;
+const semanticCache=new Map<string,{model:string;results:{id:string;score:number}[]}>();
+let semanticPending=false;
 function serialize<T>(fn: () => Promise<T>): Promise<T> {
   if (queued >= MAX_QUEUE) throw new HttpError(429, "GPU busy, try again in a moment");
   queued++;
@@ -591,19 +594,35 @@ function middleware(env: Env,setup:RuntimeSetup,rewriter:PromptRewriter,creative
       if(route==='POST /api/compose-ad')return send(res,200,await composeAd(await readBody(req),OUTPUTS,env));
       if (route === 'GET /api/capabilities') return send(res,200,await capabilities(env));
       if (route === "GET /api/models") return send(res, 200, await localModels(env));
+      if(route==='GET /api/search'){
+        const nodes=await comfyJson(env,'/object_info');return send(res,200,{available:!!nodes.OSHSemanticSearch?.input?.required?.model?.[0]?.includes('MiniLM L6 · CPU'),model:'MiniLM L6 · CPU'});
+      }
+      if(route==='POST /api/search'){
+        let input;try{input=searchInput(await readBody(req))}catch(error:any){throw new HttpError(400,error.message)}
+        const key=JSON.stringify(input),cached=semanticCache.get(key);if(cached)return send(res,200,cached);
+        if(semanticPending||queued||setup.task.busy)throw new HttpError(409,'Local AI is busy. Showing text matches.');
+        semanticPending=true;
+        try{const nodes=await comfyJson(env,'/object_info');if(!nodes.OSHSemanticSearch?.input?.required?.model?.[0]?.includes('MiniLM L6 · CPU'))throw new HttpError(503,'Local semantic search needs setup. Showing text matches.');
+         await ensureProxy(env);const c=client(env),wf=c.workflows.fromJson(await loadGraph('semantic_minilm'));wf.setInput('1','query',input.query);wf.setInput('1','documents',JSON.stringify(input.documents.map(doc=>doc.text)));
+         const job=await serialize(()=>runWf(c,wf)),output=job.getOutputs('1')[0];if(!output)throw new HttpError(502,'Local search returned no scores.');
+         const raw=JSON.parse(Buffer.from(await output.toBytes()).toString('utf8')),result={model:'MiniLM L6 · CPU',results:searchResults(input.documents,raw.scores)};
+         if(semanticCache.size>=100)semanticCache.delete(semanticCache.keys().next().value!);semanticCache.set(key,result);return send(res,200,result);
+        }finally{semanticPending=false}
+      }
       if (route === 'GET /api/captions') {
         const nodes=await comfyJson(env,'/object_info');
-        return send(res,200,{available:!!nodes.LoadAudio&&!!nodes.OSHWhisperCaptions?.input?.required?.model?.[0]?.includes('Whisper Tiny · CPU'),model:'Whisper Tiny · CPU',setup:'Run shared/runtime/setup-captions.py with ComfyUI Python, then restart ComfyUI.'});
+        const models=(nodes.OSHWhisperCaptions?.input?.required?.model?.[0]||[]).filter((model:unknown)=>typeof model==='string'&&/^Whisper [\w.-]+ · CPU$/.test(model));
+        return send(res,200,{available:!!nodes.LoadAudio&&models.length>0,model:models[0]||null,models,setup:'Run shared/runtime/setup-captions.py with ComfyUI Python, then restart ComfyUI.'});
       }
       if (route === 'POST /api/captions') return send(res,200,await tracked(async body=>{
         if(typeof body.audio!=='string'||!/^\/outputs\/[a-f0-9]{16}\.(flac|wav|mp3|m4a|ogg|webm|mp4)$/.test(body.audio))throw new HttpError(400,'Select an audio or video file from this project.');
         const source=outputPath(body.audio);if(statSync(source).size>32*1024*1024)throw new HttpError(400,'Select audio under 32 MB and 10 minutes.');
-        const nodes=await comfyJson(env,'/object_info');if(!nodes.OSHWhisperCaptions?.input?.required?.model?.[0]?.includes('Whisper Tiny · CPU'))throw new HttpError(503,'Local captions need setup. Install the Studio caption node and Whisper Tiny, then restart ComfyUI.');
+        const nodes=await comfyJson(env,'/object_info'),models=nodes.OSHWhisperCaptions?.input?.required?.model?.[0]||[],model=body.model===undefined?models[0]:body.model;if(!nodes.LoadAudio||!models.length)throw new HttpError(503,'Install a local Whisper model and restart ComfyUI.');if(typeof model!=='string'||!models.includes(model))throw new HttpError(400,'Choose an installed caption model, then try again.');
         await ensureProxy(env);const c=client(env),wf=c.workflows.fromJson(await loadGraph('captions_whisper'));
-        wf.setInput('1','audio',c.assets.fromFile(source));const started=Date.now(),job=await serialize(()=>runWf(c,wf,body._requestId)),output=job.getOutputs('2')[0];
+        wf.setInput('2','model',model);wf.setInput('1','audio',c.assets.fromFile(source));const started=Date.now(),job=await serialize(()=>runWf(c,wf,body._requestId)),output=job.getOutputs('2')[0];
         if(!output)throw new HttpError(502,'The caption workflow returned no transcript.');
         const result=JSON.parse(Buffer.from(await output.toBytes()).toString('utf8'));
-        return {model:'Whisper Tiny · CPU',language:typeof result.language==='string'?result.language:null,duration:result.duration,seconds:(Date.now()-started)/1000,segments:captionSegments(result.segments)};
+        return {model,language:typeof result.language==='string'?result.language:null,duration:result.duration,seconds:(Date.now()-started)/1000,segments:captionSegments(result.segments)};
       }));
       if (route === 'GET /api/precision-image') {
         const catalog = await localModels(env), nodes = await comfyJson(env, '/object_info'), graph = await loadGraph('precision_zimage');

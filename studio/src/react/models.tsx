@@ -1,3 +1,4 @@
+import {NumberInput} from './number-input';
 import {modelDevice,setModelDevice,type TextDevice} from '../model-device';
 import { useEffect, useRef,useState,useLayoutEffect,useId } from 'react';
 import {createPortal} from 'react-dom';
@@ -119,7 +120,7 @@ export function ModelChooser({
         </div>
       ))}</section>)}
       <details className="model-selection-advanced"><summary>Advanced</summary>
-       <label>Video seed<input aria-label="Video seed" type="number" min={0} max={2147483647} step={1} value={seed} onChange={event=>{const value=Number(event.target.value);setSeed(value);if(event.target.checkValidity())dispatchEvent(new CustomEvent('osh-video-seed',{detail:value}))}}/></label>
+       {videoPreset&&<label>Video seed<NumberInput aria-label="Video seed" type="number" min={0} max={2147483647} step={1} value={seed} onChange={event=>{const value=Number(event.target.value);setSeed(value);if(event.target.checkValidity())dispatchEvent(new CustomEvent('osh-video-seed',{detail:value}))}}/></label>}
        {generation&&<div className="generation-preset"><span>Sampling steps</span><output aria-label="Video sampling steps">{generation.steps}</output><span>Workflow preset</span><p>{generation.stepNote}</p></div>}
        <p>Choose where text processing runs. GPU mode lets ComfyUI offload when needed. Image/video generation stays managed by your ComfyUI server.</p>
        <div className="model-compute-grid">{groups.flatMap(group=>group.rows.map(row=><ComputeSelect key={row.id} id={row.id} label={group.label+' · '+row.label}/>))}

@@ -1,3 +1,4 @@
+import {NumberInput} from './number-input';
 import type {ReactNode} from 'react';
 import {createPortal} from 'react-dom';
 import {AdvancedPrompt,PromptPolishButton} from './prompt-advanced';
@@ -57,7 +58,7 @@ export function DirectorSurface() {
           </section>
           <section className="viewer" aria-label="Video viewer">
             <div className="view">
-              <canvas id="cv"></canvas>
+              <canvas id="cv"></canvas><div className="viewer-unbound">No sequence linked</div>
               <video id="vid" muted playsInline preload="auto"></video><div id="overlayPreview" aria-label="Sequence overlays"/>
               <div className="empty" id="empty">
                 <div className="msg">
@@ -91,7 +92,7 @@ export function DirectorSurface() {
               </button>
               <label>
                 Time
-                <input
+                <NumberInput
                   id="viewerTime"
                   aria-label="Viewer time in seconds"
                   type="number"
@@ -155,7 +156,7 @@ export function DirectorSurface() {
                 </button>
                 <label className="audio-position">
                   Start (s)
-                  <input id="audioStart" type="number" min="0" max="600" step="0.01" disabled />
+                  <NumberInput id="audioStart" type="number" min="0" max="600" step="0.01" disabled />
                 </label>
                 <label>
                   <input type="checkbox" id="audioMute" /> Mute audio

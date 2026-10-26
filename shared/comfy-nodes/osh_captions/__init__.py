@@ -5,16 +5,18 @@ import os
 import uuid
 import folder_paths
 
-MODEL = os.path.join(folder_paths.models_dir, 'whisper', 'faster-whisper-tiny')
+MODEL_ROOT = os.path.join(folder_paths.models_dir, 'whisper')
+MODELS = {f'Whisper {name.title()} · CPU': os.path.join(MODEL_ROOT, 'faster-whisper-' + name) for name in ['tiny', 'base', 'small', 'medium', 'large-v3']}
+
+def installed_models():
+    return [label for label, path in MODELS.items() if all(os.path.isfile(os.path.join(path, name)) for name in ['model.bin', 'config.json', 'tokenizer.json'])]
 
 
 class OSHWhisperCaptions:
     @classmethod
     def INPUT_TYPES(cls):
-        ready = importlib.util.find_spec('faster_whisper') and all(
-            os.path.isfile(os.path.join(MODEL, name)) for name in ['model.bin', 'config.json', 'tokenizer.json']
-        )
-        return {'required': {'audio': ('AUDIO',), 'model': (['Whisper Tiny · CPU'] if ready else [],)}}
+        ready = installed_models() if importlib.util.find_spec('faster_whisper') else []
+        return {'required': {'audio': ('AUDIO',), 'model': (ready,)}}
 
     RETURN_TYPES = ()
     FUNCTION = 'transcribe'
@@ -22,6 +24,8 @@ class OSHWhisperCaptions:
     CATEGORY = 'Studio/Captions'
 
     def transcribe(self, audio, model):
+        if model not in installed_models():
+            raise ValueError('Choose an installed local Whisper model.')
         from faster_whisper import WhisperModel
         import torchaudio.functional
         import numpy as np
@@ -37,7 +41,7 @@ class OSHWhisperCaptions:
         language = None
         if np.max(np.abs(samples)) > 0.001:
             # CPU int8 deliberately avoids contention with video generation VRAM.
-            engine = WhisperModel(MODEL, device='cpu', compute_type='int8', cpu_threads=4, local_files_only=True)
+            engine = WhisperModel(MODELS[model], device='cpu', compute_type='int8', cpu_threads=4, local_files_only=True)
             stream, info = engine.transcribe(samples, beam_size=5, temperature=0, vad_filter=False, word_timestamps=True,
                                               condition_on_previous_text=False, no_speech_threshold=0.6)
             language = info.language
@@ -68,7 +72,7 @@ class OSHWhisperCaptions:
                     if not words:
                         segments.append({'start': start, 'end': end, 'text': text})
             del engine
-        payload = {'model': 'Whisper Tiny · CPU', 'language': language, 'duration': duration, 'segments': segments}
+        payload = {'model': model, 'language': language, 'duration': duration, 'segments': segments}
         folder = os.path.join(folder_paths.get_output_directory(), 'osh_captions')
         os.makedirs(folder, exist_ok=True)
         filename = uuid.uuid4().hex + '.json'

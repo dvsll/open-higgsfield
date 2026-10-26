@@ -57,7 +57,7 @@ export class WorkspaceStore {
    for(const id of [...this.dirtyBrands.keys()])await this.putBrand(this.brands.get(id)!);for(const id of [...this.dirtyProjects.keys()])await this.put(this.records.get(id)!);this.saved();
   }catch(e){this.failed(e);throw e;}finally{this.emit({busy:''});}}
  async switchProject(id:string){return this.run('Opening project',async()=>{if(!this.records.has(id))throw Error('Project is missing.');this.emit({activeId:id,error:''});this.rememberActive();});}
- async createProject(name:string){return this.run('Creating project',async()=>{const p=newProject(name);await this.projects.save(p);this.emit({activeId:p.id,error:''});this.rememberActive();return p;});}
+ async createProject(name:string,initialize?:(p:AdProject)=>void){return this.run('Creating project',async()=>{const p=newProject(name);initialize?.(p);await this.projects.save(p);this.emit({activeId:p.id,error:''});this.rememberActive();return p;});}
  async run<T>(label:string,operation:()=>Promise<T>){if(this.state.busy)throw Error('An operation is already running. Do not submit twice.');if(this.dead)throw Error('This workspace is closed.');this.emit({busy:label,error:''});try{await this.flush();if(this.dead)throw Error('The workspace closed before the operation started.');return await operation();}catch(e){this.emit({error:message(e)});throw e;}finally{this.emit({busy:''});}}
  report(e:unknown){this.emit({error:message(e)});}
  notify(notice:string){this.emit({notice});}

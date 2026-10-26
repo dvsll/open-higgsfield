@@ -1,13 +1,52 @@
 # Website-first blind-test readiness
 
-Tested implementation: **b6752b3f6117ef5a3e0108a6a805b7007b288f9e**.
+Website-first foundation tested at **b6752b3f6117ef5a3e0108a6a805b7007b288f9e**.
 Baseline: `3a6b343fbf6186c1a1456808e6333582e5c82012`.
-The following documentation commit changes no application code.
+Original readiness report: `bcb888366cae5400192deb814646f568ea2724b8`. The subsequent targeted repair below changes application code; use `git log -1 -- adstudio/src/ad-application.ts` for its exact commit.
 
 **Implementation/regressions PASS. Full readiness gate FAIL / NOT VERIFIED:**
 independent browser interaction, real browser image preparation, IndexedDB refresh
 and download completion remain unverified. No unfamiliar-website image job ran.
 Do not interpret service, HTTP or SSR tests as browser acceptance or image quality.
+
+## Targeted website/Develop/+ New repair (2026-10-26)
+
+**CPU implementation/regressions PASS; Chrome acceptance still NOT VERIFIED.**
+The earlier service/standalone-consent tests missed that the primary page never
+mounted WebsiteSourceConsent. It now does; no underlying rights/provenance gate
+was removed. Current selected-source metadata refreshes separately from the image,
+with project/source-bound confirmation and one relevant disabled-Develop reason.
+Optional count, arrangement, packaging, texture and style remain optional.
+
+Editing a different website immediately isolates the visible context. Old brand,
+images, facts, consent and plans remain saved, but are not presented as the new
+site. Failed discovery is scoped to the entered site; Return to saved brand
+restores A. Successful B research opens its own clean project and leaves A's
+website/source/history intact. Request identities and a pre-save context revision
+fence late research and both fresh/cached image promises. Provider reads are
+serialized; discarded reads cannot leave a permanently loading project on reopen.
+Same-site refresh keeps corrections/product IDs. No backend or shared API changes.
+
+Header **+ New** flushes queued edits, creates/activates a blank Product project,
+and explicitly suppresses the old sole-brand fallback. No photos, facts, permissions,
+plans, approval, history or website are inherited; old records remain selectable.
+Database version/origin and all generation/hash/approval contracts are unchanged.
+
+Two new regressions are in `npm run test:adstudio-ui`: actual application actions
+and primary React JSX with TEST-ONLY synchronous source hydration (SSR cannot run
+browser effects). They catch the former missing component, check two unchecked
+consents, verify the actual button's one-reason disabled/enabled states, and show
+A hidden under B and a clean + New. This is not live DOM/canvas/IndexedDB acceptance.
+Current targeted checks: UI6 +website5 +creative6 +Ad/shared17 +Director23 =57
+passing JS script files; production build/typecheck PASS. Private snapshots/actions,
+logs and preservation evidence: `outputs/workflow-switch-fix/`. No models, GPU calls,
+private uploads or generation. No Crumbs plan remains byte-identical/unapproved.
+
+Remaining unpaid Chrome check: refresh the SAME8301 profile; + New is blank;
+A -> B shows only B after discovery (and A restores through the selector); choose
+an authorized website photo, explicitly confirm accuracy/use rights, leave optional
+fields blank and click Develop once. It must reach Creative direction and survive
+refresh. Stop before Generate. No controller retry/workaround was performed.
 
 ## Acceptance evidence
 

@@ -1,14 +1,19 @@
 import {useEffect,useState,type FormEvent} from 'react';
-import type {AdApplication} from '../ad-application.ts';
+import {savedBrand,websiteKey,type AdApplication} from '../ad-application.ts';
 import {productImageChoices,type BrandProfile,type BrandProduct} from '../../../shared/lib/brand.ts';
 import type {WebsiteSource} from '../../../shared/lib/source-provenance.ts';
 export function WebsiteOnboarding({app,brand,projectId,address,disabled}:{app:AdApplication;brand?:BrandProfile;projectId:string;address:string;disabled:boolean}){
+ const project=app.store.getSnapshot().projects.find(p=>p.id===projectId),previous=project?savedBrand(project,app.store.getSnapshot().brands):undefined,request=app.websiteDiscovery(projectId),discovering=request?.state==='loading'&&websiteKey(request.url)===websiteKey(address);
  const [limit,setLimit]=useState(6);useEffect(()=>setLimit(6),[brand?.id]);
  const act=(work:()=>Promise<unknown>)=>void work().catch(e=>app.store.report(e));
  function submit(e:FormEvent){e.preventDefault();act(()=>app.discoverWebsite(address));}
  return <section className="website-onboarding" aria-label="Discover your business from its website">
-  <form onSubmit={submit}><label>Business website<input type="text" inputMode="url" autoCapitalize="off" value={address} maxLength={2048} disabled={disabled} placeholder="https://your-business.com" onChange={e=>act(()=>app.editWebsite(e.target.value))}/></label><button className="primary" type="submit" disabled={disabled||!address.trim()}>Discover brand & products <span>↗</span></button></form>
+  <form onSubmit={submit}><label>Business website<input type="text" inputMode="url" autoCapitalize="off" value={address} maxLength={2048} disabled={disabled} placeholder="https://your-business.com" onChange={e=>act(()=>app.editWebsite(e.target.value))}/></label><button className="primary" type="submit" disabled={disabled||!address.trim()||discovering}>Discover brand & products <span>↗</span></button></form>
   <p className="quiet-note">Public website only. Existing work opens separately when you research another business. Or enter your brand and upload a photograph below.</p>
+  {discovering&&<p role="status" className="quiet-note">Checking this website. Previous website results are kept separately.</p>}
+  {!brand&&address&&<p className="quiet-note">Discover this website to select its products. No previous brand or photograph will be used.</p>}
+  {!brand&&previous&&<button className="text-button" disabled={disabled} onClick={()=>act(()=>app.useBrand(previous.id))}>Return to saved {previous.dna.name||'brand'}</button>}
+  {!brand&&!previous&&address&&<button className="text-button" disabled={disabled} onClick={()=>act(()=>app.editWebsite(''))}>Start manually without a website</button>}
   {brand?.research&&<>
    <div className="section-label"><h2>{brand.dna.name||'Discovered website'}</h2><span>{brand.products.length} products</span></div>
    <p className="quiet-note">{brand.research.aiCompleted?'AI hypotheses are labeled in Brand profile.':'Website evidence collected · no AI brand analysis claimed.'}</p>
@@ -28,12 +33,11 @@ function WebsiteProduct({app,brand,product,disabled,projectId}:{app:AdApplicatio
   {product.sourceUrl&&<a className="text-button" href={product.sourceUrl} target="_blank" rel="noreferrer noopener">Product source ↗</a>}
  </article>;
 }
-export function WebsiteSourceConsent({app,sourceId,revision,disabled,changed}:{app:AdApplication;sourceId:string;revision:number;disabled:boolean;changed:()=>void}){
- const [state,setState]=useState<{key:string;value?:WebsiteSource}>({key:''}),key=sourceId+':'+revision;
- useEffect(()=>{let stale=false;void app.store.asset(sourceId).then(asset=>{if(!stale)setState({key,value:asset?.provenance});}).catch(e=>app.store.report(e));return()=>{stale=true;};},[app,key,sourceId]);
- const p=state.key===key?state.value:undefined;if(!p)return null;
- const confirm=(accuracy:boolean,permission:boolean)=>void app.confirmWebsiteSource(accuracy,permission).then(changed).catch(e=>app.store.report(e));
- return <WebsiteSourcePermission value={p} disabled={disabled} confirm={confirm}/>;
+export function WebsiteSourceConsent({app,projectId,sourceId,value,loading=false,disabled,changed}:{app:AdApplication;projectId:string;sourceId:string;value?:WebsiteSource;loading?:boolean;disabled:boolean;changed:()=>void}){
+ if(loading&&sourceId)return <p className="quiet-note" role="status">Checking photograph permissions...</p>;
+ if(!value)return null;
+ const confirm=(accuracy:boolean,permission:boolean)=>void app.confirmWebsiteSource(accuracy,permission,{projectId,sourceId}).then(changed).catch(e=>app.store.report(e));
+ return <WebsiteSourcePermission value={value} disabled={disabled} confirm={confirm}/>;
 }
 export function WebsiteSourcePermission({value:p,disabled,confirm}:{value:WebsiteSource;disabled:boolean;confirm:(accuracy:boolean,permission:boolean)=>void}){
  return <section className="fact-confirm" aria-label="Website photograph permission"><p>Website-sourced input · original bytes retained. Public access does not grant commercial-use rights.</p><a href={p.pageUrl} target="_blank" rel="noreferrer noopener">Review source page ↗</a><label className="check-label"><input type="checkbox" checked={p.accuracyConfirmed} disabled={disabled} onChange={e=>confirm(e.target.checked,p.permissionConfirmed)}/>I checked the photograph: it shows the selected product. I will correct any visible facts below.</label><label className="check-label"><input type="checkbox" checked={p.permissionConfirmed} disabled={disabled} onChange={e=>confirm(p.accuracyConfirmed,e.target.checked)}/>I have permission to use this photograph in an advertisement.</label><small>Neither checkbox confirms unseen ingredients, image quality, or all photo observations. Review the final direction separately.</small></section>;

@@ -30,6 +30,12 @@ for(const [name,input]of [['A-nine-roll-no-SKU',bakery],['B-synthetic-bottle',bo
 // Reject semantic collapse and narrative leakage, not merely identical IDs.
 const ctx=creativeContext(bakery),raw=mockConcepts(bakery);raw.concepts[1].composition=raw.concepts[0].composition;raw.concepts[1].environment=raw.concepts[0].environment;raw.concepts[1].lighting=raw.concepts[0].lighting;assert.throws(()=>validateCreativeConcepts(raw,ctx),/labels|similar/);
 const leak=mockConcepts(bakery);leak.concepts[0].idea=bakery.brand.dna.description;assert.throws(()=>validateCreativeConcepts(leak,ctx),/description/);
+// Failure shapes observed during the first REAL Qwen3 local run (raw response
+// retained privately). These are synthetic reproductions, never repaired/promoted
+// into approved model output. Unknown keys and unconfirmed evidence fail closed.
+const spaced=mockConcepts(bottle);spaced.concepts[0][' hierarchy']=spaced.concepts[0].hierarchy;delete spaced.concepts[0].hierarchy;assert.throws(()=>validateCreativeConcepts(spaced,creativeContext(bottle)),/identity/);
+const unchecked={...bottle,facts:{...bottle.facts,confirmed:false}},wrongEvidence=mockConcepts(unchecked);wrongEvidence.concepts[0].evidenceIds=['photo'];assert.throws(()=>validateCreativeConcepts(wrongEvidence,creativeContext(unchecked)),/Ungrounded/);
+const claim=mockConcepts(bottle);claim.concepts[0].composition='Bottle centered, surrounded by organic materials.';assert.throws(()=>validateCreativeConcepts(claim,creativeContext(bottle)),/Unsupported/);
 const controls=creativeContext(hard);const bad=mockConcepts(hard);bad.concepts[0].camera='Change the angle and rotate the package.';assert.throws(()=>validateCreativeConcepts(bad,controls),/viewpoint/);
 const honest=mockConcepts(bakery).concepts;honest[2].scores={impact:5,relevance:5,accuracy:5,feasibility:5};assert.equal(assembleCreativePlan(bakery,honest,{mode:'local-ai',reason:'MOCK ONLY'},'4'.repeat(16)).selectedId,honest[0].id,'Self-scores cannot determine the recommendation');
 // Native schema and SaveText serialization, not a guessed node-name check.

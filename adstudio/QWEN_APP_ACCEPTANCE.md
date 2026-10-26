@@ -1,5 +1,12 @@
 # Qwen real-app acceptance: current status and retained preparation history
 
+Latest2026-10-26 authorized execution stopped at its local text prerequisite:
+official Qwen3 encoder installed/exact SHA verified; real native inference~70s
+completed but returned contract-invalid concepts, so the app correctly fell back.
+No new Pod, private upload or image generation; no fresh campaign review claimed.
+The one paid-session authorization was not used. See CREATIVE_ENGINE latest
+activation. Nothing here authorizes reusing a previous paid lease or request.
+
 Current2026-10-26: one real app image completed October25 through the owner-click
 SDK/proxy path, with verified raw/provenance/local collection and Pod deletion.
 See notes/adstudio.md. The owner subsequently accepted the simplified React

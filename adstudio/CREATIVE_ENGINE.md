@@ -1,5 +1,31 @@
 # Creative engine V1
 
+## Latest real activation — 2026-10-26
+
+Owner-authorized **single encoder install completed**: 5,631,994,051bytes,
+SHA256 `72450b19758172c5a7273cf7de729d1c17e7f434a104a00167624cba94f68f15`.
+Existing Desktop ComfyUI/proxy started on loopback8188/8189; actual app status
+passed weights/loader/text/output checks. No other weights or dependencies installed.
+
+The real local text-only SDK check ran: native Comfy job
+`e8e6c042-8973-4161-8405-1a5e67ffbca2`, about69.96s native /70.673s application.
+Inference completed and produced JSON, but **usable creative planning FAILED**.
+Raw keys included ` hierarchy`, ` environment`, ` camera`, ` evidenceIds`.
+The output also cited the unconfirmed `photo` observation and used “organic
+materials,” which the current conservative assertion filter rejects. The first
+reported error was Invalid concept identity (unknown keys), not a GPU/model-load
+or transport failure. No trimming, evidence relabeling or semantic repair was
+applied. The app correctly returned an explicitly deterministic fallback.
+
+Per the owner's stop-on-local-planning-failure instruction: **no Pod was created,
+no private source transferred, no image job submitted, no paid approval enabled**.
+Fresh No Crumbs campaign review was not claimed. No automatic inference retry.
+Evidence: `outputs/creative-live-20261026/{encoder-install.json,local-inference-diagnosis.json,synthetic-model-response.txt,synthetic-planning.json}`.
+Focused synthetic CPU regressions preserve rejection of these failure shapes.
+The next repair needs a stricter model-facing schema/example and explicit allowed
+evidence IDs, followed by a separately deliberate text validation; do not weaken
+source review or the unsupported-claim gates to call this run successful.
+
 Functional UX: `AdApplication` orchestrates inline brand creation + Develop,
 source-specific fact reuse, saved stage/refinement, current-direction validation,
 and `exportAndDownload` (compose→verify→durable history→readback→download request).
@@ -92,9 +118,10 @@ semantic proof: proposals require review. Fidelity controls remain model request
 
 Offline/missing weights/invalid output yields explicitly labeled deterministic
 suggestions with the actual reason. No AI analysis or image output is simulated.
-On this PC (2026-10-26), ComfyUI is offline and the required
+At the earlier pre-install inspection on this PC (2026-10-26), ComfyUI was offline and the required
 `qwen_3_4b_fp8_mixed.safetensors` encoder is absent from configured model paths.
-**Real text inference NOT RUN.** No model/dependency added or downloaded.
+**At that earlier checkpoint, real text inference was NOT RUN.** Latest activation
+above supersedes model availability and execution status; historical evidence remains.
 
 ## Evidence
 
@@ -150,11 +177,13 @@ File `models/text_encoders/qwen_3_4b_fp8_mixed.safetensors`, approximately5.63GB
 published SHA256 `72450b19758172c5a7273cf7de729d1c17e7f434a104a00167624cba94f68f15`.
 Do not download the whole Z-Image image pack just to enable text planning.
 
-This PC: RTX3080 10GiB (~8GiB free at inspection), Desktop shared text-encoder
-folder contains only T5XXL. Current core nodes imported on CPU and exported their
+Earlier inspection: RTX3080 10GiB (~8GiB free), Desktop shared text-encoder
+folder contained only T5XXL. Current core nodes imported on CPU and exported their
 actual schemas: CLIPLoader lumina2/default, TextGenerate system/template/thinking/
 greedy/max-token support and SaveText JSON all pass; Qwen3 weight check fails.
-No model inference occurred. Evidence: `outputs/creative-quality-tests/installed-node-*`.
+No model inference occurred in that schema check. Evidence:
+`outputs/creative-quality-tests/installed-node-*`. The later approved installation
+and real inference outcomes are recorded at the top of this document.
 
 After separate installation approval, download **only that encoder** from the
 linked official repository into the connected ComfyUI's text_encoders folder,

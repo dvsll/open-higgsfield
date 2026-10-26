@@ -7,7 +7,7 @@ No mock progress or historical output disguised as a live generation.
 | Time | Real screen/action | Explanation |
 |---|---|---|
 | 0–15s | Saved brand and genuine original | Local project retains originals. Correct nine-roll source, no two-roll SKU. |
-| 15–35s | Develop; inspect actual provider label | Three visual approaches. Say “rule-based” if Qwen3 remains absent. Only describe AI planning after a real local text verification passes. |
+| 15–35s | Develop; inspect actual provider label | Three visual approaches. Say “rule-based fallback” when model output fails validation, even though Qwen3 is installed. Only describe successful AI planning after a real validated text result passes. |
 | 35–55s | Alternative/refinement and explicit review | Owner corrects facts and creative direction. Advanced shows model prompt separate from evidence. |
 | 55–75s | Open historical real Qwen take; compare original | Label “previous real generation.” Explain SDK/proxy and pinned source/model/workflow provenance. No Generate click without new authorization. Missing weights still block new work. |
 | 75–100s | Edit copy/format; fidelity review; Export PNG | Actual PNG and saved export. Text/logo composition is separate, without another image inference. |

@@ -30,7 +30,7 @@ generation. See [contracts](../shared/workflows/CONTRACT.md).
 | Capability | Requirement and actual evidence |
 |---|---|
 | Source-led baseline planning | No model. Explicitly deterministic suggestions, no photo analysis. |
-| Optional local AI creative planning | Qwen3 4B FP8, Apache-2.0; one 5.63 GB encoder and native CLIPLoader/TextGenerate/SaveText nodes. Installed schemas verified; encoder absent on this PC; genuine Ad Studio text planning NOT RUN. [Setup](CREATIVE_ENGINE.md#local-text-planning-setup). |
+| Optional local AI creative planning | Qwen3 4B FP8, Apache-2.0; one 5.63 GB encoder and native CLIPLoader/TextGenerate/SaveText nodes. Encoder installed/checksum verified; real local inference completed but its concepts failed schema/evidence validation. App honestly used deterministic fallback. [Actual activation evidence](CREATIVE_ENGINE.md#latest-real-activation--2026-10-26). |
 | Reference-conditioned photograph | Qwen-Image-Edit-2511 FP8, Apache-2.0; three pinned files, 30.17 GB, API-readable matching model directory. One A40 48 GB app execution proved historically; local weights absent. [Pins](../shared/workflows/hero_qwen2511_contract.json), [integration](QWEN_HERO_INTEGRATION.md). |
 | PNG composition/export | CPU Resvg. Verified PNG, saved immutable history and download request; OS download completion is browser acceptance. |
 | Optional Camera/video tools | FFmpeg Camera is deterministic 2D motion. LTX-2B Creative failed commercial-motion acceptance. Historical LTX-2.5 feasibility is not a product-fidelity guarantee. |

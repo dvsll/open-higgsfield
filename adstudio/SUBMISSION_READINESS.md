@@ -4,12 +4,27 @@ Functional UI frozen. Simplified React concept selection/confirmation and
 historical-image export: **OWNER-REPORTED PASS**, not independent browser control.
 8301 origin, IndexedDB v3, original Blobs, takes and exports are unchanged.
 
+Latest authorized activation: official5.63GB Qwen3 encoder installed/exact SHA
+verified. App availability PASS; actual native text inference completed in~70s,
+but emitted unknown whitespace-prefixed keys and unconfirmed evidence references.
+Creative planning failed closed to labeled fallback. Per the owner's explicit
+stop condition, no campaign image/Pod/private transfer/spend occurred. Model
+absence is resolved; model-output compliance is now the local planning blocker.
+See CREATIVE_ENGINE latest activation and private outputs/creative-live-20261026/.
+
+Verification:35 relevant CPU script files pass. Build passed the execution
+baseline588b9dc. After preserving collaborator main27dc7f7, integrated build is
+blocked by its newly declared `three@0.186.1` / `@types/three@0.186.0` packages
+being absent in this checkout. No Director source was changed/reverted and no
+unrelated dependency installed under the encoder-only installation permission.
+This dependency-sync issue is separate from the observed model-output failure.
+
 ## Demonstrable today
 
 - Real brand/project/original storage, saved history and CPU PNG composition.
 - Three distinct, explicitly deterministic campaign concepts. Optional native
   Qwen3 text integration has schema/SDK/parsing/contract tests; this machine's
-  encoder is missing, so actual Ad Studio local AI planning is **NOT RUN**.
+  encoder is now installed; actual inference ran, but valid AI planning **FAILED**.
 - Source/brand-aware concept → concise Qwen prompt, separate internal evidence,
   fresh explicit review, automatic availability and paid-session gates.
 - One historical real app Qwen photograph, seed42, source/model/workflow hashes,
@@ -62,7 +77,7 @@ remain based on the repository's October19 review and require submitter review.
 | LTX bonus | Still-image-first demo alone does not establish eligibility; show the actual core video workflow if entering. No new LTX quality claim. |
 | Commercial campaign quality | NOT PASSED. Prompt specificity/controllability improved; no new generated photograph or owner quality approval. |
 
-Next boundaries: authorize/install the optional single Qwen3 encoder and evaluate
-real local text, or retain truthful deterministic suggestions. A new private-image
+Next boundary: diagnose/fix structured-output compliance and validate genuine
+local text, while retaining truthful deterministic suggestions. A new private-image
 campaign test needs fresh in-app facts/direction review and separate execution
 approval. Never reuse historical paid leases or consumed approvals.

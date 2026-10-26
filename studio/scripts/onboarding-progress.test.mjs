@@ -98,3 +98,9 @@ review(()=>true,waiting,viewed,{readyState:1,duration:4,currentTime:4},step=>nex
 review(()=>true,waiting,viewed,{readyState:4,duration:4,currentTime:1},step=>next=step);assert.equal(next,'');
 review(()=>true,waiting,{...viewed,video:'other'},{readyState:4,duration:4,currentTime:4},step=>next=step);assert.equal(next,'');
 review(()=>true,waiting,viewed,{readyState:4,duration:4,currentTime:3.99},step=>next=step);assert.equal(next,'switch-image');assert.equal(waiting.videoReviewed,true);
+const pauseSource=source.split('\n').find(line=>line.startsWith('function reviewPausedFirstVideo'));
+let pausedStage='';const pausedTour={step:'watch-video',shotId:'scene',firstVideo:'/outputs/clip.webm'};
+let pausedVideo={readyState:4,seeking:false,currentTime:0,src:'http://localhost/outputs/clip.webm'};
+const pauseReview=new Function('$','touring','onboarding','SH','advanceTour',pauseSource+';reviewPausedFirstVideo()');
+const runPause=()=>pauseReview(()=>pausedVideo,()=>true,pausedTour,[{id:'scene',video:'/outputs/clip.webm'}],step=>pausedStage=step);
+runPause();assert.equal(pausedStage,'','initial paused state does not interrupt viewing');pausedVideo.currentTime=1;pausedVideo.seeking=true;runPause();assert.equal(pausedStage,'');pausedVideo.seeking=false;runPause();assert.equal(pausedStage,'switch-image');assert.equal(pausedTour.videoReviewed,true);

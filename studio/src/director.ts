@@ -247,7 +247,8 @@ $('#shotPromptInput').oninput=e=>{currentShot().prompt=e.target.value;if(current
 // Starts paused. Play runs to the end (of the sequence, or of the opened shot) and stops; pressing play at the end restarts.
 const span=()=>clipSelected&&selectedTrack==="audio"&&currentShot().audioLinked===false?[currentShot().audioStart??start(cur),(currentShot().audioStart??start(cur))+(currentShot().audioDuration||currentShot().d)]:clipSelected?[start(cur),start(cur)+currentShot().d]:open!=null?[start(open),start(open)+SH[open].d]:[0,tot()];
 function setPlaying(v){playing=v&&tot()>0;v=playing;renderView($('#play'),h(Glyph,{path:v?'M8 5v14M16 5v14':'M8 5l11 7-11 7z'}));$('#play').setAttribute('aria-label',v?'Pause':'Play');$('#play').setAttribute('aria-pressed',String(v))}
-$('#play').onclick=()=>{if(!playing){const[a,b]=span();if(G>=b-.06||G<a)G=a}setPlaying(!playing)};setPlaying(false);
+function reviewPausedFirstVideo(){const video=$('#vid');if(!touring()||onboarding.step!=='watch-video'||video.readyState<2||video.seeking||video.currentTime<=0)return;const s=SH.find(shot=>shot.id===onboarding.shotId);if(!s||s.video!==onboarding.firstVideo||!video.src.endsWith(s.video))return;onboarding.videoReviewed=true;advanceTour('switch-image')}
+$('#play').onclick=()=>{const pausing=playing;if(!playing){const[a,b]=span();if(G>=b-.06||G<a)G=a}setPlaying(!playing);if(pausing)reviewPausedFirstVideo()};setPlaying(false);
 // ---------- generate video from keyframes ----------
 // ---------- prompts for the real models ----------
 const EL_P={mia:'Mia, a 10-year-old girl in a yellow raincoat',bolt:'Bolt, a small boxy grey robot with round eyes',yard:'a junkyard full of scrap piles',street:'an empty lamplit street',room:"Mia's bedroom with a desk and a lamp"};
@@ -365,7 +366,6 @@ $('#captureKeyframe').onclick=async()=>{
  const t=Math.min(s.d,Math.max(0,video.currentTime));
  if(keyframeAtFrame(s.keys,t,s.fps||24))return;
  capturingFrame=true;frameCaptureState();
- if(touring()&&onboarding.step==='watch-video'&&s.id===onboarding.shotId&&s.video===onboarding.firstVideo&&vid.readyState>=2&&Number.isFinite(vid.duration)&&vid.currentTime>=vid.duration-.15){onboarding.videoReviewed=true;advanceTour('switch-image')};
  try{
   const image=captureViewerFrame(video),result=await OSH.upload(image);
   const index=SH.indexOf(s);if(index<0||s.video!==url)throw new Error('The scene changed while saving. Try again on its current video.');

@@ -1,5 +1,45 @@
 # Workflow contract
 
+## Catalog V2 / source-first interpretation (2026-10-26, additive)
+
+`ProductDiscovery.method` additionally accepts `product-card`, `item-list`, and
+`storefront-data`; optional `linked` distinguishes a declared product link from a
+fallback evidence-page URL. Product-card proof binds a meaningful bounded container,
+not arbitrary nearby page text. Public JSON is parsed, never executed. Variants
+deduplicate by canonical own product URL. New methods use the same fresh source
+revalidation, bounded raster transport, hashes and separate rights/accuracy gates.
+
+BrandResearch v1 optionally adds `identity:{name,url}`, `catalogSources` (up to4
+URL/title/hash-only records, text empty), `catalog` coverage/timing/partial reasons,
+`analysisKey`, `analysisFingerprint` and `analysisMs`. Up to4 text sources plus4
+compact catalog sources are validated together for product/image references.
+Caps remain40 products/40 image refs;8 collected HTML pages,10 page attempts,
+25s collection scheduling window,3MiB per HTML (raised from1.2MB),300KB CSS/5MiB
+raster and existing redirect/timeout/DNS defenses. In-flight reads can add timeout
+latency. Robots policy is read with the same protected reader and cached; specific
+agent / longest path rules are respected. No authentication or anti-bot bypass.
+Coverage is a public snapshot, never complete inventory/availability certification.
+
+React POST `/api/brand/research` `{website,analyze:false,deferAnalysis:true}` returns
+products first, with `analysisState:"pending"` and a server-issued receipt. Optional
+POST `/api/brand/analyze` `{key}` uses only server-retained evidence and returns its
+validated result. States are pending/completed/unavailable/failed. Concurrent/repeated
+receipts and identical model input share one attempt via a16-entry/30min process
+cache; failures are cached, no silent retry. Unavailable status can be rechecked on
+a new discovery. Expired/unknown receipt =>409; malformed key =>400. API restart
+expires volatile receipts; existing project/catalog data is retained. Legacy callers
+without `deferAnalysis` keep synchronous semantics; `analyze:false` stays source-only.
+
+Source delivery is independent of text inference. Background results require matching
+brand/receipt/fingerprint and preserve current customer edits/assets. Pending receipt
+resume after refresh does not resubmit a model job. Same-business root/catalog matching
+uses source-backed identity plus conservative tenant boundaries, with a constrained
+legacy path for older profiles. Same-brand research retains active directions/history/
+sources/permissions. Changed full snapshots make review stale; no automatic reapproval.
+Selected image proofs are explicitly minimal (one source/product/image), omit analysis
+and catalog payloads and retain the original64KiB API limit. IndexedDB v3 and Director,
+generation, editing, model/setup, budget, one-job and export contracts remain unchanged.
+
 ## Editable brand intelligence (2026-10-26, additive)
 
 React discovery now requests `analyze:true`. The default brand backend reuses the

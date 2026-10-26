@@ -1,5 +1,5 @@
 // Portable Ad Studio planning/compilation. No inference, UI or storage side effects.
-import {validateBrand,brandFieldStatus,brandContext,type BrandProfile} from './brand.ts';
+import {validateBrand,brandFieldStatus,brandContext,researchSources,type BrandProfile} from './brand.ts';
 import {briefDefaults,effectiveControls,newGenerationDraft,recompileDraft,prepareConciseDraft,signalsFromBrand,validateBriefInput,type BriefControls,type BriefInput,type SourceFacts,type GenerationDraft,type Intent} from './product-brief.ts';
 import {heroDefaults,type HeroSettings} from './hero-ad.ts';
 import {newStaticDesign,staticSizes,staticSVG,type StaticDesign,type StaticConcept} from './static-ad.ts';
@@ -37,7 +37,7 @@ export function creativeContext(input:CreativeInput):CreativeContext{
  validateCreativeInput(input);const b=input.brand,context=brandContext(b,input.productId?[input.productId]:['__unmapped__']);
  const facts:CreativeFact[]=[{id:'photo',text:[input.facts.description,input.facts.texture,input.facts.container,`Count: ${input.facts.count??'unknown'}. ${input.facts.arrangement}`].join('\n'),kind:input.facts.confirmed?'owner':'unconfirmed',sourceIds:[]}];
  for(const field of ['name','description','story','tone','visualStyle','positioning','audience','differentiators','guidelines','messaging','creativePreferences'] as const){const value=b.dna[field];if(!value?.trim())continue;const status=brandFieldStatus(b,field),o=b.research?.observations.find(o=>o.field===field);facts.push({id:'brand-'+field,text:value.slice(0,1000),kind:status==='inferred'?'inferred':status==='source'?'source':'owner',sourceIds:status==='user'||status==='reviewed'?[]:o?.sourceIds||[]});}
- if(context.products[0]){const p=context.products[0],proof=!p.overrides?.length&&p.discovery&&b.research?.sources.some(s=>s.id===p.discovery!.sourceId);facts.push({id:'product',text:p.name+': '+p.description+(p.sellingPoints?'\nSelling points ('+(p.overrides?.includes('sellingPoints')?'customer input':'website statement')+'): '+p.sellingPoints:''),kind:proof?'source':p.overrides?.length||!p.sourceUrl?'owner':'unconfirmed',sourceIds:proof?[p.discovery!.sourceId]:[]});}
+ if(context.products[0]){const p=context.products[0],proof=!p.overrides?.length&&p.discovery&&b.research&&researchSources(b.research).some(s=>s.id===p.discovery!.sourceId);facts.push({id:'product',text:p.name+': '+p.description+(p.sellingPoints?'\nSelling points ('+(p.overrides?.includes('sellingPoints')?'customer input':'website statement')+'): '+p.sellingPoints:''),kind:proof?'source':p.overrides?.length||!p.sourceUrl?'owner':'unconfirmed',sourceIds:proof?[p.discovery!.sourceId]:[]});}
  const missing=['name','description','tone','visualStyle'].filter(k=>!b.dna[k as keyof typeof b.dna]?.trim());if(!input.facts.confirmed)missing.push('photo observations need owner confirmation');
  // Copy is constrained to grounded identity/excerpts and clearly non-factual
  // creative language. The model cannot invent printed offers/ingredients/claims.

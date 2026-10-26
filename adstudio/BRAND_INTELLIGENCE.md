@@ -1,5 +1,8 @@
 # Saved websites and editable brand intelligence
 
+> Catalog V2 update: see [CATALOG_DISCOVERY_V2.md](CATALOG_DISCOVERY_V2.md). React now returns products before optional receipt-bound text interpretation, preserves same-brand page navigation, and reports bounded/partial coverage. The original analysis evidence below is retained; the latest real Abel text attempt timed out and is not an AI success.
+
+
 The primary React journey remains Product → Direction → Review/export. On the
 product step, **Saved websites** reopens that business's latest project, selected
 original, photo permissions, plans and takes. The existing project selector still

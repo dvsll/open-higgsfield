@@ -148,3 +148,14 @@ real local Qwen3 text analysis. See BRAND_INTELLIGENCE.md for actual evidence an
 limitations. Three-site service/storage and React SSR regressions pass. These do
 not establish Chrome IndexedDB/canvas/interactive acceptance; the full gate above
 remains unverified. No controller retry or image inference in this milestone.
+
+## Intelligent catalog V2 (2026-10-26)
+
+Real Abel discovery now returns all12 public perfumes;12 photographs were freshly
+revalidated/downloaded/decoded. Arduino40 linked/usable-image records is explicitly
+partial at the40-product limit. Products arrive before optional text interpretation.
+One real local Qwen3 attempt timed out at180s; failure/cache/cleanup are recorded,
+not an AI-analysis success. Same-brand legacy collection/homepage matching and
+source/permissions/palette/history preservation pass controlled application tests.
+See CATALOG_DISCOVERY_V2.md and private outputs/catalog-v2. Browser acceptance
+remains NOT VERIFIED; no blocked controller was retried.

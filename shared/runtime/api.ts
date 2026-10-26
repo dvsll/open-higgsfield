@@ -64,7 +64,7 @@ function applyResolved(graph:Record<string,any>,resolved:Resolved){
 import { identifyHardware, serverTiming, recordRender } from './render-timings.ts';
 import { productFormats, productPlan, renderProduct, ProductRenderError, type ProductRatio, type ProductMode, type CameraMotion } from './product-video.ts';
 import {importMedia,composeAd,ComposeError,mediaTypes} from './ad-compose.ts';
-import {analysisStatus,researchBrand,collectBrandImage} from './brand-research.ts';
+import {analysisStatus,collectBrandImage} from './brand-research.ts';
 import {BrandError} from './brand-web.ts';
 import {exportStaticAd,StaticAdError} from './static-ad.ts';
 import {finishHero,exportHeroAd,heroSource,heroSha,HeroError} from './hero-ad.ts';
@@ -73,6 +73,7 @@ import {generateQwenHero,qwenAvailability,verifyWeightFiles,qwenContract} from '
 import {qwenSDKTransport} from './qwen-sdk.ts';
 import {createQwenRelay} from './qwen-relay.ts';
 import {acceptanceGate,acceptanceRequest,claimAcceptanceJob} from './qwen-app-session.ts';
+import {createBrandService} from './brand-service.ts';
 import {brandBackendStatus} from './brand-analysis.ts';
 import {createCreativeEngine,creativeTextStatus,creativeTextRouting,creativeSDKText,creativeTextDeadlineMs,CreativeError,type CreativeBackend} from './creative-engine.ts';
 
@@ -553,7 +554,7 @@ function sameToken(a: string | undefined, b: string): boolean {
 
 function requirePathSeparator(){return process.platform==='win32'?'\\':'/';}
 
-function middleware(env: Env,setup:RuntimeSetup,rewriter:PromptRewriter,creative:ReturnType<typeof createCreativeEngine>,brandBackend:CreativeBackend): Connect.NextHandleFunction {
+function middleware(env: Env,setup:RuntimeSetup,rewriter:PromptRewriter,creative:ReturnType<typeof createCreativeEngine>,brandBackend:CreativeBackend,brand:ReturnType<typeof createBrandService>): Connect.NextHandleFunction {
   const token = env.OSH_TOKEN || "";
   const session=env.QWEN_APP_SESSION_DIR?resolve(env.QWEN_APP_SESSION_DIR):'';
   if(env.QWEN_APP_RELAY_URL&&(!session.startsWith(OUTPUTS+requirePathSeparator())||!session.endsWith(requirePathSeparator()+'session')))throw new Error('Qwen acceptance session must be an outputs/.../session folder.');
@@ -627,7 +628,8 @@ function middleware(env: Env,setup:RuntimeSetup,rewriter:PromptRewriter,creative
       if(route==='GET /api/prompt-rewriter')return send(res,200,await rewriter.status());
       if(route==='POST /api/prompt-rewriter'){const body=await readBody(req);return send(res,200,await rewriter.rewrite(body.prompt,body.details,body.device));}
       if(route==='GET /api/brand/status')return send(res,200,await (env.ADSTUDIO_BRAND_MODEL?analysisStatus(env):brandBackendStatus(brandBackend)));
-      if(route==='POST /api/brand/research')return send(res,200,await researchBrand(await readBody(req),env,undefined,env.ADSTUDIO_BRAND_MODEL?undefined:brandBackend));
+      if(route==='POST /api/brand/research')return send(res,200,await brand.discover(await readBody(req)));
+      if(route==='POST /api/brand/analyze')return send(res,200,await brand.analyze(await readBody(req)));
       if(route==='POST /api/brand/image')return send(res,200,await collectBrandImage(await readBody(req)));
       if(route==='GET /api/brand/demo'){
         const file=join(OUTPUTS,'brand-demo','demo.json');if(!existsSync(file))return send(res,404,{error:'No private local brand demo has been prepared.'});
@@ -766,16 +768,16 @@ export function comfyApi(env: Env): Plugin {
    status:async()=>{try{creativeTextRouting(env);}catch(e){return {available:false,model:promptModel,reason:(e as Error).message};}return creativeTextStatus(await comfyJson(env,'/object_info').catch(()=>({})));},
    generate:async(system,content)=>{creativeTextRouting(env);if(queued>0||setup.task.busy)throw new CreativeError(409,'Local generation/setup is busy. Finish it before creative planning.');await ensureProxy(env);if(queued>0||setup.task.busy)throw new CreativeError(409,'Local generation/setup is busy. Finish it before creative planning.');const c=client(env);return creativeSDKText(c,await loadGraph('prompt_polish'),system,content,wf=>serialize(()=>runWf(c,wf,undefined,false,creativeTextDeadlineMs)));}
   };
-  const creative=createCreativeEngine(OUTPUTS,creativeBackend);
+  const creative=createCreativeEngine(OUTPUTS,creativeBackend),brand=createBrandService(env,creativeBackend);
   return {
     name: "osh-comfy-api",
     async configureServer(server) {
-      server.middlewares.use(middleware(env,setup,rewriter,creative,creativeBackend));
+      server.middlewares.use(middleware(env,setup,rewriter,creative,creativeBackend,brand));
       if(setup.config?.mode==='managed'||setup.config?.launchDirectory)setup.start();
       else void (async()=>{if (!(await up((env.COMFYUI_URL || "http://127.0.0.1:8188") + "/system_stats"))) console.warn("[api] ComfyUI not reachable; open Local setup in Studio.");else await ensureProxy(env)})().catch(error=>console.warn('[setup]',error.message));
     },
     async configurePreviewServer(server) {
-      server.middlewares.use(middleware(env,setup,rewriter,creative,creativeBackend));
+      server.middlewares.use(middleware(env,setup,rewriter,creative,creativeBackend,brand));
       if(setup.config?.mode==='managed'||setup.config?.launchDirectory)setup.start();else void ensureProxy(env).catch(error=>console.warn('[setup]',error.message));
     },
   };

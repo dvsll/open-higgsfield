@@ -41,6 +41,7 @@ export function AdStudio({app,initialPlan}:{app:AdApplication;initialPlan?:Creat
  const [fidelityReview,setFidelityReview]=useState({key:'',confirmed:false}),[showAlternatives,setAlternatives]=useState(false),[refresh,setRefresh]=useState(0);
  const [caps,setCaps]=useState<Readiness|null>(null),[connection,setConnection]=useState('Checking generation availability…'),[progress,setProgress]=useState('');
  const brand=p?selectedBrand(p,s.brands):undefined,draft=p?(pending?emptyProductDraft():draftFor(p)):null,busy=!!s.busy,entry=p?.creative?.plans.find(e=>e.id===p.creative?.activeId),take=pending?undefined:p?.hero?.takes.find(t=>t.id===p.hero?.activeId)||p?.hero?.takes.at(-1),selected=plan?.concepts.find(c=>c.id===plan.selectedId);
+ useEffect(()=>{if(brand?.research?.analysisState==='pending')void app.resumeBrandAnalysis(brand.id);},[app,brand?.id,brand?.research?.analysisKey,brand?.research?.analysisState]);
  const displaySource=stage==='result'&&take?(take.settings.briefDraft?.input.source.kind==='original'?take.settings.briefDraft.input.source.id:take.settings.originalId||(take.settings.sourceKind==='original'?take.settings.sourceId:undefined)):draft?.sourceId;
  const fidelityKey=JSON.stringify([p?.id,take?.id,take?.sha256,displaySource,take?.sourceSha256]),fidelity=fidelityReview.key===fidelityKey&&fidelityReview.confirmed;
  const resultBrand=(take?.settings.brandId?s.brands.find(b=>b.id===take.settings.brandId):undefined)||brand;

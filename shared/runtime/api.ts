@@ -1,3 +1,4 @@
+import {trainingInput,trainingGraph,trainingRuns,saveTrainingRun,trainingBase,type TrainingRun} from './training.ts';
 import {searchInput,searchResults} from './semantic-search.ts';
 /**
  * Local generation API for both apps, as a Vite plugin (dev + preview).
@@ -48,7 +49,7 @@ const FPS = 24;
 const MAX_BODY = 64 * 1024;
 const MAX_UPLOAD_BODY = 8 * 1024 * 1024;
 const MAX_QUEUE = 4;
-const OUTPUT_NAME = /^[a-f0-9]{16}\.(png|webm|mp4|flac|mp3|wav|m4a|ogg)$/;
+const OUTPUT_NAME = /^[a-f0-9]{16}\.(png|webm|mp4|flac|mp3|wav|m4a|ogg|safetensors)$/;
 
 type Env = Record<string, string | undefined>;
 type Key = { image: string; t: number; strength?: number };
@@ -120,7 +121,7 @@ function outputPath(url: unknown): string {
 }
 
 /** Run a workflow; retry once if the proxy reports the job expired (happens right after a proxy restart). */
-async function runWf(c: Comfy, wf: Parameters<Comfy['run']>[0], requestId?:string) {
+async function runWf(c: Comfy, wf: Parameters<Comfy['run']>[0], requestId?:string,retryExpired=true) {
  async function execute(){
   activity.update(requestId,'preparing','Preparing model and prompt. First-time loading can take a few minutes; no generation steps yet.');
   const stopDiagnostics=requestId?await diagnostics.watch(clientUrls.get(c)||'http://127.0.0.1:8188',entry=>activity.note(requestId,entry)):()=>{};
@@ -134,14 +135,14 @@ async function runWf(c: Comfy, wf: Parameters<Comfy['run']>[0], requestId?:strin
   try{await job.wait(30*60*1000);await job.result();return job}finally{controller.abort();void stream}
   }finally{stopDiagnostics()}
  }
- try{return await execute()}catch(error:any){if(error?.code==='job_failed'&&/expired/i.test(String(error.message)))return execute();throw error}
+ try{return await execute()}catch(error:any){if(retryExpired&&error?.code==='job_failed'&&/expired/i.test(String(error.message)))return execute();throw error}
 }
 
 // One job at a time on the GPU; small queue, then 429.
 let chain: Promise<unknown> = Promise.resolve();
 let queued = 0;
 const semanticCache=new Map<string,{model:string;results:{id:string;score:number}[]}>();
-let semanticPending=false;
+let semanticPending=false,trainingPending=false;
 function serialize<T>(fn: () => Promise<T>): Promise<T> {
   if (queued >= MAX_QUEUE) throw new HttpError(429, "GPU busy, try again in a moment");
   queued++;
@@ -168,6 +169,7 @@ async function localModels(env: Env) {
   const [imageGraph, videoGraph] = await Promise.all([loadGraph("keyframe_zimage"), loadGraph("shot_ltxv")]);
   const keyframe = has("UNETLoader", "unet_name", "z_image_turbo_bf16.safetensors") && has("CLIPLoader", "clip_name", "qwen_3_4b_fp8_mixed.safetensors") && has("VAELoader", "vae_name", "ae.safetensors") && graphReady(imageGraph)
     ? [imageModel] : [];
+  if(keyframe.length&&nodes.LoraLoaderModelOnly){const available:string[]=nodes.LoraLoaderModelOnly?.input?.required?.lora_name?.[0]||[];for(const run of await trainingRuns(OUTPUTS)){if(run.status!=='complete'||run.model!==imageModel.id||run.loraFile!=='studio/'+run.id+'.safetensors')continue;const file=available.find(file=>file.replaceAll('\\','/')===run.loraFile);if(file)keyframe.push({...imageModel,id:'studio-tune:'+run.id,parentId:imageModel.id,loraFile:file,label:run.name,description:'LoRA · '+imageModel.label+' · '+run.steps+' training steps'})}}
   const video = has("CheckpointLoaderSimple", "ckpt_name", "ltxv-2b-0.9.8-distilled.safetensors") && has("CLIPLoader", "clip_name", "t5xxl_fp8_e4m3fn_scaled.safetensors") && graphReady(videoGraph)
     ? [videoModel] : [];
   let research: { repo: string; revision: string; bytes: number }[] = [];
@@ -185,7 +187,7 @@ async function selectedModel(body: any, env: Env, kind: "keyframe" | "video") {
   const model = body.model ?? models[0]?.id;
   if (!models.some(m => m.id === model)) throw new HttpError(400, `Selected ${kind} model is unavailable or has no compatible workflow. Refresh local models.`);
   await ensureProxy(env);
-  return model as string;
+  return models.find(entry=>entry.id===model)!.parentId||model as string;
 }
 
 const str = (v: unknown, max: number, name: string): string => {
@@ -226,7 +228,9 @@ async function keyframe(body: any, env: Env) {
   const width=dimension(body.width,1536,768,16),height=dimension(body.height,1536,448,16);
   const model = await selectedModel(body, env, "keyframe");
   const c = client(env);
-  const graph=await loadGraph('keyframe_zimage');const {rw,rh}=cropOutput(graph,'9','10',width,height,16);
+  const graph=await loadGraph('keyframe_zimage');
+  const tune=(await localModels(env)).keyframe.find(entry=>entry.id===body.model&&entry.loraFile);if(tune){graph['90']={class_type:'LoraLoaderModelOnly',inputs:{model:['1',0],lora_name:tune.loraFile,strength_model:1}};graph['4'].inputs.model=['90',0]}
+  const {rw,rh}=cropOutput(graph,'9','10',width,height,16);
   const wf = c.workflows.fromJson(graph);
   wf.setInput("1", "unet_name", model);
   wf.setInput("2", "device", textDevice);
@@ -539,7 +543,7 @@ function middleware(env: Env,setup:RuntimeSetup,rewriter:PromptRewriter,creative
         if (!['GET','HEAD'].includes(req.method||'') || !OUTPUT_NAME.test(name)) return send(res, 404, { error: "not found" });
         const p = join(OUTPUTS, name);
         if (!existsSync(p)) return send(res, 404, { error: "not found" });
-        const size=statSync(p).size,headers:Record<string,string|number>={"Content-Type":name.endsWith('.png')?'image/png':mediaTypes[name.split('.').at(-1)!]||'video/webm',"Accept-Ranges":"bytes","Cache-Control":"private, max-age=31536000, immutable","X-Content-Type-Options":"nosniff"};
+        const size=statSync(p).size,headers:Record<string,string|number>={"Content-Type":name.endsWith('.safetensors')?'application/octet-stream':name.endsWith('.png')?'image/png':mediaTypes[name.split('.').at(-1)!]||'video/webm',"Accept-Ranges":"bytes","Cache-Control":"private, max-age=31536000, immutable","X-Content-Type-Options":"nosniff"};
         const range=req.headers.range;
         if(range){const match=/^bytes=(\d*)-(\d*)$/.exec(range);let start=Number(match?.[1]||0),end=match?.[2]?Number(match[2]):size-1;if(match&&!match[1]&&match[2]){start=Math.max(0,size-Number(match[2]));end=size-1;}
           if(!match||(!match[1]&&!match[2])||start>end||start>=size||!Number.isSafeInteger(start)||!Number.isSafeInteger(end)){res.writeHead(416,{'Content-Range':`bytes */${size}`});return res.end();}
@@ -571,8 +575,8 @@ function middleware(env: Env,setup:RuntimeSetup,rewriter:PromptRewriter,creative
       }
       if(url.pathname.startsWith('/api/setup')){
        if(!setupAccess(req))return send(res,403,{error:'Runtime setup is only available from this computer and the app’s own origin.'});
-       if(route==='GET /api/setup')return send(res,200,{...await setup.status(),rendering:queued>0});
-       if(req.method==='POST'){if(queued>0&&route!=='POST /api/setup/cancel')return send(res,409,{error:'Finish the current generation before changing the local runtime or model files.'});const body=await readBody(req);try{const result=route==='POST /api/setup/connect'?setup.connect(body):route==='POST /api/setup/install'?setup.install(body):route==='POST /api/setup/download'?setup.download(body):route==='POST /api/setup/start'?setup.start():route==='POST /api/setup/cancel'?setup.cancel():null;return send(res,result?202:404,result||{error:'Unknown setup action'})}catch(error:any){return send(res,400,{error:error.message})}}
+       if(route==='GET /api/setup')return send(res,200,{...await setup.status(),rendering:queued>0||trainingPending});
+       if(req.method==='POST'){if((queued>0||trainingPending)&&route!=='POST /api/setup/cancel')return send(res,409,{error:'Finish the current generation before changing the local runtime or model files.'});const body=await readBody(req);try{const result=route==='POST /api/setup/connect'?setup.connect(body):route==='POST /api/setup/install'?setup.install(body):route==='POST /api/setup/download'?setup.download(body):route==='POST /api/setup/start'?setup.start():route==='POST /api/setup/cancel'?setup.cancel():null;return send(res,result?202:404,result||{error:'Unknown setup action'})}catch(error:any){return send(res,400,{error:error.message})}}
       }
       if(req.method==='GET'&&/^\/api\/activity\/[a-f0-9]{32}$/.test(url.pathname)){const state=activity.get(url.pathname.split('/').pop()!);return send(res,state?200:404,state?{...state,serverNow:Date.now()}:{error:'No activity for this request'})}
       const tracked=async(handler:(body:any)=>Promise<any>,limit=MAX_BODY)=>{if(setup.task.busy)throw new HttpError(503,'Local runtime setup is in progress. Finish or stop setup before generating.');const body=await readBody(req,limit);if(!body||typeof body!=='object'||Array.isArray(body))throw new HttpError(400,'Expected a JSON request object.');body._requestId=req.headers['x-osh-request']||body._requestId;let id:string|null;try{id=activity.begin(body._requestId)}catch(error:any){throw new HttpError(400,error.message)}try{const result=await handler(body);activity.update(id,'complete','Media ready.');return result}catch(error:any){activity.update(id,'error','Generation stopped: '+String(error.message||error));throw error}};
@@ -594,13 +598,34 @@ function middleware(env: Env,setup:RuntimeSetup,rewriter:PromptRewriter,creative
       if(route==='POST /api/compose-ad')return send(res,200,await composeAd(await readBody(req),OUTPUTS,env));
       if (route === 'GET /api/capabilities') return send(res,200,await capabilities(env));
       if (route === "GET /api/models") return send(res, 200, await localModels(env));
+      if(route==='GET /api/training'){
+       const nodes=await comfyJson(env,'/object_info'),catalog=await localModels(env),required=['TrainLoraNode','MakeTrainingDataset','OSHTrainingPairs','OSHSaveTraining','LoadImage','ImageScale','ImageBatch'];
+       const missing=required.filter(name=>!nodes[name]),models=catalog.keyframe.filter(model=>model.id===trainingBase),projectId=url.searchParams.get('projectId');
+       return send(res,200,{available:!missing.length&&!!models.length,experimental:true,models,missing,runs:(await trainingRuns(OUTPUTS)).filter(run=>!projectId||run.projectId===projectId)});
+      }
+      if(route==='POST /api/training')return send(res,200,await tracked(async body=>{
+       let input;try{input=trainingInput(body)}catch(error:any){throw new HttpError(400,error.message)}
+       if(trainingPending||queued||setup.task.busy)throw new HttpError(409,'Finish the current generation or setup before training.');
+       trainingPending=true;try{
+       const nodes=await comfyJson(env,'/object_info'),catalog=await localModels(env);if(!catalog.keyframe.some(model=>model.id===input.model)||!['TrainLoraNode','MakeTrainingDataset','OSHTrainingPairs','OSHSaveTraining'].every(name=>nodes[name]))throw new HttpError(503,'Install the Studio training I/O nodes and use a compatible local base.');
+       const queue=await comfyJson(env,'/queue');if(queue.queue_running?.length||queue.queue_pending?.length)throw new HttpError(409,'ComfyUI has another job. Train when its queue is empty.');
+       input.images.forEach(image=>{const file=outputPath(image.url);if(statSync(file).size>10*1024*1024)throw new HttpError(400,'Training images must be under 10 MB.')});
+       const id=randomBytes(16).toString('hex'),run:TrainingRun={...input,id,createdAt:Date.now(),status:'running'};await saveTrainingRun(OUTPUTS,run);
+       try{await ensureProxy(env);const c=client(env),graph=trainingGraph(input,id),wf=c.workflows.fromJson(graph);input.images.forEach((image,index)=>wf.setInput(String(100+index*3),'image',c.assets.fromFile(outputPath(image.url))));
+        const job=await serialize(()=>runWf(c,wf,body._requestId,false)),outputs=job.getOutputs('8');if(outputs.length!==2)throw Error('Training did not return an adapter and result.');
+        const metadata=JSON.parse(Buffer.from(await outputs[0].toBytes()).toString('utf8'));if(metadata.id!==id||metadata.base!==input.model||metadata.steps!==input.steps||metadata.loraFile!=='studio/'+id+'.safetensors')throw Error('Training result provenance did not match this run.');
+        const bytes=Buffer.from(await outputs[1].toBytes());if(bytes.length<16||bytes.length>256*1024*1024)throw Error('Invalid adapter size.');
+        const name=outputName('safetensors');await writeFile(join(OUTPUTS,name),bytes);Object.assign(run,{status:'complete',loraFile:metadata.loraFile,download:'/outputs/'+name,loss:Array.isArray(metadata.loss)?metadata.loss:[]});await saveTrainingRun(OUTPUTS,run);return run;
+       }catch(error:any){run.status='error';run.error=String(error.message).slice(0,600);await saveTrainingRun(OUTPUTS,run);throw error}
+       }finally{trainingPending=false}
+      }));
       if(route==='GET /api/search'){
         const nodes=await comfyJson(env,'/object_info');return send(res,200,{available:!!nodes.OSHSemanticSearch?.input?.required?.model?.[0]?.includes('MiniLM L6 · CPU'),model:'MiniLM L6 · CPU'});
       }
       if(route==='POST /api/search'){
         let input;try{input=searchInput(await readBody(req))}catch(error:any){throw new HttpError(400,error.message)}
         const key=JSON.stringify(input),cached=semanticCache.get(key);if(cached)return send(res,200,cached);
-        if(semanticPending||queued||setup.task.busy)throw new HttpError(409,'Local AI is busy. Showing text matches.');
+        if(semanticPending||trainingPending||queued||setup.task.busy)throw new HttpError(409,'Local AI is busy. Showing text matches.');
         semanticPending=true;
         try{const nodes=await comfyJson(env,'/object_info');if(!nodes.OSHSemanticSearch?.input?.required?.model?.[0]?.includes('MiniLM L6 · CPU'))throw new HttpError(503,'Local semantic search needs setup. Showing text matches.');
          await ensureProxy(env);const c=client(env),wf=c.workflows.fromJson(await loadGraph('semantic_minilm'));wf.setInput('1','query',input.query);wf.setInput('1','documents',JSON.stringify(input.documents.map(doc=>doc.text)));

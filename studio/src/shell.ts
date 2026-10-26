@@ -190,6 +190,7 @@ function mount(o: Opts) {
 
 function drawSelected() {
   const root = $('#studioStylization');
+  if(root.hidden)return;
   drawStyle($('.style canvas', root) as HTMLCanvasElement, style);
   $('.sn', root).textContent = style.n;
   updateFit();
@@ -204,6 +205,7 @@ function setStyle(st: Style) {
 let fitToken = 0;
 async function updateFit() {
   const root = $('#studioStylization'), fv = $('.fv', root), bar = $('.meter i', root), btn = $('.maxx', root) as HTMLButtonElement;
+  if(root.hidden)return;
   const can = !!(media?.img && media.type !== 'shot' && opts.onStylemaxx);
   if (!btn.classList.contains('run')) { btn.disabled = !can; btn.title = can ? 'Regenerate the selected media to match the selected style' : media?.type === 'shot' ? 'Select a keyframe to Stylemaxx it' : 'Select a generated keyframe first'; }
   if (!media?.img) { fv.textContent = '—'; bar.style.left = '0'; return; }

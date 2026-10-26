@@ -189,6 +189,8 @@ export async function refreshModels(): Promise<void> {
 }
 
 export function mountModels(): void {
+ addEventListener('osh-model-refresh',()=>void refreshModels());
+ addEventListener('osh-select-model',async event=>{const {kind,id}=(event as CustomEvent).detail||{};if(!['keyframe','video'].includes(kind))return;await refreshModels();if(catalog?.[kind as Kind].some(entry=>entry.id===id))chooseEntry(kind,id)});
   mountFrameSizes(()=>{const size=frameSize('video',false);const canvas=document.getElementById('cv') as HTMLCanvasElement;canvas.width=size.width;canvas.height=size.height;(canvas.parentElement as HTMLElement).style.aspectRatio=String(size.width/size.height);renderDetails()});
   for (const [id, kind] of [['kp','keyframe'],['shotPromptInput','video'],['motion','video']] as const) {
     attachElementMentions(document.getElementById(id) as HTMLTextAreaElement, SHELL.ELEMENTS, () => !!catalog?.[kind].find(m => m.id === select(kind).value)?.capabilities.some(c => c.name === 'Elements' && c.status !== 'unavailable'));

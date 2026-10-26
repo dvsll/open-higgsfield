@@ -35,7 +35,7 @@ async function health(): Promise<{ online: boolean; info: Health | null; reason:
 export type GenerationActivity={id:string;phase:string;message:string;phaseStartedAt:number;startedAt:number;updatedAt:number;percent:number|null;step:number|null;steps:number|null;diagnostics?:{at:number;source:'sdk'|'comfy-server'|'managed-server';message:string}[]};
 function emitActivity(detail:GenerationActivity){if(typeof window!=='undefined')window.dispatchEvent(new CustomEvent('osh-generation-progress',{detail}))}
 async function post<T>(name: string, body: unknown): Promise<T> {
-  const tracked=['shot','keyframe','audio','captions','hero/reimagine','hero/qwen'].includes(name),id=tracked?crypto.randomUUID().replaceAll('-',''):null;let finished=false,polling=false,failed=false;
+  const tracked=['shot','keyframe','audio','captions','training','hero/reimagine','hero/qwen'].includes(name),id=tracked?crypto.randomUUID().replaceAll('-',''):null;let finished=false,polling=false,failed=false;
   const poll=async()=>{if(!id||finished||polling)return;polling=true;try{const r=await fetch('/api/activity/'+id,{cache:'no-store',signal:AbortSignal.timeout(3000)});if(r.ok&&!finished){const state=await r.json();if(typeof state.serverNow==='number')state.phaseStartedAt=Date.now()-Math.max(0,state.serverNow-state.phaseStartedAt);emitActivity(state)}}catch{/* Progress failure must never cancel a render. */}finally{polling=false}};
   let timer:ReturnType<typeof setInterval>|undefined;if(id){const now=Date.now();emitActivity({id,phase:'queued',message:'Waiting for the local runtime…',phaseStartedAt:now,startedAt:now,updatedAt:now,percent:null,step:null,steps:null});timer=setInterval(()=>void poll(),700)}
   try{
@@ -61,6 +61,7 @@ export const OSH = {
   heroAd:(body:{hero:string;logo?:string;reviewed:boolean;copy:{headline:string;productName:string;website:string}})=>post<{url:string;width:number;height:number;sha256:string}>('hero/export',body),
   staticAd:(body:{design:import('../lib/static-ad').StaticDesign;photo:string;logo?:string;support?:string})=>post<{url:string;width:number;height:number;sha256:string;sources:Record<string,string>;warnings:string[]}>('static-ad',body),
   audio:(prompt:string,duration:number,seed=1,video?:string)=>post<{audio:string;video?:string;duration:number;seconds:number}>('audio',{prompt,duration,seed,video}),
+  training:(body:import('./training').TrainingInput)=>post<import('./training').TrainingRun>('training',body),
   health,
   async models(): Promise<LocalModels> {
     const r = await fetch('/api/models', { cache: 'no-store' });

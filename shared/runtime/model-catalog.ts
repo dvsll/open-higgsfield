@@ -1,6 +1,6 @@
 export type Capability = { name: string; status: 'ready' | 'prompt' | 'unavailable'; detail: string; control?: 'motion' | 'shotPromptInput' | 'kp' | 'els' | 'timeline' };
 export type ModelChoice = {
-  id: string; label: string; family: string; description: string;
+  id: string; parentId?:string;loraFile?:string;label: string; family: string; description: string;
   capabilities: Capability[];
   generation?:{preferredFps?:number;fpsNote?:string;steps:number;stepNote:string};
   timing: { low: number; high: number; width: number; height: number; duration?: number; basis: string };

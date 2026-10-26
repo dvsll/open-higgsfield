@@ -6,6 +6,8 @@
     "node": ">=22.18"
   },
   "scripts": {
+    "start": "vite --open /studio/director",
+    "setup": "node shared/runtime/install.ts",
     "dev": "vite",
     "dev:share": "vite --host 0.0.0.0",
     "build": "tsc --noEmit && vite build",

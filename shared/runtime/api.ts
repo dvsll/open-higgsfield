@@ -12,6 +12,7 @@ import {searchInput,searchResults} from './semantic-search.ts';
  *   and /outputs only serves files this API wrote (random hex names).
  */
 import { RuntimeSetup, setupAccess } from './setup.ts';
+import { startComfyProxy } from './proxy.ts';
 import {PromptRewriter,PromptRewriteError,promptInstruction,promptModel,promptDevice} from './prompt-rewriter.ts';
 import {precisionSources} from './precision-image.ts';
 import {captionSegments} from '../lib/captions.ts';
@@ -26,7 +27,38 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Connect, Plugin } from "vite";
-import { imageModel, videoModel } from './model-catalog.ts';
+import { imageModel, videoModel, qwenImageModel, zImageBaseModel, ltx25Model, ltxv13bModel, type ModelChoice } from './model-catalog.ts';
+
+/** How each selectable model maps onto a workflow: which loader inputs to fill, and which filenames work there (best first). */
+type Recipe={choice:ModelChoice;graph:string;needs:[node:string,classType:string,input:string,files:string[]][];settings?:Record<string,Record<string,unknown>>};
+const imageRecipes:Recipe[]=[
+  {choice:qwenImageModel,graph:'keyframe_qwen',needs:[['1','UNETLoader','unet_name',['qwen_image_2512_fp8_e4m3fn.safetensors','qwen_image_2512_bf16.safetensors']],['2','CLIPLoader','clip_name',['qwen_2.5_vl_7b_fp8_scaled.safetensors','qwen_2.5_vl_7b.safetensors']],['3','VAELoader','vae_name',['qwen_image_vae.safetensors']]]},
+  {choice:zImageBaseModel,graph:'keyframe_zimage',needs:[['1','UNETLoader','unet_name',['z_image_bf16.safetensors']],['2','CLIPLoader','clip_name',['qwen_3_4b_fp8_mixed.safetensors','qwen_3_4b.safetensors']],['3','VAELoader','vae_name',['ae.safetensors']]],settings:{'8':{steps:50,cfg:4}}},
+  {choice:imageModel,graph:'keyframe_zimage',needs:[['1','UNETLoader','unet_name',['z_image_turbo_bf16.safetensors']],['2','CLIPLoader','clip_name',['qwen_3_4b_fp8_mixed.safetensors','qwen_3_4b.safetensors']],['3','VAELoader','vae_name',['ae.safetensors']]]},
+];
+const videoRecipes:Recipe[]=[
+  {choice:ltx25Model,graph:'shot_ltx25',needs:[['1','UNETLoader','unet_name',['ltx-2.5-22b-distilled-transformer-bf16.safetensors','ltx-2.5-22b-distilled-transformer-comfy-int8-convrot.safetensors','ltx-2.5-22b-distilled-transformer-nvfp4.safetensors']],['2','CLIPLoader','clip_name',['gemma4-12b-with-proj-ltx-2.5-bf16.safetensors','gemma4-12b-with-proj-ltx-2.5-comfy-int8-convrot.safetensors']],['10','VAELoader','vae_name',['ltx-2.5-audio-vae-bf16.safetensors']],['21','VAELoader','vae_name',['ltx-2.5-video-vae-bf16.safetensors']],['20','LatentUpscaleModelLoader','model_name',['ltx-2.5-latent-spatial-upscaler-x2-bf16-1.0.safetensors']]]},
+  {choice:ltxv13bModel,graph:'shot_ltxv',needs:[['1','CheckpointLoaderSimple','ckpt_name',['ltxv-13b-0.9.8-distilled-fp8.safetensors','ltxv-13b-0.9.8-distilled.safetensors']],['2','CLIPLoader','clip_name',['t5xxl_fp8_e4m3fn_scaled.safetensors']]]},
+  {choice:videoModel,graph:'shot_ltxv',needs:[['1','CheckpointLoaderSimple','ckpt_name',['ltxv-2b-0.9.8-distilled.safetensors']],['2','CLIPLoader','clip_name',['t5xxl_fp8_e4m3fn_scaled.safetensors']]]},
+];
+/** Installed model id -> recipe plus the actual filenames found for each loader. */
+type Resolved={recipe:Recipe;files:Record<string,string>};
+const resolvedModels=new Map<string,Resolved>();
+function resolveRecipes(recipes:Recipe[],nodes:any,graphs:Record<string,Record<string,any>>):ModelChoice[]{
+  const out:ModelChoice[]=[];
+  for(const recipe of recipes){
+    const graph=graphs[recipe.graph];if(!graph||!Object.values(graph).every((n:any)=>Boolean(nodes[n.class_type])))continue;
+    const files:Record<string,string>={};let ok=true;
+    for(const[node,classType,input,names]of recipe.needs){const options:unknown=nodes[classType]?.input?.required?.[input]?.[0];const found=Array.isArray(options)?names.find(n=>options.includes(n)):undefined;if(!found){ok=false;break}files[node]=found}
+    if(!ok)continue;const id=files[recipe.needs[0][0]];resolvedModels.set(id,{recipe,files});out.push({...recipe.choice,id});
+  }
+  return out;
+}
+function applyResolved(graph:Record<string,any>,resolved:Resolved){
+  for(const[node,,input]of resolved.recipe.needs)graph[node].inputs[input]=resolved.files[node];
+  for(const[node,values]of Object.entries(resolved.recipe.settings||{}))Object.assign(graph[node].inputs,values);
+  return graph;
+}
 import { identifyHardware, serverTiming, recordRender } from './render-timings.ts';
 import { productFormats, productPlan, renderProduct, ProductRenderError, type ProductRatio, type ProductMode, type CameraMotion } from './product-video.ts';
 import {importMedia,composeAd,ComposeError,mediaTypes} from './ad-compose.ts';
@@ -79,19 +111,7 @@ async function ensureProxy(env:Env):Promise<void>{
  const pending=proxyStarts.get(key);if(pending)return pending;
  const work=startProxyProcess(env);proxyStarts.set(key,work);try{await work}finally{proxyStarts.delete(key)}
 }
-async function startProxyProcess(env: Env): Promise<void> {
-  const base = env.COMFY_BASE_URL || "http://127.0.0.1:8189";
-  if (await up(base + "/api/v2/health")) return;
-  const win = process.platform === "win32";
-  const candidates = [env.COMFY_API_PROXY, join(ROOT, ".venv", win ? "Scripts/comfy-api-proxy.exe" : "bin/comfy-api-proxy"), "comfy-api-proxy"];
-  const exe = candidates.find((c) => c && (c === "comfy-api-proxy" || existsSync(c)))!;
-  const port = new URL(base).port || "8189";
-  const comfyui = env.COMFYUI_URL || "http://127.0.0.1:8188";
-  console.log(`[api] starting comfy-api-proxy on 127.0.0.1:${port} -> ${comfyui}`);
-  const p = spawn(exe, ["run", "--comfyui", comfyui, "--host", "127.0.0.1", "--port", port], { stdio: "ignore", windowsHide: true });
-  p.on("error", (e) => console.warn(`[api] could not start comfy-api-proxy (${e.message}). Install it: pip install comfy-api-proxy`));
-  for (let i = 0; i < 30 && !(await up(base + "/api/v2/health")); i++) await new Promise((r) => setTimeout(r, 500));
-}
+const startProxyProcess=(env:Env)=>startComfyProxy(ROOT,env);
 
 async function loadGraph(name: string): Promise<Record<string, any>> {
   return JSON.parse(await readFile(join(WORKFLOWS, `${name}.json`), "utf8"));
@@ -165,11 +185,11 @@ async function localModels(env: Env) {
   const inventory = await Promise.all((categories as string[]).filter(c => !["configs", "custom_nodes"].includes(c)).map(async category => ({ category, files: await comfyJson(env, "/models/" + encodeURIComponent(category)) as string[] })));
   const has = (node: string, input: string, file: string) => nodes[node]?.input?.required?.[input]?.[0]?.includes(file) === true;
   const graphReady = (graph: Record<string, any>) => Object.values(graph).every(n => Boolean(nodes[n.class_type]));
-  const [imageGraph, videoGraph] = await Promise.all([loadGraph("keyframe_zimage"), loadGraph("shot_ltxv")]);
-  const keyframe = has("UNETLoader", "unet_name", "z_image_turbo_bf16.safetensors") && has("CLIPLoader", "clip_name", "qwen_3_4b_fp8_mixed.safetensors") && has("VAELoader", "vae_name", "ae.safetensors") && graphReady(imageGraph)
-    ? [imageModel] : [];
-  const video = has("CheckpointLoaderSimple", "ckpt_name", "ltxv-2b-0.9.8-distilled.safetensors") && has("CLIPLoader", "clip_name", "t5xxl_fp8_e4m3fn_scaled.safetensors") && graphReady(videoGraph)
-    ? [videoModel] : [];
+  const names=[...new Set([...imageRecipes,...videoRecipes].map(r=>r.graph))];
+  const graphs=Object.fromEntries(await Promise.all(names.map(async name=>[name,await loadGraph(name)])));
+  const keyframe=resolveRecipes(imageRecipes,nodes,graphs),video=resolveRecipes(videoRecipes,nodes,graphs);
+  // Experimental hero/precision graphs are built around Z-Image Turbo specifically.
+  const zimageTurbo=keyframe.some(m=>m.id===imageModel.id);
   let research: { repo: string; revision: string; bytes: number }[] = [];
   try {
     const lab = JSON.parse(await readFile(join(OUTPUTS, 'lora-lab', 'manifest.json'), 'utf8'));
@@ -177,7 +197,7 @@ async function localModels(env: Env) {
   } catch { /* Training assets are optional and not generation choices. */ }
   const hardware = identifyHardware(await comfyJson(env,'/system_stats').catch(()=>null));
   const audio=has('CheckpointLoaderSimple','ckpt_name','stable-audio-open-1.0.safetensors')&&has('CLIPLoader','clip_name','t5_base.safetensors')&&graphReady(await loadGraph('audio_stable'));
-  return { keyframe, video, audio:{available:audio,model:'Stable Audio Open 1.0'}, research, timing: await serverTiming(OUTPUTS,hardware,queued), inventory: inventory.filter(c => c.files.length > 0) };
+  return { keyframe, video, zimageTurbo, audio:{available:audio,model:'Stable Audio Open 1.0'}, research, timing: await serverTiming(OUTPUTS,hardware,queued), inventory: inventory.filter(c => c.files.length > 0) };
 }
 
 async function selectedModel(body: any, env: Env, kind: "keyframe" | "video") {
@@ -226,9 +246,9 @@ async function keyframe(body: any, env: Env) {
   const width=dimension(body.width,1536,768,16),height=dimension(body.height,1536,448,16);
   const model = await selectedModel(body, env, "keyframe");
   const c = client(env);
-  const graph=await loadGraph('keyframe_zimage');const {rw,rh}=cropOutput(graph,'9','10',width,height,16);
+  const resolved=resolvedModels.get(model)!;
+  const graph=applyResolved(await loadGraph(resolved.recipe.graph),resolved);const {rw,rh}=cropOutput(graph,'9','10',width,height,16);
   const wf = c.workflows.fromJson(graph);
-  wf.setInput("1", "unet_name", model);
   wf.setInput("2", "device", textDevice);
   wf.setInput("5", "text", prompt);
   wf.setInput("8", "seed", seed);
@@ -245,8 +265,8 @@ async function reimagineHero(body:any,env:Env){
  if(settings.method!=='reimagine'||!settings.prompt.trim())throw new HttpError(400,'Choose reimagine and provide a product-specific prompt.');
  const source=await heroSource(OUTPUTS,body.image),catalog=await localModels(env),nodes=await comfyJson(env,'/object_info');
  const graph=await loadGraph('hero_zimage_experimental');
- if(!catalog.keyframe.length||!Object.values(graph).every(n=>nodes[n.class_type]))throw new HttpError(503,'Reference-conditioned image generation is unavailable: install a compatible Z-Image model pack yourself. No model download or fallback was started.');
- const model=await selectedModel(body,env,'keyframe'),c=client(env);graph['1'].inputs.unet_name=model;graph['5'].inputs.text=settings.prompt;graph['8'].inputs.seed=settings.seed;graph['8'].inputs.denoise=settings.strength;
+ if(!catalog.zimageTurbo||!Object.values(graph).every(n=>nodes[n.class_type]))throw new HttpError(503,'Reference-conditioned image generation is unavailable: install a compatible Z-Image model pack yourself. No model download or fallback was started.');
+ const model=await selectedModel({...body,model:imageModel.id},env,'keyframe'),c=client(env);graph['1'].inputs.unet_name=model;graph['5'].inputs.text=settings.prompt;graph['8'].inputs.seed=settings.seed;graph['8'].inputs.denoise=settings.strength;
  const workflowSha256=heroSha(JSON.stringify(graph)),wf=c.workflows.fromJson(graph);wf.setInput('11','image',c.assets.fromFile(source.path));const started=Date.now();
  const {job}=await timedRun(c,wf,env,model,768,960,1,body._requestId),url=await save(job,'10','png');
  return {url,width:768,height:960,sha256:heroSha(await readFile(outputPath(url))),sourceSha256:source.sha256,workflowSha256,seconds:(Date.now()-started)/1000,method:'Experimental Z-Image latent img2img',model,prompt:settings.prompt,seed:settings.seed,strength:settings.strength,warning:'Unvalidated for commercial product fidelity. Compare structure, ingredients and texture against the original before use.'};
@@ -297,9 +317,26 @@ async function shot(body: any, env: Env) {
   const c = client(env);
   const width = dimension(body.width,1024,768,32);
   const height = dimension(body.height,1024,448,32);
-  const graph=shotGraph(await loadGraph('shot_ltxv'),keys.length);const {rw,rh}=cropOutput(graph,'16','17',width,height,32);
+  const resolved=resolvedModels.get(model)!;
+  if(resolved.recipe.graph==='shot_ltx25'){
+    if(keys.length>1)throw new HttpError(400,'LTX-2.5 uses one start-frame guide. Remove the extra keyframes, or choose LTX-Video for multi-keyframe shots.');
+    const seed=Math.floor(num(body.seed,0,2**32,1));
+    const graph=applyResolved(await loadGraph('shot_ltx25'),resolved);const {rw,rh}=cropOutput(graph,'31','32',width,height,64);
+    if (rw * rh > 1024 * 1024) throw new HttpError(400, "shot resolution too large");
+    if(!keys.length){graph['9'].inputs.bypass=true;graph['23'].inputs.bypass=true;delete graph['8'];graph['9'].inputs.image=graph['23'].inputs.image=['6',0];graph['6']={class_type:'EmptyImage',inputs:{width:rw,height:rh,batch_size:1,color:0}};delete graph['5']}
+    else Object.assign(graph['6'].inputs,{width:rw,height:rh});
+    Object.assign(graph['7'].inputs,{width:rw/2,height:rh/2,length});
+    Object.assign(graph['12'].inputs,{frames_number:length,frame_rate:fps});
+    graph['3'].inputs.text=body.prompt ? str(body.prompt, 2000, "prompt") : "cinematic shot";
+    graph['11'].inputs.frame_rate=fps;graph['32'].inputs.fps=fps;graph['16'].inputs.noise_seed=seed;graph['27'].inputs.noise_seed=(seed+1)%2**32;graph['2'].inputs.device=textDevice;
+    const first=keys[0];if(first)graph['9'].inputs.strength=0.7*(first.strength??1);
+    const wf=c.workflows.fromJson(graph);if(keys.length)wf.setInput('5','image',c.assets.fromFile(paths[0]));
+    const t=Date.now();const {job}=await timedRun(c,wf,env,model,rw,rh,length,body._requestId);
+    return { url: await save(job, "32", "webm"), seconds: +((Date.now() - t) / 1000).toFixed(1), frames: length, fps, duration:length/fps };
+  }
+  const graph=applyResolved(shotGraph(await loadGraph('shot_ltxv'),keys.length),resolved);const {rw,rh}=cropOutput(graph,'16','17',width,height,32);
   if (rw * rh > 768 * 768) throw new HttpError(400, "shot resolution too large");
-  const wf=c.workflows.fromJson(graph);wf.setInput('1','ckpt_name',model);wf.setInput('2','device',textDevice);
+  const wf=c.workflows.fromJson(graph);wf.setInput('2','device',textDevice);
   wf.setInput("7", "width", rw);
   wf.setInput("7", "height", rh);
   keys.forEach((_, i) => {
@@ -558,7 +595,7 @@ function middleware(env: Env,setup:RuntimeSetup,rewriter:PromptRewriter,creative
        const path=join(OUTPUTS,'hero-qwen',url.pathname.split('/').pop()!,'provenance.json');if(!existsSync(path))return send(res,404,{error:'No saved Qwen provenance'});if(statSync(path).size>512*1024)throw new HttpError(413,'Qwen provenance too large');return send(res,200,JSON.parse(await readFile(path,'utf8')));
       }
       if(route==='GET /api/hero/capabilities'){
-       const nodes=await comfyJson(env,'/object_info').catch(()=>({}));let reimagine=false;try{const models=await localModels(env),graph=await loadGraph('hero_zimage_experimental');reimagine=models.keyframe.length>0&&Object.values(graph).every(n=>nodes[n.class_type]);}catch{}
+       const nodes=await comfyJson(env,'/object_info').catch(()=>({}));let reimagine=false;try{const models=await localModels(env),graph=await loadGraph('hero_zimage_experimental');reimagine=models.zimageTurbo&&Object.values(graph).every(n=>nodes[n.class_type]);}catch{}
        return send(res,200,{finish:true,reimagine,experimental:true,qwen:relay?await relay.capability('http://'+req.headers.host):await qwenAvailability(nodes,setup.config?.modelsDir||env.COMFYUI_MODELS_DIR)});
       }
       if(route==='POST /api/hero/finish')return send(res,200,await finishHero(await readBody(req),OUTPUTS,env));
@@ -627,7 +664,7 @@ function middleware(env: Env,setup:RuntimeSetup,rewriter:PromptRewriter,creative
       if (route === 'GET /api/precision-image') {
         const catalog = await localModels(env), nodes = await comfyJson(env, '/object_info'), graph = await loadGraph('precision_zimage');
         return send(res, 200, {
-          available: catalog.keyframe.length > 0 && Object.values(graph).every(n => nodes[n.class_type]),
+          available: catalog.zimageTurbo && Object.values(graph).every(n => nodes[n.class_type]),
           automaticSubjectSelection: false,
           model: 'Z-Image Turbo · masked resynthesis',
           note: 'Experimental masked resynthesis, not an instruction-edit checkpoint. Outside the mask is composited from the original.',
@@ -638,7 +675,7 @@ function middleware(env: Env,setup:RuntimeSetup,rewriter:PromptRewriter,creative
         try { sources = await precisionSources(OUTPUTS, body); }
         catch (error: any) { throw new HttpError(error.status || 400, error.message); }
         const catalog = await localModels(env);
-        if (!catalog.keyframe.length) throw new HttpError(503, 'The installed image model is unavailable.');
+        if (!catalog.zimageTurbo) throw new HttpError(503, 'Precision editing needs Z-Image Turbo (the fast image pack).');
         const c = client(env), wf = c.workflows.fromJson(await loadGraph('precision_zimage'));
         wf.setInput('11', 'image', c.assets.fromFile(sources.image.path));
         wf.setInput('12', 'image', c.assets.fromFile(sources.mask.path));

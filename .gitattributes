@@ -3,3 +3,5 @@
 *.jpg binary
 *.mp4 binary
 *.safetensors binary
+*.cmd text eol=crlf
+*.command text eol=lf

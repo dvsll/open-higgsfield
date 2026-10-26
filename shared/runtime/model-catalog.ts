@@ -27,3 +27,34 @@ export const videoModel: ModelChoice = {
     { name: 'Motion prompt', status: 'ready', control: 'motion', detail: 'Text describes desired motion; no exact camera trajectory control.' }, ...common],
   timing: { low: 15, high: 35, width: 768, height: 448, duration: 4, basis: 'Prior local RTX 4070 Super runs. Scaled approximately by generated frame count; excludes queue time.' },
 };
+
+// Higher-quality packs (see models.json). Timings are rough until local renders are measured.
+export const qwenImageModel: ModelChoice = {
+  id: 'qwen_image_2512_fp8_e4m3fn.safetensors', label: 'Qwen-Image 2512', family: 'Qwen-Image',
+  description: 'Best-quality local text-to-image · 50 steps · strong text rendering',
+  generation:{steps:50,stepNote:'Official Qwen-Image 2512 settings: 50 steps, CFG 4. Slower than Z-Image, with much higher detail and prompt adherence.'},
+  capabilities: [{ name: 'Text to image', status: 'ready', control: 'kp', detail: 'Generate a keyframe from a text prompt, including legible in-image text.' }, ...common],
+  timing: { low: 40, high: 180, width: 1328, height: 1328, basis: 'Estimate for a 24 GB+ GPU; not yet measured locally. Excludes model loading and queue time.' },
+};
+export const zImageBaseModel: ModelChoice = {
+  id: 'z_image_bf16.safetensors', label: 'Z-Image', family: 'Z-Image',
+  description: 'High-quality local text-to-image · 50 steps',
+  generation:{steps:50,stepNote:'Official Z-Image (base) settings: 50 steps, CFG 4. The Turbo model trades this quality for 8-step speed.'},
+  capabilities: [{ name: 'Text to image', status: 'ready', control: 'kp', detail: 'Generate a keyframe from a text prompt.' }, ...common],
+  timing: { low: 25, high: 90, width: 768, height: 448, basis: 'Estimate from the 8-step Turbo timing scaled to 50 steps with CFG; not yet measured locally.' },
+};
+export const ltx25Model: ModelChoice = {
+  id: 'ltx-2.5-22b-distilled-transformer-bf16.safetensors', label: 'LTX-2.5 22B · distilled', family: 'LTX-2.5',
+  description: 'Best-quality local video · two-stage with 2× latent upscale',
+  generation:{preferredFps:24,fpsNote:'The official LTX-2.5 two-stage workflow renders at 24 FPS.',steps:11,stepNote:'Official distilled two-stage preset: 8 steps at half resolution, then 3 refinement steps after the 2× latent upscale.'},
+  capabilities: [{ name: 'Shot prompt', status: 'ready', control: 'shotPromptInput', detail: 'Describe the scene and visual details.' },
+    { name: 'Start-frame guide', status: 'ready', control: 'timeline', detail: 'The first keyframe becomes the opening frame. Additional keyframes are not used by this workflow; use LTX-Video 13B for multi-keyframe shots.' },
+    { name: 'Motion prompt', status: 'ready', control: 'motion', detail: 'Text describes desired motion; no exact camera trajectory control.' }, ...common],
+  timing: { low: 60, high: 300, width: 768, height: 448, duration: 4, basis: 'Estimate for a 32 GB+ GPU; not yet measured locally. Excludes model loading and queue time.' },
+};
+export const ltxv13bModel: ModelChoice = {
+  ...videoModel,
+  id: 'ltxv-13b-0.9.8-distilled-fp8.safetensors', label: 'LTX-Video 13B · distilled', family: 'LTX-Video 0.9.8',
+  description: 'High-quality local video · keyframe guides · 8 steps',
+  timing: { low: 45, high: 150, width: 768, height: 448, duration: 4, basis: 'Estimate scaled from the 2B model by parameter count; not yet measured locally.' },
+};

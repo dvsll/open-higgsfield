@@ -5,7 +5,7 @@ import { join, resolve, isAbsolute } from 'node:path';
 import { homedir } from 'node:os';
 import { createServer } from 'node:net';
 import type { IncomingMessage } from 'node:http';
-import { downloadModels, type ModelFile } from './model-download.ts';
+import { downloadModels, type ModelFile, type ModelPack } from './model-download.ts';
 import {existingComfyLaunch} from './comfy-launch.ts';
 
 export const COMFY_RELEASE='v0.41.3';
@@ -53,7 +53,7 @@ export class RuntimeSetup{
  private async proxyReady(url:string){try{return(await fetch(url+'/api/v2/health',{redirect:'error',signal:AbortSignal.timeout(1500)})).ok}catch{return false}}
  async status(){
   const url=this.env.COMFYUI_URL||'http://127.0.0.1:8188';const connected=!!await this.reachable(url);if(!connected&&Date.now()-this.checkedDiscoveryAt>15000){this.checkedDiscoveryAt=Date.now();const candidates=['http://127.0.0.1:8188','http://127.0.0.1:8000'].filter(candidate=>candidate!==url);this.discoveries=(await Promise.all(candidates.map(async candidate=>await this.reachable(candidate)?candidate:null))).filter((candidate):candidate is string=>!!candidate)}const candidates=[this.config?.modelsDir,this.env.COMFYUI_MODELS_DIR,join(homedir(),'Documents/ComfyUI/models'),join(homedir(),'ComfyUI/models'),join(this.root,'.runtime/ComfyUI/models')].filter((p):p is string=>!!p&&existsSync(p));
-  const models=JSON.parse(await readFile(join(this.root,'shared/runtime/models.json'),'utf8')).models as ModelFile[];let inventory:string[]=[];
+  const manifest=JSON.parse(await readFile(join(this.root,'shared/runtime/models.json'),'utf8')) as {packs:ModelPack[];models:ModelFile[]},models=manifest.models;let inventory:string[]=[];
   if(connected)try{
    const categories=await fetch(url+'/models',{signal:AbortSignal.timeout(2500)}).then(r=>r.json());
    const inventories=await Promise.all(categories.filter((category:string)=>['checkpoints','diffusion_models','unet','text_encoders','clip','vae'].includes(category)).map(async(category:string)=>{
@@ -64,7 +64,7 @@ export class RuntimeSetup{
   }catch{}
 
   const launcher=existingComfyLaunch(this.root,this.env,this.config?.launchDirectory);
-  return{connected,canStart:this.config?.mode==='managed'||!!launcher,launchDirectory:launcher?.directory,detectedInstances:connected?[url]:this.discoveries,proxy:await this.proxyReady(this.env.COMFY_BASE_URL||'http://127.0.0.1:8189'),url,config:this.config,modelsDirs:[...new Set(candidates)],platform:process.platform,managedDir:join(this.root,'.runtime/ComfyUI'),task:this.task,packs:['shot_ltxv','keyframe_zimage','audio_stable'].map(id=>({id,name:id==='shot_ltxv'?'Video · LTX':id==='keyframe_zimage'?'Images · Z-Image':'Audio · Stable Audio',models:models.filter(m=>m.used_by===id).map(m=>({...m,installed:inventory.includes(m.file)||(!connected&&!!this.config?.modelsDir&&existsSync(join(this.config.modelsDir,m.file)))}))}))};
+  return{connected,canStart:this.config?.mode==='managed'||!!launcher,launchDirectory:launcher?.directory,detectedInstances:connected?[url]:this.discoveries,proxy:await this.proxyReady(this.env.COMFY_BASE_URL||'http://127.0.0.1:8189'),url,config:this.config,modelsDirs:[...new Set(candidates)],platform:process.platform,managedDir:join(this.root,'.runtime/ComfyUI'),task:this.task,packs:(manifest.packs||[...new Set(models.map(m=>m.used_by))].map(id=>({id,label:id,capability:'video',tier:'fast',minVramGB:0}) as ModelPack)).map(pack=>({id:pack.id,name:pack.label,note:pack.note,models:models.filter(m=>m.used_by===pack.id).map(m=>({...m,installed:inventory.includes(m.file)||(!connected&&!!this.config?.modelsDir&&existsSync(join(this.config.modelsDir,m.file)))}))}))};
  }
  connect(input:any){const url=localComfyUrl(input.url);const modelsDir=typeof input.modelsDir==='string'&&input.modelsDir.trim()?resolve(input.modelsDir.trim()):'';if(modelsDir&&(!isAbsolute(input.modelsDir.trim())||!existsSync(modelsDir)))throw new Error('Choose an existing absolute models-folder path, or leave it blank to connect without downloads.');return this.launch(async()=>{
   if(!await this.reachable(url))throw new Error('ComfyUI was not found at that address. Start it and retry.');const signal=this.abort!.signal;let proxy=this.env.COMFY_BASE_URL||'http://127.0.0.1:8189',proxyExe=this.env.COMFY_API_PROXY;
@@ -106,8 +106,8 @@ export class RuntimeSetup{
   if(await this.proxyReady(previous.proxy)){await this.save(previous);return}
   const next={...previous,proxy:'http://127.0.0.1:'+await freePort(),proxyExe:await this.connector(signal)};await this.startProxy({...this.env,COMFYUI_URL:next.url,COMFY_BASE_URL:next.proxy,COMFY_API_PROXY:next.proxyExe});if(!await this.proxyReady(next.proxy))throw new Error('The SDK connector could not start. Check setup details and retry.');await this.save(next)
  })}
- download(input:any){const groups=input.packs;if(!Array.isArray(groups)||!groups.length||groups.some((g:unknown)=>!['shot_ltxv','keyframe_zimage','audio_stable'].includes(g as string)))throw new Error('Choose at least one model pack.');const root=this.config?.modelsDir;if(!root)throw new Error('Connect a models folder before downloading.');return this.launch(async()=>{
-  const models=(JSON.parse(await readFile(join(this.root,'shared/runtime/models.json'),'utf8')).models as ModelFile[]).filter(m=>groups.includes(m.used_by));this.phase('downloading','Downloading selected models. This is a one-time setup step, not generation.');await downloadModels(root,models,{signal:this.abort!.signal,onProgress:update=>this.phase('downloading',`Downloading model ${update.index}/${update.count}: ${update.file}. Not generation.`,update)});
+ download(input:any){const groups=input.packs;const manifest=JSON.parse(readFileSync(join(this.root,'shared/runtime/models.json'),'utf8')) as {packs?:ModelPack[];models:ModelFile[]},known=manifest.packs?manifest.packs.map(p=>p.id):manifest.models.map(m=>m.used_by);if(!Array.isArray(groups)||!groups.length||groups.some((g:unknown)=>!known.includes(g as string)))throw new Error('Choose at least one model pack.');const root=this.config?.modelsDir;if(!root)throw new Error('Connect a models folder before downloading.');return this.launch(async()=>{
+  const models=(JSON.parse(await readFile(join(this.root,'shared/runtime/models.json'),'utf8')).models as ModelFile[]).filter(m=>groups.includes(m.used_by));this.phase('downloading','Downloading selected models. This is a one-time setup step, not generation.');await downloadModels(root,models,{token:this.env.HF_TOKEN,signal:this.abort!.signal,onProgress:update=>this.phase('downloading',`Downloading model ${update.index}/${update.count}: ${update.file}. Not generation.`,update)});
  })}
  cancel(){this.abort?.abort();return this.task}
 }

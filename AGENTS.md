@@ -14,6 +14,7 @@ Two entries for Comfy Org's **Open Source Higgsfield** competition. **Hard deadl
 - Generation goes through the **Comfy SDK** (`comfy-sdk`) → `comfy-api-proxy` → ComfyUI. No closed APIs, no partner/API nodes, **open-weights models only**, LTX as the core video model.
 - Before adding any model or dependency: write its name, license and source link in your notes file.
 - Projects load files only from their own folder and `../shared/` (keeps the later repo split easy).
+- Repo split: each repo keeps its app folder plus `shared/`, `start.cmd`, `start.command`, `package.json`, `package-lock.json`, `vite.config.ts`, `tsconfig.json`, `index.html`, `README.md`, `LICENSE`. The installer (`shared/runtime/install.ts`) and `models.json` are shared. In the Ad Studio repo, change `npm start`'s `--open` path to `/adstudio/` and drop the `studio/` entries from `vite.config.ts`.
 - `DEADLINES.md` beats `PLAN.md` whenever the two conflict.
 
 ## Working conventions

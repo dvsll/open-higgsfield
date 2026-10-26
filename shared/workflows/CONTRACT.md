@@ -2,6 +2,12 @@
 
 ## Ad Studio creative planning (2026-10-25, additive)
 
+React integration adds POST `/api/creative/select` (`planId,projectId,conceptId`),
+returning a new unreviewed plan without invoking a model. `creative/compose` may
+receive optional `copy:{headline?,body?,cta?,size?}`; other override keys rejected,
+existing static-design validation/raw-Qwen provenance/source/pin gates preserved.
+No Director contract or production model/workflow changed.
+
 `/api/creative/{status,plan,prepare,compose}` and typed `OSH.creative*` reuse the
 existing native `prompt_polish.json` Qwen3 text graph, Qwen Hero validation/delivery,
 and static PNG exporter. No production workflow default or Director route changed.

@@ -223,9 +223,14 @@ el<HTMLSelectElement>('projects').onchange=async()=>{if(working())return;await s
 el('new-project').onclick=async()=>{if(working())return;try{await saving;const next=newProject(el<HTMLInputElement>('project-name').value||'Untitled ad');project=next;projects.set(next.id,next);await persist();await openProject(next);}catch(error){status.textContent=errorText(error);}};
 el('rename-project').onclick=async()=>{if(working())return;try{project.name=validName(el<HTMLInputElement>('project-name').value);await persist();projectOptions();}catch(error){status.textContent=errorText(error);}};
 async function retryStorage(){
- if(busy||reading||exporting||composer?.busy||heroWorkspace?.busy)return;
- try {await saving;repository=new Projects(await openProjectDriver());durable=true;for(const saved of projects.values()){const assets=[...pendingAssets.values()].filter(a=>a.projectId===saved.id).map(a=>a.asset),media=[...pendingMedia.values()].filter(a=>a.projectId===saved.id).map(a=>a.asset);await repository.save(saved,assets,media);}pendingAssets.clear();pendingMedia.clear();dirtyProjects.clear();storageNotice('Saved on this browser.');const existing=await repository.list();for(const p of existing)if(!projects.has(p.id))projects.set(p.id,p);projectOptions();}
- catch(error){durable=false;storageNotice('Not saved — '+errorText(error)+' Keep this tab open.');}
+ if(working())return;reading=true;ready();storageNotice('Retrying unsaved changes…');
+ // Use the SAME write chain as normal edits. A later edit must never be
+ // overwritten by a retry that started earlier, nor lose its pending Blob.
+ const task=saving.then(async()=>{repository=new Projects(await openProjectDriver());durable=true;
+  for(const id of [...dirtyProjects]){const snapshot=structuredClone(projects.get(id)!),revision=writeVersions.get(id),assets=[...pendingAssets.values()].filter(a=>a.projectId===id),media=[...pendingMedia.values()].filter(a=>a.projectId===id);await repository.save(snapshot,assets.map(a=>a.asset),media.map(a=>a.asset));for(const a of assets)if(pendingAssets.get(a.asset.id)===a)pendingAssets.delete(a.asset.id);for(const a of media)if(pendingMedia.get(a.asset.id)===a)pendingMedia.delete(a.asset.id);if(writeVersions.get(id)===revision)dirtyProjects.delete(id);}
+  storageNotice(dirtyProjects.size?'Newer changes are still saving.':'Saved on this browser.');const existing=await repository.list();for(const p of existing)if(!projects.has(p.id))projects.set(p.id,p);projectOptions();
+ });saving=task.catch(error=>{durable=false;storageNotice('Not saved — '+errorText(error)+' Keep this tab open and retry saving.');});
+ try{await saving;}finally{reading=false;ready();}
 }
 el('retry-save').onclick=()=>void retryStorage();
 el('open-cookie-demo').onclick=async()=>{
@@ -264,4 +269,5 @@ el('open-static-demo').onclick=async()=>{
   await saving;project=example;projects.set(example.id,example);await persist(files);reading=false;await openProject(example);await brandWorkspace?.refreshList();await staticWorkspace?.refresh(demo.brand);showWorkspace('static');
  }catch(e){status.textContent=errorText(e);}finally{reading=false;ready();}
 };
+window.addEventListener('beforeunload',event=>{if(dirtyProjects.size||working()){event.preventDefault();event.returnValue='';}});
 void start();

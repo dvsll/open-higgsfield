@@ -1,5 +1,41 @@
 # Ad Studio React migration handoff
 
+## Implemented 2026-10-25 — owner-authorized complete primary journey
+
+The newest owner instruction supersedes the historical sequencing gates below.
+`index.html` now mounts one React root from `src/react/entry.tsx`: product/brand,
+source-grounded concept, explicit review, Qwen readiness/generation, comparison,
+copy/layout preview, verified PNG export and history. No native DOM island in the
+primary screen. `WorkspaceStore` owns ordered durable saves, per-write revisions,
+pending original/media Blobs, quota retry, busy locks and subscriptions.
+`AdApplication` and the real `CreativeStudioService` use the same Projects facade.
+No database/version/key/origin change. React and its types are existing MIT deps;
+no package/model installed. Refresh does not submit jobs. Interrupted attempts are
+labeled; back-forward cache returns reload the saved database. TS/TSX changes use
+full-page reload, CSS updates live. Image URLs/listeners/timers clean up on disposal.
+
+**Specialist tools are retained as a separate page**, `tools.html`, using the old
+native controllers, not mounted inside React. Project & tools links preserve full
+Brand/Hero/Static/Create/Composer functionality. Returning to the primary page
+reopens the same existing database/active-project key. Old #create/#compose/#static
+links redirect there at the same origin; #hero and #brand use the React entry.
+Native retry now shares its ordered save chain and clears only unchanged pending
+versions, rather than rewriting every project and dropping newer edits.
+
+Validation: `npm run test:adstudio-ui`, `npm run test:creative`, existing Ad/Director
+regressions, `node --experimental-transform-types adstudio/scripts/local-media-regression.mjs`,
+typecheck/build. Full original→brand→plan→review→mock Qwen→verified take→real PNG→reopen
+passes in isolated storage. Real API/FFmpeg tests cover offline Camera, audio-aware
+editing/export and Composer. Static React snapshots live in gitignored
+outputs/react-adstudio-review; they are not browser acceptance. Browser control
+remains blocked by the prior URL-confidence restriction; no retry/controller swap.
+No real text/image inference, spending, private upload or model download occurred.
+
+---
+
+Historical planning follows; its old entry/layout/sequencing descriptions are not
+the current application.
+
 2026-10-23 · Requested by dvs for the partner's coding agent. **Planning only: Ad Studio stays on its current UI in this merge. The user clarified React, not Rust. No Rust migration is planned.**
 
 ## Read first

@@ -10,7 +10,7 @@ import {newBrand} from '../../shared/lib/brand.ts';
 import {draftReviewed} from '../../shared/lib/product-brief.ts';
 
 // Markup contract: advanced controls start closed and every controller ID exists.
-const html=await readFile('adstudio/index.html','utf8'),markup=parseFragment(html),ids=new Set();
+const html=await readFile('adstudio/tools.html','utf8'),markup=parseFragment(html),ids=new Set();
 const walk=node=>{for(const a of node.attrs||[])if(a.name==='id'){assert.equal(ids.has(a.value),false,'duplicate id '+a.value);ids.add(a.value);}for(const child of node.childNodes||[])walk(child);};walk(markup);
 for(const id of ['hero-selection','hero-use-original','hero-readiness','hero-request-actions','hero-sourceKind','hero-imageModel','hero-develop','hero-seed'])assert.ok(ids.has(id),id);
 assert.match(html,/<option value="finish">Local photographic finish \(no AI\)<\/option>/);

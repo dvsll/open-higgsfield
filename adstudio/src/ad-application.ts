@@ -1,0 +1,54 @@
+// React-facing actions. All jobs and writes share WorkspaceStore; no UI imports.
+import {WorkspaceStore} from './workspace-store.ts';
+import {CreativeStudioService,type CreativeDraft} from './creative-service.ts';
+import {OSH,type HeroResult} from '../../shared/runtime/client.ts';
+import {newBrand,applyResearch,type BrandProfile} from '../../shared/lib/brand.ts';
+import {newStaticDesign,type StaticDesign} from '../../shared/lib/static-ad.ts';
+import {heroRequestManifest} from './hero-flow.ts';
+import {blobDataURL} from './assets.ts';
+import type {AdProject,ProductAsset} from './projects.ts';
+import type {HeroTake} from '../../shared/lib/hero-ad.ts';
+export type CopyEdit=Partial<Pick<StaticDesign,'headline'|'body'|'cta'|'size'>>;
+export function journeyStage(p:AdProject):'product'|'direction'|'result'{const entry=p.creative?.plans.find(e=>e.id===p.creative?.activeId),take=p.hero?.takes.find(t=>t.id===p.hero?.activeId)||p.hero?.takes.at(-1);return take&&(!entry||entry.preparedId&&take.settings.prompt===p.hero?.settings.prompt)?'result':entry?'direction':'product';}
+export const blobHash=async(b:Blob)=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',await b.arrayBuffer()))).map(v=>v.toString(16).padStart(2,'0')).join('');
+export async function previewBlob(store:Pick<WorkspaceStore,'asset'>,id:string,expected?:string,raw=false){const asset=await store.asset(id);if(!asset)throw Error('The saved image is missing. Your history is still here.');const blob=raw?asset.original:asset.normalized;if(expected&&await blobHash(blob)!==expected)throw Error('The saved image failed its checksum.');return blob;}
+export function draftFor(p:AdProject):CreativeDraft {
+ if(p.creative?.draft)return structuredClone(p.creative.draft);
+ const prior=p.hero?.settings.briefDraft?.input;
+ const sourceId=prior?.source.kind==='original'?prior.source.id:p.hero?.settings.originalId||p.assetId||(p.hero?.settings.sourceKind==='original'?p.hero.settings.sourceId:'')||'';
+ return {sourceId,facts:prior?.source.id===sourceId?structuredClone(prior.facts):{description:'',arrangement:'',texture:'',container:'',confirmed:false},productType:prior?.source.id===sourceId?prior.productType:'other',request:'',intent:'campaign',format:'feed'};
+}
+export type Readiness={qwen:{available:boolean;reason?:string};finish:boolean};
+export type AppClient=Pick<typeof OSH,'upload'|'staticAd'> & {capabilities:()=>Promise<Readiness>;research:(website:string)=>Promise<Parameters<typeof applyResearch>[1]>};
+export const appClient:AppClient={...OSH,capabilities:async()=>{const r=await fetch('/api/hero/capabilities',{cache:'no-store',signal:AbortSignal.timeout(10000)});if(!r.ok)throw Error('The local generation service could not be reached.');return r.json();},research:async website=>{const r=await fetch('/api/brand/research',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({website})});const b=await r.json();if(!r.ok)throw Error(b.error||'Website research failed.');return b;}};
+export class AdApplication {
+ constructor(readonly store:WorkspaceStore,readonly creative=new CreativeStudioService(store.projects),readonly client:AppClient=appClient,private encode=blobDataURL){}
+ async addPhoto(asset:ProductAsset){return this.store.run('Saving your original photograph',async()=>{const p=this.store.active();p.assetId=asset.id;p.creative??={version:1,plans:[]};p.creative.activeId=undefined;p.creative.draft={...draftFor(p),sourceId:asset.id,productId:undefined,facts:{description:'',arrangement:'',texture:'',container:'',confirmed:false}};await this.store.projects.save(p,asset);});}
+ async editDraft(patch:Partial<CreativeDraft>){return this.store.edit(p=>{p.creative??={version:1,plans:[]};p.creative.draft={...draftFor(p),...patch};p.creative.activeId=undefined;});}
+ async selectSource(sourceId:string){const p=this.store.active(),b=this.store.getSnapshot().brands.find(b=>b.id===p.brandId),allowed=[p.assetId,p.hero?.settings.originalId,p.hero?.settings.briefDraft?.input.source.id,...(b?.assets.filter(a=>a.role==='product').map(a=>a.assetId)||[])];if(!allowed.includes(sourceId)||p.hero?.takes.some(t=>t.assetId===sourceId))throw Error('Choose a saved original product photograph.');const previous=p.hero?.settings.briefDraft?.input;return this.editDraft({sourceId,productId:undefined,facts:previous?.source.id===sourceId?structuredClone(previous.facts):{description:'',arrangement:'',texture:'',container:'',confirmed:false}});}
+ async useBrand(id:string){if(!this.store.getSnapshot().brands.some(b=>b.id===id))throw Error('Select a saved brand.');return this.store.edit(p=>{p.brandId=id;p.creative??={version:1,plans:[]};p.creative.activeId=undefined;p.creative.draft={...draftFor(p),productId:undefined};});}
+ async saveBrand(brand:BrandProfile,assets:ProductAsset[]=[]){return this.store.run('Saving your brand',async()=>{await this.store.projects.saveBrand({...brand,updated:Date.now()},assets);const p=this.store.active();p.brandId=brand.id;p.creative??={version:1,plans:[]};p.creative.activeId=undefined;await this.store.projects.save(p);});}
+ async createBrand(name:string,website=''){const b=newBrand(name.trim());if(!b.dna.name)throw Error('Add your brand name.');b.overrides=['name'];return this.store.run(website?'Researching your website':'Saving your brand',async()=>{await this.store.projects.saveBrand(b);const p=this.store.active();p.brandId=b.id;await this.store.projects.save(p);if(website){try{applyResearch(b,await this.client.research(website));}catch(e){this.store.report(e);/* Manual brand remains real and saved. */}await this.store.projects.saveBrand(b);}return b;});}
+ async develop(){return this.store.run('Developing your advertisement',async()=>{const p=this.store.active(),d=draftFor(p);if(!d.sourceId||!d.facts.description.trim())throw Error('Add a photograph and briefly describe the product shown.');return this.creative.plan(p.id,d.sourceId,d);});}
+ async choose(planId:string,conceptId:string){return this.store.run('Saving your chosen direction',()=>this.creative.choose(this.store.active().id,planId,conceptId));}
+ async approve(planId:string,factsConfirmed:boolean){return this.store.run('Saving your reviewed direction',()=>this.creative.approve(this.store.active().id,planId,{direction:true,facts:factsConfirmed}));}
+ async generate(planId:string){return this.store.run('Generating your product photograph',async()=>{
+  if(this.store.active().hero!.takes.length>=80)throw Error('This project has 80 saved photographs. Start a new project; previous images are retained.');
+  const ready=await this.client.capabilities();if(!ready.qwen.available)throw Error('Image generation is not ready on this connection. Your direction is saved. No GPU is rented automatically.');
+  let p=this.store.active();if(p.attempt?.status==='running'||p.attempt?.status==='interrupted')throw Error('Check the interrupted job and saved history before submitting another generation.');
+  p.attempt={id:crypto.randomUUID(),status:'running',created:Date.now(),takeIds:[]};await this.store.projects.save(p);
+  try{const take=await this.creative.generate(p.id,planId);p=this.store.active();p.attempt!.status='complete';p.attempt!.takeIds=[take.id];await this.store.projects.save(p);return take;}catch(e){p=this.store.active();p.attempt!.status='failed';p.attempt!.error=e instanceof Error?e.message:String(e);await this.store.projects.save(p).catch(()=>{});throw e;}
+ });}
+ async request(){const p=this.store.active(),s=p.hero!.settings,source=await this.store.asset(s.sourceId);if(!source||await blobHash(source.normalized)!==s.briefDraft?.input.source.sha256||await blobHash(source.original)!==s.briefDraft.input.source.originalSha256)throw Error('Restore the exact reviewed original before exporting the request.');const brand=this.store.getSnapshot().brands.find(b=>b.id===p.brandId);return heroRequestManifest(p,s,true,brand);}
+ async exportTake(take:HeroTake,copy:CopyEdit,fidelityReviewed:boolean){return this.store.run('Composing your advertisement',async()=>{
+  if(!fidelityReviewed)throw Error('Compare the generated photograph with your original before exporting.');const p=this.store.active(),entry=p.creative?.plans.find(e=>e.id===p.creative?.activeId&&e.preparedId&&p.hero!.settings.prompt===take.settings.prompt&&e.sourceId===take.settings.sourceId);
+  if(entry)return this.creative.exportAd(p.id,entry.id,take.id,true,copy);
+  // Previously saved (pre-creative-engine) takes remain usable. Verify their raw
+  // original bytes, then compose them with the existing deterministic exporter.
+  const brand=this.store.getSnapshot().brands.find(b=>b.id===(take.settings.brandId||p.brandId));if(!brand)throw Error('Choose the saved brand for this photograph.');const asset=await this.store.asset(take.assetId);if(!asset||await blobHash(asset.original)!==take.sha256)throw Error('The saved generated image is missing or corrupt. Restore it before exporting.');
+  const design={...newStaticDesign(brand,take.settings.productId).design,...copy,photoId:asset.id,photoConfirmed:true},photo=await this.client.upload(await this.encode(asset.original)),logo=design.logoId?await this.store.asset(design.logoId):undefined;if(design.logoId&&!logo)throw Error('Restore the saved original logo before exporting.');
+  const logoURL=logo?(await this.client.upload(await this.encode(logo.normalized))).url:undefined,r=await this.client.staticAd({design,photo:photo.url,logo:logoURL});const exported=await this.outputAsset(r.url,r.sha256,'Advertisement.png',r.width,r.height);p.staticAds!.exports.push({id:crypto.randomUUID(),assetId:exported.id,created:Date.now(),url:r.url,sha256:r.sha256,sources:r.sources,design});await this.store.projects.save(p,exported);return {...r,design};
+ });}
+ async restoreTake(take:HeroTake){return this.store.run('Restoring the saved photograph',async()=>{const p=this.store.active(),existing=await this.store.asset(take.assetId),r=await fetch(take.url,{cache:'no-store'});if(!r.ok)throw Error('The local output file is also missing. Existing history was kept.');const raw=await r.blob();if(await blobHash(raw)!==take.sha256)throw Error('Local output checksum failed. History was not changed.');const bitmap=await createImageBitmap(raw);const asset={id:take.assetId,name:existing?.name||'Generated photograph.png',original:raw,normalized:raw,width:bitmap.width,height:bitmap.height,created:take.created};bitmap.close();await this.store.projects.save(p,asset);});}
+ private async outputAsset(url:string,hash:string,name:string,width:number,height:number){if(!/^\/outputs\/[a-f0-9]{16}\.png$/.test(url))throw Error('Invalid output URL.');const r=await fetch(url);if(!r.ok)throw Error('The exported file is missing. Previous work was kept.');const blob=await r.blob();if(await blobHash(blob)!==hash)throw Error('Export checksum failed.');return {id:crypto.randomUUID(),name,original:blob,normalized:blob,width,height,created:Date.now()};}
+}

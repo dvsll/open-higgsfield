@@ -2,7 +2,7 @@
 import {readFile,writeFile,mkdir,stat} from 'node:fs/promises';
 import {join} from 'node:path';
 import {randomBytes} from 'node:crypto';
-import {creativeContext,validateCreativeInput,validateCreativeConcepts,fallbackConcepts,assembleCreativePlan,creativeSnapshot,creativeHeroSettings,compileCreativeDraft,type CreativeInput,type CreativePlan,type CreativePrepared} from '../lib/creative-engine.ts';
+import {creativeContext,validateCreativeInput,validateCreativeConcepts,fallbackConcepts,assembleCreativePlan,selectCreativePlan,creativeSnapshot,creativeHeroSettings,compileCreativeDraft,type CreativeInput,type CreativePlan,type CreativePrepared} from '../lib/creative-engine.ts';
 import {reviewDraft,type GenerationDraft} from '../lib/product-brief.ts';
 import {heroSha,heroSource} from './hero-ad.ts';
 import {validateQwenRequest,qwenWorkflow,qwenContract,inspectQwenPNG} from './qwen-hero.ts';
@@ -32,6 +32,10 @@ export function createCreativeEngine(outputs:string,backend:CreativeBackend){
  return {
   async status(){return {...await modelStatus(),busy,fallback:'deterministic, explicitly labeled; no AI analysis simulated',imageGeneration:false};},
   get:load,
+  async select(body:{planId:string;projectId:string;conceptId:string}){
+   const previous=await load(body?.planId,body?.projectId);let plan;try{plan=selectCreativePlan(previous,body.conceptId,id());}catch(e){throw new CreativeError(400,(e as Error).message);}
+   await mkdir(join(base,plan.id),{recursive:true});await writeFile(file(plan.id,'plan.json'),JSON.stringify(plan,null,2),{flag:'wx',mode:0o600});return plan;
+  },
   async plan(body:{image:string;input:CreativeInput}){
    const input=checked(body?.input);await source(body.image,input);if(busy)throw new CreativeError(409,'A creative plan is already running.');busy=true;
    try{const context=creativeContext(input),status=await modelStatus();let concepts,mode:'local-ai'|'deterministic'='deterministic',reason=status.reason,raw='';
@@ -51,14 +55,15 @@ export function createCreativeEngine(outputs:string,backend:CreativeBackend){
    // Store only bindings/settings, never a duplicate original image data URL.
    await writeFile(file(plan.id,'prepared-'+prepared.preparedId+'.json'),JSON.stringify({...prepared,payload:{...payload,original:undefined}},null,2),{flag:'wx',mode:0o600});return prepared;
   },
-  async compose(body:{planId:string;preparedId:string;projectId:string;hero:string;provenanceId:string;heroAssetId:string;logo?:string;logoAssetId?:string;fidelityReviewed:boolean}){
+  async compose(body:{planId:string;preparedId:string;projectId:string;hero:string;provenanceId:string;heroAssetId:string;logo?:string;logoAssetId?:string;fidelityReviewed:boolean;copy?:Partial<Pick<import('../lib/static-ad.ts').StaticDesign,'headline'|'body'|'cta'|'size'>>}){
    const plan=await load(body.planId,body.projectId);if(!/^[a-f0-9]{16}$/.test(body.preparedId))throw new CreativeError(400,'Invalid reviewed request identity.');const prepared=await read(file(plan.id,'prepared-'+body.preparedId+'.json')) as CreativePrepared;
    if(body.fidelityReviewed!==true)throw new CreativeError(400,'Inspect the generated product against its original before export.');
    if(!/^[a-f0-9]{16}$/.test(body.provenanceId)||typeof body.heroAssetId!=='string'||!body.heroAssetId)throw new CreativeError(400,'Select a saved delivered Hero take.');
    const record=await read(join(outputs,'hero-qwen',body.provenanceId,'provenance.json')),hero=await heroSource(outputs,body.hero),graph=await qwenWorkflow(),contract=await qwenContract();graph['6'].inputs.prompt=prepared.payload.settings.prompt;graph['13'].inputs.seed=prepared.payload.settings.seed;graph['15'].inputs.filename_prefix='adstudio-qwen-'+body.provenanceId;
    if(record.status!=='complete'||record.projectId!==plan.projectId||record.model!=='qwen-fp8'||!record.jobId||record.url!==body.hero||record.sha256!==hero.sha256||record.sourceSha256!==plan.input.source.sha256||record.originalSha256!==plan.input.source.originalSha256||record.modelPrompt!==prepared.payload.settings.prompt||record.workflowSha256!==heroSha(JSON.stringify(graph))||heroSha(JSON.stringify(record.workflow))!==record.workflowSha256||contract.files.some(f=>!record.weights?.some((w:any)=>w.file===f.file&&w.bytes===f.bytes&&w.sha256===f.sha256)))throw new CreativeError(409,'Hero provenance differs from this reviewed plan/project/source.');
    inspectQwenPNG(hero.bytes,graph);if(body.logo&&(body.logoAssetId!==plan.composition.logoId||!plan.composition.logoId))throw new CreativeError(409,'Logo differs from the saved brand asset.');
-   const design={...plan.composition,photoId:body.heroAssetId,photoConfirmed:true};const result=await exportStaticAd({design,photo:body.hero,...(body.logo?{logo:body.logo}:{})},outputs);await writeFile(file(plan.id,'export-'+id()+'.json'),JSON.stringify({planId:plan.id,preparedId:prepared.preparedId,provenanceId:body.provenanceId,design,result,ownerFidelityReviewed:true},null,2),{flag:'wx',mode:0o600});return {...result,design,planId:plan.id,preparedId:prepared.preparedId};
+   if(body.copy&&Object.keys(body.copy).some(k=>!['headline','body','cta','size'].includes(k)))throw new CreativeError(400,'Only advertisement copy and output format may be adjusted.');
+   const design={...plan.composition,...body.copy,photoId:body.heroAssetId,photoConfirmed:true};const result=await exportStaticAd({design,photo:body.hero,...(body.logo?{logo:body.logo}:{})},outputs);await writeFile(file(plan.id,'export-'+id()+'.json'),JSON.stringify({planId:plan.id,preparedId:prepared.preparedId,provenanceId:body.provenanceId,design,result,ownerFidelityReviewed:true},null,2),{flag:'wx',mode:0o600});return {...result,design,planId:plan.id,preparedId:prepared.preparedId};
   }
  };
 }

@@ -21,7 +21,7 @@ export default defineConfig(({ mode }) => {
       name: 'studio-controller-reload',
       // Controllers own native media/pointer services for a page lifetime. Never hot-mount a second copy.
       handleHotUpdate({ file, server }) {
-        if (/[/\\]studio[/\\]src[/\\].*\.(ts|tsx)$/.test(file)) {
+        if (/[/\\](studio|adstudio)[/\\]src[/\\].*\.(ts|tsx)$/.test(file)) {
           server.ws.send({ type: 'full-reload' });
           return [];
         }
@@ -40,6 +40,7 @@ export default defineConfig(({ mode }) => {
           edit: "studio/edit.html",
           designLab: "studio/design-lab.html",
           adstudio: "adstudio/index.html",
+          adstudioTools: "adstudio/tools.html",
         },
       },
     },

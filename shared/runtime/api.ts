@@ -548,6 +548,7 @@ function middleware(env: Env,setup:RuntimeSetup,rewriter:PromptRewriter,creative
       if(route==='GET /api/creative/status')return send(res,200,await creative.status());
       if(req.method==='GET'&&/^\/api\/creative\/plan\/[a-f0-9]{16}$/.test(url.pathname))return send(res,200,await creative.get(url.pathname.split('/').pop()!,url.searchParams.get('projectId')||''));
       if(route==='POST /api/creative/plan')return send(res,200,await creative.plan(await readBody(req,256*1024)));
+      if(route==='POST /api/creative/select')return send(res,200,await creative.select(await readBody(req)));
       if(route==='POST /api/creative/prepare')return send(res,200,await creative.prepare(await readBody(req,20*1024*1024)));
       if(route==='POST /api/creative/compose')return send(res,200,await creative.compose(await readBody(req)));
       if(req.method==='GET'&&/^\/api\/hero\/qwen\/provenance\/[a-f0-9]{16}$/.test(url.pathname)){

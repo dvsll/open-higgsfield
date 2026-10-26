@@ -1,5 +1,11 @@
 # Creative engine V1
 
+Current UI: `src/react/entry.tsx` → `AdApplication` → `CreativeStudioService`, all
+sharing `WorkspaceStore.projects`. POST `/api/creative/select` creates a new,
+unreviewed immutable plan from an existing alternative; no text/image generation.
+`creative/compose` accepts optional owner-edited headline/body/CTA/format only,
+with existing provenance and source gates intact. Prior plans/takes remain.
+
 Backend/application service for the next UI. Planning never triggers an image
 model, download, cloud deployment or browser storage initialization.
 

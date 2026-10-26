@@ -1,4 +1,41 @@
-# P0 simplified Hero - owner-assisted acceptance
+# React Ad Studio — current acceptance status (2026-10-25)
+
+**Real browser/IndexedDB acceptance: NOT RUN for this rebuild.** The previous
+controller URL-confidence restriction remains in force; no controller was retried
+or replaced. React SSR, real local HTTP/FFmpeg and isolated storage tests passed,
+including the full mock-inference journey and save-failure recovery. Previous
+owner-reported persistence evidence remains historical, not new verification.
+
+Current entry: **http://127.0.0.1:8301/adstudio/#hero**, same existing profile/data.
+The main screen is React; Project & tools opens preserved specialist editors.
+No models are currently ready here. This unpaid check must not click Generate.
+
+1. Refresh the same tab. Check the existing project/brand, genuine original and
+   Saved photographs. Open an older take and Compare original; its own reference
+   must be shown. Download a prior image/export without changing any assets.
+2. Develop a direction from the original and only owner-verifiable photo facts.
+   Expect **Source-led suggestion · no AI planning** while Qwen3 is unavailable.
+   Choosing an alternative or refining produces a new unreviewed saved plan.
+3. Check the facts checkbox and Confirm this direction. Wait for Saved. Generate
+   must stay disabled while unavailable; Export reviewed request · JSON remains
+   available. Inspect genuine IDs/hashes/seed/prompt; no image/paid approval claimed.
+4. Refresh and switch projects/back. Source, chosen direction/review, older takes,
+   copy and exports must survive and stay isolated. Missing/corrupt images must
+   show an error instead of a substitute. Do not clear browser storage.
+5. Check Project & tools: Brand/Hero/Static/Create/Composer still open the same
+   data. Return to the React workspace. Use a disposable project/profile for quota
+   tests: Not saved stays visible, latest edits remain, Retry saving completes
+   durably before navigation. No second generation is a recovery mechanism.
+
+Actual generated-image-to-export interaction remains owner/live-model acceptance;
+the automated test used an explicitly labeled mock inference and real PNG exporter.
+
+---
+
+The remaining sections record **historical interfaces/evidence**, not the current
+React walkthrough.
+
+# P0 simplified Hero - historical owner-assisted acceptance
 
 **Browser acceptance: NOT RUN.** The earlier controller stopped on URL-confidence verification. This task makes no further controller calls and uses no alternative controller. CPU interaction fixtures, memory-driver persistence and HTTP checks are not real browser/IndexedDB acceptance.
 

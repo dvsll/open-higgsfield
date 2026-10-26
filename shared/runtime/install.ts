@@ -286,15 +286,22 @@ async function extras() {
   step('Optional extras');
   if (dir && python && existsSync(python)) {
     const has = (node: string) => existsSync(join(dir, 'custom_nodes', node));
+    let addedExtra = false;
     if (!has('osh_captions') && await yes('  Add automatic captions (speech to text, runs on your CPU)?')) {
+      addedExtra = true;
       const model = totalmem() >= 16 * 2 ** 30 ? 'large-v3' : 'small';
       if (spawnSync(python, [join(ROOT, 'shared/runtime/setup-captions.py'), '--comfy-root', dir, '--model', model], { stdio: 'inherit' }).status !== 0) say('  Captions setup failed; everything else still works.');
     }
     if (!has('osh_semantic') && await yes('  Add smart search for your Elements library?')) {
+      addedExtra = true;
       if (spawnSync(python, [join(ROOT, 'shared/runtime/setup-search.py'), '--comfy-root', dir], { stdio: 'inherit' }).status !== 0) say('  Search setup failed; everything else still works.');
     }
-    if (!has('osh_captions') || !has('osh_semantic')) say('  Restart ComfyUI (or this app) to load new extras.');
-  } else say('  Captions and search need a ComfyUI this app can find on disk; skipped.');
+    if (!has('osh_training') && await yes('  Add image LoRA training? (uses installed ComfyUI training; no downloads)')) {
+      addedExtra = true;
+      if (spawnSync(python, [join(ROOT, 'shared/runtime/setup-training.py'), '--comfy-root', dir], { stdio: 'inherit' }).status !== 0) say('  Training setup failed; everything else still works.');
+    }
+    if (addedExtra) say('  Restart ComfyUI (or this app) to load new extras.');
+  } else say('  Captions, search and training need a ComfyUI this app can find on disk; skipped.');
 
   const envPath = join(ROOT, '.env'), text = existsSync(envPath) ? readFileSync(envPath, 'utf8') : '';
   if (!/^OSH_TOKEN=/m.test(text) && await yes('  Let other devices on your network use the app? (password-protected)', false)) {

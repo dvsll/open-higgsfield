@@ -13,13 +13,13 @@ export function trainingInput(value:unknown):TrainingInput{
 export function trainingGraph(input:TrainingInput,id:string){
  if(!/^[a-f0-9]{32}$/.test(id))throw Error('Invalid training ID.');
  const graph:Record<string,{class_type:string;inputs:Record<string,unknown>}>={
-  '1':{class_type:'UNETLoader',inputs:{unet_name:input.model,weight_dtype:'default'}},
+  '1':{class_type:'UNETLoader',inputs:{unet_name:input.model,weight_dtype:'fp8_e4m3fn'}},
   '2':{class_type:'CLIPLoader',inputs:{clip_name:'qwen_3_4b_fp8_mixed.safetensors',type:'lumina2',device:'cpu'}},
   '3':{class_type:'VAELoader',inputs:{vae_name:'ae.safetensors'}},
   '4':{class_type:'ModelSamplingAuraFlow',inputs:{model:['1',0],shift:3}},
   '5':{class_type:'OSHTrainingPairs',inputs:{images:[],captions:JSON.stringify(input.images.map(image=>image.caption))}},
   '6':{class_type:'MakeTrainingDataset',inputs:{images:['5',0],texts:['5',1],clip:['2',0],vae:['3',0]}},
-  '7':{class_type:'TrainLoraNode',inputs:{model:['4',0],latents:['6',0],positive:['6',1],steps:input.steps,rank:input.rank,learning_rate:input.learningRate,seed:input.seed,batch_size:1,grad_accumulation_steps:1,optimizer:'AdamW',loss_function:'MSE',training_dtype:'bf16',lora_dtype:'bf16',quantized_backward:false,algorithm:'LoRA',gradient_checkpointing:true,checkpoint_depth:3,offloading:true,existing_lora:'[None]',bucket_mode:false,bypass_mode:true}},
+  '7':{class_type:'TrainLoraNode',inputs:{model:['4',0],latents:['6',0],positive:['6',1],steps:input.steps,rank:input.rank,learning_rate:input.learningRate,seed:input.seed,batch_size:1,grad_accumulation_steps:1,optimizer:'AdamW',loss_function:'MSE',training_dtype:'none',lora_dtype:'bf16',quantized_backward:false,algorithm:'LoRA',gradient_checkpointing:true,checkpoint_depth:2,offloading:false,existing_lora:'[None]',bucket_mode:false,bypass_mode:true}},
   '8':{class_type:'OSHSaveTraining',inputs:{lora:['7',0],loss:['7',1],steps:['7',2],run_id:id,name:input.name,base:input.model}},
  };
  let previous:unknown;

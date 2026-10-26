@@ -1,6 +1,6 @@
 // Interpretable planning rules, not a vision model or an aesthetic evaluator.
 import type {CreativeInput,CreativeConcept,CreativeContext} from './creative-engine.ts';
-import {brandFieldStatus} from './brand.ts';
+import {brandFieldStatus,advertisingColors} from './brand.ts';
 
 export type CreativeGrounding={
  identity:string[]; appearance:string[]; positioning:string[]; preferences:string[];
@@ -9,8 +9,8 @@ export type CreativeGrounding={
 // Only named preference fields contribute to visual style. Business descriptions
 // and website boilerplate stay evidence, even if no visual preference was given.
 export function creativeGrounding(input:CreativeInput):CreativeGrounding {
- const b=input.brand,read=(keys:('tone'|'visualStyle'|'guidelines'|'positioning'|'audience')[])=>keys.filter(k=>b.dna[k].trim()).map(k=>({key:k,text:b.dna[k],status:brandFieldStatus(b,k)}));
- const declared=read(['tone','visualStyle','guidelines']).filter(s=>s.status!=='inferred');
+ const b=input.brand,read=(keys:('tone'|'visualStyle'|'guidelines'|'positioning'|'audience'|'creativePreferences')[])=>keys.filter(k=>b.dna[k]?.trim()).map(k=>({key:k,text:b.dna[k]||'',status:brandFieldStatus(b,k)}));
+ const declared=read(['tone','visualStyle','guidelines','creativePreferences']).filter(s=>s.status!=='inferred');
  const request=input.request||'',signals=[...declared.map(s=>s.text),request].join(' ').toLowerCase();
  // Deliberately limited vocabulary: unknown prose is retained in the objective,
  // never repeated as photographic direction or treated as new product evidence.
@@ -30,7 +30,7 @@ export function creativeGrounding(input:CreativeInput):CreativeGrounding {
  if(/\b(remove|add|duplicate|multiply|rearrange|scatter|rotate|crop|redraw|redesign|new label)\b/i.test(request))warnings.push('Customer transformation language must be reconciled with the product locks; locks take priority, not the request.');
  if(controls.angle==='none'&&/\b(angle|rotate|overhead|profile|perspective)\b/i.test(request))warnings.push('Requested viewpoint change conflicts with the no-angle-change lock.');
  if((controls.exactCount||controls.fidelity==='strict')&&/\b(crop|single|one item|remove|duplicate)\b/i.test(request))warnings.push('Requested framing/count change may conflict with full-batch preservation.');
- return {identity:[b.dna.name,b.dna.description,b.dna.story].filter(Boolean),appearance:[input.facts.description,input.facts.texture,input.facts.container,input.facts.arrangement].filter(Boolean),positioning:read(['positioning']).filter(s=>s.status!=='inferred').map(s=>s.text),preferences:declared.map(s=>`${s.key} (${s.status}): ${s.text}`),hypotheses:read(['tone','visualStyle','guidelines','positioning','audience']).filter(s=>s.status==='inferred').map(s=>`${s.key}: ${s.text}`),objective:request,direction:treatments.join('; ')||'clear material-led photography, neutral surroundings and readable product boundaries',palette:b.colors.slice(0,3),warnings};
+ return {identity:[b.dna.name,b.dna.description,b.dna.story].filter(Boolean),appearance:[input.facts.description,input.facts.texture,input.facts.container,input.facts.arrangement].filter(Boolean),positioning:read(['positioning']).filter(s=>s.status!=='inferred').map(s=>s.text),preferences:declared.map(s=>`${s.key} (${s.status}): ${s.text}`),hypotheses:read(['tone','visualStyle','guidelines','positioning','audience']).filter(s=>s.status==='inferred').map(s=>`${s.key}: ${s.text}`),objective:request,direction:treatments.join('; ')||'clear material-led photography, neutral surroundings and readable product boundaries',palette:advertisingColors(b).slice(0,3),warnings};
 }
 
 const tokens=(s:string)=>new Set(s.toLowerCase().match(/[a-z0-9]+/g)?.filter(w=>w.length>3&&!['with','from','only','product','original','source','preserve','keep','photograph'].includes(w))||[]);

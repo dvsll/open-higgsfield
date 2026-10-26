@@ -1,9 +1,12 @@
 import {parse} from 'parse5';
 import {createHash} from 'node:crypto';
 import {type BrandResearch,type BrandSource,type BrandImage,type AnalysisProvider} from '../lib/brand.ts';
-import {validateResearch} from '../lib/brand.ts';
+import {validateResearch,canonicalAliasAllowed} from '../lib/brand.ts';
 import {discoverProducts} from './brand-products.ts';
 import {readPublic,safeURL,BrandError} from './brand-web.ts';
+import {websitePalette} from '../lib/brand-colors.ts';
+import {analyzeBrand,brandBackendStatus} from './brand-analysis.ts';
+import type {CreativeBackend} from './creative-engine.ts';
 type Env=Record<string,string|undefined>;
 type Node={nodeName:string;tagName?:string;value?:string;attrs?:{name:string;value:string}[];childNodes?:Node[]};
 const attr=(n:Node,k:string)=>n.attrs?.find(a=>a.name===k)?.value||'';
@@ -32,7 +35,7 @@ export function extractPage(html:string,url:string){
  const css=all.filter(n=>n.tagName==='style').map(n=>(n.childNodes||[]).map(c=>c.value||'').join('')).join('\n')+'\n'+all.map(n=>attr(n,'style')).join('\n');
  const stylesheets=all.filter(n=>n.tagName==='link'&&attr(n,'rel').split(' ').includes('stylesheet')).map(n=>resolve(attr(n,'href'))).filter(Boolean);
  const story=all.find(n=>['section','article'].includes(n.tagName||'')&&/^(about|story|our-story|ourstory)$/i.test(attr(n,'id')));
- return {title,description,name:siteName||(typeof org?.name==='string'?org.name.slice(0,120):''),body,story:story?text(story).slice(0,2000):'',links,images:collected,products,css,stylesheets,positioning:typeof org?.slogan==='string'?org.slogan.slice(0,2000):'',differentiators:(()=>{const n=all.find(n=>['section','article'].includes(n.tagName||'')&&/^(why-us|why-choose-us|our-difference|our-values)$/i.test(attr(n,'id')));return n?text(n).slice(0,2000):'';})()};
+ return {title,description,name:siteName||(typeof org?.name==='string'?org.name.slice(0,120):''),body,story:story?text(story).slice(0,2000):'',links,images:collected,products,css,stylesheets,theme:attr(meta('theme-color')||{} as Node,'content'),canonical:resolve(attr(all.find(n=>n.tagName==='link'&&attr(n,'rel')==='canonical')||{} as Node,'href')),positioning:typeof org?.slogan==='string'?org.slogan.slice(0,2000):'',differentiators:(()=>{const n=all.find(n=>['section','article'].includes(n.tagName||'')&&/^(why-us|why-choose-us|our-difference|our-values)$/i.test(attr(n,'id')));return n?text(n).slice(0,2000):'';})()};
 }
 export function palette(css:string){const counts=new Map<string,number>();for(const m of css.matchAll(/(?<![\w-])#([a-f0-9]{6}|[a-f0-9]{3})(?![\w-])/gi)){const raw=m[1],color='#'+(raw.length===3?raw.split('').map(x=>x+x).join(''):raw).toLowerCase();counts.set(color,(counts.get(color)||0)+1);}return [...counts].sort((a,b)=>b[1]-a[1]).slice(0,6).map(x=>x[0]);}
 const allowedModels=new Set(['qwen2.5:7b-instruct','qwen2.5:7b']);
@@ -56,12 +59,12 @@ export async function analyzeEvidence(sources:BrandSource[],colors:string[],prov
  return validateSuggestions(JSON.parse(response.message.content),sources);
 }
 let active=false;
-export async function researchBrand(input:any,env:Env,read=readPublic):Promise<BrandResearch>{
+export async function researchBrand(input:any,env:Env,read=readPublic,backend?:CreativeBackend):Promise<BrandResearch>{
  const start=safeURL(input?.website);if(active)throw new BrandError(409,'Another website is being researched. Please wait.');active=true;
  try{
- const provider=input?.analyze===false?{provider:'none' as const,available:false,reason:'Source collection only. No AI brand analysis ran; creative planning may use the installed local model later.'}:await analysisStatus(env);
+ const provider=input?.analyze===false?{provider:'none' as const,available:false,reason:'Source collection only. No AI brand analysis ran; creative planning may use the installed local model later.'}:backend?await brandBackendStatus(backend):await analysisStatus(env);
  const result:BrandResearch={version:1,website:start.href,created:Date.now(),sources:[],observations:[],images:[],colors:[],products:[],provider,warnings:[],aiCompleted:false};
- const pending=[start.href],visited=new Set<string>(),began=Date.now();let combinedCSS='';
+ const pending=[start.href],visited=new Set<string>(),began=Date.now();let combinedCSS='',theme='';
  while(pending.length&&result.sources.length<4&&visited.size<8&&Date.now()-began<45000){
   const address=pending.shift()!;if(visited.has(address))continue;visited.add(address);let page;
   try{page=await read(address);if(!['text/html','application/xhtml+xml'].includes(page.type))throw new BrandError(422,'Enter a public HTML website page.');}
@@ -69,7 +72,11 @@ export async function researchBrand(input:any,env:Env,read=readPublic):Promise<B
   if(!result.sources.length&&/verify (?:that )?you are human|checking your browser|access denied/i.test(extractPage(page.bytes.toString('utf8'),page.url).body.slice(0,1000)))throw new BrandError(422,'This website restricts automated access. Use manual brand setup and an authorized photograph; no protection was bypassed.');
   if(result.sources.some(s=>s.url===page.url))continue;
   const parsed=extractPage(page.bytes.toString('utf8'),page.url),id='source-'+(result.sources.length+1),first=!result.sources.length;
-  if(first)result.website=page.url;
+  if(first){result.website=page.url;result.aliases=[...new Set([start.href,page.url])];theme=parsed.theme;
+   // A canonical tag is only a hint. Never use it to merge a business without
+   // a protected read and matching nonempty identity + description.
+   if(parsed.canonical&&canonicalAliasAllowed(page.url,parsed.canonical)&&parsed.canonical!==page.url&&parsed.name&&parsed.description){try{const c=await read(parsed.canonical),cp=extractPage(c.bytes.toString('utf8'),c.url);if(['text/html','application/xhtml+xml'].includes(c.type)&&cp.name===parsed.name&&cp.description===parsed.description&&canonicalAliasAllowed(page.url,c.url)){result.website=c.url;result.aliases=[...new Set([...result.aliases,parsed.canonical,c.url])];}}catch{result.warnings.push('Canonical destination could not be verified; it was not used as a website alias.');}}
+  }
   result.sources.push({id,url:page.url,title:parsed.title,text:[parsed.title,parsed.description,parsed.body,parsed.positioning,parsed.differentiators].filter(Boolean).join('\n').slice(0,20000),sha256:createHash('sha256').update(page.bytes).digest('hex'),fetchedAt:Date.now()});
   if(first){if(parsed.name)result.observations.push({field:'name',value:parsed.name,kind:'source',sourceIds:[id],quote:parsed.name});if(parsed.description)result.observations.push({field:'description',value:parsed.description,kind:'source',sourceIds:[id],quote:parsed.description});}
   for(const field of ['story','positioning','differentiators'] as const)if(parsed[field]&&!result.observations.some(o=>o.field===field))result.observations.push({field,value:parsed[field],kind:'source',sourceIds:[id],quote:parsed[field]});
@@ -88,13 +95,13 @@ export async function researchBrand(input:any,env:Env,read=readPublic):Promise<B
  // Bounds never leave dangling or ambiguous evidence links as usable imports.
  for(const p of result.products)if(p.discovery)p.discovery.imageUrls=p.discovery.imageUrls.filter(url=>result.images.some(i=>i.url===url&&i.productKeys?.includes(p.discovery!.key)));
  for(const i of result.images)if(i.productKeys)i.productKeys=i.productKeys.filter(key=>result.products.some(p=>p.discovery?.key===key));
- result.colors=palette(combinedCSS);if(result.colors.length)result.observations.push({field:'colors',value:result.colors.join(', '),kind:'source',sourceIds:['source-1'],quote:'CSS color candidates; frequency is not proof of primary brand colors.'});
+ result.websiteColors=websitePalette(combinedCSS,theme);result.colors=result.websiteColors.slice(0,6).map(c=>c.hex);if(result.colors.length)result.observations.push({field:'colors',value:result.colors.join(', '),kind:'source',sourceIds:['source-1'],quote:'Algorithmic CSS/metadata candidates; declaration frequency/context is not proof of official brand colors.'});
  if(!result.products.length)result.warnings.push('No defensible product records found. Upload a photograph and add product details manually. Prices, appearance and availability are not inferred.');
  if(result.products.some(p=>!p.discovery?.imageUrls.length))result.warnings.push('Some products have no explicitly associated image. Choose another product or upload its photograph; page banners are not substituted.');
  if(result.images.some(i=>(i.productKeys?.length||0)>1))result.warnings.push('An image is shared by several product records. Automatic import is disabled for that ambiguous association.');
  if(!result.observations.some(o=>o.field==='name'))result.warnings.push('A business name was not found in organization/site metadata. Add its actual name manually.');
  if(result.sources[0].text.trim().length<50)result.warnings.push('Little accessible text found. JavaScript-only or protected pages may require manual input.');
- if(provider.available){try{result.observations.push(...await analyzeEvidence(result.sources,result.colors,provider));result.aiCompleted=true;}catch{result.warnings.push('Local AI analysis failed or returned invalid evidence. No AI results were applied. Source collection remains usable.');}}else result.warnings.push(provider.reason);
+ if(provider.available){try{if(backend){await analyzeBrand(result,backend);}else{result.observations.push(...await analyzeEvidence(result.sources,result.colors,provider));result.aiCompleted=true;result.analysisState='completed';}}catch{result.analysisState='failed';result.warnings.push('Local AI analysis failed or returned invalid evidence. No AI results were applied. Source collection remains usable.');}}else{result.analysisState='unavailable';result.warnings.push(provider.reason);}
  return validateResearch(result);
  }finally{active=false;}
 }

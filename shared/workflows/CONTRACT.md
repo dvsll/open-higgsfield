@@ -1,5 +1,32 @@
 # Workflow contract
 
+## Editable brand intelligence (2026-10-26, additive)
+
+React discovery now requests `analyze:true`. The default brand backend reuses the
+installed Qwen3 4B FP8 native text workflow through the existing Comfy SDK/proxy;
+`GET /api/brand/status` may return `provider:"comfy-qwen3"`. An explicitly selected
+legacy `ADSTUDIO_BRAND_MODEL` retains the previous Ollama behavior. No automatic
+downloads/fallback inference. At most one text call per successful discovery,
+600 output tokens and the existing180s deadline. No image/vision analysis.
+`analyze:false` remains source-only. Research optionally adds `analysisState`
+(`completed|unavailable|failed`), `analysisRaw`, observed/verified `aliases` and
+`websiteColors:{hex,count,contexts,neutral}[]`. Suggestions are inferred with
+validated source IDs, never website facts. Unsupported operating promises are
+filtered; no semantic correctness guarantee. Existing public-fetch protections stay.
+
+Brand v1 optionally adds `aliases`, per-field `approvedFields`, DNA `messaging` /
+`creativePreferences`, product overrides including `sellingPoints`, and
+`palette:{approved,preferred}` (preferred is a subset). Old profiles still validate.
+Customer edits and empty removals survive rediscovery; original research remains
+separate. Customer draft saves merge field changes into the newest profile so
+concurrent imported assets/evidence are preserved. Brand revision changes invalidate
+old creative review. `brandContext`/planning/layouts consume preferred then approved
+colors, with legacy colors retained for unchanged older profiles. No product/logo
+recoloring. Optional ProductAsset `palette` records `kind:"overall-image"`,
+`method:"local-rgb-histogram-v1"`, `colors` and `sampledPixels`; this is local pixel
+statistics with no object/background separation. Image bytes and source hashes,
+IndexedDB v3, job/budget/approval guards and Director contracts are unchanged.
+
 ## Website product source contract (2026-10-26, additive)
 
 Brand v1 research/products optionally retain `discovery:{key,sourceId,method,imageUrls}`.

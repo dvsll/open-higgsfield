@@ -73,6 +73,7 @@ import {generateQwenHero,qwenAvailability,verifyWeightFiles,qwenContract} from '
 import {qwenSDKTransport} from './qwen-sdk.ts';
 import {createQwenRelay} from './qwen-relay.ts';
 import {acceptanceGate,acceptanceRequest,claimAcceptanceJob} from './qwen-app-session.ts';
+import {brandBackendStatus} from './brand-analysis.ts';
 import {createCreativeEngine,creativeTextStatus,creativeTextRouting,creativeSDKText,creativeTextDeadlineMs,CreativeError,type CreativeBackend} from './creative-engine.ts';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
@@ -552,7 +553,7 @@ function sameToken(a: string | undefined, b: string): boolean {
 
 function requirePathSeparator(){return process.platform==='win32'?'\\':'/';}
 
-function middleware(env: Env,setup:RuntimeSetup,rewriter:PromptRewriter,creative:ReturnType<typeof createCreativeEngine>): Connect.NextHandleFunction {
+function middleware(env: Env,setup:RuntimeSetup,rewriter:PromptRewriter,creative:ReturnType<typeof createCreativeEngine>,brandBackend:CreativeBackend): Connect.NextHandleFunction {
   const token = env.OSH_TOKEN || "";
   const session=env.QWEN_APP_SESSION_DIR?resolve(env.QWEN_APP_SESSION_DIR):'';
   if(env.QWEN_APP_RELAY_URL&&(!session.startsWith(OUTPUTS+requirePathSeparator())||!session.endsWith(requirePathSeparator()+'session')))throw new Error('Qwen acceptance session must be an outputs/.../session folder.');
@@ -625,8 +626,8 @@ function middleware(env: Env,setup:RuntimeSetup,rewriter:PromptRewriter,creative
       if (route === "GET /api/health") return send(res, 200, await health(env,setup.task.busy));
       if(route==='GET /api/prompt-rewriter')return send(res,200,await rewriter.status());
       if(route==='POST /api/prompt-rewriter'){const body=await readBody(req);return send(res,200,await rewriter.rewrite(body.prompt,body.details,body.device));}
-      if(route==='GET /api/brand/status')return send(res,200,await analysisStatus(env));
-      if(route==='POST /api/brand/research')return send(res,200,await researchBrand(await readBody(req),env));
+      if(route==='GET /api/brand/status')return send(res,200,await (env.ADSTUDIO_BRAND_MODEL?analysisStatus(env):brandBackendStatus(brandBackend)));
+      if(route==='POST /api/brand/research')return send(res,200,await researchBrand(await readBody(req),env,undefined,env.ADSTUDIO_BRAND_MODEL?undefined:brandBackend));
       if(route==='POST /api/brand/image')return send(res,200,await collectBrandImage(await readBody(req)));
       if(route==='GET /api/brand/demo'){
         const file=join(OUTPUTS,'brand-demo','demo.json');if(!existsSync(file))return send(res,404,{error:'No private local brand demo has been prepared.'});
@@ -769,12 +770,12 @@ export function comfyApi(env: Env): Plugin {
   return {
     name: "osh-comfy-api",
     async configureServer(server) {
-      server.middlewares.use(middleware(env,setup,rewriter,creative));
+      server.middlewares.use(middleware(env,setup,rewriter,creative,creativeBackend));
       if(setup.config?.mode==='managed'||setup.config?.launchDirectory)setup.start();
       else void (async()=>{if (!(await up((env.COMFYUI_URL || "http://127.0.0.1:8188") + "/system_stats"))) console.warn("[api] ComfyUI not reachable; open Local setup in Studio.");else await ensureProxy(env)})().catch(error=>console.warn('[setup]',error.message));
     },
     async configurePreviewServer(server) {
-      server.middlewares.use(middleware(env,setup,rewriter,creative));
+      server.middlewares.use(middleware(env,setup,rewriter,creative,creativeBackend));
       if(setup.config?.mode==='managed'||setup.config?.launchDirectory)setup.start();else void ensureProxy(env).catch(error=>console.warn('[setup]',error.message));
     },
   };

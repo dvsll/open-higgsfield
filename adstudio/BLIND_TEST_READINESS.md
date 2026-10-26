@@ -140,3 +140,11 @@ Record the actual browser observations, or provide fresh permitted browser contr
 to close the explicit browser gate. No engineering setup should be delegated to the
 owner. A real unfamiliar-business generation requires a new explicit scoped approval
 after its source and request are reviewed; do not reuse No Crumbs approval.
+
+## Saved websites / brand intelligence update (2026-10-26)
+
+Implemented optional editable brand understanding, saved-site project navigation and
+real local Qwen3 text analysis. See BRAND_INTELLIGENCE.md for actual evidence and
+limitations. Three-site service/storage and React SSR regressions pass. These do
+not establish Chrome IndexedDB/canvas/interactive acceptance; the full gate above
+remains unverified. No controller retry or image inference in this milestone.

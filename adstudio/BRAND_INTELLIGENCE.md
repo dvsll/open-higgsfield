@@ -1,3 +1,89 @@
+# Saved websites and editable brand intelligence
+
+The primary React journey remains Product → Direction → Review/export. On the
+product step, **Saved websites** reopens that business's latest project, selected
+original, photo permissions, plans and takes. The existing project selector still
+opens individual advertisements. Rediscovery updates evidence without replacing
+customer corrections. Redirect aliases require observed destinations and matching
+source identity; canonical hints require a protected read, matching identity and
+an equivalent route/query. Different businesses and tenant queries stay separate.
+
+**Brand understanding** is an optional, collapsed section beside the discovered
+products. Expand **Edit brand understanding & palettes**, edit, then click **Save
+brand understanding**. Name, description, story, positioning, tone, messaging,
+audience hypothesis, differentiators, visual/design preferences, guidelines,
+creative preferences, product names/descriptions/selling points and colors are
+editable. Each DNA field supports accept, remove and restore detected value.
+Original research remains separate. Saving relevant changes invalidates creative
+review; previous plans, photographs, permissions and exports are retained.
+
+## Actual analysis
+
+Default: installed `qwen_3_4b_fp8_mixed.safetensors`, Qwen3 4B FP8, through the
+existing Comfy SDK → local proxy → ComfyUI native TextGenerate/SaveText workflow.
+No new model, dependency, download, cloud API or photo analysis. Model/source:
+[Qwen3 4B, Apache 2.0](https://huggingface.co/Qwen/Qwen3-4B), existing mixed-FP8
+component documented in CREATIVE_ENGINE.md. An explicitly configured legacy
+`ADSTUDIO_BRAND_MODEL` still selects the previous installed Ollama provider.
+
+One text inference at most per successful discovery; 600 output tokens, greedy,
+no thinking, existing 180-second job deadline. Eight bounded optional hypotheses
+cite collected page IDs. Unknown IDs, invalid structure and unsupported claim
+patterns are rejected. Operating-frequency/service promises unsupported by the
+cited text are removed. This is a limited validator, **not semantic proof**.
+All accepted suggestions still require customer review. Unavailable/failed analysis
+leaves source extraction usable. Audience remains a hypothesis; text inference
+does not see photographs or certify a visual identity.
+
+One real public No Crumbs discovery through the production API completed in
+**17.46 s**. Its raw Qwen result contained eight structured suggestions; final
+validation retained seven and rejected an unsupported **daily baking** claim
+(the website specifies Sunday pickup). No second inference was run. Private local
+evidence: `outputs/brand-intelligence-review/live-no-crumbs-research.json`,
+`live-final-validation.json`, `live-final-review.html`. No owner profile was
+overwritten and these results are not owner-approved.
+
+## Palette provenance and planning
+
+- Website: CSS declaration counts/property context, RGB/hex and theme metadata.
+  Generic black/white-like neutrals are marked separately. These are algorithmic
+  candidates, not official brand colors or a screenshot/image analysis.
+- Imported photograph: bounded local RGBA histogram of actual raster pixels,
+  labeled **overall image colors**. Background/container/product are mixed; no
+  segmentation is claimed. New imports measure automatically; older photographs
+  have an explicit local **Read colors** action. Original/normalized bytes stay intact.
+- Approved brand: explicit editable hex palette and preferred ad combination;
+  add, remove and reorder. Preferred/approved colors drive future surrounding
+  backgrounds, accents and legible text. Products and logos are never recolored.
+  Unchanged legacy profiles retain their former palette/rendering behavior.
+
+Saved DNA/product edits and source/owner/inferred attribution enter current
+planning. Customer preferences stay owner input, not website claims. Layouts use
+approved/preferred colors; old saved plans keep their original snapshots.
+Optional metadata uses the existing Brand v1, ProductAsset and IndexedDB v3 stores;
+no schema migration, origin change or registry replacement.
+
+## Verification and remaining browser check
+
+`npm run test:brand-intelligence`, website/creative/React suites, Ad/shared
+regressions, Director tests, typecheck/build and CPU media integration pass.
+Synthetic fixtures use three unrelated websites, source hashes and permission
+gates; test responses are explicitly mocked. Real React SSR is **not browser
+acceptance**. No browser controller was retried and owner IndexedDB was not accessed.
+
+At `http://127.0.0.1:8301/adstudio/`, the remaining owner check is:
+discover/select A, B and C; return through Saved websites; save a brand/color edit;
+refresh and verify each site's photo, permissions, history and edits remain its own.
+Confirm the changed brand requires a fresh direction review. Canvas decoding,
+actual Chrome IndexedDB refresh and interactive download remain unverified.
+
+---
+
+## Retained V1 report (historical evidence)
+
+The following is the original milestone record, not the current setup instructions.
+The Qwen3 implementation and current8301 workflow are described above.
+
 # Brand Intelligence V1
 
 Open `/adstudio/#brand`: website -> Research brand -> review/edit Brand DNA -> Save brand. Start manually without a website; add it later. Names, descriptions, story excerpts, structured products and CSS color candidates come from real public pages. Audience, positioning, tone and creative guidance need customer input or an available local model. Original logos/photos are stored as Blobs, separately from previews and profile metadata.

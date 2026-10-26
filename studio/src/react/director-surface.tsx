@@ -119,7 +119,6 @@ export function DirectorSurface() {
                 </div>
               </div>
               <AdvancedPrompt>
-              <div id="advancedVideoSettings" />
               <div className="row">
                 <div className="prompt-field"><label htmlFor="visualPrompt">Video prompt</label><textarea id="visualPrompt" rows={2} placeholder="Scene details from your prompt…" /></div>
                 <div className="prompt-field" data-model-kind="video" data-model-control="motion">
@@ -159,6 +158,7 @@ export function DirectorSurface() {
                   <input type="checkbox" id="audioMute" /> Mute audio
                 </label>
               </div>
+              <div id="advancedVideoSettings" />
               </AdvancedPrompt>
             </div>
             <div className="generate-action">

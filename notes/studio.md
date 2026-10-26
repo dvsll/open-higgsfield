@@ -3,6 +3,8 @@
 Append dated decisions, render times and requests here. Only the studio owner edits this file; the partner adds requests at the bottom.
 
 ## Where we left off (update this before switching agents)
+**Latest handoff - 2026-10-26, prompt ordering:** Moved Advanced size/timing host after video/motion/audio prompt boxes and audio actions. Controller IDs/lifetimes unchanged. Browser verified motion/audioPrompt/advancedVideoSettings DOM order; screenshot outputs/advanced-prompts-before-settings.png. Typecheck passes.
+
 
 **Ad Studio coordination - 2026-10-26, functional UX:** No visual/CSS or Studio source changes. Inline brand+Develop, combined explicit fact/direction acceptance, automatic readiness, default ad preview/one comparison and one-action verified/durable PNG download. Specialist tools/history retained. Queue/job locks now reserve before autosave waits; per-record storage failures remain visible; latest copy patches, saved stage/refinement and hash-bound source facts restore; uncertain inference never silently retries. Only shared addition is optional owner facts on creative/select, producing new unconfirmed/unreviewed parent-linked plans; Qwen model/hash/transport/approval/budget gates unchanged. Tests/build and manual boundary recorded in notes/adstudio.md; no spend, downloads, real inference, private transfer or browser controller.
 

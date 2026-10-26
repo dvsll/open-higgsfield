@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {stripTypeScriptTypes} from 'node:module';
+const source=readFileSync(new URL('../src/shell.ts',import.meta.url),'utf8');
+const code=stripTypeScriptTypes(source.slice(source.indexOf('const ELEMENTS: Element[]'),source.indexOf('\nconst css =')));
+const load=value=>new Function('SC',code+';return ELEMENTS')({get:()=>value});
+assert.deepEqual(load(null),[]);
+const defaults=[{id:'mia',n:'Mia',d:'girl, 10, yellow raincoat',kind:'cast'},{id:'yard',n:'Junkyard',d:'dusk, scrap piles',kind:'place'}];
+assert.deepEqual(load(defaults),[]);
+const custom={...defaults[0],user:true},image={...defaults[1],refs:['/outputs/1111111111111111.png']},edited={...defaults[0],id:'bolt',d:'my custom robot'};
+assert.deepEqual(load([...defaults,custom,image,edited]).map(e=>e.id),['mia','yard','bolt']);
+console.log('PASS: empty default library, legacy starter removal, user-created/reference/customized elements preserved.');

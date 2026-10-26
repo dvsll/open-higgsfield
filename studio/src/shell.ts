@@ -36,17 +36,14 @@ const APPS: [string, string, string, MediaType[]][] = [
   ['edit', 'Edit Anything', '/studio/edit', ['keyframe', 'frame','shot']],
 ];
 const TYPES: Record<MediaType, string> = { shot: 'Shot', keyframe: 'Keyframe', frame: 'Frame' };
-const ELEMENTS: Element[] = [
-  { id: 'mia', ic: '👧', n: 'Mia', d: 'girl, 10, yellow raincoat', kind: 'cast' },
-  { id: 'bolt', ic: '🤖', n: 'Bolt', d: 'small boxy robot', kind: 'cast' },
-  { id: 'yard', ic: '🏚', n: 'Junkyard', d: 'dusk, scrap piles', kind: 'place' },
-  { id: 'street', ic: '🏙', n: 'Street', d: 'empty, lamplit', kind: 'place' },
-  { id: 'room', ic: '🛏', n: "Mia's room", d: 'desk, lamp, window', kind: 'place' },
-];
+const ELEMENTS: Element[] = [];
+// Earlier libraries persisted untouched starter cards alongside user-created assets.
+const starterDescriptions:Record<string,string>={mia:'girl, 10, yellow raincoat',bolt:'small boxy robot',yard:'dusk, scrap piles',street:'empty, lamplit',room:'desk, lamp, window'};
 const storedElements=SC.get('osh-elements');
 if(Array.isArray(storedElements))for(const element of storedElements){
  if(!element||typeof element.n!=='string'||typeof element.d!=='string'||typeof element.id!=='string'||!['cast','place','object'].includes(element.kind))continue;
  const item={...element,refs:Array.isArray(element.refs)?element.refs.filter((url:unknown)=>typeof url==='string'&&/^\/outputs\/[a-f0-9]{16}\.png$/.test(url)).slice(0,4):[]};
+ if(!item.user&&!item.refs.length&&starterDescriptions[item.id]===item.d)continue;
  const index=ELEMENTS.findIndex(e=>e.id===item.id);if(index<0)ELEMENTS.push(item);else ELEMENTS[index]=item;
 }
 

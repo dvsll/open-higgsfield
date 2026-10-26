@@ -17,6 +17,7 @@ export function ElementLibrary({
   const [items, setItems] = useState(() => [...elements]),
     [editing, setEditing] = useState<Element | null | undefined>(undefined);
   const save = (draft: Element) => {
+    if (!draft.refs?.length) throw new Error("Add a reference image before saving.");
     const next = elements.map((item) => (item.id === draft.id ? draft : item));
     if (!next.some((item) => item.id === draft.id)) next.push(draft);
     localStorage.setItem(projectKey('osh-elements'), JSON.stringify(next));
@@ -112,6 +113,10 @@ export function ElementLibrary({
   };
   const submit = () => {
     if (pending) return;
+    if (!refs.length) {
+      setStatus("Add at least one reference image.");
+      return;
+    }
     const n = name.trim(),
       d = description.trim();
     if (!n || !d) {
@@ -152,7 +157,7 @@ export function ElementLibrary({
       >
         <div className="element-layout">
           <section>
-            <label>Reference images <small>First image is the library cover</small></label>
+            <label>Reference images <small>Required · first image is the library cover</small></label>
             <div
               className={'element-drop' + (over ? ' over' : '')}
               tabIndex={0}
@@ -262,12 +267,12 @@ export function ElementLibrary({
         </div>
         <footer>
           <span role="status" data-status>
-            {status}
+            {status || (!refs.length ? "Add a reference image to save this element." : "")}
           </span>
           <button type="button" data-cancel onClick={onClose}>
             Cancel
           </button>
-          <button type="submit" data-save disabled={pending}>
+          <button type="submit" data-save disabled={pending || !refs.length}>
             Save element
           </button>
         </footer>

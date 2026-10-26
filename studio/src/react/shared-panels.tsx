@@ -21,7 +21,7 @@ export function SharedSurface({
           </a>
         ))}
       </div>
-      <section id="studioStylization" className="shared-section">
+      <section id="studioStylization" className="shared-section" hidden>
         <div className="sec">Stylization</div>
         <button className="style" title="Change style">
           <canvas width={480} height={160} />

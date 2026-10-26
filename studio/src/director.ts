@@ -257,8 +257,8 @@ const EL_P={mia:'Mia, a 10-year-old girl in a yellow raincoat',bolt:'Bolt, a sma
 const framing=sc=>sc<1?'wide shot':sc<2?'medium shot':'close-up';
 function specWords(sp){const w=[];if(sp.mia)w.push(EL_P.mia);if(sp.bolt)w.push(EL_P.bolt);w.push(EL_P[sp.scene]||'');if(sp.night)w.push('at night');if(sp.dawn)w.push('at dawn, first light');if(sp.eyes)w.push("Bolt's eyes glowing cyan");return w.filter(Boolean).join(', ')}
 const lookWords=()=>look.prompt||look.n;
-const keyPrompt=(sp,what)=>`${framing(sp.scale)}, ${what?what+'. ':''}${specWords(sp)}. ${lookWords()}. cinematic film still, 35mm`;
-const shotPrompt=(s,reviewed=false)=>reviewed?[s.visualPrompt||s.prompt,s.m].filter(Boolean).join('. '):`${((s.promptOverrides?.visual||s.rewriteSource===s.prompt?.trim())&&s.visualPrompt)||s.prompt||''}. ${s.m||'subtle camera movement'}. ${specWords((s.keys[0]||s).spec)}. ${lookWords()}. cinematic, smooth natural motion`;
+const keyPrompt=(sp,what)=>`${framing(sp.scale)}, ${what?what+'. ':''}${specWords(sp)}. cinematic film still, 35mm`;
+const shotPrompt=(s,reviewed=false)=>reviewed?[s.visualPrompt||s.prompt,s.m].filter(Boolean).join('. '):`${((s.promptOverrides?.visual||s.rewriteSource===s.prompt?.trim())&&s.visualPrompt)||s.prompt||''}. ${s.m||'subtle camera movement'}. ${specWords((s.keys[0]||s).spec)}. cinematic, smooth natural motion`;
 $('#audioPrompt').oninput=e=>{currentShot().audioPrompt=e.target.value;$('#generateAudio').disabled=!e.target.value.trim();save();dispatchEvent(new Event('osh-audio-prompt'))};$('#audioMute').onchange=e=>{currentShot().audioMuted=e.target.checked;timeline();save()};
 $('#audioLink').onclick=()=>{const s=currentShot();if(selectedTrack!=='audio'||!clipSelected)return;if(s.audioLinked===false){s.audioLinked=true;s.audioStart=start(cur)}else{s.audioLinked=false;s.audioStart=start(cur);s.audioDuration=s.audioDuration||s.d}G=Math.min(G,tot()-.01);timeline();head();save();dispatchEvent(new Event('osh-audio-prompt'))};
 $('#audioStart').onchange=e=>{const s=currentShot();if(selectedTrack!=='audio'||s.audioLinked!==false||!e.target.reportValidity())return;s.audioStart=+e.target.value;timeline();save()};

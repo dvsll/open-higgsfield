@@ -1,3 +1,4 @@
+import {TrainingPanel} from './react/training-workspace';
 import {SC} from './scene';
 import {StagePlaceholder} from './react/controls';
 import {WorkspaceName} from './react/workspace-name';
@@ -33,6 +34,7 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
   Image: { tree: split('y', split('x', panel('viewer'), panel('keyframes'), .72), panel('takes'), .7), mode: 'image' },
   Audio:{tree:split('y',split('x',panel('files'),panel('audio-create'),.35),panel('timeline'),topRatio),mode:'video'},
   Overlays:{tree:split('y',split('x',panel('viewer'),panel('overlay-create'),.65),panel('timeline'),topRatio),mode:'video'},
+  Training:{tree:split('y',split('x',panel('training-data'),panel('stylization'),.65),panel('training-runs'),.7),mode:'video'},
   Edit:{tree:split('x',panel('files'),split('x',panel('edit-viewer'),split('y',panel('edit-controls'),panel('edit-versions'),.65),.7),.2),mode:'video'},
   '3D': { tree: split('x', panel('stage'), panel('elements'), .75), mode: 'video' },
   Rendering: { tree: split('y', split('x', panel('viewer'), panel('prompts'), .75), panel('takes'), .7), mode: 'video' }
@@ -145,7 +147,9 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
  add('audio-create','Audio prompt',document.getElementById('studioAudioCreator')!);add('overlay-create','Overlay tools',document.getElementById('studioOverlayCreator')!);
  add('edit-viewer','Edit viewer',document.getElementById('studioEditViewer')!);add('edit-controls','Edit controls',document.getElementById('studioEditControls')!);add('edit-versions','Edit versions',document.getElementById('studioEditVersions')!);
  const inspector=document.createElement('div');inspector.className='sequence-inspector';const identity=document.getElementById('videoTrackAttributes')!;identity.hidden=false;identity.className='scene-property-identity';inspector.append(identity);parking.append(inspector);
- add('stylization', 'Stylization', document.getElementById('studioStylization')!); add('elements', 'Elements', document.getElementById('studioElements')!); add('assets', 'Selected media', assets); add('viewer', 'Timeline viewer', viewContent); add('prompts', 'Video prompt', composer); add('keyframes', 'Image prompt', keys); add('timeline', 'Sequence', main.querySelector<HTMLElement>('.tlw')!); add('takes', 'Takes', main.querySelector<HTMLElement>('.hist')!);
+ const oldStyling=document.getElementById('studioStylization')!;oldStyling.hidden=true;parking.append(oldStyling);
+ for(const [id,title,kind] of [['training-data','Training dataset','dataset'],['stylization','Training settings','settings'],['training-runs','Training runs','runs']] as const){const host=document.createElement('div');renderView(host,createElement(TrainingPanel,{panel:kind}));add(id,title,host)}
+ add('elements', 'Elements', document.getElementById('studioElements')!); add('assets', 'Selected media', assets); add('viewer', 'Timeline viewer', viewContent); add('prompts', 'Video prompt', composer); add('keyframes', 'Image prompt', keys); add('timeline', 'Sequence', main.querySelector<HTMLElement>('.tlw')!); add('takes', 'Takes', main.querySelector<HTMLElement>('.hist')!);
  const sequenceBar = panels.get('timeline')!.querySelector('.window-titlebar')!;
  const sequenceTransport=document.createElement('div');sequenceTransport.className='sequence-transport';sequenceTransport.setAttribute('role','group');sequenceTransport.setAttribute('aria-label','Sequence playback position');
  for(const id of ['previousFrame','nextFrame','viewerTime']){const control=panels.get('viewer')!.querySelector<HTMLElement>('#'+id)!;sequenceTransport.append(id==='viewerTime'?control.closest('label')!:control)}

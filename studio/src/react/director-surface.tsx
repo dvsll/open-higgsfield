@@ -264,7 +264,7 @@ export function DirectorSurface() {
           </div>
           <div className="sec">{'Framing'}</div>
           <div className="chips" id="frm"></div>
-          <div style={{ color: 'var(--faint)', fontSize: '12px' }}>
+          <div hidden style={{ color: 'var(--faint)', fontSize: '12px' }}>
             {'Look: '}
             <span id="lookUse"></span>
             {', from Stylization'}

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
 import { mkdtemp,mkdir,writeFile,readFile,rm,readdir } from 'node:fs/promises';
 import { join,resolve } from 'node:path';
 import { RuntimeSetup,localComfyUrl,setupAccess,COMFY_RELEASE,COMFY_COMMIT } from '../../shared/runtime/setup.ts';
@@ -7,6 +8,7 @@ import { JobActivity,phaseForProgress } from '../../shared/runtime/job-activity.
 const outputs=resolve('outputs');await mkdir(outputs,{recursive:true});const root=await mkdtemp(join(outputs,'setup-test-'));
 const originalFetch=globalThis.fetch;
 try{
+ const pinned=join(root,'pinned-encoder.ckpt'),payload=Buffer.from('pinned weight fixture');await writeFile(pinned,payload);const sha=createHash('sha256').update(payload).digest('hex');assert.equal(await validModel(pinned,sha),true);await writeFile(pinned,'corrupt');assert.equal(await validModel(pinned,sha),false);assert.equal(await validModel(pinned,'invalid'),false);
  for(const bad of ['https://127.0.0.1:8188','http://example.com','http://169.254.169.254','http://127.0.0.1:8188/path','http://user:pass@localhost:8188','file:///etc/passwd'])assert.throws(()=>localComfyUrl(bad));
  assert.equal(localComfyUrl('http://127.0.0.1:8188/'),'http://127.0.0.1:8188');
  const request=(host,address,origin,site)=>({headers:{host,origin,'sec-fetch-site':site},socket:{remoteAddress:address}});

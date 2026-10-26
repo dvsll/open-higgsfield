@@ -267,7 +267,7 @@ else {
     process.stdout.write(`\r  ${p.index}/${p.count} ${basename(p.file)} · ${(p.received / 1e9).toFixed(2)}${p.total ? '/' + (p.total / 1e9).toFixed(2) : ''} GB${pct} · ${rate.toFixed(0)} MB/s`.padEnd(110));
   } }).catch(error => fail(String(error.message || error)));
   process.stdout.write('\n');
-  for (const file of downloads) if (!await validModel(join(target, file.file))) fail(`${file.file} did not download correctly. Run setup again to resume.`);
+  for (const file of downloads) if (!await validModel(join(target, file.file),file.sha256)) fail(`${file.file} did not download correctly. Run setup again to resume.`);
   // Remember the folder so the app's Local setup panel uses it too.
   const configPath = join(ROOT, 'outputs/runtime-config.json');
   if (existsSync(configPath)) { const config = JSON.parse(readFileSync(configPath, 'utf8')); if (!config.modelsDir) { config.modelsDir = target; writeFileSync(configPath, JSON.stringify(config, null, 2)); } }
@@ -296,7 +296,7 @@ async function extras() {
       addedExtra = true;
       if (spawnSync(python, [join(ROOT, 'shared/runtime/setup-search.py'), '--comfy-root', dir], { stdio: 'inherit' }).status !== 0) say('  Search setup failed; everything else still works.');
     }
-    if (!has('osh_training') && await yes('  Add image LoRA training? (uses installed ComfyUI training; no downloads)')) {
+    if (!has('osh_training') && await yes('  Add LoRA training for images, video and geometry? (no downloads)')) {
       addedExtra = true;
       if (spawnSync(python, [join(ROOT, 'shared/runtime/setup-training.py'), '--comfy-root', dir], { stdio: 'inherit' }).status !== 0) say('  Training setup failed; everything else still works.');
     }

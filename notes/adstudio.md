@@ -491,3 +491,6 @@ Additive shared API /api/search + semantic_minilm SDK workflow/repo node (local 
 
 
 **Studio coordination - 2026-10-26, LoRA training validation:** Shared training graph now uses memory-tested FP8 frozen Z-Image base, BF16 bypass adapters and block checkpointing, avoiding failed BF16 path. Actual SDK/API/browser512px rank4 training and adapter inference pass on12GB. Existing shared catalog fields remain additive; no Ad Studio UI edits. See studio/LORA-LAB.md.
+
+
+**Studio coordination - 2026-10-26, video and geometry LoRA:** Additive shared TrainingInput clip fields and image/OBJ geometry pairs; /api/models geometry choices and adapter children by media, /api/geometry and /api/training-mesh, owned GLB/OBJ output MIME. LTX2B sampler adapter binding; new optional Hunyuan mini pack and SHA-pinned encoder checkpoint validation. Native training/geometry nodes updated; existing Ad Studio UI/routes not edited. Three.js MIT frontend dependency for Studio only. Actual SDK/API video and geometry training plus adapter inference pass on12GB. Materials remain unavailable.

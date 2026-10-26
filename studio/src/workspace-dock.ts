@@ -1,6 +1,6 @@
 import {TrainingPanel} from './react/training-workspace';
 import {SC} from './scene';
-import {StagePlaceholder} from './react/controls';
+import {GeometryWorkspace} from './react/geometry-workspace';
 import {WorkspaceName} from './react/workspace-name';
 import {WorkspacePicker} from './react/workspace-picker';
 import {WorkspaceRecycleBin} from './react/workspace-recycle-bin';
@@ -155,7 +155,7 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
  for(const id of ['previousFrame','nextFrame','viewerTime']){const control=panels.get('viewer')!.querySelector<HTMLElement>('#'+id)!;sequenceTransport.append(id==='viewerTime'?control.closest('label')!:control)}
  sequenceBar.insertBefore(sequenceTransport,sequenceBar.children[1]);
  for (const id of ['trashBtn', 'addKeyBtn']) { const control = document.getElementById(id); if (control) sequenceBar.insertBefore(control, sequenceBar.children[1]); }
- const stage = document.createElement('div'); stage.className = 'stage-placeholder'; renderView(stage,createElement(StagePlaceholder)); add('stage', '3D viewport', stage);
+ const stage = document.createElement('div'); stage.className = 'geometry-host'; renderView(stage,createElement(GeometryWorkspace)); add('stage', '3D viewport', stage);
  document.getElementById('showVideoAttributes')?.addEventListener('click', () => dispatchEvent(new Event('osh-open-prompt-advanced')));
  }
  for (const [id, value] of Object.entries(store.notes)) if (value && typeof value.title === 'string' && typeof value.text === 'string') note(id, value.title, value.text);

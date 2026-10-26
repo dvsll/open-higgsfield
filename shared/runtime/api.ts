@@ -1,4 +1,5 @@
-import {trainingInput,trainingGraph,trainingRuns,saveTrainingRun,trainingBase,type TrainingRun} from './training.ts';
+import {geometryGraph,geometryBase,trainingObj} from '../lib/geometry.ts';
+import {trainingInput,trainingGraph,trainingRuns,saveTrainingRun,trainingBase,videoTrainingBase,geometryTrainingBase,trainingKind,type TrainingRun} from './training.ts';
 import {searchInput,searchResults} from './semantic-search.ts';
 /**
  * Local generation API for both apps, as a Vite plugin (dev + preview).
@@ -81,7 +82,7 @@ const FPS = 24;
 const MAX_BODY = 64 * 1024;
 const MAX_UPLOAD_BODY = 8 * 1024 * 1024;
 const MAX_QUEUE = 4;
-const OUTPUT_NAME = /^[a-f0-9]{16}\.(png|webm|mp4|flac|mp3|wav|m4a|ogg|safetensors)$/;
+const OUTPUT_NAME = /^[a-f0-9]{16}\.(png|obj|glb|webm|mp4|flac|mp3|wav|m4a|ogg|safetensors)$/;
 
 type Env = Record<string, string | undefined>;
 type Key = { image: string; t: number; strength?: number };
@@ -189,9 +190,11 @@ async function localModels(env: Env) {
   const names=[...new Set([...imageRecipes,...videoRecipes].map(r=>r.graph))];
   const graphs=Object.fromEntries(await Promise.all(names.map(async name=>[name,await loadGraph(name)])));
   const keyframe=resolveRecipes(imageRecipes,nodes,graphs),video=resolveRecipes(videoRecipes,nodes,graphs);
+  const geometry:ModelChoice[]=nodes.ImageOnlyCheckpointLoader?.input?.required?.ckpt_name?.[0]?.includes(geometryBase)&&Object.values(geometryGraph()).every(node=>nodes[node.class_type])?[{id:geometryBase,label:'Hunyuan3D mini · geometry',family:'Hunyuan3D',description:'Image to untextured mesh',capabilities:[{name:'Image to geometry',status:'ready',detail:'Generate mesh geometry from one reference image.'}],timing:{low:20,high:90,width:512,height:512,basis:'Unmeasured estimate; depends on mesh decoding resolution.'}}]:[];
   // Experimental hero/precision graphs are built around Z-Image Turbo specifically.
   const zimageTurbo=keyframe.some(m=>m.id===imageModel.id);
-  if(zimageTurbo&&nodes.LoraLoaderModelOnly){const available:string[]=nodes.LoraLoaderModelOnly?.input?.required?.lora_name?.[0]||[];for(const run of await trainingRuns(OUTPUTS)){if(run.status!=='complete'||run.model!==imageModel.id||run.loraFile!=='studio/'+run.id+'.safetensors')continue;const file=available.find(file=>file.replaceAll('\\','/')===run.loraFile);if(file)keyframe.push({...imageModel,id:'studio-tune:'+run.id,parentId:imageModel.id,loraFile:file,label:run.name,description:'LoRA · '+imageModel.label+' · '+run.steps+' training steps'})}}
+  if(nodes.LoraLoaderModelOnly){const available:string[]=nodes.LoraLoaderModelOnly?.input?.required?.lora_name?.[0]||[];for(const run of await trainingRuns(OUTPUTS)){const target=trainingKind(run.model)==='video'?video:trainingKind(run.model)==='geometry'?geometry:keyframe,base=target.find(model=>model.id===run.model&&!model.parentId);if(run.status!=='complete'||!base||run.loraFile!=='studio/'+run.id+'.safetensors')continue;const file=available.find(file=>file.replaceAll('\\','/')===run.loraFile);if(file)target.push({...base,id:'studio-tune:'+run.id,parentId:base.id,loraFile:file,label:run.name,description:'LoRA · '+base.label+' · '+run.steps+' training steps'})}}
+
   let research: { repo: string; revision: string; bytes: number }[] = [];
   try {
     const lab = JSON.parse(await readFile(join(OUTPUTS, 'lora-lab', 'manifest.json'), 'utf8'));
@@ -199,7 +202,7 @@ async function localModels(env: Env) {
   } catch { /* Training assets are optional and not generation choices. */ }
   const hardware = identifyHardware(await comfyJson(env,'/system_stats').catch(()=>null));
   const audio=has('CheckpointLoaderSimple','ckpt_name','stable-audio-open-1.0.safetensors')&&has('CLIPLoader','clip_name','t5_base.safetensors')&&graphReady(await loadGraph('audio_stable'));
-  return { keyframe, video, zimageTurbo, audio:{available:audio,model:'Stable Audio Open 1.0'}, research, timing: await serverTiming(OUTPUTS,hardware,queued), inventory: inventory.filter(c => c.files.length > 0) };
+  return { keyframe, video, geometry, zimageTurbo, audio:{available:audio,model:'Stable Audio Open 1.0'}, research, timing: await serverTiming(OUTPUTS,hardware,queued), inventory: inventory.filter(c => c.files.length > 0) };
 }
 
 async function selectedModel(body: any, env: Env, kind: "keyframe" | "video") {
@@ -340,6 +343,7 @@ async function shot(body: any, env: Env) {
     return { url: await save(job, "32", "webm"), seconds: +((Date.now() - t) / 1000).toFixed(1), frames: length, fps, duration:length/fps };
   }
   const graph=applyResolved(shotGraph(await loadGraph('shot_ltxv'),keys.length),resolved);const {rw,rh}=cropOutput(graph,'16','17',width,height,32);
+  const tune=(await localModels(env)).video.find(entry=>entry.id===body.model&&entry.loraFile);if(tune){graph['90']={class_type:'LoraLoaderModelOnly',inputs:{model:['1',0],lora_name:tune.loraFile,strength_model:1}};graph['14'].inputs.model=['90',0]}
   if (rw * rh > 768 * 768) throw new HttpError(400, "shot resolution too large");
   const wf=c.workflows.fromJson(graph);wf.setInput('2','device',textDevice);
   wf.setInput("7", "width", rw);
@@ -581,7 +585,7 @@ function middleware(env: Env,setup:RuntimeSetup,rewriter:PromptRewriter,creative
         if (!['GET','HEAD'].includes(req.method||'') || !OUTPUT_NAME.test(name)) return send(res, 404, { error: "not found" });
         const p = join(OUTPUTS, name);
         if (!existsSync(p)) return send(res, 404, { error: "not found" });
-        const size=statSync(p).size,headers:Record<string,string|number>={"Content-Type":name.endsWith('.safetensors')?'application/octet-stream':name.endsWith('.png')?'image/png':mediaTypes[name.split('.').at(-1)!]||'video/webm',"Accept-Ranges":"bytes","Cache-Control":"private, max-age=31536000, immutable","X-Content-Type-Options":"nosniff"};
+        const size=statSync(p).size,headers:Record<string,string|number>={"Content-Type":name.endsWith('.safetensors')?'application/octet-stream':name.endsWith('.glb')?'model/gltf-binary':name.endsWith('.obj')?'text/plain':name.endsWith('.png')?'image/png':mediaTypes[name.split('.').at(-1)!]||'video/webm',"Accept-Ranges":"bytes","Cache-Control":"private, max-age=31536000, immutable","X-Content-Type-Options":"nosniff"};
         const range=req.headers.range;
         if(range){const match=/^bytes=(\d*)-(\d*)$/.exec(range);let start=Number(match?.[1]||0),end=match?.[2]?Number(match[2]):size-1;if(match&&!match[1]&&match[2]){start=Math.max(0,size-Number(match[2]));end=size-1;}
           if(!match||(!match[1]&&!match[2])||start>end||start>=size||!Number.isSafeInteger(start)||!Number.isSafeInteger(end)){res.writeHead(416,{'Content-Range':`bytes */${size}`});return res.end();}
@@ -636,20 +640,30 @@ function middleware(env: Env,setup:RuntimeSetup,rewriter:PromptRewriter,creative
       if(route==='POST /api/compose-ad')return send(res,200,await composeAd(await readBody(req),OUTPUTS,env));
       if (route === 'GET /api/capabilities') return send(res,200,await capabilities(env));
       if (route === "GET /api/models") return send(res, 200, await localModels(env));
+      if(route==='POST /api/training-mesh'){
+       const body=await readBody(req,6*1024*1024);let obj;try{obj=trainingObj(body?.obj)}catch(error:any){throw new HttpError(400,error.message)}const name=outputName('obj');await writeFile(join(OUTPUTS,name),obj);return send(res,200,{url:'/outputs/'+name});
+      }
+      if(route==='POST /api/geometry')return send(res,200,await tracked(async body=>{
+       if(typeof body.image!=='string'||!/^\/outputs\/[a-f0-9]{16}\.png$/.test(body.image))throw new HttpError(400,'Choose an API-owned reference image.');
+       const catalog=await localModels(env),selected=catalog.geometry.find(model=>model.id===(body.model||geometryBase));if(!selected)throw new HttpError(503,'Install the Hunyuan3D mini model and native geometry nodes.');
+       const seed=Math.floor(num(body.seed,0,2147483647,7)),steps=Math.floor(num(body.steps,1,50,20)),resolution=Math.floor(num(body.resolution,32,256,128));await ensureProxy(env);const c=client(env),wf=c.workflows.fromJson(geometryGraph(selected.parentId||selected.id,selected.loraFile,seed,steps,resolution));wf.setInput('2','image',c.assets.fromFile(outputPath(body.image)));const started=Date.now(),job=await serialize(()=>runWf(c,wf,body._requestId)),outputs=job.getOutputs('9');if(!outputs.length)throw new HttpError(502,'Geometry decoding returned no mesh.');const bytes=Buffer.from(await outputs[0].toBytes());if(bytes.length<20||bytes.length>50*1024*1024||bytes.toString('ascii',0,4)!=='glTF')throw new HttpError(502,'Invalid GLB result.');const name=outputName('glb');await writeFile(join(OUTPUTS,name),bytes);return {url:'/outputs/'+name,seconds:(Date.now()-started)/1000,model:selected.id};
+      }));
       if(route==='GET /api/training'){
        const nodes=await comfyJson(env,'/object_info'),catalog=await localModels(env),required=['TrainLoraNode','MakeTrainingDataset','OSHTrainingPairs','OSHSaveTraining','LoadImage','ImageScale','ImageBatch'];
-       const missing=required.filter(name=>!nodes[name]),models=catalog.keyframe.filter(model=>model.id===trainingBase),projectId=url.searchParams.get('projectId');
+       const missing=required.filter(name=>!nodes[name]),models=[...catalog.keyframe.filter(model=>model.id===trainingBase),...catalog.video.filter(model=>model.id===videoTrainingBase&&nodes.OSHVideoTrainingDataset&&nodes.OSHTrainingConcat&&nodes.LoadVideo),...catalog.geometry.filter(model=>model.id===geometryTrainingBase&&nodes.OSH3DTrainingDataset&&nodes.VAELoader?.input?.required?.vae_name?.[0]?.includes('hunyuan3d-vae-v2-mini-withencoder.ckpt'))],projectId=url.searchParams.get('projectId');
        return send(res,200,{available:!missing.length&&!!models.length,experimental:true,models,missing,runs:(await trainingRuns(OUTPUTS)).filter(run=>!projectId||run.projectId===projectId)});
       }
       if(route==='POST /api/training')return send(res,200,await tracked(async body=>{
        let input;try{input=trainingInput(body)}catch(error:any){throw new HttpError(400,error.message)}
        if(trainingPending||queued||setup.task.busy)throw new HttpError(409,'Finish the current generation or setup before training.');
        trainingPending=true;try{
-       const nodes=await comfyJson(env,'/object_info'),catalog=await localModels(env);if(!catalog.keyframe.some(model=>model.id===input.model)||!['TrainLoraNode','MakeTrainingDataset','OSHTrainingPairs','OSHSaveTraining'].every(name=>nodes[name]))throw new HttpError(503,'Install the Studio training I/O nodes and use a compatible local base.');
+       const nodes=await comfyJson(env,'/object_info'),catalog=await localModels(env);if(![...catalog.keyframe,...catalog.video,...catalog.geometry].some(model=>model.id===input.model)||!['TrainLoraNode','MakeTrainingDataset','OSHTrainingPairs','OSHSaveTraining'].every(name=>nodes[name]))throw new HttpError(503,'Install the Studio training I/O nodes and use a compatible local base.');
+       if(trainingKind(input.model)==='video'&&(!nodes.OSHVideoTrainingDataset||!nodes.OSHTrainingConcat||!nodes.LoadVideo))throw new HttpError(503,'Update Studio training nodes and restart idle ComfyUI for video training.');
+       if(trainingKind(input.model)==='geometry'&&!nodes.OSH3DTrainingDataset)throw new HttpError(503,'Update Studio geometry training nodes.');
        const queue=await comfyJson(env,'/queue');if(queue.queue_running?.length||queue.queue_pending?.length)throw new HttpError(409,'ComfyUI has another job. Train when its queue is empty.');
-       input.images.forEach(image=>{const file=outputPath(image.url);if(statSync(file).size>10*1024*1024)throw new HttpError(400,'Training images must be under 10 MB.')});
+       input.images.forEach(image=>{const file=outputPath(image.url);if(statSync(file).size>(trainingKind(input.model)==='video'?100:10)*1024*1024)throw new HttpError(400,'Training file exceeds the supported size.')});
        const id=randomBytes(16).toString('hex'),run:TrainingRun={...input,id,createdAt:Date.now(),status:'running'};await saveTrainingRun(OUTPUTS,run);
-       try{await ensureProxy(env);const c=client(env),graph=trainingGraph(input,id),wf=c.workflows.fromJson(graph);input.images.forEach((image,index)=>wf.setInput(String(100+index*3),'image',c.assets.fromFile(outputPath(image.url))));
+       try{await ensureProxy(env);const c=client(env),graph=trainingGraph(input,id),wf=c.workflows.fromJson(graph);for(const [index,image]of input.images.entries()){wf.setInput(String(100+index*3),trainingKind(input.model)==='video'?'file':'image',c.assets.fromFile(outputPath(image.url)));if(trainingKind(input.model)==='geometry')wf.setInput(String(101+index*3),'mesh_obj',trainingObj(await readFile(outputPath(image.mesh!),'utf8')));}
         const job=await serialize(()=>runWf(c,wf,body._requestId,false)),outputs=job.getOutputs('8');if(outputs.length!==2)throw Error('Training did not return an adapter and result.');
         const metadata=JSON.parse(Buffer.from(await outputs[0].toBytes()).toString('utf8'));if(metadata.id!==id||metadata.base!==input.model||metadata.steps!==input.steps||metadata.loraFile!=='studio/'+id+'.safetensors')throw Error('Training result provenance did not match this run.');
         const bytes=Buffer.from(await outputs[1].toBytes());if(bytes.length<16||bytes.length>256*1024*1024)throw Error('Invalid adapter size.');

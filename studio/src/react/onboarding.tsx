@@ -14,7 +14,7 @@ const descriptions: Record<Workflow, string> = {
   director: 'Direct with movable keyframes.',
   rendering: 'Inspect size, timing and takes.',
   edit: 'Trim, retime and resize a take.',
-  '3d': 'Preview · generation not connected.',
+  '3d': 'Generate mesh geometry from an image.',
 };
 export function TourChoice({
   experience,
@@ -31,7 +31,7 @@ export function TourChoice({
     ? [
         ['image', 'Image', 'Workshop one image, then bring it into motion.'],
         ['video', 'Video', 'Prompt a video, then direct it with keyframes.'],
-        ['3d', '3D', 'Explore the preview; generation is not connected yet.'],
+        ['3d', '3D', 'Generate and inspect a 3D mesh.'],
         ['audio', 'Audio walkthrough · coming soon', 'The Audio workspace is available from the workspace selector.'],
       ]
     : [

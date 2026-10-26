@@ -38,12 +38,3 @@ export function Chips({ items }: { items: { key: string; name: string; selected:
     </>
   );
 }
-export function StagePlaceholder() {
-  return (
-    <>
-      <div className="stage-grid" />
-      <h2>3D workspace</h2>
-      <p>A 3D viewport and scene tools are not connected yet.</p>
-    </>
-  );
-}

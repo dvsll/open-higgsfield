@@ -2,6 +2,15 @@
 
 ## Ad Studio creative planning (2026-10-25, additive)
 
+Functional UX adds optional `facts:SourceFacts` to `creative/select`. Source/brand/
+model identities remain immutable. Facts are validated and marked unconfirmed;
+the existing three concepts are retained in a new plan with genuine `parentId`.
+The prior record remains intact. No inference, human approval or paid permission
+is implied; `creative/prepare` still requires explicit facts+direction confirmation
+and current exact source hashes. Existing callers omit facts unchanged. Browser
+one-action export reuses existing composition/provenance services; no Qwen/Director
+transport or production workflow changes.
+
 React integration adds POST `/api/creative/select` (`planId,projectId,conceptId`),
 returning a new unreviewed plan without invoking a model. `creative/compose` may
 receive optional `copy:{headline?,body?,cta?,size?}`; other override keys rejected,

@@ -32,8 +32,8 @@ export function createCreativeEngine(outputs:string,backend:CreativeBackend){
  return {
   async status(){return {...await modelStatus(),busy,fallback:'deterministic, explicitly labeled; no AI analysis simulated',imageGeneration:false};},
   get:load,
-  async select(body:{planId:string;projectId:string;conceptId:string}){
-   const previous=await load(body?.planId,body?.projectId);let plan;try{plan=selectCreativePlan(previous,body.conceptId,id());}catch(e){throw new CreativeError(400,(e as Error).message);}
+  async select(body:{planId:string;projectId:string;conceptId:string;facts?:CreativeInput['facts']}){
+   const previous=await load(body?.planId,body?.projectId);let plan;try{const base=structuredClone(previous);if(body.facts){base.input=checked({...base.input,facts:{...body.facts,confirmed:false}});base.context=creativeContext(base.input);}plan=selectCreativePlan(base,body.conceptId,id());if(body.facts){plan.selectionReason='Existing concepts retained with owner-corrected photo observations. Check the direction against the corrected facts; no new AI analysis ran.';plan.warnings.push(plan.selectionReason);plan.provider.reason+=' Existing concepts recompiled after owner fact corrections; no new AI inference.';}}catch(e){throw new CreativeError(400,(e as Error).message);}
    await mkdir(join(base,plan.id),{recursive:true});await writeFile(file(plan.id,'plan.json'),JSON.stringify(plan,null,2),{flag:'wx',mode:0o600});return plan;
   },
   async plan(body:{image:string;input:CreativeInput}){

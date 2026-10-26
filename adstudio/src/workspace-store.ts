@@ -12,6 +12,7 @@ export class WorkspaceStore {
  private records=new Map<string,AdProject>();private brands=new Map<string,BrandProfile>();
  private photos=new Map<string,Pending<ProductAsset>>();private media=new Map<string,Pending<MediaAsset>>();
  private dirtyProjects=new Map<string,number>();private dirtyBrands=new Map<string,number>();
+ private failures=new Map<string,string>();
  private listeners=new Set<()=>void>();private tail:Promise<unknown>=Promise.resolve();private revision=0;private dead=false;
  private state:WorkspaceSnapshot={projects:[],brands:[],activeId:'',status:'loading',saveError:'',error:'',busy:'',dirty:0,durable:true,notice:''};
  constructor(private driver:ProjectDriver,private remember?:Remember,private reopen:()=>Promise<ProjectDriver>=openProjectDriver,durable=true){
@@ -36,29 +37,30 @@ export class WorkspaceStore {
  private queue(task:()=>Promise<void>){const next=this.tail.then(task);this.tail=next.catch(()=>{});return next;}
  private stageAssets(owner:string,revision:number,assets:ProductAsset[]=[],media:MediaAsset[]=[]){for(const a of assets)this.photos.set(a.id,{value:structuredClone(a),owner,revision});for(const m of media)this.media.set(m.id,{value:structuredClone(m),owner,revision});}
  private async put(project:AdProject,assets:ProductAsset[]=[],media:MediaAsset[]=[]){
-  const p=migrateProject(structuredClone(project)),rev=++this.revision;this.records.set(p.id,p);this.stageAssets(p.id,rev,assets,media);this.dirtyProjects.set(p.id,rev);this.emit({status:'saving',saveError:''});
+  const p=migrateProject(structuredClone(project)),rev=++this.revision;this.records.set(p.id,p);this.stageAssets(p.id,rev,assets,media);this.dirtyProjects.set(p.id,rev);this.saved();
   const photos=[...this.photos.values()].filter(v=>v.owner===p.id),files=[...this.media.values()].filter(v=>v.owner===p.id);
-  return this.queue(async()=>{try{if(!this.state.durable)throw Error('Browser database is unavailable.');await this.driver.put(p,photos.map(v=>v.value),files.map(v=>v.value));for(const a of photos)if(this.photos.get(a.value.id)?.revision===a.revision)this.photos.delete(a.value.id);for(const m of files)if(this.media.get(m.value.id)?.revision===m.revision)this.media.delete(m.value.id);if(this.dirtyProjects.get(p.id)===rev)this.dirtyProjects.delete(p.id);this.saved();}catch(e){this.failed(e);throw e;}});
+  return this.queue(async()=>{try{if(!this.state.durable)throw Error('Browser database is unavailable.');await this.driver.put(p,photos.map(v=>v.value),files.map(v=>v.value));for(const a of photos)if(this.photos.get(a.value.id)?.revision===a.revision)this.photos.delete(a.value.id);for(const m of files)if(this.media.get(m.value.id)?.revision===m.revision)this.media.delete(m.value.id);if(this.dirtyProjects.get(p.id)===rev){this.dirtyProjects.delete(p.id);this.failures.delete('project:'+p.id);}this.saved();}catch(e){this.failed(e,'project:'+p.id);throw e;}});
  }
  private async putBrand(brand:BrandProfile,assets:ProductAsset[]=[]){
-  const b=structuredClone(validateBrand(brand)),rev=++this.revision;this.brands.set(b.id,b);this.stageAssets('brand:'+b.id,rev,assets);this.dirtyBrands.set(b.id,rev);this.emit({status:'saving',saveError:''});const photos=[...this.photos.values()].filter(v=>v.owner==='brand:'+b.id);
-  return this.queue(async()=>{try{if(!this.state.durable||!this.driver.putBrand)throw Error('Brand storage is unavailable.');await this.driver.putBrand(b,photos.map(v=>v.value));for(const a of photos)if(this.photos.get(a.value.id)?.revision===a.revision)this.photos.delete(a.value.id);if(this.dirtyBrands.get(b.id)===rev)this.dirtyBrands.delete(b.id);this.saved();}catch(e){this.failed(e);throw e;}});
+  const b=structuredClone(validateBrand(brand)),rev=++this.revision;this.brands.set(b.id,b);this.stageAssets('brand:'+b.id,rev,assets);this.dirtyBrands.set(b.id,rev);this.saved();const photos=[...this.photos.values()].filter(v=>v.owner==='brand:'+b.id);
+  return this.queue(async()=>{try{if(!this.state.durable||!this.driver.putBrand)throw Error('Brand storage is unavailable.');await this.driver.putBrand(b,photos.map(v=>v.value));for(const a of photos)if(this.photos.get(a.value.id)?.revision===a.revision)this.photos.delete(a.value.id);if(this.dirtyBrands.get(b.id)===rev){this.dirtyBrands.delete(b.id);this.failures.delete('brand:'+b.id);}this.saved();}catch(e){this.failed(e,'brand:'+b.id);throw e;}});
  }
- private saved(){const dirty=this.dirtyProjects.size+this.dirtyBrands.size;this.emit({status:dirty?'saving':'saved',saveError:''});}
- private failed(e:unknown){this.emit({status:'error',saveError:message(e)});}
+ private saved(){const dirty=this.dirtyProjects.size+this.dirtyBrands.size,error=[...this.failures.values()].at(-1)||'';this.emit({status:error?'error':dirty?'saving':'saved',saveError:error});}
+ private failed(e:unknown,owner?:string){if(owner)this.failures.set(owner,message(e));this.emit({status:'error',saveError:message(e)});}
  async asset(id:string){return structuredClone(this.photos.get(id)?.value)||this.driver.asset(id);}
  async mediaAsset(id:string){return structuredClone(this.media.get(id)?.value)||this.driver.media?.(id);}
- async edit(change:(p:AdProject)=>void,assets:ProductAsset[]=[],media:MediaAsset[]=[]){if(this.state.busy)throw Error('Finish the current operation first.');const p=this.active();change(p);return this.projects.save(p,assets,media);}
- async flush(){await this.tail;if(this.dirtyProjects.size||this.dirtyBrands.size||!this.state.durable)throw Error('Latest changes are not saved. Retry saving before leaving this project.');}
- async retry(){if(this.state.busy)throw Error('Finish the current operation before retrying storage.');await this.tail;try{
+ async edit(change:(p:AdProject)=>void,assets:ProductAsset[]=[],media:MediaAsset[]=[]){if(this.state.busy)throw Error('Finish the current operation first.');if(this.dead)throw Error('This workspace is closed.');const p=this.active();change(p);return this.projects.save(p,assets,media);}
+ async flush(){for(;;){const latest=this.tail;await latest;if(latest===this.tail)break;}if(this.dirtyProjects.size||this.dirtyBrands.size||!this.state.durable)throw Error('Latest changes are not saved. Retry saving before leaving this project.');}
+ async retry(){if(this.state.busy||this.dead)throw Error('Finish the current operation before retrying storage.');this.emit({busy:'Retrying saved changes'});await this.tail;try{
    const driver=await this.reopen(); // Merge unseen records; never rewrite all projects.
    const existing=await driver.all(),brands=await driver.brands?.()||[];for(const raw of existing){const p=migrateProject(raw);if(!this.records.has(p.id))this.records.set(p.id,p);}for(const raw of brands){const b=validateBrand(raw);if(!this.brands.has(b.id))this.brands.set(b.id,b);}this.driver=driver;this.state.durable=true;
    for(const id of [...this.dirtyBrands.keys()])await this.putBrand(this.brands.get(id)!);for(const id of [...this.dirtyProjects.keys()])await this.put(this.records.get(id)!);this.saved();
-  }catch(e){this.failed(e);throw e;}}
- async switchProject(id:string){if(this.state.busy)throw Error('Finish the current operation before switching projects.');await this.flush();if(!this.records.has(id))throw Error('Project is missing.');this.emit({activeId:id,error:''});this.rememberActive();}
- async createProject(name:string){if(this.state.busy)throw Error('Finish the current operation first.');await this.flush();const p=newProject(name);await this.projects.save(p);this.emit({activeId:p.id,error:''});this.rememberActive();return p;}
- async run<T>(label:string,operation:()=>Promise<T>){if(this.state.busy)throw Error('An operation is already running. Do not submit twice.');await this.flush();if(this.state.busy)throw Error('An operation is already running.');this.emit({busy:label,error:''});try{return await operation();}catch(e){this.emit({error:message(e)});throw e;}finally{this.emit({busy:''});}}
+  }catch(e){this.failed(e);throw e;}finally{this.emit({busy:''});}}
+ async switchProject(id:string){return this.run('Opening project',async()=>{if(!this.records.has(id))throw Error('Project is missing.');this.emit({activeId:id,error:''});this.rememberActive();});}
+ async createProject(name:string){return this.run('Creating project',async()=>{const p=newProject(name);await this.projects.save(p);this.emit({activeId:p.id,error:''});this.rememberActive();return p;});}
+ async run<T>(label:string,operation:()=>Promise<T>){if(this.state.busy)throw Error('An operation is already running. Do not submit twice.');if(this.dead)throw Error('This workspace is closed.');this.emit({busy:label,error:''});try{await this.flush();if(this.dead)throw Error('The workspace closed before the operation started.');return await operation();}catch(e){this.emit({error:message(e)});throw e;}finally{this.emit({busy:''});}}
  report(e:unknown){this.emit({error:message(e)});}
- clearError(){this.emit({error:''});}
+ notify(notice:string){this.emit({notice});}
+ clearError(){this.emit({error:'',notice:''});}
  dispose(){this.dead=true;this.listeners.clear();}
 }

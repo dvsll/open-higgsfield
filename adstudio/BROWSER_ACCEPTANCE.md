@@ -1,5 +1,38 @@
 # React Ad Studio — current acceptance status (2026-10-25)
 
+## Functional UX pass — current owner-profile checklist
+
+Automated CPU/mocked/SSR checks are not Chrome acceptance. Controller restriction
+remains respected. Use the existing **127.0.0.1:8301** tab/profile; keep site data.
+
+1. Refresh and reopen No Crumbs. Verify original, brand, previous takes/exports and
+   saved stage. In a new project, enter a brand name, choose an original and add
+   only a brief real description. **Develop advertisement** creates the brand and
+   concepts together. Optional counts/arrangement/category/modes are not required.
+2. Check labeled fallback while text AI is missing. Choose another concept or
+   describe a refinement. Correct facts in place. **Accept direction & confirm
+   facts** is the single explicit review action. Any changed input/refinement must
+   invalidate review. **Generate photograph stays disabled** while Qwen is absent;
+   do not click it in this unpaid check. Request JSON is under **Request details**.
+3. Wait for Saved, refresh, switch projects/back. Verify photo facts, selected
+   concept, unfinished refinement, current stage and edits return. Switch between
+   originals and check their own saved descriptions; no inferred observations.
+4. Use an existing real take: the ad layout is visible by default. Open **Compare
+   original and photograph**. Edit headline/body/CTA/format; preview must update
+   without another model job. Confirm fidelity, click **Export PNG** once and
+   verify one actual file download plus one saved export record.
+5. If browser download permissions block it, use **Saved advertisements** to
+   download that same export. This must not recompose or regenerate. Verify all
+   specialist tools remain reachable through **Project & tools**.
+
+Actual download completion, owner IndexedDB refresh and browser interactions are
+still unverified here. Do not manufacture quota failures in the owner's project;
+latest-edit/Blob retry and cross-project/job races are covered by isolated tests.
+
+The earlier walkthrough below describes the initial React milestone. Current
+acceptance uses the functional checklist above (no separate facts checkbox,
+manual connection-check button or second download step).
+
 **Real browser/IndexedDB acceptance: NOT RUN for this rebuild.** The previous
 controller URL-confidence restriction remains in force; no controller was retried
 or replaced. React SSR, real local HTTP/FFmpeg and isolated storage tests passed,

@@ -1,5 +1,17 @@
 # Creative engine V1
 
+Functional UX: `AdApplication` orchestrates inline brand creation + Develop,
+source-specific fact reuse, saved stage/refinement, current-direction validation,
+and `exportAndDownload` (compose→verify→durable history→readback→download request).
+`downloadAdvertisement` retries only delivery of an existing verified Blob.
+Copy edits merge against the latest snapshot and never call Qwen. An uncertain
+submission is interrupted, not an ordinary retryable failure.
+
+`creative/select` optionally accepts owner-corrected `facts`. It validates them,
+forces `confirmed:false`, preserves the three concepts and actual `parentId`, and
+recompiles a new unreviewed plan. Explicit in-app acceptance must still prepare it
+through unchanged source/approval/hash/model gates. No model runs for correction.
+
 Current UI: `src/react/entry.tsx` → `AdApplication` → `CreativeStudioService`, all
 sharing `WorkspaceStore.projects`. POST `/api/creative/select` creates a new,
 unreviewed immutable plan from an existing alternative; no text/image generation.

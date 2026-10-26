@@ -1,5 +1,30 @@
 # Ad Studio React migration handoff
 
+## Functional UX update — 2026-10-26
+
+No stylesheet/aesthetic changes. First-brand creation is inline and completed by
+Develop. Campaign stays default; unusual modes/details are optional. One explicit
+Accept direction & confirm facts retains both server review requirements; Generate
+is still separate. Correcting facts recompiles the existing concepts into a new
+unreviewed record, preserving the original/parent plan and source hashes. Source
+descriptions are cached per normalized reference hash and restored on switching;
+no vision claims. Stage/refinement and per-take copy drafts survive reopen.
+
+Ad preview is default; one comparison disclosure replaces preview-mode switching.
+Export PNG composes, checksum-verifies, durably saves/readbacks and requests the
+download inside one job lock. A blocked download keeps the export and is recovered
+from history without recomposition/inference. Browser/OS completion is not claimed.
+Automatic availability polling/online/focus recovery replaces Check connection.
+JSON/evidence/seed/prompt stay in Request details; specialist tools remain.
+
+Workspace actions reserve their lock before awaiting queued saves. Navigation
+waits for the latest write; per-record failures remain visible even if another
+record saves. Import normalization cannot attach to a different project. Previews
+and fidelity state are identity-bound; uncertain inference is interrupted and
+cannot silently retry. No DB/origin/model/transport change. Full control inventory,
+decisions and explicit **14→9 / returning9→6** interaction counts are recorded in
+FUNCTIONAL_UX_AUDIT.md. These counts assume available generation, not live timing.
+
 ## Implemented 2026-10-25 — owner-authorized complete primary journey
 
 The newest owner instruction supersedes the historical sequencing gates below.

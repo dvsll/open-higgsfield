@@ -1,0 +1,53 @@
+// React-ready application service. No mounting, navigation, model downloads or
+// browser storage initialization. Caller supplies the existing Projects instance.
+import {OSH,type HeroResult} from '../../shared/runtime/client.ts';
+import {Projects,type AdProject,type ProductAsset} from './projects.ts';
+import {blobDataURL} from './assets.ts';
+import {heroTakeFromDelivery} from './hero-delivery.ts';
+import type {CreativeInput,CreativePlan,CreativePrepared} from '../../shared/lib/creative-engine.ts';
+import type {HeroSettings} from '../../shared/lib/hero-ad.ts';
+type Entry={id:string;created:number;sourceId:string;brandId:string;summary:string;provider:string;basisHero:string;previousHero?:HeroSettings;preparedId?:string};
+export type CreativeWorkspace={version:1;plans:Entry[];activeId?:string};
+type Client=Pick<typeof OSH,'upload'|'creativePlan'|'creativePlanRecord'|'creativePrepare'|'creativeCompose'|'qwenHero'>;
+type Options=Partial<Pick<CreativeInput,'request'|'intent'|'format'|'seed'|'constraints'|'notes'|'productType'|'facts'|'productId'>>;
+const hash=async(blob:Blob)=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',await blob.arrayBuffer()))).map(b=>b.toString(16).padStart(2,'0')).join('');
+export class CreativeStudioService{
+ constructor(private projects:Projects,private client:Client=OSH,private encode=blobDataURL){}
+ private async project(id:string){const p=(await this.projects.list()).find(p=>p.id===id);if(!p)throw Error('Saved advertising project is missing.');return p;}
+ private workspace(p:AdProject):CreativeWorkspace{p.creative??={version:1,plans:[]};if(p.creative.version!==1||!Array.isArray(p.creative.plans))throw Error('Unsupported saved creative workspace; existing data was kept.');return p.creative;}
+ private async context(p:AdProject,sourceId:string,options:Options):Promise<{input:CreativeInput;asset:ProductAsset}>{
+  const brand=(await this.projects.brands()).find(b=>b.id===p.brandId);if(!brand)throw Error('Choose a saved brand for this project.');const asset=await this.projects.asset(sourceId);if(!asset)throw Error('Restore the original product photo from this project.');
+  if(sourceId!==p.assetId&&sourceId!==p.hero?.settings.sourceId&&!brand.assets.some(a=>a.assetId===sourceId))throw Error('This original is not associated with the selected project or brand.');
+  if(p.hero?.takes.some(t=>t.assetId===sourceId)||p.staticAds?.exports.some(e=>e.assetId===sourceId)||(p.hero?.settings.sourceId===sourceId&&p.hero.settings.sourceKind==='supplied-ai'))throw Error('Choose the genuine original, not an enhanced or generated take.');
+  const sha256=await hash(asset.normalized),old=p.hero?.settings.briefDraft?.input;
+  const facts=options.facts||(old?.source.id===sourceId&&old.source.sha256===sha256?old.facts:{description:'',arrangement:'',texture:'',container:'',confirmed:false});
+  return {asset,input:{version:1,projectId:p.id,brand,source:{id:sourceId,name:asset.name,kind:'original',sha256,originalSha256:await hash(asset.original)},facts:structuredClone(facts),productType:options.productType||(old?.source.id===sourceId?old.productType:'other'),request:options.request||'',notes:options.notes||'',intent:options.intent||'campaign',format:options.format||'feed',seed:options.seed??42,...(options.constraints?{constraints:options.constraints}:{}),...(options.productId?{productId:options.productId}:{})}};
+ }
+ async plan(projectId:string,sourceId:string,options:Options={}):Promise<CreativePlan>{
+  const p=await this.project(projectId),w=this.workspace(p);if(w.plans.length>=40)throw Error('This project has 40 saved plans. Use a new project; existing plans were kept.');
+  const {asset,input}=await this.context(p,sourceId,options),uploaded=await this.client.upload(await this.encode(asset.normalized)),plan=await this.client.creativePlan({image:uploaded.url,input});
+  w.plans.push({id:plan.id,created:plan.created,sourceId,brandId:input.brand.id,summary:plan.concepts.find(c=>c.id===plan.selectedId)!.idea,provider:plan.provider.mode,basisHero:JSON.stringify(p.hero?.settings)});w.activeId=plan.id;await this.projects.save(p);return plan;
+ }
+ async open(projectId:string,planId:string){const p=await this.project(projectId);if(!this.workspace(p).plans.some(e=>e.id===planId))throw Error('Plan is not saved in this project.');return this.client.creativePlanRecord(planId,projectId);}
+ async approve(projectId:string,planId:string,confirmation:{direction:boolean;facts:boolean}):Promise<CreativePrepared>{
+  const p=await this.project(projectId),entry=this.workspace(p).plans.find(e=>e.id===planId);if(!entry)throw Error('Plan does not belong to this project.');
+  if(entry.basisHero!==JSON.stringify(p.hero?.settings)&&!entry.preparedId)throw Error('Hero inputs changed after planning. Plan and review again.');
+  const plan=await this.client.creativePlanRecord(planId,projectId),{asset,input}=await this.context(p,entry.sourceId,plan.input),image=await this.client.upload(await this.encode(asset.normalized));
+  const prepared=await this.client.creativePrepare({planId,current:input,image:image.url,original:await this.encode(asset.original),confirmation});
+  entry.previousHero??=structuredClone(p.hero!.settings);entry.preparedId=prepared.preparedId;p.hero!.settings=structuredClone(prepared.payload.settings);await this.projects.save(p);return prepared;
+ }
+ // Call ONLY from an explicit Generate action. Planning/review never calls this.
+ async generate(projectId:string,planId:string){const p=await this.project(projectId),entry=this.workspace(p).plans.find(e=>e.id===planId);if(!entry?.preparedId)throw Error('Review the creative direction first.');const s=structuredClone(p.hero!.settings),source=await this.projects.asset(entry.sourceId);if(!source||s.sourceId!==entry.sourceId)throw Error('Selected source changed. Review again.');const image=await this.client.upload(await this.encode(source.normalized));const result=await this.client.qwenHero(image.url,s,await this.encode(source.original),p.id);return this.acceptDelivery(projectId,planId,result,s);}
+ async acceptDelivery(projectId:string,planId:string,result:HeroResult,settings:HeroSettings){
+  const p=await this.project(projectId),entry=this.workspace(p).plans.find(e=>e.id===planId);if(!entry?.preparedId||JSON.stringify(p.hero!.settings)!==JSON.stringify(settings))throw Error('Delivery belongs to a different or changed direction.');const old=p.hero!.takes.find(t=>t.jobId===result.jobId);if(old)return old;
+  const asset=await this.download(result.url,result.sha256,result.width,result.height,'Generated Hero.png'),take=await heroTakeFromDelivery(result,asset,settings);p.hero!.takes.push(take);p.hero!.activeId=take.id;p.hero!.approvedId=undefined;await this.projects.save(p,asset);return take;
+ }
+ async exportAd(projectId:string,planId:string,takeId:string,fidelityReviewed:boolean){
+  const p=await this.project(projectId),entry=this.workspace(p).plans.find(e=>e.id===planId),take=p.hero!.takes.find(t=>t.id===takeId);if(!entry?.preparedId||!take?.provenanceId)throw Error('Choose this plan and a delivered Qwen take.');
+  const plan=await this.client.creativePlanRecord(planId,projectId),logoId=plan.composition.logoId,logo=logoId?await this.projects.asset(logoId):undefined;if(logoId&&!logo)throw Error('Restore the saved original brand logo before export.');
+  const logoURL=logo?(await this.client.upload(await this.encode(logo.normalized))).url:undefined;
+  const r=await this.client.creativeCompose({projectId,planId,preparedId:entry.preparedId,hero:take.url,provenanceId:take.provenanceId,heroAssetId:take.assetId,logo:logoURL,logoAssetId:logoId,fidelityReviewed});
+  const asset=await this.download(r.url,r.sha256,r.width,r.height,'Advertisement.png');p.staticAds!.exports.push({id:crypto.randomUUID(),assetId:asset.id,url:r.url,created:Date.now(),design:r.design,sha256:r.sha256,sources:r.sources});await this.projects.save(p,asset);return r;
+ }
+ private async download(url:string,sha256:string,width:number,height:number,name:string):Promise<ProductAsset>{if(!/^\/outputs\/[a-f0-9]{16}\.png$/.test(url))throw Error('Invalid delivered image URL.');const r=await fetch(url);if(!r.ok)throw Error('Delivered image is missing; previous assets were kept.');const blob=await r.blob();if(await hash(blob)!==sha256)throw Error('Delivered image checksum failed.');return {id:crypto.randomUUID(),name,original:blob,normalized:blob,width,height,created:Date.now()};}
+}

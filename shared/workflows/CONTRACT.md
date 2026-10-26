@@ -1,5 +1,17 @@
 # Workflow contract
 
+## Ad Studio creative planning (2026-10-25, additive)
+
+`/api/creative/{status,plan,prepare,compose}` and typed `OSH.creative*` reuse the
+existing native `prompt_polish.json` Qwen3 text graph, Qwen Hero validation/delivery,
+and static PNG exporter. No production workflow default or Director route changed.
+Planning is text-only and never authorizes/submits image inference. Campaign allows
+contextual reframing; enhancement stays explicit. Missing weights/invalid text
+output are labeled deterministic fallback. `CreativeStudioService` connects
+project Blobs/history without a database upgrade. See `adstudio/CREATIVE_ENGINE.md`
+for review freshness, source identity, copy, provenance and composition contracts.
+Remote paid/private gates remain separate.
+
 One section per workflow. The apps only talk to workflows through what is listed here.
 Export workflows from ComfyUI with **Save (API format)** and commit the JSON next to this file.
 

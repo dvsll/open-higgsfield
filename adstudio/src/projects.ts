@@ -5,6 +5,7 @@ import {emptyComposition,validateComposition,type Composition,type MediaAsset} f
 import {validateBrand,type BrandProfile} from '../../shared/lib/brand.ts';
 import {heroDefaults,validateHeroWorkspace,type HeroWorkspace} from '../../shared/lib/hero-ad.ts';
 import {emptyStaticAds,validateStaticWorkspace,type StaticWorkspace} from '../../shared/lib/static-ad.ts';
+import type {CreativeWorkspace} from './creative-service.ts';
 export type Ratio = '16:9'|'9:16'|'1:1';
 export type Mode = 'camera'|'locked'|'creative';
 export type Settings = {template:string;mode:Mode;motion:'push'|'pan-left'|'pan-right';ratios:Ratio[];duration:number;seed:number;pitch:string;tagline:string;vibe:'studio'|'life'|'ugc';framing:'fit'|'crop';model?:string};
@@ -12,7 +13,7 @@ export type ProductAsset = {id:string;name:string;original:Blob;normalized:Blob;
 export type EditRecipe = {start:number;end:number;speed:number;reverse:boolean;width:number;height:number};
 export type Take = {id:string;created:number;assetId:string;source:string;parentId?:string;kind:'generation'|'edit';mode:Mode;ratio:Ratio;settings:Settings;prompt:string;frames:number;fps:number;width:number;height:number;seconds:number;background?:string;edit?:EditRecipe;exports:{id:string;url:string;tagline:string;created:number}[]};
 export type Attempt = {id:string;status:'running'|'complete'|'failed'|'interrupted';created:number;takeIds:string[];error?:string};
-export type AdProject = {version:3;id:string;name:string;created:number;updated:number;settings:Settings;assetId?:string;brandId?:string;staticAds?:StaticWorkspace;hero?:HeroWorkspace;takes:Take[];attempt?:Attempt;composition:Composition};
+export type AdProject = {version:3;id:string;name:string;created:number;updated:number;settings:Settings;assetId?:string;brandId?:string;staticAds?:StaticWorkspace;hero?:HeroWorkspace;creative?:CreativeWorkspace;takes:Take[];attempt?:Attempt;composition:Composition};
 export const defaults = ():Settings => ({template:'portrait-push',mode:'camera',motion:'push',ratios:['9:16'],duration:3,seed:1,pitch:'A slow camera push toward the product, soft studio lighting, subtle reflections, premium commercial product shot.',tagline:'',vibe:'studio',framing:'fit'});
 export function newProject(name='Untitled ad'):AdProject {
  const now=Date.now();return {version:3,id:crypto.randomUUID(),name:validName(name),created:now,updated:now,settings:defaults(),takes:[],composition:emptyComposition(),staticAds:emptyStaticAds(),hero:heroDefaults()};

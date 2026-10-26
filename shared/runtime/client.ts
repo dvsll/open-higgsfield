@@ -47,6 +47,11 @@ async function post<T>(name: string, body: unknown): Promise<T> {
 
 export type HeroResult={url:string;width:number;height:number;sha256:string;sourceSha256:string;seconds:number;method:string;workflowSha256?:string;model?:string;jobId?:string;provenanceId?:string;originalSha256?:string};
 export const OSH = {
+  async creativeStatus(){const r=await fetch('/api/creative/status',{cache:'no-store'});const data=await r.json();if(!r.ok)throw Error(data.error||r.statusText);return data as {available:boolean;model:string;reason:string;busy:boolean;fallback:string;imageGeneration:false};},
+  creativePlan:(body:{image:string;input:import('../lib/creative-engine').CreativeInput})=>post<import('../lib/creative-engine').CreativePlan>('creative/plan',body),
+  async creativePlanRecord(planId:string,projectId:string){const r=await fetch('/api/creative/plan/'+encodeURIComponent(planId)+'?projectId='+encodeURIComponent(projectId),{cache:'no-store'});const d=await r.json();if(!r.ok)throw Error(d.error||r.statusText);return d as import('../lib/creative-engine').CreativePlan;},
+  creativePrepare:(body:{planId:string;current:import('../lib/creative-engine').CreativeInput;image:string;original:string;confirmation:{direction:boolean;facts:boolean}})=>post<import('../lib/creative-engine').CreativePrepared>('creative/prepare',body),
+  creativeCompose:(body:{planId:string;preparedId:string;projectId:string;hero:string;provenanceId:string;heroAssetId:string;logo?:string;logoAssetId?:string;fidelityReviewed:boolean})=>post<{url:string;width:number;height:number;sha256:string;sources:Record<string,string>;design:import('../lib/static-ad').StaticDesign}>('creative/compose',body),
   captions:(audio:string)=>post<{model:string;language:string|null;duration:number;seconds:number;segments:import('../lib/captions').CaptionSegment[]}>('captions',{audio}),
   qwenHero:(image:string,settings:import('../lib/hero-ad').HeroSettings,original:string,projectId?:string)=>post<HeroResult>('hero/qwen',{image,settings,original,...(projectId?{projectId}:{})}),
 

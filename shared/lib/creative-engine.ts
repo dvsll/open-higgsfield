@@ -1,0 +1,95 @@
+// Portable Ad Studio planning/compilation. No inference, UI or storage side effects.
+import {validateBrand,brandFieldStatus,brandContext,type BrandProfile} from './brand.ts';
+import {briefDefaults,effectiveControls,newGenerationDraft,recompileDraft,prepareConciseDraft,signalsFromBrand,validateBriefInput,type BriefControls,type BriefInput,type SourceFacts,type GenerationDraft,type Intent} from './product-brief.ts';
+import {heroDefaults,type HeroSettings} from './hero-ad.ts';
+import {newStaticDesign,staticSizes,staticSVG,type StaticDesign,type StaticConcept} from './static-ad.ts';
+export type CreativeInput={version:1;projectId:string;brand:BrandProfile;productId?:string;source:BriefInput['source'];facts:SourceFacts;productType:BriefInput['productType'];request?:string;notes?:string;intent?:Intent;format?:keyof typeof staticSizes;seed?:number;constraints?:Partial<BriefControls>};
+export type CreativeFact={id:string;text:string;kind:'source'|'owner'|'inferred'|'unconfirmed';sourceIds:string[]};
+export type CreativeConcept={id:string;title:string;idea:string;composition:string;camera:string;environment:string;lighting:string;hierarchy:string;layout:StaticConcept;copyId:string;evidenceIds:string[];scores:{impact:number;relevance:number;accuracy:number;feasibility:number};rationale:string};
+export type CreativeContext={facts:CreativeFact[];missing:string[];copyOptions:{id:string;headline:string;body:string;kind:'identity'|'creative-proposal'|'source'}[];controls:BriefControls;productName:string};
+export type CreativePlan={version:1;id:string;projectId:string;created:number;input:CreativeInput;provider:{mode:'local-ai'|'deterministic';model?:string;reason:string};context:CreativeContext;concepts:(CreativeConcept&{evaluation:{score:number;method:string}})[];selectedId:string;selectionReason:string;draft:GenerationDraft;composition:StaticDesign;layout:{width:number;height:number;photoBox:{x:number;y:number;width:number;height:number};textBounds:{text:string;x:number;y:number;width:number;height:number;fontSize:number}[];fit:'contain';exportIntent:'png'};warnings:string[];reviewRequired:true;generationRun:false};
+export type CreativePrepared={version:1;planId:string;preparedId:string;projectId:string;draft:GenerationDraft;composition:StaticDesign;payload:{image:string;original:string;settings:HeroSettings;projectId:string};status:'REVIEWED_REQUEST_NOT_A_RUN';generationRun:false;paidApproved:false;privateUploadApproved:false};
+const identity=(s:unknown,max=160)=>typeof s==='string'&&/^[A-Za-z0-9_-]+$/.test(s)&&s.length<=max;
+const str=(s:unknown,max:number)=>typeof s==='string'&&s.length<=max;
+export function campaignControls(input:CreativeInput):BriefControls{
+ const intent=input.intent||'campaign',base=briefDefaults(intent);
+ if(intent==='campaign')Object.assign(base,{fidelity:'high',exactCount:input.facts.count!==undefined,arrangement:'roughly',angle:'slight',crop:'moderate',background:'replace',creativity:'high'});
+ if(intent==='closeup')Object.assign(base,{exactCount:false,angle:'slight',crop:'moderate',background:'replace',creativity:'medium'});
+ return effectiveControls({...base,...input.constraints,intent});
+}
+export function validateCreativeInput(input:CreativeInput){
+ if(!input||input.version!==1||!identity(input.projectId)||!input.brand)throw Error('Select a saved project and brand.');
+ validateBrand(input.brand);if(!identity(input.brand.id,120)||!Number.isFinite(input.brand.updated))throw Error('Invalid brand identity/revision.');
+ if(input.source?.kind!=='original')throw Error('Choose the genuine saved original for Qwen planning.');
+ if(!['campaign','closeup','enhancement'].includes(input.intent||'campaign')||!Object.hasOwn(staticSizes,input.format||'feed')||!str(input.request||'',2000)||!str(input.notes||'',3000))throw Error('Invalid creative request or format.');
+ if(input.productId){const p=input.brand.products.find(p=>p.id===input.productId);if(!p)throw Error('Product does not belong to this brand.');if(!input.brand.assets.some(a=>a.assetId===input.source.id&&p.imageIds.includes(a.id)))throw Error('Associate this original with the product in Brand DNA, or choose no named product.');}
+ validateBriefInput(creativeBriefInput(input));return input;
+}
+export function creativeBriefInput(input:CreativeInput):BriefInput{
+ const product=input.brand.products.find(p=>p.id===input.productId);
+ return {version:1,source:structuredClone(input.source),facts:structuredClone(input.facts),productType:input.productType,productName:product?.name.slice(0,80)||'',...(input.productId?{productId:input.productId}:{}),notes:input.notes||'',brand:signalsFromBrand(input.brand,input.productId),execution:{adapter:'qwen-fp8',seed:input.seed??42},controls:campaignControls(input)};
+}
+// Stable identity includes brand evidence, request, constraints, source and seed.
+// The explicit confirmation checkbox alone is allowed to change during review.
+export function creativeSnapshot(input:CreativeInput){const canonical=(v:any):any=>Array.isArray(v)?v.map(canonical):v&&typeof v==='object'?Object.fromEntries(Object.keys(v).sort().filter(k=>v[k]!==undefined).map(k=>[k,canonical(v[k])])):v;return JSON.stringify(canonical({...input,facts:{...input.facts,confirmed:false}}));}
+export function creativeContext(input:CreativeInput):CreativeContext{
+ validateCreativeInput(input);const b=input.brand,context=brandContext(b,input.productId?[input.productId]:['__unmapped__']);
+ const facts:CreativeFact[]=[{id:'photo',text:[input.facts.description,input.facts.texture,input.facts.container,`Count: ${input.facts.count??'unknown'}. ${input.facts.arrangement}`].join('\n'),kind:input.facts.confirmed?'owner':'unconfirmed',sourceIds:[]}];
+ for(const field of ['name','description','story','tone','visualStyle','positioning','audience','differentiators','guidelines'] as const){const value=b.dna[field];if(!value.trim())continue;const status=brandFieldStatus(b,field),o=b.research?.observations.find(o=>o.field===field);facts.push({id:'brand-'+field,text:value.slice(0,1000),kind:status==='inferred'?'inferred':status==='source'?'source':'owner',sourceIds:o?.sourceIds||[]});}
+ if(context.products[0])facts.push({id:'product',text:context.products[0].name+': '+context.products[0].description,kind:'owner',sourceIds:[]});
+ const missing=['name','description','tone','visualStyle'].filter(k=>!b.dna[k as keyof typeof b.dna].trim());if(!input.facts.confirmed)missing.push('photo observations need owner confirmation');
+ // Copy is constrained to grounded identity/excerpts and clearly non-factual
+ // creative language. The model cannot invent printed offers/ingredients/claims.
+ const copyOptions:CreativeContext['copyOptions']=[{id:'identity',headline:(context.products[0]?.name||b.dna.name||'A closer look').slice(0,80),body:'',kind:'identity'},{id:'moment',headline:'Make room for a moment.',body:'',kind:'creative-proposal'},{id:'details',headline:'A closer look.',body:'',kind:'creative-proposal'},{id:'discover',headline:'Something worth discovering.',body:'',kind:'creative-proposal'}];
+ for(const [i,o]of (b.research?.observations||[]).entries())if(o.kind==='source'&&o.value===o.quote&&o.value.length<=70&&!/\d|[$€£%]|\b(price|sale|offer|free|off|certified|organic|vegan)\b/i.test(o.value)&&o.sourceIds.some(id=>b.research!.sources.some(s=>s.id===id&&s.text.includes(o.value))))copyOptions.push({id:'source-'+i,headline:o.value,body:'',kind:'source'});
+ return {facts,missing,copyOptions,controls:campaignControls(input),productName:context.products[0]?.name||''};
+}
+const visualKeys=['title','idea','composition','camera','environment','lighting','hierarchy','rationale'] as const;
+// Text proposals are not business facts. Refuse common unsupported physical /
+// commercial assertions; copy itself uses only the closed grounded catalog.
+const unsafe=/[$€£%]|\b(organic|vegan|gluten.free|sugar.free|certified|award.winning|guaranteed|sale|discount|free shipping|daily fresh|fresh daily|add ingredients|extra products|duplicate products|new logo|redesign the product|change the label|garnish|sprinkle|topped with|add steam|steaming hot)\b/i;
+export function validateCreativeConcepts(raw:unknown,context:CreativeContext):CreativeConcept[]{
+ const value=raw as {concepts:CreativeConcept[]};if(!value||Object.keys(value).some(k=>k!=='concepts')||!Array.isArray(value.concepts)||value.concepts.length!==3)throw Error('Expected three distinct creative concepts.');
+ const ids=new Set<string>(),directions=new Set<string>();
+ for(const c of value.concepts){if(!c||Object.keys(c).some(k=>!['id',...visualKeys,'layout','copyId','evidenceIds','scores'].includes(k))||!identity(c.id,60)||ids.has(c.id))throw Error('Invalid concept identity.');ids.add(c.id);
+  for(const key of visualKeys)if(!str(c[key],key==='title'?100:700)||!c[key].trim()||unsafe.test(c[key]))throw Error('Unsupported assertion or invalid creative direction.');
+  if(!['spotlight','editorial','poster'].includes(c.layout)||!context.copyOptions.some(o=>o.id===c.copyId)||!Array.isArray(c.evidenceIds)||!c.evidenceIds.length||c.evidenceIds.some(id=>!context.facts.some(f=>f.id===id&&f.kind!=='inferred'&&f.kind!=='unconfirmed')))throw Error('Ungrounded concept/copy reference.');
+  if(!c.scores||Object.keys(c.scores).length!==4||(['impact','relevance','accuracy','feasibility'] as const).some(k=>!Number.isInteger(c.scores[k])||c.scores[k]<1||c.scores[k]>5))throw Error('Invalid concept evaluation.');
+  const signature=(c.environment+'|'+c.composition).toLowerCase().replace(/\W/g,'');if(directions.has(signature))throw Error('Concepts differ only in labels/copy.');directions.add(signature);
+ }
+ return structuredClone(value.concepts);
+}
+export function fallbackConcepts(input:CreativeInput,context:CreativeContext):CreativeConcept[]{
+ const bakery=['cinnamon-rolls','cookies'].includes(input.productType),tone=input.brand.dna.visualStyle||input.brand.dna.tone||input.brand.dna.description||'clear, material-led presentation',ref=context.facts.find(f=>f.id==='brand-description'&&f.kind!=='inferred')?.id||'brand-name';
+ const environments=bakery?['A quiet bakery counter beside a broad window; warm neutral wall and no additional food.','A restrained tactile paper backdrop with directional late-afternoon light, making the existing tray the only food.','A clean warm-toned tabletop with a deep soft background and generous brand-copy space.']:['A purposeful workspace with quiet architectural light and no additional products.','A clean tonal studio set echoing the actual package material and brand palette.','A simple geometric display surface against a contrasting brand-appropriate background.'];
+ const enhancement=(input.intent||'campaign')==='enhancement';
+ return environments.map((environment,i)=>({id:'fallback-'+i,title:enhancement?['Balanced exposure','Tactile detail','Quiet cleanup'][i]:[bakery?'The shared moment':'Made for the moment','Material in focus','The brand statement'][i],idea:enhancement?`${input.brand.dna.name||'The brand'}: improve the existing photograph through ${['balanced lighting','natural surface detail','restrained cleanup'][i]}; retain the scene and viewpoint.`:`${input.brand.dna.name||'The brand'}: ${i===0?'context and human-scale occasion':i===1?'surface/material as the visual hook':'a confident single-product visual statement'}. Suggested visual tone: ${tone.slice(0,180)}.`,composition:enhancement?'Retain the original grouping, field of view and position.':['Place the intact product off-centre with intentional breathing room and a visible contact shadow.','Bring tactile details forward without hiding the required count; use a clear diagonal visual path.','Give the recognizable product a clear hero silhouette, with calm negative space for separate typography.'][i],camera:enhancement?'Keep the source viewpoint.':i===1?'A modest closer view, only within the explicit crop/count permissions.':'A small perspective adjustment only where permitted; retain recognizable geometry.',environment:enhancement?'Keep the original environment; remove only incidental distractions, without changing the product or container.':environment,lighting:['Broad window side-light with gradual falloff and believable shadow detail.','A grazing soft light reveals texture; balanced fill avoids shiny artificial surfaces.','A larger controlled key light separates the product from the backdrop without theatrical effects.'][i],hierarchy:'Product first, short headline second, original brand artwork third. No model-generated typography.',layout:(['editorial','spotlight','poster'] as const)[i],copyId:i===0?'moment':i===1?'details':'identity',evidenceIds:context.facts.some(f=>f.id===ref)?[ref]:['photo'],scores:{impact:4,relevance:4,accuracy:5,feasibility:5},rationale:'Deterministic source/brand-led suggestion; no AI evaluation performed.'}));
+}
+// Keep original evidence verbatim in the draft; do not turn legacy imperative
+// clauses inside a photo observation into hidden campaign-preservation locks.
+const observation=(s:string)=>s.split(/[;\n]/).filter(v=>!/^\s*(preserve|keep|do not|never)\b/i.test(v)).join('; ').slice(0,900);
+export function compileCreativeDraft(input:CreativeInput,concept:CreativeConcept):GenerationDraft{
+ const i=creativeBriefInput(input),c=i.controls,d=newGenerationDraft(i);
+ d.sections.transformation=`${concept.idea}\nCamera proposal: ${concept.camera}\nPermissions: angle ${c.angle}, crop ${c.crop}, creativity ${c.creativity}; explicit product locks win.`;
+ d.sections.composition=concept.composition+' '+concept.hierarchy;d.sections.background=concept.environment;
+ d.decisions={direction:concept.idea,lighting:concept.lighting,background:concept.environment};recompileDraft(d);prepareConciseDraft(d);
+ const enhancement=c.intent==='enhancement',camera=c.angle==='none'?'Keep the source viewpoint.':concept.camera;
+ d.modelPrompt=[`Reference-conditioned product photograph. Image 1 supplies product identity. ${enhancement?'Authentic enhancement: improve the existing photograph without reimagining the scene.':'Create a new advertising photograph, not a copy of the source snapshot.'}`,
+ `Visible reference: ${observation(i.facts.description)}. Texture: ${observation(i.facts.texture)}. Container: ${observation(i.facts.container)}.`,
+ `Preserve recognizable shape, material, real surface irregularity and printed artwork. ${c.exactCount?`Keep exactly ${i.facts.count??'the owner-confirmed count of'} visible products; no additions/removals/merging, all units inside frame.`:'Only the permitted close crop may hide existing units; invent no extra products.'} ${c.arrangement==='exactly'?'Keep individual positions and spacing exactly.':'Retain the source grouping and relative scale; modest staging changes are allowed.'} Observed arrangement: ${observation(i.facts.arrangement)}.`,
+ enhancement?'Use the existing environment and camera perspective; localized exposure/background cleanup only.':`Creative idea: ${concept.idea}\nComposition: ${concept.composition}\nCamera: ${camera}\nSetting: ${c.background==='keep'?'Retain the original surroundings.':c.background==='clean'?'Clean the original surroundings without replacing them.':concept.environment}`,
+ `Light: ${concept.lighting} Angle permission: ${c.angle}; crop permission: ${c.crop}. ${c.crop==='none'?'Retain the original field of view.':'Reframe deliberately within the count/arrangement locks.'} ${concept.hierarchy}`,
+ `No added food/ingredients, invented products, false labels, extra garnish or product redesign. Keep true texture and plausible contact shadows. No new text, logos, prices or offers: those are composed separately. All unseen geometry is inferred and needs owner inspection.`].join('\n\n');
+ if(d.modelPrompt.length>6000)throw Error('Creative prompt exceeds Qwen limit.');return d;
+}
+export function creativeComposition(input:CreativeInput,concept:CreativeConcept,context:CreativeContext):StaticDesign{
+ const d=newStaticDesign(input.brand,input.productId,concept.layout).design,copy=context.copyOptions.find(c=>c.id===concept.copyId)!;
+ return {...d,photoId:input.source.id,photoConfirmed:false,size:input.format||'feed',headline:copy.headline,body:copy.body,cta:'',brandName:input.brand.dna.name.slice(0,60)};
+}
+export function creativeHeroSettings(input:CreativeInput,draft:GenerationDraft):HeroSettings{return {...heroDefaults().settings,sourceId:input.source.id,brandId:input.brand.id,productId:input.productId,sourceKind:'original',imageModel:'qwen-fp8',method:'reimagine',seed:input.seed??42,productName:draft.input.productName,prompt:draft.modelPrompt!,briefDraft:structuredClone(draft),headline:'',website:''};}
+export function assembleCreativePlan(input:CreativeInput,concepts:CreativeConcept[],provider:CreativePlan['provider'],id:string):CreativePlan{
+ const context=creativeContext(input);const evaluated=concepts.map(c=>({...c,evaluation:{score:c.scores.impact*3+c.scores.relevance*3+c.scores.accuracy*2+c.scores.feasibility*2,method:provider.mode==='local-ai'?'Model self-evaluation plus deterministic source/constraint checks; not a quality guarantee.':'Deterministic heuristic, not AI evaluation.'}})).sort((a,b)=>b.evaluation.score-a.evaluation.score);
+ const selected=evaluated[0],draft=compileCreativeDraft(input,selected);
+ const composition=creativeComposition(input,selected,context),layout=staticSVG(composition,{photo:''});
+ return {version:1,id,projectId:input.projectId,created:Date.now(),input:structuredClone(input),provider,context,concepts:evaluated,selectedId:selected.id,selectionReason:selected.rationale,draft,composition,layout:{width:layout.width,height:layout.height,photoBox:layout.photoBox,textBounds:layout.textBounds,fit:'contain',exportIntent:'png'},warnings:[...context.missing.map(k=>'Missing: '+k),...layout.warnings,...(input.constraints?.fidelity==='strict'&&input.intent!=='enhancement'?['Strict owner constraints limit campaign reframing; choose a less restrictive intent to explore.']:[]),'Text planning has no vision model: source observations require owner confirmation.','Camera/background proposals and model scores are not verified facts or fidelity guarantees.','Copy is selected from grounded identity/source excerpts or non-factual proposals; no invented offers or product claims.'],reviewRequired:true,generationRun:false};
+}

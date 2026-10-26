@@ -38,6 +38,7 @@ import {generateQwenHero,qwenAvailability,verifyWeightFiles,qwenContract} from '
 import {qwenSDKTransport} from './qwen-sdk.ts';
 import {createQwenRelay} from './qwen-relay.ts';
 import {acceptanceGate,acceptanceRequest,claimAcceptanceJob} from './qwen-app-session.ts';
+import {createCreativeEngine,creativeTextStatus,creativeSDKText,CreativeError,type CreativeBackend} from './creative-engine.ts';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const WORKFLOWS = join(ROOT, "shared", "workflows");
@@ -502,7 +503,7 @@ function sameToken(a: string | undefined, b: string): boolean {
 
 function requirePathSeparator(){return process.platform==='win32'?'\\':'/';}
 
-function middleware(env: Env,setup:RuntimeSetup,rewriter:PromptRewriter): Connect.NextHandleFunction {
+function middleware(env: Env,setup:RuntimeSetup,rewriter:PromptRewriter,creative:ReturnType<typeof createCreativeEngine>): Connect.NextHandleFunction {
   const token = env.OSH_TOKEN || "";
   const session=env.QWEN_APP_SESSION_DIR?resolve(env.QWEN_APP_SESSION_DIR):'';
   if(env.QWEN_APP_RELAY_URL&&(!session.startsWith(OUTPUTS+requirePathSeparator())||!session.endsWith(requirePathSeparator()+'session')))throw new Error('Qwen acceptance session must be an outputs/.../session folder.');
@@ -544,6 +545,11 @@ function middleware(env: Env,setup:RuntimeSetup,rewriter:PromptRewriter): Connec
         res.writeHead(200,{...headers,'Content-Length':size});if(req.method==='HEAD')return res.end();return createReadStream(p).pipe(res);
       }
       const route = `${req.method} ${url.pathname}`;
+      if(route==='GET /api/creative/status')return send(res,200,await creative.status());
+      if(req.method==='GET'&&/^\/api\/creative\/plan\/[a-f0-9]{16}$/.test(url.pathname))return send(res,200,await creative.get(url.pathname.split('/').pop()!,url.searchParams.get('projectId')||''));
+      if(route==='POST /api/creative/plan')return send(res,200,await creative.plan(await readBody(req,256*1024)));
+      if(route==='POST /api/creative/prepare')return send(res,200,await creative.prepare(await readBody(req,20*1024*1024)));
+      if(route==='POST /api/creative/compose')return send(res,200,await creative.compose(await readBody(req)));
       if(req.method==='GET'&&/^\/api\/hero\/qwen\/provenance\/[a-f0-9]{16}$/.test(url.pathname)){
        const path=join(OUTPUTS,'hero-qwen',url.pathname.split('/').pop()!,'provenance.json');if(!existsSync(path))return send(res,404,{error:'No saved Qwen provenance'});if(statSync(path).size>512*1024)throw new HttpError(413,'Qwen provenance too large');return send(res,200,JSON.parse(await readFile(path,'utf8')));
       }
@@ -644,7 +650,7 @@ function middleware(env: Env,setup:RuntimeSetup,rewriter:PromptRewriter): Connec
       if (route === "POST /api/shot") return send(res, 200, await tracked(body=>shot(body, env)));
       return send(res, 404, { error: "unknown endpoint" });
     } catch (e: any) {
-      const status = e instanceof HttpError || e instanceof ComposeError || e instanceof BrandError || e instanceof StaticAdError || e instanceof HeroError || e instanceof PromptRewriteError ? e.status : 500;
+      const status = e instanceof HttpError || e instanceof ComposeError || e instanceof BrandError || e instanceof StaticAdError || e instanceof HeroError || e instanceof PromptRewriteError || e instanceof CreativeError ? e.status : 500;
       if (status === 500) console.error(`[api] ${url.pathname} failed:`, e);
       send(res, status, { error: status === 500 ? "generation failed (see server log)" : e.message });
     }
@@ -658,15 +664,20 @@ export function comfyApi(env: Env): Plugin {
    status:async()=>{try{const nodes=await comfyJson(env,'/object_info');const available=!!nodes.TextGenerate?.input?.optional?.system_prompt&&!!nodes.SaveText&&nodes.CLIPLoader?.input?.required?.clip_name?.[0]?.includes(promptModel);return {available,cpuSupported:false,id:promptModel,model:'Qwen3 4B · ComfyUI',reason:available?'Uses installed Qwen3 through ComfyUI. GPU/offload is managed by ComfyUI unless CPU is selected.':'Prompt polishing needs current ComfyUI TextGenerate/SaveText nodes and the Qwen3 4B text encoder from the image model pack.'}}catch{return {available:false,id:promptModel,model:'Qwen3 4B · ComfyUI',reason:'Connect ComfyUI to polish prompts. Advanced manual editing is available.'}}},
    generate:async(content,device)=>{if(queued>0)throw new PromptRewriteError(409,'ComfyUI is busy generating. Polish again when the current job finishes.');await ensureProxy(env);const c=client(env),wf=c.workflows.fromJson(await loadGraph('prompt_polish'));wf.setInput('1','device',device);wf.setInput('2','prompt',content);wf.setInput('2','system_prompt',promptInstruction);if(queued>0)throw new PromptRewriteError(409,'ComfyUI is busy generating. Polish again when the current job finishes.');const job=await serialize(()=>runWf(c,wf));const output=job.getOutputs('3')[0];if(!output)throw new PromptRewriteError(502,'ComfyUI returned no polished prompt. Your prompt is unchanged.');return Buffer.from(await output.toBytes()).toString('utf8')}
   });
+  const creativeBackend:CreativeBackend={
+   status:async()=>creativeTextStatus(await comfyJson(env,'/object_info').catch(()=>({}))),
+   generate:async(system,content)=>{if(queued>0||setup.task.busy)throw new CreativeError(409,'Local generation/setup is busy. Finish it before creative planning.');await ensureProxy(env);const c=client(env);return creativeSDKText(c,await loadGraph('prompt_polish'),system,content,wf=>serialize(()=>runWf(c,wf)));}
+  };
+  const creative=createCreativeEngine(OUTPUTS,creativeBackend);
   return {
     name: "osh-comfy-api",
     async configureServer(server) {
-      server.middlewares.use(middleware(env,setup,rewriter));
+      server.middlewares.use(middleware(env,setup,rewriter,creative));
       if(setup.config?.mode==='managed')setup.start();
       else void (async()=>{if (!(await up((env.COMFYUI_URL || "http://127.0.0.1:8188") + "/system_stats"))) console.warn("[api] ComfyUI not reachable; open Local setup in Studio.");else await ensureProxy(env)})().catch(error=>console.warn('[setup]',error.message));
     },
     async configurePreviewServer(server) {
-      server.middlewares.use(middleware(env,setup,rewriter));
+      server.middlewares.use(middleware(env,setup,rewriter,creative));
       if(setup.config?.mode==='managed')setup.start();else void ensureProxy(env).catch(error=>console.warn('[setup]',error.message));
     },
   };

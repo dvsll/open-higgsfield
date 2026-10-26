@@ -3,9 +3,15 @@
 Append dated decisions, render times and requests here. Only the studio owner edits this file; the partner adds requests at the bottom.
 
 ## Where we left off (update this before switching agents)
+
 **Latest handoff - 2026-10-25, full Admin page:** Replaced Admin popup with dedicated React /studio/admin route/build entry, dark full-page runtime view and return-to-Studio link. Existing connection polling and loopback Comfy link retained; Local setup mounts on page with automatic opening disabled so offline status does not obscure page. Default first-run auto-open elsewhere unchanged. Browser verified toolbar navigation to page, no initial dialog, Local setup open/close. Screenshot outputs/studio-admin-page.png. Build/typecheck and clean URL route tests pass. No runtime configuration/model operations.
 
 **Latest handoff - 2026-10-25, Admin entry:** Added Admin immediately after Try onboarding. In-app shared Popup preserves SPA/workspace state, polls existing read-only /api/setup only while open with abort cleanup, reports Comfy/connector/managed-existing status, exposes existing Local setup event and validated loopback Open ComfyUI link. Browser verified Admin and nested runtime setup open/close; current8188 reports offline, connector connected, config absent (no runtime changes attempted). Screenshot outputs/studio-admin-entry.png; typecheck passes. This is initial connection/admin surface, tomorrow reminder remains for further setup.
+
+
+**Ad Studio coordination - 2026-10-25, creative engine:** Retained main6cf2d96 Director updates. Additive /api/creative/* and OSH.creative* use the existing native Qwen3 text workflow/SDK/proxy, private source-grounded plans, explicit fresh review, existing Qwen raw/provenance path and CPU PNG composition. Typed Ad application service persists optional plan refs without DB migration; no Studio source/UI or existing routes changed. Local Qwen3 encoder absent/Comfy offline, so real text inference NOT RUN and fallback explicitly deterministic. Mock text/image + real API/HTTP/PNG/storage contracts PASS; build/typecheck,19 Studio and17 existing Ad regression files PASS. No spend, downloads, source edits, private remote transfer or browser controller. See notes/adstudio.md and adstudio/CREATIVE_ENGINE.md; React integration is next.
+
+8301 now PID44812 using private outputs/creative-engine-v1/serve-8301.mjs and the same main worktree; closed paid relay removed from local environment. New creative/status HTTP works; previous real Qwen PNG still serves identical bytes. Browser storage/profile/origin untouched; no browser acceptance claimed. Other dev servers unchanged.
 
 **Latest handoff - 2026-10-25, remove Dock menus:** Removed the Dock select from shared React window headers. Title dragging/snap guides and close actions retained. Browser8288 confirms zero header selects; screenshot outputs/window-headers-no-dock-menu.png. Typecheck/layout/panel lifecycle tests pass.
 

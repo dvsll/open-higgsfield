@@ -5,10 +5,11 @@ import {Projects,type AdProject,type ProductAsset} from './projects.ts';
 import {blobDataURL} from './assets.ts';
 import {heroTakeFromDelivery} from './hero-delivery.ts';
 import type {CreativeInput,CreativePlan,CreativePrepared} from '../../shared/lib/creative-engine.ts';
+import {creativeSnapshot} from '../../shared/lib/creative-engine.ts';
 import type {HeroSettings} from '../../shared/lib/hero-ad.ts';
 type Entry={id:string;created:number;sourceId:string;brandId:string;summary:string;provider:string;basisHero:string;previousHero?:HeroSettings;preparedId?:string};
-export type CreativeDraft=Pick<CreativeInput,'facts'|'productType'|'request'|'intent'|'format'|'productId'> & {sourceId:string};
-export type CreativeWorkspace={version:1;plans:Entry[];activeId?:string;draft?:CreativeDraft;step?:'product'|'direction'|'result';onboarding?:{name:string;website:string};references?:Record<string,{sha256:string;facts:CreativeDraft['facts'];productType:CreativeDraft['productType']}>;refinement?:{planId:string;text:string};adDrafts?:Record<string,Partial<Pick<import('../../shared/lib/static-ad.ts').StaticDesign,'headline'|'body'|'cta'|'size'>>>;adDraft?:{takeId:string;copy:Partial<Pick<import('../../shared/lib/static-ad.ts').StaticDesign,'headline'|'body'|'cta'|'size'>>}};
+export type CreativeDraft=Pick<CreativeInput,'facts'|'productType'|'request'|'intent'|'format'|'productId'|'constraints'|'seed'|'notes'> & {sourceId:string};
+export type CreativeWorkspace={version:1;plans:Entry[];activeId?:string;draft?:CreativeDraft;step?:'product'|'direction'|'result';onboarding?:{name:string;website:string};handoffs?:{planId:string;created:number;draft?:CreativeDraft;activeId?:string;step?:string;refinement?:{planId:string;text:string}}[];references?:Record<string,{sha256:string;facts:CreativeDraft['facts'];productType:CreativeDraft['productType']}>;refinement?:{planId:string;text:string};adDrafts?:Record<string,Partial<Pick<import('../../shared/lib/static-ad.ts').StaticDesign,'headline'|'body'|'cta'|'size'>>>;adDraft?:{takeId:string;copy:Partial<Pick<import('../../shared/lib/static-ad.ts').StaticDesign,'headline'|'body'|'cta'|'size'>>}};
 type Client=Pick<typeof OSH,'upload'|'creativePlan'|'creativeSelect'|'creativePlanRecord'|'creativePrepare'|'creativeCompose'|'qwenHero'>;
 type Options=Partial<Pick<CreativeInput,'request'|'intent'|'format'|'seed'|'constraints'|'notes'|'productType'|'facts'|'productId'>>;
 const hash=async(blob:Blob)=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',await blob.arrayBuffer()))).map(b=>b.toString(16).padStart(2,'0')).join('');
@@ -30,6 +31,21 @@ export class CreativeStudioService{
   w.plans.push({id:plan.id,created:plan.created,sourceId,brandId:input.brand.id,summary:plan.concepts.find(c=>c.id===plan.selectedId)!.idea,provider:plan.provider.mode,basisHero:JSON.stringify(p.hero?.settings)});w.activeId=plan.id;w.step='direction';await this.projects.save(p);return plan;
  }
  async open(projectId:string,planId:string){const p=await this.project(projectId);if(!this.workspace(p).plans.some(e=>e.id===planId))throw Error('Plan is not saved in this project.');return this.client.creativePlanRecord(planId,projectId);}
+ // Owner-opened same-origin link: attach an existing proposed plan, never rerun
+ // inference or simulate acceptance. All checks precede the first project write.
+ async attachPlan(projectId:string,planId:string){
+  const p=await this.project(projectId),w=this.workspace(p),plan=await this.client.creativePlanRecord(planId,projectId);
+  if(w.plans.some(e=>e.id===planId))return plan; // refresh/link replay preserves review and later edits
+  if(w.onboarding)throw Error('Finish or cancel the pending brand setup before opening this campaign. Existing drafts were kept.');
+  if(w.plans.length>=40)throw Error('This project has 40 saved plans. Existing work was kept.');
+  if(plan.projectId!==p.id||plan.generationRun!==false||plan.draft.reviewedSnapshot)throw Error('Open a genuine unreviewed proposal for this project.');
+  const {input}=await this.context(p,plan.input.source.id,plan.input);
+  if(creativeSnapshot({...plan.input,brand:input.brand,source:input.source,projectId:input.projectId})!==creativeSnapshot(plan.input))throw Error('Saved brand/source differs from this campaign. Re-export current context; no project data was changed.');
+  w.handoffs??=[];w.handoffs.push({planId,created:Date.now(),draft:structuredClone(w.draft),activeId:w.activeId,step:w.step,refinement:structuredClone(w.refinement)});
+  w.plans.push({id:plan.id,created:plan.created,sourceId:plan.input.source.id,brandId:plan.input.brand.id,summary:plan.concepts.find(c=>c.id===plan.selectedId)!.idea,provider:plan.provider.mode,basisHero:JSON.stringify(p.hero?.settings)});
+  const i=plan.input;w.draft={sourceId:i.source.id,facts:{...structuredClone(i.facts),confirmed:false},productType:i.productType,productId:i.productId,request:i.request||'',intent:i.intent||'campaign',format:i.format||'feed',seed:i.seed??42,notes:i.notes||'',constraints:structuredClone(i.constraints)};
+  w.activeId=plan.id;w.step='direction';w.refinement=undefined;await this.projects.save(p);return plan;
+ }
  async choose(projectId:string,planId:string,conceptId:string,facts?:CreativeInput['facts']){const p=await this.project(projectId),w=this.workspace(p);if(!w.plans.some(e=>e.id===planId))throw Error('Plan is not saved in this project.');if(w.plans.length>=40)throw Error('This project already has 40 plans. Previous work was kept.');const plan=await this.client.creativeSelect({planId,projectId,conceptId,...(facts?{facts}: {})});w.plans.push({id:plan.id,created:plan.created,sourceId:plan.input.source.id,brandId:plan.input.brand.id,summary:plan.concepts.find(c=>c.id===plan.selectedId)!.idea,provider:plan.provider.mode,basisHero:JSON.stringify(p.hero?.settings)});w.activeId=plan.id;w.step='direction';await this.projects.save(p);return plan;}
  async approve(projectId:string,planId:string,confirmation:{direction:boolean;facts:boolean}):Promise<CreativePrepared>{
   const p=await this.project(projectId),entry=this.workspace(p).plans.find(e=>e.id===planId);if(!entry)throw Error('Plan does not belong to this project.');

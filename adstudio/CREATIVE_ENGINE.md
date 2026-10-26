@@ -1,6 +1,34 @@
 # Creative engine V1
 
-## Current repair outcome — 2026-10-26
+## Current campaign MVP (2026-10-26)
+
+Qwen3 now proposes only three compact `EDITORIAL | hook | setting | lighting`,
+`DETAIL` and `GRAPHIC` lines (setting omitted for retained backgrounds). App rules
+own identity/count/packaging/framing, evidence, copy, neutral scores and the final
+schema. Full JSON parsing remains only for historical replay. The actual SDK graph
+uses600 tokens, greedy/no thinking, the existing180s deadline and no retry.
+AI-assisted means only those three model fields, never independently AI-designed.
+Strict schema/physical gates remain; setting fields cannot restage the product.
+
+ONE real No Crumbs text job completed in10.488s. Formatting passed, but actual
+proposals added flour/apron/linen and changed dish appearance. Semantic FAIL;
+raw output retained unchanged, original proposal marked rejected, no retry.
+Validated deterministic **The shared table** selected instead: whole nine-roll
+white dish lower-left on a quiet bakery counter, broad window side-light and
+upper-right space for separate branding. No newly generated photograph yet.
+
+Private evidence/gallery: `outputs/campaign-mvp-20261026/index.html`.
+Selected plan `b94c0c151365694d`; exact source hashes/seed42 and a fresh campaign
+prompt are saved there. No Signature Duo association. An owner-opened same-origin
+`?campaign=<plan>&project=<existing-id>#hero` link validates saved profile/original
+bytes, backs up the previous draft and adds an UNREVIEWED plan without uploads,
+approval or inference. Reopening is idempotent. No IDB schema/origin change.
+Seed/notes/controls stale review checks and per-plan prepared export gate are tested.
+**Fresh owner acceptance and reviewed JSON export are mandatory before provisioning.**
+Old enhancement review is not reused. Current paid/private-upload flags stayfalse.
+Browser interaction not performed; earlier persistence is OWNER-REPORTED only.
+
+## Previous full-JSON repair outcome — 2026-10-26
 
 `npm ci --ignore-scripts --no-audit --no-fund` synchronized only lockfile-declared
 dependencies in the integration worktree. Versions and lockfile unchanged;
@@ -215,7 +243,7 @@ requests are not rewritten: new plans require fresh explicit review.
 
 Private `planning.json` records actual prompt/context, elapsed time, whether local
 text inference was attempted, final provider, token limit and decoding settings.
-Raw model text is retained even on failed validation. Native text uses 2400 output
+Raw model text is retained even on failed validation. Native text now uses600 output
 tokens, no thinking, greedy sampling, a scoped180s SDK wait and15s output fetch;
 failed jobs attempt only their own cancellation and are never automatically retried.
 Director keeps its existing timeout/default behavior. Image pins/transport/guards

@@ -4,6 +4,7 @@ import {AdStudio} from './app.tsx';
 import {WorkspaceStore} from '../workspace-store.ts';
 import {openProjectDriver,memoryDriver} from '../projects.ts';
 import {AdApplication} from '../ad-application.ts';
+import {openCampaignReview} from '../review-handoff.ts';
 import './app.css';
 class WorkspaceBoundary extends Component<{children:ReactNode},{error:string}>{
  state={error:''};
@@ -17,6 +18,8 @@ async function start(){
  let remember:Storage|undefined;try{remember=localStorage;}catch{/* Explicit session-only warning in store. */}
  const store=await new WorkspaceStore(driver,remember,openProjectDriver,durable).initialize(),app=new AdApplication(store),root=createRoot(document.getElementById('adstudio-root')!);
  root.render(<WorkspaceBoundary><AdStudio app={app}/></WorkspaceBoundary>);
+ // Existing project only, at the same origin. No automatic review or inference.
+ void openCampaignReview(location.href,app).then(url=>{if(url)history.replaceState(null,'',url);}).catch(error=>store.report(error));
  window.addEventListener('pagehide',()=>{root.unmount();store.dispose();},{once:true});
  window.addEventListener('pageshow',event=>{if(event.persisted)location.reload();});
 }

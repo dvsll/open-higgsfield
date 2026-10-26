@@ -47,11 +47,11 @@ for(const [field,text]of [['composition','Remove products and tight crop'],['cam
 
 const request=creativePlanningRequest(unconfirmed,uc);
 assert.ok(!request.permittedEvidenceIds.includes('photo'));assert.ok(request.permittedEvidenceIds.includes('brand-name'));
-assert.ok(request.system.includes('Exact permittedEvidenceIds: '+JSON.stringify(request.permittedEvidenceIds)));
-assert.match(request.system,/No invented|No invented/i);assert.match(request.system,/organic/);
-const content=JSON.parse(request.content.replace(/ \/no_think$/,''));assert.equal(content.appearanceToPreserve.confirmed,false);assert.ok(!content.supportedEvidence.some(f=>f.id==='photo'));
-const example=parseCreativeResponse(request.system.split('placeholders are not a campaign:\n')[1]).value;
-assert.equal(example.concepts.length,3);assert.deepEqual(Object.keys(example.concepts[0]).sort(),Object.keys(valid.concepts[0]).sort());assert.throws(()=>validateCreativeConcepts(example,uc),/schema example|labels|similar/,'Echoing the schema is not real planning');
+assert.equal(request.proposalFormat,'visual-lines-v1');
+assert.match(request.system,/No invented/);assert.match(request.system,/organic/);
+const content=JSON.parse(request.content.replace(/ \/no_think$/,''));assert.equal(content.sourceAppearance,unconfirmed.facts.description);
+assert.ok(!request.content.includes('evidenceIds'));assert.ok(!request.content.includes('scores'));assert.ok(!request.content.includes('supportedEvidence'));
+assert.equal(request.fields.includes('setting'),true);assert.match(request.system,/EDITORIAL, DETAIL and GRAPHIC/);
 assert.deepEqual(unconfirmed.facts.confirmed,false,'No automatic source confirmation');
 for(const c of validateCreativeConcepts(valid,ctx)){const d=compileCreativeDraft(input,c);assert.ok(d.modelPrompt.length<6000);assert.equal(d.reviewedSnapshot,undefined);}
-console.log('PASS strict key-only normalization, decoded duplicate/collision rejection, untouched values, exhaustive real-failure shapes, explicit allowed evidence and schema example, conservative claims, physical locks and distinct compiled prompts. CPU only.');
+console.log('PASS strict key-only normalization, decoded duplicate/collision rejection, untouched values, exhaustive real-failure shapes, compact model instructions with app-owned evidence/schema, conservative claims, physical locks and distinct compiled prompts. CPU only.');

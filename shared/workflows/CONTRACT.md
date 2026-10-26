@@ -1,5 +1,20 @@
 # Workflow contract
 
+## Bounded visual proposals (2026-10-26, supersedes full-JSON planning)
+
+Creative routes and image/Director contracts remain compatible. Qwen3 outputs
+three compact tagged visual proposals,600tokens/180s/no retry; trusted app code
+supplies final schema, identity/count/packaging/camera/composition, evidence, copy
+and neutral scores. `provider.contribution` is optional metadata distinguishing
+model idea/environment/light from app-authored fields. Invalid model decisions
+are rejected whole, raw retained and a labeled deterministic campaign used.
+A saved proposal with `rejected` audit marker cannot be retrieved/prepared.
+`creative-json.ts` remains for historical strict replay, not a mandatory live format.
+No image pins, long HTTP transport, approval/source/lease/budget guards changed.
+GET plan lookup alone has a10s client timeout; inference deadlines unchanged.
+Owner-opened local review links attach existing proposals only after exact saved
+project/profile/original hash checks; no automatic review, inference or DB upgrade.
+
 ## Ad Studio creative planning (2026-10-25, additive)
 
 Functional UX adds optional `facts:SourceFacts` to `creative/select`. Source/brand/

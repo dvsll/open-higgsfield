@@ -127,10 +127,10 @@ export function TourPopover({
       </div>
       {done ? (
         <>
-          <h2>More ways to create</h2>
+          <h2>Try another workflow</h2>
           <p>
             Your {workflowNames[entry]} walkthrough is complete. Explore another workflow with the same{' '}
-            {experience} guidance.
+            {experience} guidance. Choose one below and we’ll guide you to it in the workspace selector.
           </p>
           <div className="tour-workflow-teasers">
             {(['image', 'video', 'edit', 'rendering', '3d'] as Workflow[])

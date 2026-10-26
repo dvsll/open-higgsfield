@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const source=readFileSync(new URL('../src/director.ts',import.meta.url),'utf8');
+const code=source.slice(source.indexOf('let generationActivity=null'),source.indexOf('\nasync function realShot'));
+const elements=Object.fromEntries(['ov','empty','pb','ovt','ovDiagnostics'].map(id=>['#'+id,{style:{display:'none'},textContent:''}]));
+const listeners={},timers=new Set();
+const busy=new Function('$','document','addEventListener','setInterval','clearInterval','renderView','h','GenerationDiagnostics',code+';return busy')(id=>elements[id],{querySelector:()=>null},(name,fn)=>listeners[name]=fn,fn=>{timers.add(fn);return fn},fn=>timers.delete(fn),()=>{},()=>{},()=>{});
+const emit=phase=>listeners['osh-generation-progress']({detail:{phase,message:'Loading model',phaseStartedAt:Date.now(),percent:25}});
+emit('loading');assert.equal(elements['#ov'].style.display,'flex');for(const tick of timers)tick();assert.match(elements['#ovt'].textContent,/Loading model/);assert.equal(elements['#pb'].style.width,'25%');
+emit('complete');assert.equal(elements['#ov'].style.display,'none');emit('loading');emit('error');assert.equal(elements['#ov'].style.display,'none');
+await busy('Preparing',async()=>{assert.equal(elements['#empty'].style.display,'none');emit('complete');assert.equal(elements['#ov'].style.display,'flex')});assert.equal(elements['#ov'].style.display,'none');
+await assert.rejects(busy('Preparing',async()=>{throw Error('fixture')}));assert.equal(elements['#ov'].style.display,'none');
+console.log('PASS: common progress for SDK jobs, real percentages, terminal cleanup and preparing-stage ownership.');

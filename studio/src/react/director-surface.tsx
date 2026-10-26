@@ -1,4 +1,7 @@
+import type {ReactNode} from 'react';
+import {createPortal} from 'react-dom';
 import {AdvancedPrompt,PromptPolishButton} from './prompt-advanced';
+function GenerationPortal({children}:{children:ReactNode}){return typeof document==='undefined'?children:createPortal(children,document.body)}
 export function DirectorSurface() {
   return (
     <>
@@ -64,13 +67,13 @@ export function DirectorSurface() {
               </div>
               <span className="tag" id="tag"></span>
               <span className="tc" id="tc"></span>
-              <div className="ov" id="ov">
+              <GenerationPortal><div className="ov" id="ov" role="status" aria-live="polite">
                 <div id="ovt"></div>
                 <div className="prog">
                   <i id="pb"></i>
                 </div>
                 <div id="ovDiagnostics" />
-              </div>
+              </div></GenerationPortal>
             </div>
             <div className="viewer-tools">
               <button className="play" id="play" title="Play / pause (space)" />

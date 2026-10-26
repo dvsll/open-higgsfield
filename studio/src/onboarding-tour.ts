@@ -7,7 +7,7 @@ import './onboarding-guidance.css';
 import { SC } from './scene';
 import {lockTourInteraction} from './onboarding-interaction';
 import { workflowTourStep, canResumeWorkflow, firstVisit, profileKey, readProfile, windowLesson, workflowForSetup, type Experience, type Workflow } from './onboarding-progress';
-export type TourState = { step:string; shotId:string; images:string[]; dismissed?:boolean; suspended?:boolean; experience?:Experience; entry?:Workflow; firstVideo?:string|null; videoReviewed?:boolean; suppressAutomatic?:boolean };
+export type TourState = { step:string; nextWorkflow?:Workflow; shotId:string; images:string[]; dismissed?:boolean; suspended?:boolean; experience?:Experience; entry?:Workflow; firstVideo?:string|null; videoReviewed?:boolean; suppressAutomatic?:boolean };
 type Options = { get:()=>TourState|null; set:(state:TourState)=>void; save:()=>void; choose:(entry:Workflow)=>void; begin:(entry:Workflow)=>TourState; current:()=>Workflow };
 type Tip = { title:string; text:string; target?:string; secondary?:string; next?:string; diagram?:'add'|'position' };
 const names:Record<Workflow,string>={video:'Video',image:'Image',director:'Director',rendering:'Rendering',edit:'Edit', '3d':'3D'};
@@ -26,7 +26,7 @@ export function mountOnboardingTour(options:Options) {
  function workflowChoices(){
   for(const [option,disabled] of restrictedOptions)option.disabled=disabled;restrictedOptions.clear();
   const state=options.get();if(!state||state.dismissed||state.suspended)return;
-  const expected=state.step==='switch-image'?'Image':state.step==='return-video'?'Video':null;
+  const expected=state.step==='switch-image'?'Image':state.step==='return-video'?'Video':state.step==='workflow-switch'&&state.nextWorkflow?names[state.nextWorkflow]:null;
   if(expected)document.querySelectorAll<HTMLOptionElement>('[aria-label="Workspace setup"] option').forEach(option=>{if(option.value!==expected){restrictedOptions.set(option,option.disabled);option.disabled=true}});
  }
  const targetElement=(selector:string)=>selector.split(',').map(s=>document.querySelector<HTMLElement>(s.trim())).find(e=>e&&e.getClientRects().length);
@@ -99,6 +99,7 @@ export function mountOnboardingTour(options:Options) {
   requestAnimationFrame(()=>{const selector=step==='add'?'.project-files':step==='position'?'#trk':step==='keyframes'?'#kp':null;const element=selector&&document.querySelector(selector);element?.scrollIntoView({block:'nearest'})});
  }
  function tip(state:TourState):Tip{
+  if(state.step==='workflow-switch'&&state.nextWorkflow){const name=names[state.nextWorkflow],open=!!document.getElementById('workspacePickerMenu');return {title:`Switch to ${name}`,text:open?`Choose ${name} in the highlighted row to continue.`:`Open the workspace selector at the top, then choose ${name}. Your media stays in this project.`,target:open?`#workspacePickerMenu [data-workspace-choice="${name}"]`:'[aria-label="Workspace setup"]'}}
   const beginner=state.experience==='beginner',pro=state.experience==='professional';
   const visible=new Set(Array.from(document.querySelectorAll<HTMLElement>('.window-board .studio-window:not([hidden])')).map(panel=>panel.dataset.window!));
   const lesson=windowLesson(state.step,visible,!!document.querySelector('.window-menu[open]'));
@@ -138,7 +139,7 @@ export function mountOnboardingTour(options:Options) {
   const done=state!.step==='done';
   if(done){profile.workflows[state!.entry!]='completed';if(state!.entry==='image')profile.workflows.video='completed';else if(['video','director'].includes(state!.entry!)&&new Set(state!.images).size>=2)profile.workflows.image='completed';saveProfile();targets=[]}
   const current=done?undefined:tip(state!);if(current)targets=[current.target,current.secondary].filter(Boolean) as string[];
-  renderView(popup,createElement(TourPopover,{experience:state!.experience!,entry:state!.entry!,done,tip:current,onLater:state!.step==='switch-image'?()=>end(true):undefined,onSkip:()=>end(!done),onFinish:()=>end(),onWorkflow:entry=>start(entry),onNext:()=>{
+  renderView(popup,createElement(TourPopover,{experience:state!.experience!,entry:state!.entry!,done,tip:current,onLater:['switch-image','workflow-switch'].includes(state!.step)?()=>end(true):undefined,onSkip:()=>end(!done),onFinish:()=>end(),onWorkflow:entry=>{state!.nextWorkflow=entry;state!.step='workflow-switch';persist();render()},onNext:()=>{
    if(['prompt','image','keyframes'].includes(state!.step)&&localStep===0){localStep=1;document.querySelector(state!.step==='prompt'?'#gen':'#kgo')?.scrollIntoView({block:'nearest'});render();return}
    state!.step=state!.step==='render-settings'?'render-takes':state!.step==='edit-settings'?'edit-review':'done';persist();render();
   }}));
@@ -156,7 +157,7 @@ export function mountOnboardingTour(options:Options) {
   popup.style.left=x+'px';popup.style.top=y+'px';shade.style.display='block';shade.setAttribute('viewBox',`0 0 ${innerWidth} ${innerHeight}`);shadePath.setAttribute('d',`M0 0H${innerWidth}V${innerHeight}H0Z`+rects.map(b=>`M${b.left-3} ${b.top-3}h${b.width+6}v${b.height+6}h-${b.width+6}Z`).join(''));
   rings.forEach((ring,i)=>{const b=rects[i];ring.hidden=!b;if(b)Object.assign(ring.style,{left:b.left-3+'px',top:b.top-3+'px',width:b.width+6+'px',height:b.height+6+'px'})});
  }
- document.addEventListener('osh-workspace-selected',((event:CustomEvent<{name:string;mode:string}>)=>{if(switching||chooser?.open)return;if(['Audio','Overlays'].includes(event.detail.name)){pause();render();return}const state=options.get();if(state&&!state.dismissed&&(!state.experience||!state.entry))return;const entry=workflowForSetup(event.detail.name,event.detail.mode);const bridge=workflowTourStep(state,entry);if(bridge&&state){state.step=bridge;persist();render();return}if(state?.entry===entry&&!state.dismissed&&!state.suspended)return;if(profile.experience)start(entry,false,false)}) as EventListener);
+ document.addEventListener('osh-workspace-selected',((event:CustomEvent<{name:string;mode:string}>)=>{if(switching||chooser?.open)return;if(['Audio','Overlays'].includes(event.detail.name)){pause();render();return}const state=options.get();if(state&&!state.dismissed&&(!state.experience||!state.entry))return;const entry=workflowForSetup(event.detail.name,event.detail.mode);if(state?.step==='workflow-switch'&&state.nextWorkflow===entry){start(entry,true,false);return}const bridge=workflowTourStep(state,entry);if(bridge&&state){state.step=bridge;persist();render();return}if(state?.entry===entry&&!state.dismissed&&!state.suspended)return;if(profile.experience)start(entry,false,false)}) as EventListener);
  const refreshWindows=()=>{if(!chooser?.open)render()};
  document.addEventListener('osh-workspace-picker-changed',refreshWindows);
  document.addEventListener('osh-window-layout-changed',refreshWindows);

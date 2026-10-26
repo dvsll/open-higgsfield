@@ -1,4 +1,9 @@
-# React Ad Studio — current acceptance status (2026-10-25)
+# React Ad Studio — current acceptance status (2026-10-26)
+
+Owner reported the simplified React UI's concept selection, confirmation and
+historical-image export tested and accepted. Record **OWNER-REPORTED PASS** for
+those actions. This does not certify new AI planning, campaign photograph quality
+or independent automated browser verification. Controller restrictions remain.
 
 ## Functional UX pass — current owner-profile checklist
 

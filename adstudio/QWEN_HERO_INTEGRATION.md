@@ -1,6 +1,6 @@
 # Qwen in the Hero workspace
 
-This milestone connects the existing official Qwen-Image-Edit-2511 FP8 graph to the real application. **Real app Qwen generation is NOT yet verified.** Tests use explicitly mocked inference; no GPU, model download, Runpod provisioning or paid call occurred.
+Current status2026-10-26: **one real app Qwen image was generated/collected on October25**, with pinned provenance and exact-Pod termination (notes/adstudio.md). New campaign prompts have not been rendered or approved. The React UI is now primary; use README/BROWSER_ACCEPTANCE for current controls. The implementation history and original mock-only milestone below are retained as dated evidence, not current acceptance instructions.
 
 ## Data path and changed files
 
@@ -27,7 +27,9 @@ On success, the exact SaveImage bytes are saved to `outputs/<opaque-id>.png`, wi
 
 ## Reproduce the user flow
 
-1. Open `http://127.0.0.1:8301/adstudio/#hero`. Choose saved Brand DNA, product and an **original photograph**. The old demo initially selects a supplied AI edit; switch to its original and set provenance to Original.
+The following six steps describe the older specialist Hero surface only. Current primary workflow is README → Develop advertisement → Accept direction & confirm facts → separately authorized Generate. Existing saved requests/drafts remain valid; do not rewrite them to represent a new review.
+
+1. Open `http://127.0.0.1:8301/adstudio/#hero`. Choose saved Brand DNA and the genuine original photograph.
 2. Choose **Qwen-Image-Edit-2511 FP8**. If unavailable, inspect Model availability / requirements; Generate stays disabled. No silent fallback.
 3. Check source description, visible count and arrangement, choose intent, confirm the observations and press **Prepare direction from these inputs**. Correct the short direction if needed, then **Update prompt from edited direction**. Advanced controls/evidence/full and exact model prompts are collapsed but editable. Old full prompts are not silently discarded; explicit preparation creates a separate concise form.
 4. Select **Use this reviewed direction**. Any source/product/brand/seed/decision/prompt change requires new preparation/review. The Generate button enables only with a reviewed draft and available selected model.

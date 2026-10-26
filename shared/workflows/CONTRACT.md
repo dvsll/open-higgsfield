@@ -194,3 +194,26 @@ Caption `GET /api/captions` adds `models:string[]` of installed node-advertised 
 ### Studio image LoRA training (2026-10-26)
 
 `GET /api/training?projectId=...` returns native/custom-node readiness, compatible Z-Image Turbo base and project-filtered run records. `POST /api/training` accepts a named project dataset of 1–24 API-owned PNGs with individual captions, bounded steps/rank/size/learning-rate/seed. It requires idle ComfyUI and runs the dynamic graph from `shared/lib/training.ts` through the SDK/proxy; training is not silently retried after uncertain job failures. FP8 frozen base, BF16 bypass adapters, block checkpointing, AdamW/batch1 are the tested12GB path. Repo-owned `osh_training` nodes split image/caption batches and save safetensors plus exact base/run/step metadata. Results copy to API-owned downloads and ComfyUI `loras/studio`; only completed records with an advertised matching file become child model choices (`studio-tune:<runid>`). Image inference inserts `LoraLoaderModelOnly` before model sampling; parent model settings remain in effect. Existing catalog consumers may ignore optional `parentId`/`loraFile`. API-owned safetensors are served as octet-stream. No video/audio or full-model training support.
+
+## Ad Studio creative intelligence gates (2026-10-26)
+
+No route removals, storage migrations, UI changes or production image/video model
+pin changes. CreativeContext optionally adds `grounding`: business identity,
+appearance, positioning, declared preferences, hypotheses and customer objective.
+Old saved plans remain readable. New plans use distinct composition/environment/
+lighting proposals and deterministic recommendation; model self-scores are archived,
+not used as measured quality. Owner locks resolve before Qwen prompt compilation.
+
+GET `/api/creative/status` may add `checks:{weights,loader,text,output}`. It now
+checks the actual CLIPLoader type/device, TextGenerate controls/token limit and
+SaveText format, not just node names. Text planning requires loopback HTTP ComfyUI
+and proxy configuration, never a silently selected remote provider. Native workflow
+still uses existing Qwen3 4B FP8: greedy/no thinking/template+system,2400tokens,
+180s scoped SDK wait,15s output fetch,32KB text limit; failed text job cancellation
+targets only that job. No expired-job retry for creative text; Director's default
+30min workflow timeout/retry behavior is retained. Saved planning.json records
+actual context/settings/provider/timing; no duplicate image data.
+
+Qwen image hashes, source binding, review freshness, paid/private gates, one-job
+receipts, long HTTP transport, exact-Pod watchdogs and provenance remain unchanged.
+Model absence still yields explicit deterministic suggestions, never fake AI.

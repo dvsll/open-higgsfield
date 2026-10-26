@@ -1,4 +1,13 @@
-# Qwen real-app acceptance: prepared, not demonstrated
+# Qwen real-app acceptance: current status and retained preparation history
+
+Current2026-10-26: one real app image completed October25 through the owner-click
+SDK/proxy path, with verified raw/provenance/local collection and Pod deletion.
+See notes/adstudio.md. The owner subsequently accepted the simplified React
+concept/confirmation/historical-export flow: **OWNER-REPORTED PASS**. No independent
+controller verification is claimed. Real local creative AI planning and a new
+campaign image remain unverified. This sprint has no inference authorization.
+Use README/BROWSER_ACCEPTANCE for current controls. Below is dated preparation
+history, not evidence that a fresh session is approved.
 
 2026-10-24, integrated main includes Ad Studio6f6b29b and Studio eb57686. **Browser Hero acceptance NOT RUN; live app inference NOT RUN.** Owner granted fresh unpaid browser permission. Computer Use recovered an initial geometry error, observed a saved Composer project at8300, then stopped because current-URL confidence was insufficient. No further browser calls or controller bypass. Target8301 review/isolation/refresh remains manual. Prior standalone images are not app acceptance. Repository integration follows the newer shared-main instruction; no PR merge operation or paid execution was initiated.
 

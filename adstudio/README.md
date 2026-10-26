@@ -1,25 +1,76 @@
-﻿# Ad Studio
+# Open Ad Studio
 
-Real product-image-to-video development flow using the shared Comfy SDK integration. No simulated video or closed generation APIs.
+Brand + original photograph ? three creative directions ? explicit owner review
+? Qwen product photograph ? editable advertisement ? verified PNG export.
+The accepted React interface is the primary entry. Original image Blobs, brands,
+projects, takes and exports persist in the existing browser database. Logo artwork
+and accurate text are composed separately from the model-generated photograph.
 
-Fidelity prototypes: **Creative** retains the existing LTX path; **Product-Locked** places a static original-photo rectangle over an abstract LTX background; **Camera** uses deterministic FFmpeg push/pan without model generation. Creative is still the default. The prototypes preserve a fitted photo with margins, not a segmented foreground. MP4 export is lossy. See [FIDELITY.md](FIDELITY.md) for measured results and [BROWSER_ACCEPTANCE.md](BROWSER_ACCEPTANCE.md) for the explicit uncompleted browser checks.
+## Run
 
-1. Follow the root README local setup (Node 22.18+, `npm ci`, ComfyUI on 127.0.0.1:8188, models from `shared/runtime/models.json`, and comfy-api-proxy).
-2. Run `npm run dev`, then open http://127.0.0.1:8288/adstudio/.
-3. Choose a product photo (PNG/JPEG/WebP, up to 10 MB). The browser normalizes it to PNG, at most 1536 pixels per side, flattening transparency onto white.
-4. Write a motion brief, choose length, seed and formats, then Generate video. The API stores the reference locally and passes it through SDK assets to the existing LTX guide workflow. Formats render sequentially; successful videos remain available if a later job fails.
-5. Preview and download silent WebM files. Enter an optional tagline before generation, then use **Export MP4** on a card or **Export all MP4s**. Each exported video gets a download link and becomes the card's preview. Taglines are baked into the MP4; originals stay available as WebM. Keep the tab open during generation. Results and uploads live in gitignored `outputs/`; the page does not restore results after reload.
+Node 22.20.0 is tested; the shared package requires >=22.18. From current main:
 
-MP4 export needs FFmpeg with libx264. Install it on PATH or set `FFMPEG_PATH` to the executable in your gitignored `.env`, then restart Vite. This machine uses `C:/ffmpeg/ffmpeg-9.0.1-essentials_build/bin/ffmpeg.exe`. Export is local CPU postprocessing, queued with other work and capped at 90 seconds. A missing executable produces a setup message without losing the generated WebM.
+```powershell
+npm ci
+npm run dev -- --host 127.0.0.1 --port 8301 --strictPort
+```
 
-Development dimensions: landscape 512×288, vertical 288×512, square 384×384. Each format is a separate render. **Fit whole photo** (default) creates a guide at the chosen ratio with dark padding so the workflow does not crop away the product. **Crop to fill** retains the previous center-crop behavior and may cut off the product or label. Padding is not outpainting; the model can still change framing/content during the clip. Same seeds aid repeatability, but do not guarantee product/label fidelity or matching motion across formats.
+Open **http://127.0.0.1:8301/adstudio/**. Existing users must keep this exact
+host/port and Chrome profile. Do not clear storage or change origins to fix a
+missing model. The root `npm start` still opens Director; it was not repurposed.
+Local editing, deterministic planning and historical-image PNG composition work
+without ComfyUI. `Project & tools` retains the existing specialist workspaces.
 
-Checks: `npm run typecheck`, `npm run build`, and (with dev server running) `node adstudio/scripts/smoke.mjs`. Smoke checks validate real HTTP upload/storage and rejection paths without requiring a GPU; they do not establish video generation success.
+## Models and architecture
 
-Current model is the shared LTX-Video 2B 0.9.8 distilled development workflow. Final LTX-2.5 migration remains required P0 work. Real-photo fidelity and browser acceptance testing are still pending. See `notes/adstudio.md` for local verification and blockers.
+Inference uses **@comfyorg/sdk ? comfy-api-proxy ? ComfyUI**, bound to loopback.
+The shared setup/installer remains available. Model installation is separate from
+generation. See [contracts](../shared/workflows/CONTRACT.md).
 
-Verified locally on RTX 3080 10 GB / ComfyUI 0.42.4: real SDK/proxy renders of an original synthetic bottle in all three formats, 49 frames at 24 fps. Landscape first run 20.6 s; vertical and square warm runs 6.7 s each. This verifies infrastructure, not real-product fidelity. Optional GPU check: `node adstudio/scripts/render-smoke.mjs <your-normalized-photo.png> 16:9` (also 9:16 or 1:1). It writes diagnostics under outputs/ and generates a real video.
+| Capability | Requirement and actual evidence |
+|---|---|
+| Source-led baseline planning | No model. Explicitly deterministic suggestions, no photo analysis. |
+| Optional local AI creative planning | Qwen3 4B FP8, Apache-2.0; one 5.63 GB encoder and native CLIPLoader/TextGenerate/SaveText nodes. Installed schemas verified; encoder absent on this PC; genuine Ad Studio text planning NOT RUN. [Setup](CREATIVE_ENGINE.md#local-text-planning-setup). |
+| Reference-conditioned photograph | Qwen-Image-Edit-2511 FP8, Apache-2.0; three pinned files, 30.17 GB, API-readable matching model directory. One A40 48 GB app execution proved historically; local weights absent. [Pins](../shared/workflows/hero_qwen2511_contract.json), [integration](QWEN_HERO_INTEGRATION.md). |
+| PNG composition/export | CPU Resvg. Verified PNG, saved immutable history and download request; OS download completion is browser acceptance. |
+| Optional Camera/video tools | FFmpeg Camera is deterministic 2D motion. LTX-2B Creative failed commercial-motion acceptance. Historical LTX-2.5 feasibility is not a product-fidelity guarantee. |
 
-Optional real export check: `node adstudio/scripts/export-smoke.mjs /outputs/<generated-hex>.webm [overlay.png]`. All three formats were exported to H.264/yuv420p MP4, preserving 49 frames at 24 fps; transparent diagnostic tagline overlays were visually checked. The browser's canvas text renderer still needs browser acceptance testing.
+Director's newer **Qwen-Image 2512** text-to-image pack does not satisfy the
+Ad Studio Qwen editing workflow. Z-Image, audio/captions and other Director packs
+are optional, not prerequisites for this primary path. No silent model fallback.
 
-For repeatable API/media acceptance, save a local manifest with `image` (normalized PNG), optional `original` source path, exact `prompt`, numeric `seed`, `duration` (2–5), optional `ratios`, and optional `references` mapping ratios to prepared PNGs. Run `node adstudio/scripts/acceptance.mjs <manifest.json>`. It records input/workflow hashes, request bodies, render times, failures, FFprobe results and first/middle/final frame contact sheets in a unique gitignored `outputs/acceptance-*` folder. This exercises real generation, not browser upload or clicks; it never marks visual quality as passed automatically. Keep raw customer photos/evidence local unless approved for publication. Shared API review: [SHARED_API_REVIEW.md](SHARED_API_REVIEW.md).
+## Use
+
+Choose/create a brand, genuine original and minimal owner description. **Develop
+advertisement** reuses saved context. Choose/refine a concept, then **Accept
+direction & confirm facts**. No proven vision model extracts those observations.
+Generate is separate, deliberate, and disabled when weights/services are missing.
+Advanced retains exact prompt, evidence, seed and reviewed-request export.
+
+Compare delivered work with the original. Edit copy/format live, confirm fidelity,
+then **Export PNG** composes, verifies, durably saves and requests download in one
+action. Saved advertisements retry download without inference. Never retry an
+uncertain paid generation. Keep originals/outputs private and back them up along
+with browser data; local server plans are not cloud-synchronized storage.
+
+## Verify
+
+```powershell
+npm run typecheck
+npm run build
+npm run test:creative
+npm run test:adstudio-ui
+npm run test:studio
+node --experimental-transform-types adstudio/scripts/creative-local-check.mjs
+```
+
+The last command is read-only. `--run` explicitly requests one local text-only
+job on an owned synthetic fixture, only if the encoder is available. It never
+requests image inference or downloads weights. Fallback is not an AI success.
+
+One historical real app Qwen image with full provenance is retained privately.
+Its enhancement was subtle; product details can drift. No new campaign photograph
+was generated this sprint. Postable quality still requires actual generation and
+owner inspection. [Readiness](SUBMISSION_READINESS.md), [demo storyboard](DEMO_STORYBOARD.md),
+[browser checks](BROWSER_ACCEPTANCE.md) and notes/adstudio.md distinguish verified
+behavior from remaining acceptance. No fidelity guarantee is made.

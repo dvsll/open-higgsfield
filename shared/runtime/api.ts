@@ -72,7 +72,7 @@ import {generateQwenHero,qwenAvailability,verifyWeightFiles,qwenContract} from '
 import {qwenSDKTransport} from './qwen-sdk.ts';
 import {createQwenRelay} from './qwen-relay.ts';
 import {acceptanceGate,acceptanceRequest,claimAcceptanceJob} from './qwen-app-session.ts';
-import {createCreativeEngine,creativeTextStatus,creativeSDKText,CreativeError,type CreativeBackend} from './creative-engine.ts';
+import {createCreativeEngine,creativeTextStatus,creativeTextRouting,creativeSDKText,creativeTextDeadlineMs,CreativeError,type CreativeBackend} from './creative-engine.ts';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const WORKFLOWS = join(ROOT, "shared", "workflows");
@@ -141,7 +141,7 @@ function outputPath(url: unknown): string {
 }
 
 /** Run a workflow; retry once if the proxy reports the job expired (happens right after a proxy restart). */
-async function runWf(c: Comfy, wf: Parameters<Comfy['run']>[0], requestId?:string,retryExpired=true) {
+async function runWf(c: Comfy, wf: Parameters<Comfy['run']>[0], requestId?:string,retryExpired=true,timeoutMs=30*60*1000) {
  async function execute(){
   activity.update(requestId,'preparing','Preparing model and prompt. First-time loading can take a few minutes; no generation steps yet.');
   const stopDiagnostics=requestId?await diagnostics.watch(clientUrls.get(c)||'http://127.0.0.1:8188',entry=>activity.note(requestId,entry)):()=>{};
@@ -152,7 +152,7 @@ async function runWf(c: Comfy, wf: Parameters<Comfy['run']>[0], requestId?:strin
    else if(event.kind==='statusChange'&&event.status==='queued')activity.update(requestId,'queued','Waiting for the local generation worker.');
    else if(event.kind==='log'){const message=loadingLog(event.message);if(message){activity.note(requestId,{at:Date.now(),source:'sdk',message});if(/downloading/i.test(message))activity.update(requestId,'downloading',message);else if(/requested to load|loading (?:model|weights|checkpoint|text encoder)/i.test(message))activity.update(requestId,'preparing',message)}}
   }}catch{/* Completion polling remains authoritative if live progress is unavailable. */}})();
-  try{await job.wait(30*60*1000);await job.result();return job}finally{controller.abort();void stream}
+  try{await job.wait(timeoutMs);await job.result();return job}catch(error){if(timeoutMs<30*60*1000)try{await job.cancel(AbortSignal.timeout(5000));}catch{/* Only this failed text job; never interrupt unrelated jobs. */}throw error}finally{controller.abort();void stream}
   }finally{stopDiagnostics()}
  }
  try{return await execute()}catch(error:any){if(retryExpired&&error?.code==='job_failed'&&/expired/i.test(String(error.message)))return execute();throw error}
@@ -748,8 +748,8 @@ export function comfyApi(env: Env): Plugin {
    generate:async(content,device)=>{if(queued>0)throw new PromptRewriteError(409,'ComfyUI is busy generating. Polish again when the current job finishes.');await ensureProxy(env);const c=client(env),wf=c.workflows.fromJson(await loadGraph('prompt_polish'));wf.setInput('1','device',device);wf.setInput('2','prompt',content);wf.setInput('2','system_prompt',promptInstruction);if(queued>0)throw new PromptRewriteError(409,'ComfyUI is busy generating. Polish again when the current job finishes.');const job=await serialize(()=>runWf(c,wf));const output=job.getOutputs('3')[0];if(!output)throw new PromptRewriteError(502,'ComfyUI returned no polished prompt. Your prompt is unchanged.');return Buffer.from(await output.toBytes()).toString('utf8')}
   });
   const creativeBackend:CreativeBackend={
-   status:async()=>creativeTextStatus(await comfyJson(env,'/object_info').catch(()=>({}))),
-   generate:async(system,content)=>{if(queued>0||setup.task.busy)throw new CreativeError(409,'Local generation/setup is busy. Finish it before creative planning.');await ensureProxy(env);const c=client(env);return creativeSDKText(c,await loadGraph('prompt_polish'),system,content,wf=>serialize(()=>runWf(c,wf)));}
+   status:async()=>{try{creativeTextRouting(env);}catch(e){return {available:false,model:promptModel,reason:(e as Error).message};}return creativeTextStatus(await comfyJson(env,'/object_info').catch(()=>({})));},
+   generate:async(system,content)=>{creativeTextRouting(env);if(queued>0||setup.task.busy)throw new CreativeError(409,'Local generation/setup is busy. Finish it before creative planning.');await ensureProxy(env);if(queued>0||setup.task.busy)throw new CreativeError(409,'Local generation/setup is busy. Finish it before creative planning.');const c=client(env);return creativeSDKText(c,await loadGraph('prompt_polish'),system,content,wf=>serialize(()=>runWf(c,wf,undefined,false,creativeTextDeadlineMs)));}
   };
   const creative=createCreativeEngine(OUTPUTS,creativeBackend);
   return {

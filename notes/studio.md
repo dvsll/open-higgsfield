@@ -4,6 +4,9 @@ Append dated decisions, render times and requests here. Only the studio owner ed
 
 ## Where we left off (update this before switching agents)
 
+**Latest handoff - 2026-10-27, mesh hover and orbit gating:** Viewport raycasts pointer hover with subtle warm emissive tint and pointer cursor; original material emission restored on exit/cleanup. Left pointerdown on mesh is intercepted before OrbitControls, preserving click selection without scene rotation; drag starting in empty space retains orbit. Middle mouse maps to ROTATE anywhere, wheel zoom/right pan retained; modifier-right rotation also blocked over mesh. Capture/cancel and movement threshold retained. Browser verified pointer cursor/tint, blocked object drag with unchanged view, empty-space drag rotates. Middle mapping inspected in code, not native-drag tested. Screenshot outputs/mesh-hover-highlight.png. Typecheck and React UI tests pass. No dependencies/backend changes.
+
+
 **Latest handoff - 2026-10-27, camera Advanced shortcut:** Camera movement now lives inside 3D Prompt Advanced. Accessible icon-only camera control in viewport opens/reveals shared Prompt, selects3D media, expands Advanced, scrolls/focuses camera textarea and highlights it for2.2 seconds; reduced-motion scroll respected. Timer/frame/listener cleanup retained. Browser verified initially hidden field, expanded details/focused textarea/highlight after icon click; screenshot outputs/camera-advanced-highlight.png. Typecheck and React UI regression pass. No backend/dependency changes.
 
 

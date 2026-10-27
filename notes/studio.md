@@ -4,6 +4,9 @@ Append dated decisions, render times and requests here. Only the studio owner ed
 
 ## Where we left off (update this before switching agents)
 
+**Latest handoff - 2026-10-27, camera Advanced shortcut:** Camera movement now lives inside 3D Prompt Advanced. Accessible icon-only camera control in viewport opens/reveals shared Prompt, selects3D media, expands Advanced, scrolls/focuses camera textarea and highlights it for2.2 seconds; reduced-motion scroll respected. Timer/frame/listener cleanup retained. Browser verified initially hidden field, expanded details/focused textarea/highlight after icon click; screenshot outputs/camera-advanced-highlight.png. Typecheck and React UI regression pass. No backend/dependency changes.
+
+
 **Latest handoff - 2026-10-27, mesh library thumbnails:** Project files FilePreview lazily loads a Three.js thumbnail service for visible mesh rows. Renders real GLB preview geometry or standalone OBJ (including combined scene exports) into static PNG thumbnails with fitted centered geometry, neutral lighting/background. Serial queue prevents simultaneous thumbnail WebGL contexts; bounded48-entry promise/image cache avoids repeated render work, geometry/material/texture/renderer resources disposed after capture. Strict owned-output URL validation, graceful3D fallback on unavailable mesh/WebGL, component lifetime guard prevents stale updates. Browser verified stool and exported two-stool scene images both decoded at240px. Screenshot outputs/project-mesh-previews.png. Typecheck/build and24 Studio scripts pass. No new dependency/model/backend changes.
 
 

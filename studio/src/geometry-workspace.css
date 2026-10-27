@@ -21,3 +21,6 @@
 
 .geometry-tools input:not([type=number]){background:var(--card);color:var(--txt);border:1px solid var(--line);padding:6px;font:inherit;max-width:180px}
 
+
+.geometry-scene-toolbar{position:absolute;top:12px;right:12px;z-index:4;display:flex;gap:6px;align-items:center}.geometry-scene-toolbar .geometry-export-scene{position:static}.geometry-scene-toolbar svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.5;display:block}.geometry-viewer canvas:focus{outline:none}.geometry-viewer canvas:focus-visible{outline:1px solid var(--key);outline-offset:-1px}
+

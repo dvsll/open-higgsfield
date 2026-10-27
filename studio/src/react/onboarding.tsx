@@ -1,3 +1,4 @@
+import {CloseButton} from './close-button';
 import type { Experience, Workflow } from '../onboarding-progress';
 export const workflowNames: Record<Workflow, string> = {
   video: 'Video',
@@ -41,6 +42,7 @@ export function TourChoice({
       ];
   return (
     <>
+      <CloseButton className="tour-close tour-choice-close" label="Skip walkthrough" onClick={onSkip}/>
       <h2>{experience ? 'What would you like to create?' : 'How familiar are you with ComfyUI?'}</h2>
       <p>
         {experience
@@ -123,7 +125,7 @@ export function TourPopover({
         <span>
           {experience} · {workflowNames[entry]} walkthrough
         </span>
-        <button onClick={onSkip}>{done ? 'Close' : 'Skip'}</button>
+        <CloseButton className="tour-close" label={done?'Close walkthrough':'Skip walkthrough'} onClick={onSkip}/>
       </div>
       {done ? (
         <>

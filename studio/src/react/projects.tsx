@@ -1,3 +1,4 @@
+import {CloseButton} from './close-button';
 import { useEffect, useRef, useState, type FormEvent, type PointerEvent } from 'react';
 import { createPortal } from 'react-dom';
 import {
@@ -154,7 +155,7 @@ export function ProjectPicker() {
           >
             <header>
               <h2>Your projects</h2>
-              <IconButton kind="close" label="Close projects" onClick={() => setOpen(false)} />
+              <CloseButton label="Close projects" onClick={() => setOpen(false)} />
             </header>
             <p className="project-caption">Saved on this browser.</p>
             <div data-content>

@@ -1,3 +1,4 @@
+import {CloseButton} from './close-button';
 import { useEffect, useRef, useState } from 'react';
 import type { Style, PoolItem } from '../shell';
 type Paint = (canvas: HTMLCanvasElement, style: Style) => void;
@@ -36,9 +37,7 @@ export function StyleSelector({
     <div className="box">
       <h3>
         Styles
-        <button className="btn" onClick={onClose}>
-          ✕
-        </button>
+        <CloseButton label="Close styles" onClick={onClose}/>
       </h3>
       <div className="grid">
         {styles.map((style) => (
@@ -117,9 +116,7 @@ export function StyleMaker({
     <div className="box">
       <h3>
         {onDelete ? 'Edit style' : 'Style maker'}
-        <button className="btn" onClick={onClose}>
-          ✕
-        </button>
+        <CloseButton label="Close styles" onClick={onClose}/>
       </h3>
       <input
         ref={title}

@@ -4,6 +4,9 @@ Append dated decisions, render times and requests here. Only the studio owner ed
 
 ## Where we left off (update this before switching agents)
 
+**Published:** Working local AI implementation4d27d7e pushed feat/adstudio-workspace; new DRAFT PR4 https://github.com/dvsll/open-higgsfield/pull/4 (PR3 was already merged; no merge performed). Follow-up accurately labels composed-asset download as initial ad PNG; raw AI background remains separate, Qwen raw-photo label unchanged. Owner profile/assets untouched; server PID in private outputs/local-ai-20261027/server-pid.txt.
+
+
 **Final clean acceptance addendum (2026-10-27):** After repair, a fresh isolated Chrome profile repeated the ENTIRE current app flow including visible queued/generating/complete progress, ONE native uncached image job2a7a7854-b9fb-46c9-8fe7-9d321af0ece1 (5.023s native,6.760s SDK/output,23.078s click->ad), edit/download and actual IndexedDB reload PASS. Final files/gallery/screenshots/receipt outputs/local-ai-browser-2026-10-27T11-45-12-845Z; same baseline/AI PNG hashes as corrected re-export, no change to original rendered foreground. Total3Klein jobs in this sprint: diagnostic +initial browser +final controlled clean acceptance, no paid inference/cloud upload. Historical export source/background preservation also covered in new CPU app test;69 JS incl24Director +5CPU media/build/typecheck pass.
 
 

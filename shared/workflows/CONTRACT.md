@@ -382,3 +382,81 @@ Admin diagnostics (2026-10-27): local-computer/origin-protected GET /api/errors 
 
 
 Caption SRT library (2026-10-27): Successful POST /api/captions adds srt (API-owned /outputs/<16hex>.srt, null for empty transcript). POST /api/captions/srt accepts {segments:[{start,end,text}]} with at most500 validated cues and24h end limit, returning {url}. Existing local auth/origin gates apply. SRT outputs use application/x-subrip; charset=utf-8. Omitted caption device selects first available compatible node device; explicit validation remains supported. Source associations live in project metadata.
+
+
+## Ad Studio local Klein background (2026-10-27)
+
+Additive GET /api/hero/capabilities.klein describes actual pinned-file hashes,
+native graph/schema, completed-runtime proof and current queue/memory readiness.
+It includes installed/tested/available/status/reason, precision/license/disk size.
+Graph: klein4b_background.json; pins: klein4b_fp8_contract.json. Model Apache-2.0,
+512x640/four-step distilled FP8, existing Qwen3-4B FP8 via native flux2 loader,
+Klein-pack VAE. No file-name-only readiness and no automatic downloads.
+Private ADSTUDIO_KLEIN_MODELS_DIR optionally selects Ad Studio's readable files
+without altering Director setup. SDK -> existing proxy -> local ComfyUI only.
+
+POST /api/hero/background accepts requestId/projectId/planId/preparedId/image/current.
+Server validates immutable reviewed plan/current snapshot/owned normalized source
+hash and retained original hash/permissions, compiles background-only instructions,
+then creates an exclusive prepared receipt. Exactly one submission per reviewed
+receipt; reuse409, no retry. A fresh explicit review is required for a new attempt.
+Queue/headroom rechecked inside existing serialization; unknown/busy/low headroom
+rejects before submit. Native resources use3.5GiB reclaimable VRAM/4GiB free RAM
+policy, not a model-fit guarantee. Overall execution600s, output retrieval15s.
+POST /api/hero/background/cancel requires matching requestId/projectId; aborts only
+that job and requests exact SDK cancellation, never global interruption. Progress
+uses existing X-OSH-Request/activity events. Cancellation requested != termination.
+
+Returns raw generated background URL/hash/dimensions/seconds/model/job/provenance/
+prompt/seed/workflow hash. Raw PNG CRC/inflate/dimensions/executed graph are checked;
+512x640 only. No product photo or typography is generated. Project/source binding,
+model pins and unmodified output remain in outputs/hero-klein/<id>/. Normal native
+cache release is requested only if our own completed job is last and queue empty;
+no unrelated applications or system GPU settings change.
+
+HeroTake optionally adds background (including raw assetId/hash/prompt/job/seed)
+and adDesign snapshot; CreativeWorkspace optionally saves generationEngine. DBv3
+and earlier data remain compatible. Existing static compositor receives original
+photo +generated support; deterministic text and original logo stay separate.
+Existing takes/exports remain; re-edit/export never resubmits diffusion and never
+uses a completed ad as the foreground image. Automatic prefers verified local
+Klein, otherwise product-safe; explicit AI errors are never relabeled as success.
+
+Qwen remains optional: CRLF-only workflow normalization is checked against the
+existing LF content pin; any other change fails. Model weight hashes unchanged.
+A remote Qwen relay's capability/admission is remote, not the client's local VRAM.
+All paid/private, source/review, one-job, long HTTP and watchdog guards remain.
+
+## Ad Studio source-integrated campaigns (2026-10-27)
+
+POST /api/hero/campaign is additive and remains local SDK -> proxy -> ComfyUI.
+Accepts requestId, projectId, planId, preparedId, image, current and promptSha256.
+Header/body request IDs must match; reviewed source/original/brand/seed snapshot
+and compiled environment-prompt SHA256 must match. Same exclusive prepared receipt
+as background/scene: one pipeline, no retry. Pipeline = one native BiRefNet mask
+(product_cutout.json/contract, MIT pinned444473596-byte weight) plus one existing
+Klein background graph; no generated product geometry. Empty/ambiguous mask fails
+closed, explicit AI never falls back to a framed photo. Existing background and
+experimental reference-scene routes remain distinct. Production defaults use the
+source-preserving campaign. Queue/admission/deadline/owned cancellation unchanged.
+
+Capability klein.mode=source-integrated requires BOTH verified runtime proofs,
+all four model pins, native nodes, headroom and idle queue; includes extraction
+license/checks and complete disk bytes. No model/dependency download at startup.
+Normal cache release after our completed text/mask/image job is guarded by exact
+last-job identity and idle native queue, never a global job interrupt.
+
+Response model=klein-integrated is a deterministic composite, NOT a raw diffusion
+photograph. Includes separate unchanged raw background URL/hash/prompt/seed/job,
+cutout URL/hash/mask job/method/source box and uniform placement, source hash,
+integrated scene URL/hash768x960 and provenance. Raw mask/source checks and exact
+executed graph remain strict, including hash verification of native SDK input.
+Native duplicate input names with literal spaces/parentheses are URL-encoded;
+absolute/traversal paths and non-loopback reads remain rejected.
+
+HeroTake optionally stores scene (raw background +cutout assetIds/provenance) and
+campaign design snapshot; HeroSettings additionally accepts klein-scene and
+klein-integrated IDs. No DB/schema/origin version change. Old takes/recipes remain
+valid. Campaign renderer is selected only by the optional version1 campaign field;
+product-safe layouts are unchanged. Source-isolated scene is saved before export;
+export/history recovery reuses its raw assets without inference or stale saves.

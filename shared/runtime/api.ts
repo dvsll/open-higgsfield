@@ -75,6 +75,9 @@ import {qwenSDKTransport} from './qwen-sdk.ts';
 import {createQwenRelay} from './qwen-relay.ts';
 import {acceptanceGate,acceptanceRequest,claimAcceptanceJob} from './qwen-app-session.ts';
 import {createBrandService} from './brand-service.ts';
+import {campaignAvailability,renderProductCampaign} from './product-campaign.ts';
+import {sceneAvailability,renderKleinScene,validateSceneRequest,validateCampaignRequest} from './klein-scene.ts';
+import {kleinAvailability,renderKleinBackground,validateBackgroundRequest,releaseKleinCache} from './klein-background.ts';
 import {brandBackendStatus} from './brand-analysis.ts';
 import {createCreativeEngine,creativeTextReadiness,creativeTextRouting,creativeSDKText,creativeTextDeadlineMs,waitCreativeTextJob,textDeadlineError,CreativeError,type CreativeBackend} from './creative-engine.ts';
 
@@ -570,6 +573,7 @@ function sameToken(a: string | undefined, b: string): boolean {
 
 function requirePathSeparator(){return process.platform==='win32'?'\\':'/';}
 
+const kleinJobs=new Map<string,{projectId:string;controller:AbortController}>();
 function middleware(env: Env,setup:RuntimeSetup,rewriter:PromptRewriter,creative:ReturnType<typeof createCreativeEngine>,brandBackend:CreativeBackend,brand:ReturnType<typeof createBrandService>): Connect.NextHandleFunction {
   const errors=new ErrorJournal(join(OUTPUTS,`runtime-errors-${Number(env.OSH_PORT||8288)}.json`));let lastSetupError='';
   const token = env.OSH_TOKEN || "";
@@ -624,8 +628,31 @@ function middleware(env: Env,setup:RuntimeSetup,rewriter:PromptRewriter,creative
        const path=join(OUTPUTS,'hero-qwen',url.pathname.split('/').pop()!,'provenance.json');if(!existsSync(path))return send(res,404,{error:'No saved Qwen provenance'});if(statSync(path).size>512*1024)throw new HttpError(413,'Qwen provenance too large');return send(res,200,JSON.parse(await readFile(path,'utf8')));
       }
       if(route==='GET /api/hero/capabilities'){
-       const nodes=await comfyJson(env,'/object_info').catch(()=>({}));let reimagine=false;try{const models=await localModels(env),graph=await loadGraph('hero_zimage_experimental');reimagine=models.zimageTurbo&&Object.values(graph).every(n=>nodes[n.class_type]);}catch{}
-       return send(res,200,{finish:true,reimagine,experimental:true,qwen:relay?await relay.capability('http://'+req.headers.host):await qwenAvailability(nodes,setup.config?.modelsDir||env.COMFYUI_MODELS_DIR)});
+       // finish/product-safe never depends on GPU admission. AI engines require installed
+       // weights/nodes AND a verified free/reclaimable VRAM reading above the floor.
+       const gib=1024**3,appBusy=queued>0||trainingPending||setup.task.busy;
+       const [nodes,queue,stats]=await Promise.all([comfyJson(env,'/object_info').catch(()=>({})),comfyJson(env,'/queue').catch(()=>null),comfyJson(env,'/system_stats').catch(()=>null)]);
+       const device=stats?.devices?.find((d:any)=>d.type==='cuda');
+       const vramKnown=!!device&&[device.vram_free,device.torch_vram_total,device.torch_vram_free].every((v:any)=>Number.isFinite(v)&&v>=0);
+       const vramFreeBytes=vramKnown?device.vram_free+Math.max(0,device.torch_vram_total-device.torch_vram_free):undefined;
+       const queueKnown=Array.isArray(queue?.queue_running)&&Array.isArray(queue?.queue_pending);
+       const queueBusy=queueKnown&&(queue.queue_running.length>0||queue.queue_pending.length>0);
+       const busy=appBusy||queueBusy;
+       const admit=(minGib:number)=>{
+        if(appBusy)return {ok:false as const,reason:'Local generation or setup is busy. Product-safe design remains available.'};
+        if(!queueKnown)return {ok:false as const,reason:'Cannot verify the local ComfyUI queue. Product-safe design remains available.'};
+        if(queueBusy)return {ok:false as const,reason:`ComfyUI is busy (${queue.queue_running.length} running, ${queue.queue_pending.length} queued). Product-safe design remains available.`};
+        if(typeof vramFreeBytes!=='number')return {ok:false as const,reason:'Cannot verify free GPU memory for local image generation. Product-safe design remains available.'};
+        if(vramFreeBytes<minGib*gib)return {ok:false as const,reason:`Free/reclaimable VRAM ${(vramFreeBytes/gib).toFixed(1)} GiB is below the ${minGib} GiB admission floor for local image generation. Product-safe design remains available.`};
+        return {ok:true as const,reason:''};
+       };
+       let installed=false;try{const models=await localModels(env),graph=await loadGraph('hero_zimage_experimental');installed=!!(models.zimageTurbo&&Object.values(graph).every(n=>nodes[n.class_type]));}catch{installed=false;}
+       const zAdmit=admit(3.5),reimagine=installed&&zAdmit.ok;
+       const zimage={available:reimagine,installed,reason:installed?(zAdmit.ok?'Local Z-Image Turbo graph and memory admission passed.':zAdmit.reason):'Z-Image Turbo is not available on this ComfyUI (weights or graph nodes missing).'};
+       let qwen:any;try{qwen=relay?await relay.capability('http://'+req.headers.host):await qwenAvailability(nodes,setup.config?.modelsDir||env.COMFYUI_MODELS_DIR);}catch(error:any){qwen={id:'qwen-fp8',available:false,reason:String(error?.message||error||'Qwen capability check failed')};}
+       const qAdmit=admit(8);if(!relay&&qwen?.available&&!qAdmit.ok)qwen={...qwen,available:false,reason:qAdmit.reason};
+       const klein=await campaignAvailability(OUTPUTS,env.ADSTUDIO_KLEIN_MODELS_DIR||setup.config?.modelsDir||env.COMFYUI_MODELS_DIR,nodes,stats,queue,appBusy).catch((e:any)=>({available:false,installed:false,status:'unsupported',reason:String(e.message)}));
+       return send(res,200,{finish:true,reimagine,experimental:true,qwen,zimage,klein,vramFreeBytes:typeof vramFreeBytes==='number'?vramFreeBytes:null,comfyConnected:!!stats,busy});
       }
       if(route==='POST /api/hero/finish')return send(res,200,await finishHero(await readBody(req),OUTPUTS,env));
       if(route==='POST /api/hero/export')return send(res,200,await exportHeroAd(await readBody(req),OUTPUTS));
@@ -642,6 +669,18 @@ function middleware(env: Env,setup:RuntimeSetup,rewriter:PromptRewriter,creative
       }
       if(req.method==='GET'&&/^\/api\/activity\/[a-f0-9]{32}$/.test(url.pathname)){const state=activity.get(url.pathname.split('/').pop()!);return send(res,state?200:404,state?{...state,serverNow:Date.now()}:{error:'No activity for this request'})}
       const tracked=async(handler:(body:any)=>Promise<any>,limit=MAX_BODY)=>{if(setup.task.busy)throw new HttpError(503,'Local runtime setup is in progress. Finish or stop setup before generating.');const body=await readBody(req,limit);if(!body||typeof body!=='object'||Array.isArray(body))throw new HttpError(400,'Expected a JSON request object.');body._requestId=req.headers['x-osh-request']||body._requestId;let id:string|null;try{id=activity.begin(body._requestId)}catch(error:any){throw new HttpError(400,error.message)}try{const result=await handler(body);activity.update(id,'complete','Media ready.');return result}catch(error:any){activity.update(id,'error','Generation stopped: '+String(error.message||error));throw error}};
+      if(route==='POST /api/hero/background/cancel'){const body=await readBody(req),job=kleinJobs.get(body.requestId);if(!job||job.projectId!==body.projectId)return send(res,404,{error:'No matching local background job.'});job.controller.abort(new Error('Owner cancelled the local AI background job.'));return send(res,200,{cancellationRequested:true,terminated:false});}
+      if(route==='POST /api/hero/background'||route==='POST /api/hero/scene'||route==='POST /api/hero/campaign')return send(res,200,await tracked(async body=>{
+       creativeTextRouting(env);const scene=route==='POST /api/hero/scene',campaign=route==='POST /api/hero/campaign',checked=await (campaign?validateCampaignRequest:scene?validateSceneRequest:validateBackgroundRequest)(OUTPUTS,body),id=String(body._requestId||'');if(!/^[a-f0-9]{32}$/.test(id)||body.requestId!==id)throw new HttpError(400,'A matching local image request identity is required.');
+       const modelsDir=env.ADSTUDIO_KLEIN_MODELS_DIR||setup.config?.modelsDir||env.COMFYUI_MODELS_DIR;if(!modelsDir)throw new HttpError(503,'Configure the local model directory.');
+       const snapshot=async()=>{const [nodes,stats,queue]=await Promise.all(['/object_info','/system_stats','/queue'].map(p=>comfyJson(env,p)));return {nodes,stats,queue};};
+       const initial=await snapshot(),ready=await (campaign?campaignAvailability:scene?sceneAvailability:kleinAvailability)(OUTPUTS,modelsDir,initial.nodes,initial.stats,initial.queue,queued>0||trainingPending);if(!ready.available)throw new HttpError(503,ready.reason);
+       try{await writeFile(checked.receipt,JSON.stringify({requestId:id,status:'claimed',created:Date.now(),projectId:body.projectId}),{flag:'wx'});}catch{throw new HttpError(409,'This reviewed background request was already submitted. Check history; no automatic retry.');}
+       const controller=new AbortController(),signal=AbortSignal.any([controller.signal,AbortSignal.timeout(600000)]);kleinJobs.set(id,{projectId:body.projectId,controller});let jobId='';
+       try{const result=await serialize(async()=>{const latest=await snapshot(),admitted=await (campaign?campaignAvailability:scene?sceneAvailability:kleinAvailability)(OUTPUTS,modelsDir,latest.nodes,latest.stats,latest.queue,trainingPending);if(!admitted.available)throw new HttpError(503,admitted.reason);await ensureProxy(env);const progress=(message:string,percent?:number)=>activity.update(id,'generating',message,{percent:Number.isFinite(percent)?Math.round(percent!*100):null});const r=campaign?await renderProductCampaign(OUTPUTS,modelsDir,latest.stats,latest.queue,client(env),checked.plan,body.image,env.COMFYUI_URL||'http://127.0.0.1:8188',signal,progress):scene?await renderKleinScene(OUTPUTS,modelsDir,latest.stats,latest.queue,client(env),checked.prompt,checked.seed,body.image,(checked as Awaited<ReturnType<typeof validateSceneRequest>>).archetype,env.COMFYUI_URL||'http://127.0.0.1:8188',signal,progress):await renderKleinBackground(OUTPUTS,modelsDir,latest.stats,latest.queue,client(env),checked.prompt,checked.seed,signal,progress);jobId=r.jobId;return r;});
+        await writeFile(join(OUTPUTS,'hero-klein',result.provenanceId,'binding.json'),JSON.stringify({projectId:body.projectId,planId:body.planId,preparedId:body.preparedId,source:checked.plan.input.source,prompt:result.prompt,seed:result.seed}));await writeFile(checked.receipt,JSON.stringify({requestId:id,status:'complete',result}));return result;
+       }catch(e){jobId=(e as any).jobId||jobId;await writeFile(checked.receipt,JSON.stringify({requestId:id,status:'failed',error:String((e as Error).message),jobId,automaticRetry:false}));throw e;}finally{kleinJobs.delete(id);if(jobId)await releaseKleinCache(jobId,env.COMFYUI_URL||'http://127.0.0.1:8188');}
+      }));
       if (route === "GET /api/health") return send(res, 200, await health(env,setup.task.busy));
       if(route==='GET /api/prompt-rewriter')return send(res,200,await rewriter.status());
       if(route==='POST /api/prompt-rewriter'){const body=await readBody(req);return send(res,200,await rewriter.rewrite(body.prompt,body.details,body.device));}
@@ -790,7 +829,7 @@ export function comfyApi(env: Env): Plugin {
    generate:async(system,content)=>{
     const ready=await textReadiness();if(!ready.available)throw new CreativeError(409,ready.reason);await ensureProxy(env);
     if(queued>0||setup.task.busy)throw new CreativeError(409,'Local generation/setup is busy. No text job submitted.');const c=client(env);
-    return creativeSDKText(c,await loadGraph('prompt_polish'),system,content,wf=>serialize(async()=>{const latest=await textReadiness(true);if(!latest.available)throw new CreativeError(409,latest.reason);return runWf(c,wf,undefined,false,creativeTextDeadlineMs,creativeTextExecution(c));}));
+    return creativeSDKText(c,await loadGraph('prompt_polish'),system,content,wf=>serialize(async()=>{const latest=await textReadiness(true);if(!latest.available)throw new CreativeError(409,latest.reason);const job=await runWf(c,wf,undefined,false,creativeTextDeadlineMs,creativeTextExecution(c));await releaseKleinCache(job.id,env.COMFYUI_URL||'http://127.0.0.1:8188');return job;}));
    }
   };
   const creative=createCreativeEngine(OUTPUTS,creativeBackend),brand=createBrandService(env,creativeBackend);

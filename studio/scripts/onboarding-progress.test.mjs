@@ -114,13 +114,18 @@ const rendered={prompt:'old',r:true,video:'/outputs/clip.webm'};const promptCont
 
 // Execute the actual successful shot controller: review every new take from its beginning.
 const shotCode=source.slice(source.indexOf('async function realShot('),source.indexOf('\nasync function fake('));
-for(const stage of ['regenerate','image-video','watch-video']){
+for(const stage of ['regenerate','image-video','watch-video','play-video']){
  const scene={id:'review-scene',n:'Scene',d:4,prompt:'new',r:false,keys:[{img:'start',anchor:'start',t:0},{img:'end',anchor:'end',t:4}],audioLinked:false};
  const ctx={SH:[scene],busy:async(_,job)=>job(),$:()=>({open:true}),shouldRewriteBeforeGeneration:()=>false,localGeneration:{shot:async()=>({url:'/outputs/new.webm',frames:97,duration:4,fps:24})},shotPrompt:()=>scene.prompt,start:()=>0,G:3.99,setPlaying:()=>{},pushHist:()=>{},shotId:s=>s.id,touring:()=>true,onboarding:{shotId:scene.id,step:stage,afterReview:'add-scenes'},advanceTour:step=>ctx.onboarding.step=step};
- const render=Function('ctx','with(ctx){'+shotCode+';return realShot}')(ctx);await render(0,'Render');assert.equal(ctx.onboarding.step,'watch-video');assert.equal(ctx.onboarding.firstVideo,'/outputs/new.webm');assert.equal(ctx.onboarding.videoReviewed,false);assert.equal(ctx.G,0);assert.equal(ctx.onboarding.afterReview,'add-scenes');
+ const render=Function('ctx','with(ctx){'+shotCode+';return realShot}')(ctx);await render(0,'Render');assert.equal(ctx.onboarding.step,'play-video');assert.equal(ctx.onboarding.firstVideo,'/outputs/new.webm');assert.equal(ctx.onboarding.videoReviewed,false);assert.equal(ctx.G,0);assert.equal(ctx.onboarding.afterReview,'add-scenes');
 }
 
 // The edge-aligned thumbnail must not jump 44px when leaving START/END.
 const placementLine=source.split('\n').find(line=>line.includes('const w=s.d*pxs-3,px='));
 const px=new Function('s','pxs',placementLine+';return px')({d:4},100);
 assert.equal(px(0),0);assert.equal(px(.2),0);assert.equal(px(.4),0);assert(px(.5)>0&&px(.5)<=10);assert.equal(px(4),317);
+
+assert.deepEqual(windowLesson('play-video',new Set(['prompts']),false),{window:'viewer',stage:'menu'});assert.equal(windowLesson('play-video',new Set(['viewer']),false),null);
+const playLine=source.split('\n').find(line=>line.startsWith("$('#play').onclick="));
+const playControl={};const playCtx={$:()=>playControl,playing:false,span:()=>[0,4],G:0,setPlaying:value=>playCtx.playing=value,touring:()=>true,onboarding:{step:'play-video'},advanceTour:step=>playCtx.onboarding.step=step,reviewPausedFirstVideo:()=>{}};
+Function('ctx','with(ctx){'+playLine+'}')(playCtx);assert.equal(playCtx.onboarding.step,'play-video','Rendering does not dismiss the Play instruction');playControl.onclick();assert.equal(playCtx.playing,true);assert.equal(playCtx.onboarding.step,'watch-video','Pressing Play dismisses guidance and begins review');

@@ -4,6 +4,9 @@ Append dated decisions, render times and requests here. Only the studio owner ed
 
 ## Where we left off (update this before switching agents)
 
+**Latest handoff - 2026-10-27, dock cleanup and menu layering:** Removed Notes creation/registration, Takes and Stash registrations; saved/recycled layouts prune retired panels and collapse their splits. Existing hidden history/stash service hosts remain connected for controller compatibility; generated assets remain in Project files. Image default now includes Selected media and Project files alongside shared Prompt and Timeline viewer, with one-time built-in Image layout migration. Rendering uses Project files instead of Takes; rendering tour review step targets Project files. Toolbar stack1001 and picker1002 sit above generation progress90. Opening workspace picker closes Windows, opening Windows closes picker, and outside click closes Windows. Browser verified exact four Image panels, no retired menu entries, both menu exclusion directions and menu open during real image generation. Screenshot outputs/image-workflow-clean-menu.png. Build/typecheck and24 Studio tests pass. No backend/model changes.
+
+
 **Latest handoff - 2026-10-27, target-relative docking cue:** User clarified docking highlight should indicate direction within the currently hovered window, not projected final layout. Drag preview now uses the appropriate half of the stable target rectangle in board coordinates; border-box keeps outline contained. Final size-aware drop behavior unchanged. Existing four-direction preview/layout checks and typecheck pass. Supersedes the previous final-placement preview description. No runtime/dependency changes.
 
 

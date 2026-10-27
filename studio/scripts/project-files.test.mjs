@@ -67,3 +67,6 @@ try{
  drag('dragover','image','overlayTrack');assert.equal(classes.get('overlayTrack').size,1);assert.equal(classes.get('trk').size,1,'images may also become scene guides');
  drag('drop','image','overlayTrack',image);assert.equal(dropped[1][1],'overlays');assert.equal(drag('drop','image','trk',image).defaultPrevented,false,'legacy guide handler retains ownership');
 }finally{await dropServer.close();Object.assign(globalThis,originalDrop);delete globalThis.__sequenceDropTest}
+
+const captionSource={id:'voice',url:'/outputs/1111111111111111.flac',label:'Voice',start:0,origin:'library'};
+const subtitles=projectFiles({}, {}, [], {},[{url:'/outputs/aaaaaaaaaaaaaaaa.srt',label:'Voice captions.srt',kind:'captions',origin:'generated',captionSource}]);assert.equal(subtitles[0].kind,'captions');assert.equal(subtitles[0].origin,'generated');assert.deepEqual(subtitles[0].captionSource,captionSource);

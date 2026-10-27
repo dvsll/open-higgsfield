@@ -15,7 +15,7 @@ export function mountSequenceLayers(options:Options){
   const entry=creators.get(kind)!;
   renderView(entry.host,createElement(LayerEditor,{key:entry.revision,group:kind,embedded:true,audioReady,start:options.time(),duration:Math.min(4,Math.max(.1,options.duration()-options.time())),onClose:()=>{entry.revision++;creator(kind)},onSave:layer=>{const state=options.read();options.change({...state,[kind]:[...state[kind],layer]});entry.revision++;creator(kind)}}));
  }
- for(const kind of ['audio','overlays'] as const){const host=document.createElement('div');host.id=kind==='audio'?'studioAudioCreator':'studioOverlayCreator';creators.set(kind,{host,revision:0});document.body.append(host);creator(kind)}
+ for(const kind of ['audio'] as const){const host=document.createElement('div');host.id=kind==='audio'?'studioAudioCreator':'studioOverlayCreator';creators.set(kind,{host,revision:0});document.body.append(host);creator(kind)}
  void fetch('/api/models').then(r=>r.json()).then(result=>{audioReady=!!result.audio?.available;creator('audio')}).catch(()=>{});
  function edit(kind:'overlays'|'audio',existing?:Layer){
   const toggle=document.getElementById(kind==='audio'?'audioTrackToggle':'overlayTrackToggle');if(toggle?.getAttribute('aria-expanded')!=='true')toggle?.click();

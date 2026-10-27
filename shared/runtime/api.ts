@@ -18,7 +18,7 @@ import { RuntimeSetup, setupAccess } from './setup.ts';
 import { startComfyProxy } from './proxy.ts';
 import {PromptRewriter,PromptRewriteError,promptInstruction,promptModel,promptDevice} from './prompt-rewriter.ts';
 import {precisionSources} from './precision-image.ts';
-import {captionSegments} from '../lib/captions.ts';
+import {captionSegments,captionSrt} from '../lib/captions.ts';
 import { JobActivity, phaseForProgress } from './job-activity.ts';
 import {ComfyDiagnostics,loadingLog,nodeProgressMessage} from './comfy-diagnostics.ts';
 import { Comfy } from "@comfyorg/sdk";
@@ -85,7 +85,7 @@ const FPS = 24;
 const MAX_BODY = 64 * 1024;
 const MAX_UPLOAD_BODY = 8 * 1024 * 1024;
 const MAX_QUEUE = 4;
-const OUTPUT_NAME = /^[a-f0-9]{16}\.(png|obj|glb|webm|mp4|flac|mp3|wav|m4a|ogg|safetensors)$/;
+const OUTPUT_NAME = /^[a-f0-9]{16}\.(png|obj|glb|webm|mp4|flac|mp3|wav|m4a|ogg|srt|safetensors)$/;
 
 type Env = Record<string, string | undefined>;
 type Key = { image: string; t: number; strength?: number };
@@ -604,7 +604,7 @@ function middleware(env: Env,setup:RuntimeSetup,rewriter:PromptRewriter,creative
         if (!['GET','HEAD'].includes(req.method||'') || !OUTPUT_NAME.test(name)) return send(res, 404, { error: "not found" });
         const p = join(OUTPUTS, name);
         if (!existsSync(p)) return send(res, 404, { error: "not found" });
-        const size=statSync(p).size,headers:Record<string,string|number>={"Content-Type":name.endsWith('.safetensors')?'application/octet-stream':name.endsWith('.glb')?'model/gltf-binary':name.endsWith('.obj')?'text/plain':name.endsWith('.png')?'image/png':mediaTypes[name.split('.').at(-1)!]||'video/webm',"Accept-Ranges":"bytes","Cache-Control":"private, max-age=31536000, immutable","X-Content-Type-Options":"nosniff"};
+        const size=statSync(p).size,headers:Record<string,string|number>={"Content-Type":name.endsWith('.safetensors')?'application/octet-stream':name.endsWith('.glb')?'model/gltf-binary':name.endsWith('.srt')?'application/x-subrip; charset=utf-8':name.endsWith('.obj')?'text/plain':name.endsWith('.png')?'image/png':mediaTypes[name.split('.').at(-1)!]||'video/webm',"Accept-Ranges":"bytes","Cache-Control":"private, max-age=31536000, immutable","X-Content-Type-Options":"nosniff"};
         const range=req.headers.range;
         if(range){const match=/^bytes=(\d*)-(\d*)$/.exec(range);let start=Number(match?.[1]||0),end=match?.[2]?Number(match[2]):size-1;if(match&&!match[1]&&match[2]){start=Math.max(0,size-Number(match[2]));end=size-1;}
           if(!match||(!match[1]&&!match[2])||start>end||start>=size||!Number.isSafeInteger(start)||!Number.isSafeInteger(end)){res.writeHead(416,{'Content-Range':`bytes */${size}`});return res.end();}
@@ -707,6 +707,7 @@ function middleware(env: Env,setup:RuntimeSetup,rewriter:PromptRewriter,creative
          if(semanticCache.size>=100)semanticCache.delete(semanticCache.keys().next().value!);semanticCache.set(key,result);return send(res,200,result);
         }finally{semanticPending=false}
       }
+      if(route==='POST /api/captions/srt'){const body=await readBody(req,512*1024);if(!Array.isArray(body?.segments)||body.segments.length>500||body.segments.some((segment:any)=>!Number.isFinite(segment?.end)||segment.end>86400))throw new HttpError(400,'Check the caption text and timing before saving.');const segments=captionSegments(body.segments,86400);if(!segments.length||segments.length!==body.segments.length)throw new HttpError(400,'Check the caption text and timing before saving.');const name=outputName('srt');mkdirSync(OUTPUTS,{recursive:true});await writeFile(join(OUTPUTS,name),captionSrt(segments),'utf8');return send(res,200,{url:'/outputs/'+name})}
       if (route === 'GET /api/captions') {
         const nodes=await comfyJson(env,'/object_info');
         const models=(nodes.OSHWhisperCaptions?.input?.required?.model?.[0]||[]).filter((model:unknown)=>typeof model==='string'&&/^Whisper [\w.-]+ · CPU$/.test(model));
@@ -717,10 +718,10 @@ function middleware(env: Env,setup:RuntimeSetup,rewriter:PromptRewriter,creative
         const source=outputPath(body.audio);if(statSync(source).size>32*1024*1024)throw new HttpError(400,'Select audio under 32 MB and 10 minutes.');
         const nodes=await comfyJson(env,'/object_info'),models=nodes.OSHWhisperCaptions?.input?.required?.model?.[0]||[],model=body.model===undefined?models[0]:body.model;if(!nodes.LoadAudio||!models.length)throw new HttpError(503,'Install a local Whisper model and restart ComfyUI.');if(typeof model!=='string'||!models.includes(model))throw new HttpError(400,'Choose an installed caption model, then try again.');
         await ensureProxy(env);const c=client(env),wf=c.workflows.fromJson(await loadGraph('captions_whisper'));
-        const devices=nodes.OSHWhisperCaptions?.input?.optional?.device?.[0]||['cpu'],device=body.device??'cpu';if(!['cpu','cuda'].includes(device)||!devices.includes(device))throw new HttpError(400,'Choose an available caption processing device.');if(nodes.OSHWhisperCaptions?.input?.optional?.device)wf.setInput('2','device',device);const language=body.language??'auto';if(typeof language!=='string'||!(/^(auto|[a-z]{2,3})$/).test(language))throw new HttpError(400,'Choose a supported caption language.');if(language!=='auto'&&!nodes.OSHWhisperCaptions?.input?.optional?.language)throw new HttpError(503,'Update the Studio caption node and restart ComfyUI to select a language.');if(nodes.OSHWhisperCaptions?.input?.optional?.language)wf.setInput('2','language',language);wf.setInput('2','model',model);wf.setInput('1','audio',c.assets.fromFile(source));const started=Date.now(),job=await serialize(()=>runWf(c,wf,body._requestId)),output=job.getOutputs('2')[0];
+        const devices=nodes.OSHWhisperCaptions?.input?.optional?.device?.[0]||['cpu'],device=body.device??devices[0]??'cpu';if(!['cpu','cuda'].includes(device)||!devices.includes(device))throw new HttpError(400,'Choose an available caption processing device.');if(nodes.OSHWhisperCaptions?.input?.optional?.device)wf.setInput('2','device',device);const language=body.language??'auto';if(typeof language!=='string'||!(/^(auto|[a-z]{2,3})$/).test(language))throw new HttpError(400,'Choose a supported caption language.');if(language!=='auto'&&!nodes.OSHWhisperCaptions?.input?.optional?.language)throw new HttpError(503,'Update the Studio caption node and restart ComfyUI to select a language.');if(nodes.OSHWhisperCaptions?.input?.optional?.language)wf.setInput('2','language',language);wf.setInput('2','model',model);wf.setInput('1','audio',c.assets.fromFile(source));const started=Date.now(),job=await serialize(()=>runWf(c,wf,body._requestId)),output=job.getOutputs('2')[0];
         if(!output)throw new HttpError(502,'The caption workflow returned no transcript.');
         const result=JSON.parse(Buffer.from(await output.toBytes()).toString('utf8'));
-        return {model,language:typeof result.language==='string'?result.language:null,duration:result.duration,seconds:(Date.now()-started)/1000,segments:captionSegments(result.segments)};
+        const segments=captionSegments(result.segments),name=segments.length?outputName('srt'):null;if(name)await writeFile(join(OUTPUTS,name),captionSrt(segments),'utf8');return {model,language:typeof result.language==='string'?result.language:null,duration:result.duration,seconds:(Date.now()-started)/1000,segments,srt:name?'/outputs/'+name:null};
       }));
       if (route === 'GET /api/precision-image') {
         const catalog = await localModels(env), nodes = await comfyJson(env, '/object_info'), graph = await loadGraph('precision_zimage');

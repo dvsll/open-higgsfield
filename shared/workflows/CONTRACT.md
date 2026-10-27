@@ -379,3 +379,6 @@ Caption device selection (2026-10-26): GET /api/captions includes devices (cpu, 
 Caption language and capability update (2026-10-26): GET /api/captions adds languageSelection and modelDevices; model support is distinct from devices available in the current runtime. POST optional language defaults to auto; explicit selection requires updated native caption node, never silently ignored. Native Whisper validates language codes and rejects highly repetitive output. No inference-time downloads.
 
 Admin diagnostics (2026-10-27): local-computer/origin-protected GET /api/errors returns newest-first bounded entries {id,at,source,message,details,status?,requestId?}. Per-port server history retains100 errors across restarts; no body/header capture, secret/media/query redaction. Existing generation responses unchanged.
+
+
+Caption SRT library (2026-10-27): Successful POST /api/captions adds srt (API-owned /outputs/<16hex>.srt, null for empty transcript). POST /api/captions/srt accepts {segments:[{start,end,text}]} with at most500 validated cues and24h end limit, returning {url}. Existing local auth/origin gates apply. SRT outputs use application/x-subrip; charset=utf-8. Omitted caption device selects first available compatible node device; explicit validation remains supported. Source associations live in project metadata.

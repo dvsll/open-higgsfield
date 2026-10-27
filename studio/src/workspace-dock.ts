@@ -28,13 +28,15 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
  const wide = innerWidth >= 1150;
  const creation = split('x', panel('prompts'), panel('viewer'), .5);
  const bottom=Math.max(260,Math.min(360,innerHeight*.34)),topRatio=Math.max(.5,Math.min(.8,1-bottom/Math.max(300,innerHeight-110)));
+ const captionCreation=split('x',panel('captions'),panel('viewer'),.5);
+ const overlayTop=wide?split('x',split('y',panel('assets'),panel('files'),.5),captionCreation,.19):captionCreation;
  const videoTop=wide?split('x',split('y',panel('assets'),panel('files'),.5),creation,.19):creation;
  const presets: Record<string, Setup> = custom?.presets||{
   Video: { tree: split('y', videoTop, panel('timeline'), topRatio), mode: 'video' },
   Image: { tree: split('y', split('x', panel('viewer'), panel('keyframes'), .72), panel('takes'), .7), mode: 'image' },
   Audio:{tree:split('y',split('x',panel('files'),panel('audio-create'),.35),panel('timeline'),topRatio),mode:'video'},
-  Overlays:{tree:split('y',split('x',panel('viewer'),panel('overlay-create'),.65),panel('timeline'),topRatio),mode:'video'},
-  Training:{tree:split('y',split('x',panel('training-data'),panel('stylization'),.65),panel('training-runs'),.7),mode:'video'},
+  Overlays:{tree:split('y',overlayTop,panel('timeline'),topRatio),mode:'video'},
+  Training:{tree:split('x',panel('files'),split('y',split('x',panel('training-data'),panel('stylization'),.65),panel('training-runs'),.7),.22),mode:'video'},
   Edit:{tree:split('x',panel('files'),split('x',panel('edit-viewer'),split('y',panel('edit-controls'),panel('edit-versions'),.65),.7),.2),mode:'video'},
   '3D': { tree: split('x', panel('stage'), panel('elements'), .75), mode: 'video' },
   Rendering: { tree: split('y', split('x', panel('viewer'), panel('prompts'), .75), panel('takes'), .7), mode: 'video' }
@@ -57,8 +59,10 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
   }
  } catch {}
  if(!custom){delete store.layouts.Director;delete store.deletedLayouts?.Director;if(store.active==='Director')store.active='Video'}
+ if(!custom&&!localStorage.getItem('osh-caption-training-layout-v1')){store.layouts.Overlays=clone(presets.Overlays);store.layouts.Training=clone(presets.Training);localStorage.setItem('osh-caption-training-layout-v1','1')}
  let active = store.active;
  let setup = clone(store.layouts[active] || presets[active] || fallback);
+ if(!custom){const replace=(tree:LayoutNode|null):LayoutNode|null=>tree?.kind==='panel'?(tree.id==='overlay-create'?panel('captions'):tree):tree?{...tree,first:replace(tree.first)!,second:replace(tree.second)!}:null;for(const value of [...Object.values(store.layouts),...Object.values(store.deletedLayouts||{})])value.tree=ids(value.tree).includes('captions')?remove(value.tree,'overlay-create'):replace(value.tree);setup.tree=ids(setup.tree).includes('captions')?remove(setup.tree,'overlay-create'):replace(setup.tree)}
  try{if(!custom&&!localStorage.getItem('osh-video-layout-reference-v2')){store.layouts.Video=clone(fallback);if(active==='Video')setup=clone(fallback);localStorage.setItem('osh-video-layout-reference-v2','1')}}catch{}
  const panels = new Map<string, HTMLElement>();
  let viewerSequence:string|null=SC.get('osh-viewer-sequence')==='unbound'?null:'timeline';
@@ -144,7 +148,7 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
  const assets = app.querySelector<HTMLElement>('aside.l')!, keys = app.querySelector<HTMLElement>('aside.r')!, viewer = main.querySelector<HTMLElement>('.viewer')!, image = main.querySelector<HTMLElement>('.image-stage')!, composer = main.querySelector<HTMLElement>('.composer')!, properties = document.getElementById('videoAttributes') as HTMLDetailsElement;
  properties.open = true; const viewContent = document.createElement('div'); viewContent.className = 'viewer-content'; viewContent.append(image, viewer);
  add('captions','Captions',document.getElementById('studioCaptions')!);add('edit-history','Edit history',document.getElementById('studioEditHistory')!);add('files','Project files',mountProjectFiles());add('stash','Stash',document.getElementById('stash')!);
- add('audio-create','Audio prompt',document.getElementById('studioAudioCreator')!);add('overlay-create','Overlay tools',document.getElementById('studioOverlayCreator')!);
+ add('audio-create','Audio prompt',document.getElementById('studioAudioCreator')!);
  add('edit-viewer','Edit viewer',document.getElementById('studioEditViewer')!);add('edit-controls','Edit controls',document.getElementById('studioEditControls')!);add('edit-versions','Edit versions',document.getElementById('studioEditVersions')!);
  const inspector=document.createElement('div');inspector.className='sequence-inspector';const identity=document.getElementById('videoTrackAttributes')!;identity.hidden=false;identity.className='scene-property-identity';inspector.append(identity);parking.append(inspector);
  const oldStyling=document.getElementById('studioStylization')!;oldStyling.hidden=true;parking.append(oldStyling);

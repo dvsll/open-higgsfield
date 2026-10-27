@@ -13,7 +13,7 @@ import './workspace-dock.css';
 import './sequence-transport.css';
 import { mountProjectFiles } from './project-files';
 
-import { panel, split, ids, remove, dock, valid, boundsOf,dockAtSize, type Edge, type LayoutNode } from './window-layout';
+import { panel, split, ids, remove, dock, valid, preview,dockAtSize, type Edge, type LayoutNode } from './window-layout';
 import {workspaceNameError,recycleWorkspace,restoredWorkspaceName,type Setup} from './workspace-setups';
 
 type Store = { version: 2; active: string; layouts: Record<string, Setup>; notes: Record<string, { title: string; text: string }>; deletedLayouts?:Record<string,Setup> };
@@ -116,7 +116,7 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
    if (guide) edge = guide.dataset.edge as Edge;
    else { const dx = (x - cx) / r.width, dy = (y - cy) / r.height; edge = Math.abs(dx) > Math.abs(dy) ? dx < 0 ? 'left' : 'right' : dy < 0 ? 'top' : 'bottom'; }
    candidate = { target: target.target, edge }; overlay.hidden = false;
-   const area = boundsOf(dockAtSize(initial,id,target.target,edge,{x:4,y:4,width:board.clientWidth-8,height:board.clientHeight-8}),id,{x:4,y:4,width:board.clientWidth-8,height:board.clientHeight-8})!;
+   const area = preview({x:r.left-bounds.left,y:r.top-bounds.top,width:r.width,height:r.height},edge);
    Object.assign(shade.style, { left: area.x + 'px', top: area.y + 'px', width: area.width + 'px', height: area.height + 'px' });
    Object.assign(guides.style, { left: cx - bounds.left + 'px', top: cy - bounds.top + 'px' });
    for (const item of guides.children) item.classList.toggle('selected', (item as HTMLElement).dataset.edge === edge);

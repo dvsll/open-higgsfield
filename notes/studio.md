@@ -4,6 +4,9 @@ Append dated decisions, render times and requests here. Only the studio owner ed
 
 ## Where we left off (update this before switching agents)
 
+**Latest handoff - 2026-10-27, target-relative docking cue:** User clarified docking highlight should indicate direction within the currently hovered window, not projected final layout. Drag preview now uses the appropriate half of the stable target rectangle in board coordinates; border-box keeps outline contained. Final size-aware drop behavior unchanged. Existing four-direction preview/layout checks and typecheck pass. Supersedes the previous final-placement preview description. No runtime/dependency changes.
+
+
 **Latest handoff - 2026-10-27, unified media prompt:** Image prompt dock removed and existing image service host moved into shared Prompt; Image preset and saved/custom/recycled keyframes layouts migrate without duplicate prompts. Legacy keyframes reveal requests route to shared Image mode. Header Media and active model now share columns; only compatible Video/Image/Audio picker is shown. All prompt fields use common primary-row/font/border/spacing/flex sizing and matching yellow Generate action. Image framing/batch/size controls remain in Advanced, results/history and real generation retained. Model bars stay connected in shared header; video/image native lifetimes preserved. Media selection updates viewer workflow, preserves layout, and persists per setup through reload; image tutorial missing-window lessons now request Prompt. Real browser image generation produced /outputs/796d4fc34605ee87.png and history entry using existing image adapter; audio/header alignment, no old image window, no page overflow and Audio reload verified. Typecheck/build and24 Studio tests pass. Screenshots outputs/unified-image-prompt.png and outputs/unified-audio-prompt.png. No model/dependency/backend changes.
 
 

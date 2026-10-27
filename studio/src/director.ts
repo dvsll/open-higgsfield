@@ -142,12 +142,12 @@ function openShot(i){if(!SH[i])return;clipSelected=true;open=i;cur=i;selKey=null
 function closeShot(){const i=open;open=null;selKey=null;if(i!=null)G=start(i);timeline();head()}
 addEventListener('osh-model-control',e=>{if(e.detail==='timeline'){openShot(cur);$('#addKeyBtn').focus();$('#tl').scrollIntoView({block:'nearest'})}});
 function trackAttributes(){const indices=open==null?SH:[SH[open]],offset=open??0;$('#ruler').style.width=((open==null?Math.max(tot(),SH.length?0:10):SH[open].d)*pxs)+'px';drawTimelineAttributes({selected:clipSelected?cur:-1,shots:indices,pixels:pxs,offset,start:start(offset),size:{width:+$('#videoWidth')?.value||768,height:+$('#videoHeight')?.value||448},select:(i,audio)=>{cur=i;selKey=null;clipSelected=true;selectedTrack=audio?'audio':'video';head()},change:()=>{SH.forEach(s=>s.keys.forEach(k=>k.t=k.anchor==='end'?s.d:Math.min(k.t,s.d)));G=Math.min(G,tot()-.01);timeline();head();save()},generate:()=>$('#gen').click(),settings:()=>$('#showVideoAttributes').click(),unlink:()=>{const s=currentShot();s.audioLinked=false;s.audioStart=start(cur);s.audioDuration=s.audioDuration||s.d;timeline();head();save()},audio:()=>{if(currentShot().audio)$('#editAudio').click();else{$('#audioPrompt').scrollIntoView({block:'center'});focusPromptField('audioPrompt')}}})}
-function timeline(){if(draggingKey||!$('#tl').clientWidth)return;stashUI();const trk=$('#trk'),W0=$('#tl').clientWidth-parseFloat(getComputedStyle($('#tl')).gridTemplateColumns)-24;$('#addKeyBtn').style.display=open==null?'none':'';trk.classList.toggle('scene',open!=null);trk.classList.toggle('expanded-scenes',expandedVideo&&open==null);
+function timeline(){if(draggingKey||!$('#tl').clientWidth)return;stashUI();const trk=$('#trk'),W0=$('#trk').clientWidth;$('#addKeyBtn').style.display=open==null?'none':'';trk.classList.toggle('scene',open!=null);trk.classList.toggle('expanded-scenes',expandedVideo&&open==null);
  trk.ondragover=trk.ondragleave=trk.ondrop=null;
  trk.setAttribute('role',open==null?'listbox':'group');trk.setAttribute('aria-label',open==null?'Sequence clips':'Shot keyframes');
  if(open!=null&&!SH[open])open=null;
  if(open==null){ // ---- sequence: shots act as videos
-  const T=Math.max(tot(),SH.length?0:10);pxs=Math.max(1,(W0-50)/T);$('#tot').textContent=`${SH.length} shots · ${+T.toFixed(3)}s`;renderView($('#crumb'),h(Crumb));
+  const T=Math.max(tot(),SH.length?0:10);pxs=Math.max(1,W0/T);$('#tot').textContent=`${SH.length} shots · ${+T.toFixed(3)}s`;renderView($('#crumb'),h(Crumb));
   $('#hintT').textContent='click to select · double-click to open · drag to reorder · scrub the ruler';
   renderView($('#ruler'),h(Ruler,{duration:T,pixels:pxs}));
   renderView(trk,h(SequenceTrack,{expanded:expandedVideo,clips:SH.map((s,i)=>({id:shotId(s),name:s.n,duration:s.d,generated:s.r,hasAudio:!!s.audio&&s.audioLinked!==false,selected:i===cur&&clipSelected,width:s.d*pxs-3,offset:start(i)*pxs,height:80,bind:c=>{
@@ -166,7 +166,7 @@ function timeline(){if(draggingKey||!$('#tl').clientWidth)return;stashUI();const
   trk.ondrop=ev=>{if(!dragShot)return;ev.preventDefault();const r=trk.getBoundingClientRect();insertDraggedShot(trackInsertionIndex(ev.clientX,ev.clientY))};
   sequenceLayers?.render(pxs,0,T);trackAttributes();return}
  // ---- one shot opened
- const i=open,s=SH[i];pxs=(W0-6)/s.d;$('#tot').textContent=`${+s.d.toFixed(3)}s · ${s.keys.length} keyframe${s.keys.length===1?'':'s'}`;
+ const i=open,s=SH[i];pxs=W0/s.d;$('#tot').textContent=`${+s.d.toFixed(3)}s · ${s.keys.length} keyframe${s.keys.length===1?'':'s'}`;
  renderView($('#crumb'),h(Crumb,{index:i,name:s.n,onBack:closeShot}));
  $('#hintT').textContent='drag keys to retime · double-click a key to edit it · double-click the track or Esc to go back';
  renderView($('#ruler'),h(Ruler,{duration:s.d,pixels:pxs,half:true}));

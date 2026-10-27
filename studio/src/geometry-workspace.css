@@ -24,3 +24,6 @@
 
 .geometry-scene-toolbar{position:absolute;top:12px;right:12px;z-index:4;display:flex;gap:6px;align-items:center}.geometry-scene-toolbar .geometry-export-scene{position:static}.geometry-scene-toolbar svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.5;display:block}.geometry-viewer canvas:focus{outline:none}.geometry-viewer canvas:focus-visible{outline:1px solid var(--key);outline-offset:-1px}
 
+
+.scene-mini-timeline{flex-basis:100%;display:flex;gap:10px;align-items:center;pointer-events:auto;background:var(--card);padding:8px;font-size:11px;box-sizing:border-box}.scene-mini-timeline input{flex:1;min-width:30px;height:3px;appearance:none;cursor:ew-resize}.scene-mini-timeline input::-webkit-slider-thumb{appearance:none;width:3px;height:15px;background:var(--key)}.scene-mini-timeline output{font-variant-numeric:tabular-nums;color:var(--dim);min-width:65px}.geometry-viewer .scene-playback{bottom:10px}
+

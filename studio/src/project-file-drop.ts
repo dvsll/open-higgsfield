@@ -16,7 +16,7 @@ export function mountProjectFileDrop(){
  const guided=()=>{const popup=document.querySelector<HTMLElement>('.tour-popover');return !!document.querySelector('.tour-choice[open]')||!!popup&&!popup.hidden};
  const hover=(event:DragEvent)=>{
   if(!externalFiles(event.dataTransfer))return;
-  if((event.target as Element)?.closest?.('#studioCaptions')){reset();return;}
+  if((event.target as Element)?.closest?.('#studioCaptions,.geometry-references')){reset();return;}
   event.preventDefault();if(guided())return;
   event.dataTransfer!.dropEffect='copy';
   if(event.type==='dragenter')depth++;
@@ -60,7 +60,7 @@ export function mountProjectFileDrop(){
  }
  const drop=(event:DragEvent)=>{
   if(!externalFiles(event.dataTransfer))return;
-  if((event.target as Element)?.closest?.('#studioCaptions')){reset();return;}
+  if((event.target as Element)?.closest?.('#studioCaptions,.geometry-references')){reset();return;}
   event.preventDefault();event.stopImmediatePropagation();reset();if(guided())return;
   const files=Array.from(event.dataTransfer?.files||[]);if(!files.length){message='Drop individual files to import them.';draw();return}enqueue(files);
  };

@@ -23,3 +23,22 @@
 
 .video-guide-action label{display:flex;gap:8px;align-items:center;color:var(--ui-muted)}
 
+
+.geometry-prompt-input{border:1px solid var(--ui-border);background:var(--ui-bg)}.geometry-composer .geometry-prompt-input textarea{border:0;min-height:130px;resize:vertical;display:block}.geometry-references{padding:8px;border-top:1px solid var(--ui-border);font-size:11px}.geometry-references[data-drag-over=true]{outline:1px solid var(--ui-accent);outline-offset:-1px;background:var(--ui-raised)}.geometry-attachment-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.geometry-attachment-row>span{color:var(--ui-muted)}.geometry-attachment{position:relative;width:56px;height:48px}.geometry-attachment img{width:100%;height:100%;object-fit:contain}.geometry-attachment button{position:absolute;right:0;top:0;padding:0 4px!important;min-height:0!important;line-height:16px}.geometry-attach-button{display:flex;gap:6px;align-items:center;background:transparent!important;border:0!important;color:var(--ui-text);padding:4px!important}.geometry-attach-button svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.5}.geometry-reference-picker{display:grid;grid-template-columns:repeat(auto-fill,minmax(115px,1fr));gap:8px;max-height:45vh;overflow:auto}.geometry-reference-picker button{display:grid;gap:6px;text-align:left;padding:8px}.geometry-upload-reference{display:grid;gap:6px;margin-top:16px}.geometry-composer .geometry-tools{padding:8px 0;gap:16px}.geometry-composer .camera-prompt{margin-top:16px}.geometry-composer .geometry-prompt summary{font-size:var(--ui-font)}
+
+
+.geometry-blockout-tools{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:12px 0;font-size:11px}.geometry-blockout-tools>span{color:var(--ui-muted);margin-right:4px}
+
+/* All media share the same input surface and attachment footer. */
+.studio-window[data-window=prompts] .shared-prompt-input{display:flex;flex-direction:column;flex:1;min-height:120px;min-width:0;border:1px solid var(--ui-border);background:var(--ui-bg)}
+.studio-window[data-window=prompts] .composer .shared-prompt-input>textarea,.studio-window[data-window=prompts] .composer .shared-prompt-input>.mention-editor{flex:1;height:auto;min-height:96px;width:100%;border:0;box-sizing:border-box;resize:none}
+.studio-window[data-window=prompts] .shared-prompt-input>.geometry-references{flex:none}
+.studio-window[data-window=prompts] .geometry-composer{display:flex;flex-direction:column;overflow:hidden}
+.studio-window[data-window=prompts] .geometry-composer .geometry-prompt{display:flex;flex-direction:column;flex:1;min-height:0;overflow:auto;gap:12px;max-height:none}
+.studio-window[data-window=prompts] .geometry-prompt:has(.prompt-advanced[open])>.shared-prompt-input{flex:none;height:160px}
+.studio-window[data-window=prompts] .geometry-prompt-actions{display:flex;justify-content:flex-end;flex:none;margin-top:auto}
+.studio-window[data-window=prompts] .geometry-prompt-actions>button{width:148px;max-width:100%;height:44px}
+.studio-window[data-window=prompts] .composer .geometry-prompt>label{font-size:10px;color:var(--ui-muted);letter-spacing:.06em;text-transform:uppercase;min-height:20px}
+.geometry-upload-reference[hidden]{display:none}
+.studio-window[data-window=prompts] .composer .prompt-field .shared-prompt-input>:is(textarea,.mention-editor){flex:1 1 0%;height:auto;min-height:96px;border:0;resize:none}
+.studio-window[data-window=prompts] .composer .prompt-scroll:has(.prompt-advanced[open]) .shared-prompt-input{flex:none;min-height:160px}

@@ -1,0 +1,6 @@
+import type {ReactNode} from 'react';
+import {GeometryReferences} from './geometry-references';
+import {OSH} from '../../../shared/runtime/client';
+export function PromptInput({children,references}:{children:ReactNode;references:ReactNode}){return <div className="shared-prompt-input">{children}{references}</div>}
+export function PromptReferences({media}:{media:'Video'|'Image'|'Audio'}){return <GeometryReferences image="" busy={false} media={media} unavailable={media==='Video'?'':`The current ${media.toLowerCase()} model supports text prompts only. Reference conditioning is not available.`} onRemove={()=>{}} onAttach={file=>dispatchEvent(new CustomEvent('osh-attach-prompt-reference',{detail:file}))} onUpload={async file=>{try{const bitmap=await createImageBitmap(file),canvas=document.createElement('canvas');const scale=Math.min(1,1024/Math.max(bitmap.width,bitmap.height));canvas.width=Math.max(1,Math.round(bitmap.width*scale));canvas.height=Math.max(1,Math.round(bitmap.height*scale));canvas.getContext('2d')!.drawImage(bitmap,0,0,canvas.width,canvas.height);bitmap.close();const result=await OSH.upload(canvas.toDataURL('image/png'));dispatchEvent(new CustomEvent('osh-attach-prompt-reference',{detail:{url:result.url,kind:'image'}}))}catch(error){dispatchEvent(new CustomEvent('osh-toast',{detail:(error as Error).message}))}}}/>}
+

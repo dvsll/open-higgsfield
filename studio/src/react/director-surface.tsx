@@ -1,3 +1,4 @@
+import {PromptInput,PromptReferences} from './prompt-input';
 import {VideoGuide} from './video-guide';
 import {PromptMedia} from './prompt-media';
 import {NumberInput} from './number-input';
@@ -122,10 +123,10 @@ export function DirectorSurface() {
               <div className="row primary-prompt-row">
                 <div className="prompt-field" data-model-kind="video" data-model-control="shotPromptInput">
                   <label htmlFor="shotPromptInput">Prompt</label>
-                  <textarea id="shotPromptInput" rows={2} placeholder="Describe your video, including any movement and sound…" /><VideoGuide/>
+                  <textarea id="shotPromptInput" rows={2} placeholder="Describe your video, including any movement and sound…" />
                 </div>
               </div>
-              <AdvancedPrompt>
+              <AdvancedPrompt><VideoGuide/>
               <div className="row">
                 <div className="prompt-field"><label htmlFor="visualPrompt">Video prompt</label><textarea id="visualPrompt" rows={2} placeholder="Scene details from your prompt…" /></div>
                 <div className="prompt-field" data-model-kind="video" data-model-control="motion">
@@ -259,11 +260,11 @@ export function DirectorSurface() {
           </details>
           <div className="row primary-prompt-row"><div className="prompt-field" data-model-kind="keyframe" data-model-control="kp">
             <label htmlFor="kp">{'Prompt'}</label>
-            <textarea
+            <PromptInput references={<PromptReferences media="Image"/>}><textarea
               id="kp"
               rows={3}
               defaultValue="Mia holds Bolt up to the window, first light on his face"
-            />
+            /></PromptInput>
           </div>
           </div><details className="prompt-advanced"><summary>Advanced</summary><div className="advanced-prompt-content">
           <div className="sec">{'Framing'}</div>

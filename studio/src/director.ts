@@ -455,3 +455,5 @@ timeline();head();markEls();histUI();save();if(!playing)setPlaying(false);
 import './projects.css';
 
 mountSequenceScroll();
+
+addEventListener('osh-attach-prompt-reference',async event=>{const file=event.detail;if(file?.kind!=='image'||!/^\/outputs\/[a-f0-9]{16}\.(png|jpe?g|webp)$/.test(file.url))return;try{await chooseGuideModel();const i=SH.length?cur:ensureScene();addKey(i,0,{img:file.url,u:.5,spec:SH[i].spec},'drop');toast('Start reference attached.')}catch(error){toast(error.message)}});

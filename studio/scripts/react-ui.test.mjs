@@ -140,6 +140,12 @@ try {
   console.log(
     'PASS: React timeline escaping/selection, frame ruler, tutorial action gating/experience icons, model capabilities and history tree semantics.',
   );
+  const {cameraPose}=await server.ssrLoadModule('/studio/src/camera-path.ts');const {Vector3}=await import('three');
+  const origin=new Vector3(),cameraStart=new Vector3(3,2,3),orbit={kind:'orbit',direction:1,duration:4,amount:1};
+  assert.ok(cameraPose(orbit,cameraStart,origin,origin,0).position.distanceTo(cameraStart)<1e-9);
+  const orbitEnd=cameraPose(orbit,cameraStart,origin,origin,1);assert.ok(Math.abs(orbitEnd.position.length()-cameraStart.length())<1e-9);assert.ok(orbitEnd.position.distanceTo(cameraStart)>1);
+  assert.equal(cameraPose({...orbit,kind:'tilt'},cameraStart,origin,origin,1).position.distanceTo(cameraStart),0);
+  assert.ok(cameraPose({...orbit,kind:'dolly'},cameraStart,origin,origin,1).position.length()<cameraStart.length());
 } finally {
   await server.close();
 }

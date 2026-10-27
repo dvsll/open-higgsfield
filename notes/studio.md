@@ -4,6 +4,9 @@ Append dated decisions, render times and requests here. Only the studio owner ed
 
 ## Where we left off (update this before switching agents)
 
+**Latest handoff - 2026-10-27, element project image picker:** Replaced generated-only24-image pool with embedded shared ProjectFilesView inside Create/Edit element popup. Uses current project index, supports uploaded/generated images and source filters/folders, respects custom file names, refreshes on media events, and picks references locally without changing global selected media. Only image assets shown, maximum4 unique references retained; existing direct upload/drop stays. Embedded picker hides management/import/download actions and owns bounded scroll. Browser Create element chose Yellow cup from Project files and showed Remove reference1; unsaved draft only. Screenshot outputs/element-project-files-picker.png. Typecheck and affected Elements/React tests pass. No backend/dependency/model changes.
+
+
 **Latest handoff - 2026-10-27, concise media names:** Generated Project files use stable project-local sequential display names (Image001/Audio002 etc, rendered with space), persisted generatedNumber and optional userLabel so discovery order changes do not renumber existing files. Existing generated prompt labels migrate; upload filenames remain. File-row pencil opens shared Rename media popup, persists custom labels and named downloads (sanitized display name plus original extension); binary output URLs unchanged. Folder/group count moved beside title. Browser renamed Image001 to Yellow cup, reloaded and confirmed Yellow cup.png download attribute. Screenshot outputs/project-file-names.png. Index regression covers numbered defaults, stable rediscovery, rename precedence and download naming; typecheck/build and affected index/React tests pass. No backend/dependency changes.
 
 

@@ -1,3 +1,4 @@
+import {ProjectImagePicker} from './project-image-picker';
 import {useSemanticSearch} from './semantic-search';
 import '../media-model-picker.css';
 import { useEffect, useRef, useState } from 'react';
@@ -216,23 +217,7 @@ export function ElementLibrary({
                 </div>
               ))}
             </div>
-            <details>
-              <summary>Use a generated image</summary>
-              <div className="element-pool">
-                {pool.slice(0, 24).map((item) => (
-                  <button
-                    key={item.url}
-                    type="button"
-                    title={item.label}
-                    onClick={() => {
-                      if (refs.length < 4 && !refs.includes(item.url)) setRefs([...refs, item.url]);
-                    }}
-                  >
-                    <img src={item.url} alt={item.label} />
-                  </button>
-                ))}
-              </div>
-            </details>
+            <ProjectImagePicker onPick={item=>{if(refs.includes(item.url))return;if(refs.length>=4){setStatus('Up to 4 references. Remove one to choose another.');return}setRefs([...refs,item.url]);setStatus('')}}/>
           </section>
           <section>
             <label>

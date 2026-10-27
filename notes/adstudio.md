@@ -599,3 +599,5 @@ Additive shared API /api/search + semantic_minilm SDK workflow/repo node (local 
 Studio coordination 2026-10-26: caption polish adds optional cpu/cuda request and custom node device enum; defaults remain CPU, legacy CPU-only node supported. GET /api/captions adds devices. Existing SDK/proxy route unchanged; no Ad Studio UI changes or new dependencies/models.
 
 Studio coordination 2026-10-26: shared/lib/captions.ts gains additive bounded parseCaptionSrt helper for local browser SRT corrections; existing transcription/export behavior and API unchanged. No Ad Studio edits or dependencies.
+
+Studio coordination 2026-10-26: Captions adds optional language (auto default), modelDevices capability map distinct from runtime devices, repeat-output error guard. Old caption node accepts auto and rejects explicit unavailable language override honestly. Existing audio/video/creative SDK paths unchanged. Idle Studio-owned ComfyUI refreshed for caption language input; no models/dependencies downloaded.

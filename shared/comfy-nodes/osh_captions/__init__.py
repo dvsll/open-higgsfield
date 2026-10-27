@@ -35,14 +35,18 @@ class OSHWhisperCaptions:
     @classmethod
     def INPUT_TYPES(cls):
         ready = installed_models() if importlib.util.find_spec('faster_whisper') else []
-        return {'required': {'audio': ('AUDIO',), 'model': (ready,)}, 'optional': {'device': (available_devices(), {'default': 'cpu'})}}
+        return {'required': {'audio': ('AUDIO',), 'model': (ready,)}, 'optional': {'device': (available_devices(), {'default': 'cpu'}), 'language': ('STRING', {'default': 'auto'})}}
 
     RETURN_TYPES = ()
     FUNCTION = 'transcribe'
     OUTPUT_NODE = True
     CATEGORY = 'Studio/Captions'
 
-    def transcribe(self, audio, model, device='cpu'):
+    def transcribe(self, audio, model, device='cpu', language='auto'):
+        from faster_whisper.tokenizer import _LANGUAGE_CODES
+        if language != 'auto' and language not in _LANGUAGE_CODES:
+            raise ValueError('Choose a supported transcription language.')
+        requested_language = None if language == 'auto' else language
         if device not in available_devices():
             raise ValueError('Choose an available caption processing device.')
         if model not in installed_models():
@@ -63,7 +67,8 @@ class OSHWhisperCaptions:
         if np.max(np.abs(samples)) > 0.001:
             # CPU remains the default; GPU is an explicit advanced choice.
             engine = WhisperModel(MODELS[model], device=device, compute_type='float16' if device == 'cuda' else 'int8', cpu_threads=4, local_files_only=True)
-            stream, info = engine.transcribe(samples, beam_size=5, temperature=0, vad_filter=False, word_timestamps=True,
+            stream, info = engine.transcribe(samples, language=requested_language, beam_size=5, temperature=0, vad_filter=False, word_timestamps=True,
+                                              language_detection_segments=3, language_detection_threshold=0.8,
                                               condition_on_previous_text=False, no_speech_threshold=0.6)
             language = info.language
             for segment in stream:
@@ -93,6 +98,9 @@ class OSHWhisperCaptions:
                     if not words:
                         segments.append({'start': start, 'end': end, 'text': text})
             del engine
+        words = ' '.join(segment['text'] for segment in segments).lower().split()
+        if len(words) >= 12 and len(set(words)) / len(words) < 0.2:
+            raise ValueError('Transcription repeated the same words. Choose the spoken language in Advanced or a larger model.')
         payload = {'model': model, 'language': language, 'duration': duration, 'segments': segments}
         folder = os.path.join(folder_paths.get_output_directory(), 'osh_captions')
         os.makedirs(folder, exist_ok=True)

@@ -14,3 +14,9 @@ export function captionFileSource(files:{url:string;kind:string;label:string}[],
  const file=files.find(item=>item.url===url&&['audio','video'].includes(item.kind));
  return file&&/^\/outputs\/[a-f0-9]{16}\.(flac|wav|mp3|m4a|ogg|webm|mp4)$/.test(url)?{id:'file:'+url,url,label:file.label,start:0,origin:'library'}:null;
 }
+
+export function retimeCaption(cue:CaptionSegment,delta:number,mode:'move'|'start'|'end',total:number):CaptionSegment{
+ const round=(value:number)=>Math.round(value*100)/100;
+ if(mode==='move'){const start=round(Math.max(0,Math.min(total-(cue.end-cue.start),cue.start+delta)));return {...cue,start,end:round(start+cue.end-cue.start)}}
+ return mode==='start'?{...cue,start:round(Math.max(0,Math.min(cue.end-.01,cue.start+delta)))}:{...cue,end:round(Math.max(cue.start+.01,Math.min(total,cue.end+delta)))};
+}

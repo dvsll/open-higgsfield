@@ -25,3 +25,7 @@ assert.deepEqual(parseCaptionSrt('\uFEFF1\r\n00:00:00,000 --> 00:00:02,500\r\nTw
 for(const invalid of ['', '1\n00:00:02,000 --> 00:00:01,000\nWrong', '1\n00:99:00,000 --> 00:99:01,000\nWrong','1\n00:00:00,000 --> 00:00:01,000\n'])assert.throws(()=>parseCaptionSrt(invalid));
 assert.throws(()=>parseCaptionSrt('x'.repeat(2_000_001)));
 assert.throws(()=>applyCaptions(state,{...source,start:3601},segments),/timeline range/);
+
+const {retimeCaption}=await import('../src/caption-state.ts');
+const range={start:2,end:4,text:'Bound to audio'};
+assert.deepEqual(retimeCaption(range,-4,'move',10),{...range,start:0,end:2});assert.deepEqual(retimeCaption(range,20,'move',10),{...range,start:8,end:10});assert.equal(retimeCaption(range,5,'start',10).start,3.99);assert.equal(retimeCaption(range,-5,'end',10).end,2.01);assert.equal(range.start,2);

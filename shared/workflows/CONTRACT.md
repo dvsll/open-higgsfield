@@ -375,3 +375,5 @@ No automatic retry. Existing review/hash/one-job/lease/transport/budget checks r
 
 
 Caption device selection (2026-10-26): GET /api/captions includes devices (cpu, optional cuda). POST accepts optional device, default cpu; validates against the installed node schema. Legacy CPU-only nodes remain supported. CUDA is advertised only when CTranslate2 detects a device, float16 support, CUDA12 cuBLAS and cuDNN9 libraries. CPU uses int8, explicit CUDA uses float16. No inference-time downloads.
+
+Caption language and capability update (2026-10-26): GET /api/captions adds languageSelection and modelDevices; model support is distinct from devices available in the current runtime. POST optional language defaults to auto; explicit selection requires updated native caption node, never silently ignored. Native Whisper validates language codes and rejects highly repetitive output. No inference-time downloads.

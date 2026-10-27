@@ -39,7 +39,7 @@ export async function verifyWeightFiles(folder:string,files:Weight[]){
   if(digest!==f.sha256)throw new HeroError(503,'Pinned weight SHA256 mismatch: '+f.file);verified.set(path,{fingerprint,sha256:digest});results.push({...f});}return results;
 }
 function crc32(bytes:Buffer){let c=0xffffffff;for(const b of bytes){c^=b;for(let n=0;n<8;n++)c=(c>>>1)^((c&1)?0xedb88320:0);}return(c^0xffffffff)>>>0;}
-export function inspectQwenPNG(bytes:Buffer,expected:Graph){
+export function inspectQwenPNG(bytes:Buffer,expected:Graph,referenceNode='4'){
  if(bytes.length<60||bytes.length>32*1024*1024||bytes.subarray(0,8).toString('hex')!=='89504e470d0a1a0a')throw new HeroError(422,'ComfyUI returned an invalid raw PNG.');
  let offset=8,width=0,height=0,channels=0,ended=false,prompt:any;const idat:Buffer[]=[];
  while(offset+12<=bytes.length){const size=bytes.readUInt32BE(offset),end=offset+12+size;if(end>bytes.length)throw new HeroError(422,'Truncated Comfy PNG.');const type=bytes.subarray(offset+4,offset+8).toString(),data=bytes.subarray(offset+8,end-4);if(crc32(bytes.subarray(offset+4,end-4))!==bytes.readUInt32BE(end-4))throw new HeroError(422,'Corrupt Comfy PNG checksum.');
@@ -49,7 +49,7 @@ export function inspectQwenPNG(bytes:Buffer,expected:Graph){
  }
  if(!ended||!idat.length||!width||!prompt)throw new HeroError(422,'Missing PNG pixels or Comfy executed-workflow metadata. Enable SaveImage metadata.');
  const stride=width*channels+1;let pixels:Buffer;try{pixels=inflateSync(Buffer.concat(idat),{maxOutputLength:stride*height+1});}catch{throw new HeroError(422,'Comfy PNG pixels could not be decoded.');}if(pixels.length!==stride*height)throw new HeroError(422,'Incomplete Comfy PNG pixels.');for(let y=0;y<height;y++)if(pixels[y*stride]>4)throw new HeroError(422,'Invalid PNG pixel filter.');
- for(const [id,n]of Object.entries(expected)){const actual=prompt[id];if(actual?.class_type!==n.class_type)throw new HeroError(422,'Raw output workflow does not match the submitted Qwen job.');for(const [k,v]of Object.entries(n.inputs))if(!(id==='4'&&k==='image')&&JSON.stringify(actual.inputs?.[k])!==JSON.stringify(v))throw new HeroError(422,'Raw output prompt/settings mismatch.');}
+ for(const [id,n]of Object.entries(expected)){const actual=prompt[id];if(actual?.class_type!==n.class_type)throw new HeroError(422,'Raw output workflow does not match the submitted Qwen job.');for(const [k,v]of Object.entries(n.inputs))if(!(id===referenceNode&&k==='image')&&JSON.stringify(actual.inputs?.[k])!==JSON.stringify(v))throw new HeroError(422,'Raw output prompt/settings mismatch.');}
  return {width,height,executedGraph:prompt};
 }
 type Progress=(phase:'preparing'|'queued'|'generating'|'encoding'|'running',message:string,more?:{percent?:number|null;step?:number|null;steps?:number|null})=>void;

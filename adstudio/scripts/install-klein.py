@@ -1,6 +1,7 @@
 """Bounded public Klein FP8 setup. Standard library only; never starts inference.
 Defaults to checking. --install downloads only the two pinned Apache-2.0 files;
 the verified, already installed Qwen3 encoder must be present separately.
+--with-cutout additionally selects the single pinned MIT BiRefNet extraction file.
 """
 import argparse
 import hashlib
@@ -16,9 +17,12 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--models-dir", required=True)
     parser.add_argument("--install", action="store_true")
+    parser.add_argument("--with-cutout", action="store_true", help="Also check/install the single pinned MIT BiRefNet extraction file")
     args = parser.parse_args()
     root = pathlib.Path(args.models_dir).resolve(strict=True)
     pins = json.loads((ROOT / "shared/workflows/klein4b_fp8_contract.json").read_text(encoding="utf8"))
+    if args.with_cutout:
+        pins["files"].extend(json.loads((ROOT / "shared/workflows/product_cutout_contract.json").read_text(encoding="utf8"))["files"])
     missing, verified = [], []
     for entry in pins["files"]:
         target = (root / entry["file"]).resolve()
@@ -43,7 +47,7 @@ def main():
             part = target.with_name(target.name + ".openadstudio-download")
             if part.exists():
                 raise RuntimeError("A prior partial file is retained; inspect it before continuing: " + str(part))
-            url = "https://huggingface.co/" + entry["repo"] + "/resolve/" + entry["revision"] + "/" + entry["path"]
+            url = "https://huggingface.co/" + entry["repo"] + "/resolve/" + entry["revision"] + "/" + entry.get("path", entry["file"])
             digest, count = hashlib.sha256(), 0
             with urllib.request.urlopen(url, timeout=60) as response, part.open("xb") as stream:
                 while chunk := response.read(4 * 1024 * 1024):

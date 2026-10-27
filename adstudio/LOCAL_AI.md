@@ -1,3 +1,5 @@
+> Current default (2026-10-27): source-isolated product campaigns replace the framed-background milestone described below. See [GENERATIVE_ADS.md](GENERATIVE_ADS.md) for actual two-category browser outputs, native BiRefNet extraction, timing, provenance and limits. Earlier evidence below is preserved historical work.
+
 # Local AI background generation — verified 2026-10-27
 
 The existing Product-safe workflow is retained. **Automatic** now prefers a

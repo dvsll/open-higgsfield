@@ -426,3 +426,37 @@ Qwen remains optional: CRLF-only workflow normalization is checked against the
 existing LF content pin; any other change fails. Model weight hashes unchanged.
 A remote Qwen relay's capability/admission is remote, not the client's local VRAM.
 All paid/private, source/review, one-job, long HTTP and watchdog guards remain.
+
+## Ad Studio source-integrated campaigns (2026-10-27)
+
+POST /api/hero/campaign is additive and remains local SDK -> proxy -> ComfyUI.
+Accepts requestId, projectId, planId, preparedId, image, current and promptSha256.
+Header/body request IDs must match; reviewed source/original/brand/seed snapshot
+and compiled environment-prompt SHA256 must match. Same exclusive prepared receipt
+as background/scene: one pipeline, no retry. Pipeline = one native BiRefNet mask
+(product_cutout.json/contract, MIT pinned444473596-byte weight) plus one existing
+Klein background graph; no generated product geometry. Empty/ambiguous mask fails
+closed, explicit AI never falls back to a framed photo. Existing background and
+experimental reference-scene routes remain distinct. Production defaults use the
+source-preserving campaign. Queue/admission/deadline/owned cancellation unchanged.
+
+Capability klein.mode=source-integrated requires BOTH verified runtime proofs,
+all four model pins, native nodes, headroom and idle queue; includes extraction
+license/checks and complete disk bytes. No model/dependency download at startup.
+Normal cache release after our completed text/mask/image job is guarded by exact
+last-job identity and idle native queue, never a global job interrupt.
+
+Response model=klein-integrated is a deterministic composite, NOT a raw diffusion
+photograph. Includes separate unchanged raw background URL/hash/prompt/seed/job,
+cutout URL/hash/mask job/method/source box and uniform placement, source hash,
+integrated scene URL/hash768x960 and provenance. Raw mask/source checks and exact
+executed graph remain strict, including hash verification of native SDK input.
+Native duplicate input names with literal spaces/parentheses are URL-encoded;
+absolute/traversal paths and non-loopback reads remain rejected.
+
+HeroTake optionally stores scene (raw background +cutout assetIds/provenance) and
+campaign design snapshot; HeroSettings additionally accepts klein-scene and
+klein-integrated IDs. No DB/schema/origin version change. Old takes/recipes remain
+valid. Campaign renderer is selected only by the optional version1 campaign field;
+product-safe layouts are unchanged. Source-isolated scene is saved before export;
+export/history recovery reuses its raw assets without inference or stale saves.

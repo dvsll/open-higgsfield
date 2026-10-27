@@ -37,8 +37,9 @@ export async function kleinAvailability(outputs:string,modelsDir:string|undefine
  const installed=checks.ready&&!missingFiles.length,resources=kleinResources(stats,queue,busy);
  return {id:'klein',label:'FLUX.2 Klein 4B FP8 · AI background',available:installed&&tested&&resources.available,installed,tested,status:!installed?'not-installed':!resources.available?resources.status:!tested?'unsupported':'available',reason:!installed?'Klein FP8 files or native workflow nodes are missing.':!resources.available?resources.reason:!tested?'Installed, but this workflow/runtime has not completed a verified image job with current verified files.':resources.reason,checks,missingFiles,license:'Apache-2.0',precision:'FP8 distilled; native dynamic offloading',diskBytes:pins.files.reduce((n:number,f:any)=>n+f.bytes,0),newDownloadBytes:pins.files.filter((f:any)=>!f.reused).reduce((n:number,f:any)=>n+f.bytes,0),generatesAiPixels:true,preservesOriginalPhotograph:true,editsReference:false,vramFreeBytes:resources.vramFreeBytes,ramFreeBytes:resources.ramFreeBytes};
 }
-export async function runKleinSDK(c:Comfy,graph:any,signal:AbortSignal,onProgress:(message:string,percent?:number)=>void=()=>{}){
- const wf=c.workflows.fromJson(graph),job=await c.submit(wf,{signal}),stop=new AbortController();
+export async function runKleinSDK(c:Comfy,graph:any,signal:AbortSignal,onProgress:(message:string,percent?:number)=>void=()=>{},reference?:string){
+ const wf=c.workflows.fromJson(graph);if(reference)wf.setInput('14','image',c.assets.fromFile(reference));
+ const job=await c.submit(wf,{signal}),stop=new AbortController();
  const events=(async()=>{try{for await(const e of job.events(stop.signal))if(e.kind==='progress')onProgress(e.currentNode==='11'?`Generating AI background · ${e.step||0}/${e.steps||4}`:'Loading/encoding local model or saving background',e.value);}catch{}})();
  try{await job.wait(600000,signal);await job.result(signal);const out=job.getOutputs('13')[0];if(!out)throw new HeroError(502,'Klein returned no image.');const bytes=Buffer.from(await out.toBytes({timeoutMs:15000,signal}));return {jobId:job.id,bytes};}
  catch(e){let cancellationRequested=false;try{await job.cancel(AbortSignal.timeout(5000));cancellationRequested=true;}catch{}throw Object.assign(e as Error,{jobId:job.id,cancellationRequested});}finally{stop.abort();void events;}

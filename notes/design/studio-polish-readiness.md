@@ -19,3 +19,7 @@ Training source: installed ComfyUI `comfy_extras/nodes_train.py` and `nodes_data
 
 ### 2026-10-27: 3D scene implementation
 Prompt-to-OBJ generation is now proven with a real stool using installed Z-Image and Hunyuan mini. Project-scoped multi-object viewport, selection, numeric transforms, selected-only regeneration routing and scene OBJ export are connected. Whole-environment generation remains an unvalidated quality case and yields a single untextured mesh; no material generation, scene decomposition or production environment fidelity is claimed.
+
+
+### 2026-10-27: blockout acceptance correction
+The gray-chair and horror-corridor videos do not establish faithful blockout transfer. Current3-frame RGB handoff is sparse image guidance only. Structure-preserving depth/motion conditioning and primitive scene blocking are still missing; see [correction and acceptance case](blockout-previz-correction.md). Do not present visual restyling as successful camera/layout transfer.

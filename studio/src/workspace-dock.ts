@@ -13,7 +13,7 @@ import './workspace-dock.css';
 import './sequence-transport.css';
 import { mountProjectFiles } from './project-files';
 
-import { panel, split, ids, remove, dock, valid, boundsOf, type Edge, type LayoutNode } from './window-layout';
+import { panel, split, ids, remove, dock, valid, boundsOf,dockAtSize, type Edge, type LayoutNode } from './window-layout';
 import {workspaceNameError,recycleWorkspace,restoredWorkspaceName,type Setup} from './workspace-setups';
 
 type Store = { version: 2; active: string; layouts: Record<string, Setup>; notes: Record<string, { title: string; text: string }>; deletedLayouts?:Record<string,Setup> };
@@ -91,7 +91,7 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
   if(!custom)setup.tree=remove(setup.tree,'properties');
   board.dataset.defaultLayout=String(active==='Video'&&JSON.stringify(setup.tree)===JSON.stringify(fallback.tree));
   const visible = new Set(ids(setup.tree));
-  for(const [id,{title,content}] of registrations)renderView(panels.get(id)!,createElement(WindowChrome,{id,title,content,tether:!custom&&id==='viewer'?viewerTether():undefined,visible:[...visible],panels,onDrag:startDrag,onDock:(moving,target,edge)=>{setup.tree=dock(setup.tree,moving,target,edge);render();persist()},onClose:()=>closeWindow(id)}));
+  for(const [id,{title,content}] of registrations)renderView(panels.get(id)!,createElement(WindowChrome,{id,title,content,tether:!custom&&id==='viewer'?viewerTether():undefined,visible:[...visible],panels,onDrag:startDrag,onDock:(moving,target,edge)=>{setup.tree=dockAtSize(setup.tree,moving,target,edge,{x:4,y:4,width:board.clientWidth-8,height:board.clientHeight-8});render();persist()},onClose:()=>closeWindow(id)}));
   for (const [id, element] of panels) { element.hidden = !visible.has(id); element.classList.remove('is-dragging-window'); element.removeAttribute('style'); parking.append(element); menu.querySelector(`[data-window="${id}"]`)?.setAttribute('aria-pressed', String(visible.has(id))); }
   renderView(layout,createElement(DockTree,{node:setup.tree,panels,parking,onRatio:persist}));
   board.append(overlay); renderMenu();refresh();document.dispatchEvent(new Event('osh-window-layout-changed'));
@@ -116,7 +116,7 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
    if (guide) edge = guide.dataset.edge as Edge;
    else { const dx = (x - cx) / r.width, dy = (y - cy) / r.height; edge = Math.abs(dx) > Math.abs(dy) ? dx < 0 ? 'left' : 'right' : dy < 0 ? 'top' : 'bottom'; }
    candidate = { target: target.target, edge }; overlay.hidden = false;
-   const area = boundsOf(dock(initial,id,target.target,edge),id,{x:4,y:4,width:board.clientWidth-8,height:board.clientHeight-8})!;
+   const area = boundsOf(dockAtSize(initial,id,target.target,edge,{x:4,y:4,width:board.clientWidth-8,height:board.clientHeight-8}),id,{x:4,y:4,width:board.clientWidth-8,height:board.clientHeight-8})!;
    Object.assign(shade.style, { left: area.x + 'px', top: area.y + 'px', width: area.width + 'px', height: area.height + 'px' });
    Object.assign(guides.style, { left: cx - bounds.left + 'px', top: cy - bounds.top + 'px' });
    for (const item of guides.children) item.classList.toggle('selected', (item as HTMLElement).dataset.edge === edge);
@@ -131,7 +131,7 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
   const finish = (cancelled: boolean) => {
    document.removeEventListener('pointermove', move); document.removeEventListener('pointerup', up); document.removeEventListener('pointercancel', cancel); document.removeEventListener('keydown', escape); window.removeEventListener('blur', cancel);window.removeEventListener('resize',cancel);cancelDrag=null;
    ghost?.remove(); element.classList.remove('is-dragging-window'); overlay.hidden = true; document.body.classList.remove('docking-active');
-   if (moving && !cancelled && candidate) setup.tree = dock(initial, id, candidate.target, candidate.edge);
+   if (moving && !cancelled && candidate) setup.tree = dockAtSize(initial, id, candidate.target, candidate.edge,{x:4,y:4,width:board.clientWidth-8,height:board.clientHeight-8});
    else setup.tree = initial;
    if (moving) { render(); persist(); }
   };
@@ -142,7 +142,7 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
  function add(id: string, title: string, content: HTMLElement): void {
   const element = document.createElement('section'); element.className = 'studio-window'; element.dataset.window = id; element.setAttribute('aria-label', title + ' window');
   registrations.set(id,{title,content});panels.set(id,element);
-  renderView(element,createElement(WindowChrome,{id,title,content,tether:!custom&&id==='viewer'?viewerTether():undefined,visible:ids(setup.tree),panels,onDrag:startDrag,onDock:(moving,target,edge)=>{setup.tree=dock(setup.tree,moving,target,edge);render();persist()},onClose:()=>closeWindow(id)}));
+  renderView(element,createElement(WindowChrome,{id,title,content,tether:!custom&&id==='viewer'?viewerTether():undefined,visible:ids(setup.tree),panels,onDrag:startDrag,onDock:(moving,target,edge)=>{setup.tree=dockAtSize(setup.tree,moving,target,edge,{x:4,y:4,width:board.clientWidth-8,height:board.clientHeight-8});render();persist()},onClose:()=>closeWindow(id)}));
   renderMenu();
  }
  if(custom){for(const item of custom.panels)add(item.id,item.title,item.content)}else{

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { panel, split, ids, remove, dock, valid, preview, boundsOf } from '../src/window-layout.ts';
+import { panel, split, ids, remove, dock, valid, preview, boundsOf, dockAtSize } from '../src/window-layout.ts';
 const original=split('y',split('x',panel('prompts'),panel('viewer'),.4),panel('timeline'),.66);
 const allowed=new Set(['prompts','viewer','timeline','elements']);
 for(const edge of ['left','right','top','bottom']){
@@ -22,3 +22,11 @@ assert.deepEqual(JSON.parse(JSON.stringify(original)),original,'split layout rou
 console.log('PASS: four-direction splits, horizontal/vertical order, invalid/self drops, collapse, validation, exact preview and persistence.');
 
 assert.deepEqual(boundsOf(dock(split('x',panel('prompts'),panel('viewer')),'prompts','viewer','right'),'prompts',{x:0,y:0,width:1005,height:500}),{x:505,y:0,width:500,height:500},'preview accounts for source split collapsing before docking');
+
+const withStash=split('x',split('x',panel('prompts'),panel('viewer'),.25),panel('stash'),.6);
+const viewport={x:4,y:4,width:2000,height:900};
+const anchored=dockAtSize(withStash,'stash','viewer','bottom',viewport);
+assert.equal(boundsOf(anchored,'prompts',viewport).width,boundsOf(withStash,'prompts',viewport).width,'unrelated prompt column does not stretch when stash is removed');
+assert.equal(boundsOf(anchored,'stash',viewport).x,boundsOf(withStash,'viewer',viewport).x,'below preview remains anchored to viewer left edge');
+assert.ok(valid(anchored,new Set(['prompts','viewer','stash'])));
+for(const edge of ['left','right','top','bottom'])assert.ok(valid(dockAtSize(withStash,'stash','viewer',edge,viewport),new Set(['prompts','viewer','stash'])));

@@ -44,3 +44,22 @@ export function boundsOf(node: LayoutNode | null, id: string, rect: LayoutRect, 
  else { first.height = (rect.height - gap) * node.ratio; second.y += first.height + gap; second.height -= first.height + gap; }
  return boundsOf(node.first, id, first, gap) || boundsOf(node.second, id, second, gap);
 }
+
+// Keep unrelated branches at their existing pixel size when a source split collapses.
+export function dockAtSize(node:LayoutNode|null,id:string,target:string,edge:Edge,rect:LayoutRect):LayoutNode|null {
+ const result=dock(node,id,target,edge);
+ if(result===node)return result;
+ const original=new Map(ids(node).map(key=>[key,boundsOf(node,key,rect)!]));
+ const extent=(tree:LayoutNode,axis:'x'|'y')=>{const boxes=ids(tree).map(key=>original.get(key)).filter((box):box is LayoutRect=>!!box);if(!boxes.length)return 0;return axis==='x'?Math.max(...boxes.map(b=>b.x+b.width))-Math.min(...boxes.map(b=>b.x)):Math.max(...boxes.map(b=>b.y+b.height))-Math.min(...boxes.map(b=>b.y))};
+ const fit=(tree:LayoutNode,box:LayoutRect):LayoutNode=>{
+  if(tree.kind==='panel')return tree;
+  const firstAffected=ids(tree.first).some(key=>key===target||key===id),secondAffected=ids(tree.second).some(key=>key===target||key===id);
+  const length=(tree.axis==='x'?box.width:box.height)-5;
+  const ratio=firstAffected&&secondAffected ? .5 : firstAffected?1-extent(tree.second,tree.axis)/length:secondAffected?extent(tree.first,tree.axis)/length:tree.ratio;
+  const next={...tree,ratio:Math.max(.1,Math.min(.9,ratio))};
+  const first={...box},second={...box};
+  if(tree.axis==='x'){first.width=length*next.ratio;second.x+=first.width+5;second.width=length-first.width}else{first.height=length*next.ratio;second.y+=first.height+5;second.height=length-first.height}
+  return {...next,first:fit(tree.first,first),second:fit(tree.second,second)};
+ };
+ return result?fit(result,rect):null;
+}

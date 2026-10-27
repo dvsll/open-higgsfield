@@ -4,6 +4,9 @@ Append dated decisions, render times and requests here. Only the studio owner ed
 
 ## Where we left off (update this before switching agents)
 
+**Latest handoff - 2026-10-27, optional element description:** Create/Edit element description is explicitly optional; removed native required flag and submit guard on empty description. Name/reference requirements unchanged. Typecheck and Elements tests pass.
+
+
 **Latest handoff - 2026-10-27, element project image picker:** Replaced generated-only24-image pool with embedded shared ProjectFilesView inside Create/Edit element popup. Uses current project index, supports uploaded/generated images and source filters/folders, respects custom file names, refreshes on media events, and picks references locally without changing global selected media. Only image assets shown, maximum4 unique references retained; existing direct upload/drop stays. Embedded picker hides management/import/download actions and owns bounded scroll. Browser Create element chose Yellow cup from Project files and showed Remove reference1; unsaved draft only. Screenshot outputs/element-project-files-picker.png. Typecheck and affected Elements/React tests pass. No backend/dependency/model changes.
 
 

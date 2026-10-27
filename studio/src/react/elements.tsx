@@ -128,8 +128,8 @@ export function ElementLibrary({
     }
     const n = name.trim(),
       d = description.trim();
-    if (!n || !d) {
-      setStatus('Add a name and description.');
+    if (!n) {
+      setStatus('Add a name.');
       return;
     }
     if (
@@ -241,10 +241,9 @@ export function ElementLibrary({
               </select>
             </label>
             <label>
-              Description
+              Description (optional)
               <textarea
                 data-description
-                required
                 rows={5}
                 maxLength={500}
                 placeholder="Describe appearance, colors and details to preserve…"

@@ -54,6 +54,8 @@ Append dated decisions, render times and requests here. Only the adstudio owner 
 
 ## Where we left off
 
+**2026-10-27 competition static+video:** Same worktree/branch **8303**. Reused Director LTX path (`OSH.shot` → `shot_ltxv` → LTX-2B). `animateCampaign` + **Animate this ad** in React. Evidence: `outputs/campaign-video-2026-10-27T17-38-49/bakery/` + `…17-39-48/beauty/` (WebM+MP4+contacts); gallery `…17-39-48/comparison.html`. Statics remain Creative Restage ★ paths. Not owner-approved. Journey/8302/8301 untouched. No auto-merge.
+
 **2026-10-27 creative review → Creative Restage primary:** Worktree `C:\Users\osiam\open-higgsfield-quality`, branch `feat/adstudio-campaign-quality`, port **8303**. Journey/8302 and 8301 untouched.
 
 INSPECTION: Hybrid `klein-harmonized` bakery still foil-tray cutout DNA (rejected for creative quality). Beauty hybrid integrated but drifted from coastal.

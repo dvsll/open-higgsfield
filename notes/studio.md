@@ -4,6 +4,9 @@ Append dated decisions, render times and requests here. Only the studio owner ed
 
 ## Where we left off (update this before switching agents)
 
+**Latest handoff - 2026-10-27:** Shared CloseButton now has fixed border-box dimensions, zero padding immune to host action-button padding, flex-centered block SVG. Fixes X displacement in image suggestion bar and other shared close controls.
+
+
 **Latest handoff - 2026-10-27:** Image motion suggestion replaces Download image with shared icon-only X. Dismisses suggestion for that image during this page session; image remains available and a different image can show its suggestion. Typecheck passes.
 
 

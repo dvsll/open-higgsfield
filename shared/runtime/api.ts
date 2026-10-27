@@ -68,6 +68,8 @@ import {importMedia,composeAd,ComposeError,mediaTypes} from './ad-compose.ts';
 import {importReferenceVideo,analyzeReferenceVideo,assembleCommercial,searchInspiration,researchQueries,ReferenceError} from './reference-analyze.ts';
 import {planFromReference,planOriginalCampaign} from '../lib/reference-video.ts';
 import {buildCreativeIntelligence} from '../lib/creative-intelligence.ts';
+import {planCampaignSound,soundCapabilitiesNote} from '../lib/sound-director.ts';
+import {analyzeOutputAudio,extractReferenceAudio,importSoundtrack,mixCampaignSound,SoundError} from './sound-mix.ts';
 import {analysisStatus,collectBrandImage} from './brand-research.ts';
 import {BrandError} from './brand-web.ts';
 import {exportStaticAd,StaticAdError} from './static-ad.ts';
@@ -727,6 +729,44 @@ function middleware(env: Env,setup:RuntimeSetup,rewriter:PromptRewriter,creative
       if(route==='POST /api/reference/assemble'){
         try{return send(res,200,await assembleCommercial(await readBody(req,256*1024),OUTPUTS,env));}
         catch(e:any){if(e instanceof ReferenceError)return send(res,e.status,{error:e.message});throw e;}
+      }
+      if(route==='GET /api/sound/capabilities'){
+        const models=await localModels(env),caps=await capabilities(env);
+        return send(res,200,{
+          stableAudio:models.audio,ffmpeg:caps.ffmpeg,shot:caps.shot,
+          note:soundCapabilitiesNote(!!models.audio?.available),
+          modes:['auto','mute','reference','replace'],
+          rights:{videoVsAudio:'Video footage rights do not grant soundtrack rights.'}
+        });
+      }
+      if(route==='POST /api/sound/plan'){
+        const body=await readBody(req,2*1024*1024);
+        try{
+          if(!body?.creative||!body?.shotPlan||!body?.takeId)throw new SoundError(400,'Provide takeId, reviewed creative plan, and campaign shotPlan.');
+          return send(res,200,{plan:planCampaignSound({
+            takeId:String(body.takeId),creative:body.creative,shotPlan:body.shotPlan,
+            videoDuration:body.videoDuration,referenceAudio:body.referenceAudio,
+            videoRights:body.videoRights,audioRights:body.audioRights,preferSilence:!!body.preferSilence
+          }),stableAudio:(await localModels(env)).audio});
+        }catch(e:any){if(e instanceof SoundError)return send(res,e.status,{error:e.message});throw e;}
+      }
+      if(route==='POST /api/sound/analyze'){
+        try{return send(res,200,await analyzeOutputAudio((await readBody(req,16*1024)).url,OUTPUTS,env));}
+        catch(e:any){if(e instanceof SoundError)return send(res,e.status,{error:e.message});throw e;}
+      }
+      if(route==='POST /api/sound/upload'){
+        try{
+          const rights=String(req.headers['x-osh-audio-rights']||'')==='user-owned-or-licensed'?'user-owned-or-licensed':'inspiration-only';
+          return send(res,200,await importSoundtrack(req,OUTPUTS,env,rights));
+        }catch(e:any){if(e instanceof SoundError)return send(res,e.status,{error:e.message});throw e;}
+      }
+      if(route==='POST /api/sound/extract-reference'){
+        try{return send(res,200,await extractReferenceAudio(await readBody(req,64*1024),OUTPUTS,env));}
+        catch(e:any){if(e instanceof SoundError)return send(res,e.status,{error:e.message});throw e;}
+      }
+      if(route==='POST /api/sound/mix'){
+        try{return send(res,200,await mixCampaignSound(await readBody(req,2*1024*1024),OUTPUTS,env));}
+        catch(e:any){if(e instanceof SoundError)return send(res,e.status,{error:e.message});throw e;}
       }
       if(route==='POST /api/compose-ad')return send(res,200,await composeAd(await readBody(req),OUTPUTS,env));
       if (route === 'GET /api/capabilities') return send(res,200,await capabilities(env));

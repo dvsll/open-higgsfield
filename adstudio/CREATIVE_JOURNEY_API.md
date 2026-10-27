@@ -55,9 +55,18 @@ Queries only (never customer photos). Empty results if `PEXELS_API_KEY` unset.
 
 Templates: `inspired:…:xN`, `campaign:…:xN`, `original:…:xN`.
 
+## Sound Director (see `SOUND_DIRECTOR_API.md`)
+
+| Method | Behavior |
+|---|---|
+| `planCampaignSound` / `applyCampaignSound` | Adaptive SoundPlan → mix onto **silent** master (never re-runs LTX) |
+| `uploadSoundtrack` / `setInspirationAudioRights` | Licensed replace; audio rights separate from video |
+| `downloadCampaignVideo` | Mixed MP4 preferred; silent master always available |
+
 ## Hard limits
 
 - `productReplacementAvailable` always `false` on this install
 - Inspiration-only references must not appear as export source footage
 - Do not label FFmpeg wipes/dissolves as generative AI motion
+- Video footage rights do not grant soundtrack rights
 - Keep 8301 / 8302 / Director untouched; no auto-merge to main

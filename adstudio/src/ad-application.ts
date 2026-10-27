@@ -15,6 +15,7 @@ import {adScenePrompt,campaignDesign} from '../../shared/lib/ad-scene.ts';
 import {campaignMotionPrompt,campaignVideoSize} from '../../shared/lib/campaign-motion.ts';
 import {buildCreativeIntelligence} from '../../shared/lib/creative-intelligence.ts';
 import {planFromReference,planOriginalCampaign,motionPromptForShot,shotRenderDuration,type ReferenceAnalysis,type CampaignShotPlan} from '../../shared/lib/reference-video.ts';
+import {planCampaignSound,soundCapabilitiesNote,type AudioRights,type CampaignSoundState,type SoundLayerAsset,type SoundMode} from '../../shared/lib/sound-director.ts';
 import {prepareReference} from './reference.ts';
 import {defaults,type Take} from './projects.ts';
 import {resolveGenerationEngine,type GenerationEngineId,type GenerationReadiness} from './generation-engines.ts';
@@ -56,7 +57,7 @@ export function draftFor(p:AdProject):CreativeDraft {
 }
 export type Readiness=GenerationReadiness;
 export type WebsiteImage={image:string;requestedUrl:string;sourceUrl:string;contentType:string;sha256:string;association?:{key:string;sourceId:string;pageUrl:string;pageSha256:string;researchPageSha256:string;method:string}};
-export type AppClient=Pick<typeof OSH,'upload'|'staticAd'|'shot'|'exportVideo'> & {adBackground?:typeof OSH.adBackground;adScene?:typeof OSH.adScene;adCampaign?:typeof OSH.adCampaign;cancelBackground?:typeof OSH.cancelBackground;capabilities:()=>Promise<Readiness>;research:(website:string)=>Promise<Parameters<typeof applyResearch>[1]>;analyze?:(key:string)=>Promise<Parameters<typeof applyResearch>[1]>;image?:(body:{url:string;productKey:string;research:NonNullable<BrandProfile['research']>})=>Promise<WebsiteImage>};
+export type AppClient=Pick<typeof OSH,'upload'|'staticAd'|'shot'|'exportVideo'|'audio'> & {adBackground?:typeof OSH.adBackground;adScene?:typeof OSH.adScene;adCampaign?:typeof OSH.adCampaign;cancelBackground?:typeof OSH.cancelBackground;capabilities:()=>Promise<Readiness>;research:(website:string)=>Promise<Parameters<typeof applyResearch>[1]>;analyze?:(key:string)=>Promise<Parameters<typeof applyResearch>[1]>;image?:(body:{url:string;productKey:string;research:NonNullable<BrandProfile['research']>})=>Promise<WebsiteImage>};
 export const appClient:AppClient={...OSH,capabilities:async()=>{const r=await fetch('/api/hero/capabilities',{cache:'no-store',signal:AbortSignal.timeout(10000)});if(!r.ok)throw Error('The local generation service could not be reached.');const data=await r.json() as Readiness;return {...data,zimage:data.zimage||{available:!!data.reimagine,reason:data.reimagine?'Local Z-Image Turbo graph is available.':'Z-Image Turbo is not available on this ComfyUI (weights or graph nodes missing).'}};},research:async website=>{const r=await fetch('/api/brand/research',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({website,analyze:false,deferAnalysis:true})});const b=await r.json();if(!r.ok)throw Error(b.error||'Website research failed.');return b;},analyze:async key=>{const r=await fetch('/api/brand/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key}),signal:AbortSignal.timeout(240000)});const data=await r.json();if(!r.ok)throw Error(data.error||'Optional brand analysis failed. Website products are still available.');return data;},image:async body=>{const r=await fetch('/api/brand/image',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(45000)});const data=await r.json();if(!r.ok)throw Error(data.error||'Website photograph could not be imported. Upload a photograph instead.');return data;}};
 export class AdApplication {
  private websiteRevision=0;
@@ -262,7 +263,7 @@ export class AdApplication {
      shotPlan=planFromReference(plan,analysis,intel);
     }catch{/* analysis alone is still useful before a plan exists */}
    }
-   const record:InspirationRecord={videoUrl:info.url,originalUrl:info.originalUrl,sha256:info.sha256,bytes:info.bytes,duration:info.duration,width:info.width,height:info.height,rights,analysis,shotPlan,productReplacementAvailable:false};
+   const record:InspirationRecord={videoUrl:info.url,originalUrl:info.originalUrl,sha256:info.sha256,bytes:info.bytes,duration:info.duration,width:info.width,height:info.height,rights,audioRights:rights==='user-owned-or-licensed'?'inspiration-only':'inspiration-only',analysis,shotPlan,productReplacementAvailable:false};
    p.creative??={version:1,plans:[]};p.creative.inspiration=record;await this.store.projects.save(p);
    this.store.notify(shotPlan?'Inspiration analyzed into an original shot plan.':'Inspiration analyzed. Accept a creative direction to build a shot plan.');
    return record;
@@ -389,6 +390,118 @@ export class AdApplication {
     return {...result,prompt:campaignMotionPrompt(plan,take.scene?.archetype,shotPlan.creativeHook)};
    }catch(e){const live=this.store.active();live.attempt={id:p.attempt!.id,status:'failed',created:p.attempt!.created,takeIds:[],engine:'ltx-video',error:(e as Error).message};await this.store.projects.save(live).catch(()=>{});throw e;}
   });
+ }
+ /** Locate the video take produced for a static hero take (campaign/inspired/original templates). */
+ commercialFor(heroTakeId:string){const p=this.store.active();return p.takes.slice().reverse().find(t=>{const tmpl=String(t.settings.template||'');return tmpl.startsWith('campaign:'+heroTakeId)||tmpl.startsWith('inspired:'+heroTakeId)||tmpl.startsWith('original:'+heroTakeId)||tmpl.includes(':'+heroTakeId+':');});}
+ soundState(videoTakeId:string){return this.store.active().creative?.soundByTakeId?.[videoTakeId];}
+ async soundCapabilities(){const r=await fetch('/api/sound/capabilities',{cache:'no-store',signal:AbortSignal.timeout(10000)});const b=await r.json();if(!r.ok)throw Error(b.error||'Sound capabilities unavailable.');return b as {stableAudio:{available:boolean;model?:string};ffmpeg:{available?:boolean};note:string;modes:SoundMode[]};}
+ /** Confirm soundtrack rights separately from video footage rights. */
+ async setInspirationAudioRights(audioRights:AudioRights){
+  return this.store.edit(p=>{if(!p.creative?.inspiration)throw Error('Upload a reference video before setting audio rights.');p.creative.inspiration.audioRights=audioRights;});
+ }
+ async uploadSoundtrack(file:File,rights:Extract<AudioRights,'inspiration-only'|'user-owned-or-licensed'>='user-owned-or-licensed'){
+  return this.store.run('Saving soundtrack',async()=>{
+   const type=file.type||(file.name.toLowerCase().endsWith('.wav')?'audio/wav':file.name.toLowerCase().endsWith('.flac')?'audio/flac':file.name.toLowerCase().endsWith('.mp3')?'audio/mpeg':'audio/mp4');
+   const uploaded=await fetch('/api/sound/upload',{method:'POST',headers:{'Content-Type':type,'x-osh-audio-rights':rights},body:file,signal:AbortSignal.timeout(120000)});
+   const body=await uploaded.json();if(!uploaded.ok)throw Error(body.error||'Soundtrack upload failed.');
+   this.store.notify(rights==='user-owned-or-licensed'?'Licensed soundtrack saved for mixing.':'Soundtrack saved as inspiration-only; it will not be copied into exports.');
+   return body as {url:string;originalUrl:string;sha256:string;rights:AudioRights;analysis:import('../../shared/lib/sound-director.ts').ReferenceAudioAnalysis};
+  });
+ }
+ /** Plan adaptive sound for a completed commercial without regenerating video. */
+ async planCampaignSound(heroTakeId:string,preferSilence=false){
+  return this.store.run('Planning campaign sound',async()=>{
+   const p=this.store.active(),video=this.commercialFor(heroTakeId);if(!video)throw Error('Animate or produce a commercial first.');
+   const planId=p.creative?.activeId;if(!planId)throw Error('Accept a creative direction first.');
+   const plan=await this.creative.open(p.id,planId);
+   let shotPlan=p.creative?.inspiration?.shotPlan;if(!shotPlan){shotPlan=planOriginalCampaign(plan);p.creative!.inspiration={...(p.creative!.inspiration||{videoUrl:'',rights:'inspiration-only',productReplacementAvailable:false}),shotPlan,productReplacementAvailable:false};}
+   const silentMaster=video.exports.find(e=>/\.mp4$/i.test(e.url))?.url||video.source;
+   if(!/^\/outputs\/[a-f0-9]{16}\.(mp4|webm)$/.test(silentMaster))throw Error('Silent commercial master is missing.');
+   const audioRights=p.creative?.inspiration?.audioRights||'none';
+   const soundPlan=planCampaignSound({
+    takeId:video.id,creative:plan,shotPlan,videoDuration:video.seconds,
+    referenceAudio:p.creative?.inspiration?.analysis?.audio,videoRights:p.creative?.inspiration?.rights||'inspiration-only',
+    audioRights,preferSilence
+   });
+   const state:CampaignSoundState={version:1,silentMaster,plan:soundPlan,mode:preferSilence?'mute':'auto',layers:[],provenance:{created:Date.now(),mixer:'ffmpeg-aac',stableAudioAttempted:false,stableAudioAvailable:false,note:'Plan only — silent master preserved.'}};
+   p.creative!.soundByTakeId={...p.creative!.soundByTakeId,[video.id]:state};
+   await this.store.projects.save(p);
+   return state;
+  });
+ }
+ /** Auto sound: generate beds/accents when Stable Audio is available; otherwise require licensed upload or mute. Never regenerates LTX video. */
+ async applyCampaignSound(heroTakeId:string,mode:SoundMode='auto',opts?:{soundtrackUrl?:string;confirmedAudioRights?:boolean}){
+  return this.store.run(mode==='mute'?'Saving silent commercial':mode==='reference'?'Applying authorized reference audio':'Producing campaign soundtrack',async()=>{
+   const caps=await this.soundCapabilities();
+   const p=this.store.active(),video=this.commercialFor(heroTakeId);if(!video)throw Error('Animate or produce a commercial first.');
+   let state=p.creative?.soundByTakeId?.[video.id];
+   if(!state){await this.planCampaignSound(heroTakeId,mode==='mute');state=this.store.active().creative!.soundByTakeId![video.id];}
+   const live=this.store.active();
+   const silentMaster=state.silentMaster;
+   const layers:SoundLayerAsset[]=[];
+   let generated:CampaignSoundState['generated']|undefined;
+   let stableAudioAttempted=false;
+   if(mode==='mute'){
+    const mixed=await fetch('/api/sound/mix',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({silentMaster,duration:video.seconds,layers:[]}),signal:AbortSignal.timeout(120000)});
+    const body=await mixed.json();if(!mixed.ok)throw Error(body.error||'Could not export silent master.');
+    const next:CampaignSoundState={...state,mode:'mute',layers:[],mixedUrl:body.url,provenance:{created:Date.now(),mixer:'ffmpeg-aac',stableAudioAttempted:false,stableAudioAvailable:!!caps.stableAudio?.available,note:'Mute: intentional silence. Silent master unchanged; LTX video not regenerated.'}};
+    live.creative!.soundByTakeId={...live.creative!.soundByTakeId,[video.id]:next};
+    const v=live.takes.find(t=>t.id===video.id);if(v){v.source=silentMaster;/* keep exports; mixed is sound-only delivery */}
+    await this.store.projects.save(live);
+    this.store.notify('Silent commercial ready. Original silent master preserved.');
+    return next;
+   }
+   if(mode==='reference'){
+    if(!opts?.confirmedAudioRights&&live.creative?.inspiration?.audioRights!=='user-owned-or-licensed')throw Error('Confirm separate rights to the reference soundtrack (not just the video footage) before reuse.');
+    const sourceUrl=live.creative?.inspiration?.originalUrl||live.creative?.inspiration?.videoUrl;if(!sourceUrl)throw Error('Upload a reference with an audio track first.');
+    const extracted=await fetch('/api/sound/extract-reference',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:sourceUrl,audioRights:'user-owned-or-licensed'}),signal:AbortSignal.timeout(120000)});
+    const ex=await extracted.json();if(!extracted.ok)throw Error(ex.error||'Could not extract reference audio.');
+    layers.push({id:crypto.randomUUID(),kind:'reference',url:ex.url,at:0,duration:video.seconds,gainDb:-6,fadeIn:0.2,fadeOut:0.5,rights:'user-owned-or-licensed',provenance:'authorized-reference-extract'});
+   }else if(mode==='replace'||opts?.soundtrackUrl){
+    const url=opts?.soundtrackUrl;if(!url||!/^\/outputs\/[a-f0-9]{16}\.(wav|flac|m4a|aac|mp3|mp4|webm)$/.test(url))throw Error('Upload a licensed soundtrack first.');
+    layers.push({id:crypto.randomUUID(),kind:'music',url,at:0,duration:video.seconds,gainDb:-8,fadeIn:0.3,fadeOut:0.6,rights:'user-owned-or-licensed',provenance:'user-upload-licensed'});
+   }else{
+    // auto
+    if(caps.stableAudio?.available&&this.client.audio&&state.plan.modelPrompt){
+     stableAudioAttempted=true;
+     const seed=Math.floor(Math.random()*1e9);
+     const bed=await this.client.audio(state.plan.modelPrompt,Math.min(47,Math.max(1,video.seconds)),seed);
+     generated={audioUrl:bed.audio,prompt:state.plan.modelPrompt,seed,model:'stable-audio-open-1.0',seconds:bed.seconds};
+     layers.push({id:crypto.randomUUID(),kind:state.plan.ambienceAppropriate?'ambience':'music',url:bed.audio,at:0,duration:video.seconds,gainDb:state.plan.cues.find(c=>c.kind==='music'||c.kind==='ambience')?.gainDb??-8,fadeIn:0.35,fadeOut:0.7,rights:'none',provenance:'stable-audio-open-1.0'});
+     for(const cue of state.plan.cues.filter(c=>c.kind==='sfx'||c.kind==='accent')){
+      if(!cue.prompt)continue;
+      try{
+       const fx=await this.client.audio(cue.prompt,Math.min(8,Math.max(1,cue.duration+0.4)),seed+cue.at*1000|0);
+       layers.push({id:crypto.randomUUID(),kind:cue.kind==='accent'?'sfx':'sfx',url:fx.audio,at:cue.at,duration:cue.duration,gainDb:cue.gainDb,fadeIn:cue.fadeIn,fadeOut:cue.fadeOut,rights:'none',provenance:'stable-audio-open-1.0'});
+      }catch{/* accent failure is non-fatal; bed remains */}
+     }
+    }else{
+     throw Error(soundCapabilitiesNote(false)+' Upload a licensed soundtrack (Replace) or choose Mute. Silent master remains downloadable.');
+    }
+   }
+   const mixed=await fetch('/api/sound/mix',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({silentMaster,duration:video.seconds,layers,plan:state.plan}),signal:AbortSignal.timeout(180000)});
+   const body=await mixed.json();if(!mixed.ok)throw Error(body.error||'Audio mix failed; silent master was kept.');
+   const next:CampaignSoundState={version:1,silentMaster,plan:state.plan,mode,layers,mixedUrl:body.url,generated,provenance:{created:Date.now(),mixer:'ffmpeg-aac',stableAudioAttempted,stableAudioAvailable:!!caps.stableAudio?.available,note:body.note||'Mixed soundtrack. Silent LTX master preserved.'}};
+   live.creative!.soundByTakeId={...live.creative!.soundByTakeId,[video.id]:next};
+   const v=live.takes.find(t=>t.id===video.id);
+   if(v&&body.url){
+    v.exports=[...v.exports,{id:crypto.randomUUID(),url:body.url,tagline:(v.settings.tagline||'')+' · sound',created:Date.now()}];
+   }
+   await this.store.projects.save(live);
+   this.store.notify(mode==='reference'?'Authorized reference audio mixed. Silent master preserved.':'Soundtrack mixed. Silent master preserved; video was not regenerated.');
+   return next;
+  });
+ }
+ async downloadCampaignVideo(heroTakeId:string,preferMixed=true,download:Download=browserDownload){
+  if(this.store.getSnapshot().busy)throw Error('Finish the current operation first.');
+  const video=this.commercialFor(heroTakeId);if(!video)throw Error('No commercial video is saved for this advertisement.');
+  const sound=this.soundState(video.id);
+  const url=preferMixed&&sound?.mixedUrl?sound.mixedUrl:sound?.silentMaster||video.exports.at(-1)?.url||video.source;
+  const r=await fetch(url);if(!r.ok)throw Error('The saved commercial file is missing.');
+  const blob=await r.blob();
+  try{await download(blob,/\.mp4$/i.test(url)?'campaign.mp4':'campaign-video');}catch{throw Error('The commercial is still saved. Your browser could not start the download.');}
+  this.store.notify(preferMixed&&sound?.mixedUrl?'Download requested for the mixed soundtrack MP4.':'Download requested for the silent master MP4.');
+  return {url,silentMaster:sound?.silentMaster||url,mixed:!!(preferMixed&&sound?.mixedUrl)};
  }
  async downloadAdvertisement(id:string,download:Download=browserDownload){if(this.store.getSnapshot().busy)throw Error('Finish the current operation first.');const p=this.store.active(),record=[...p.staticAds!.exports,...p.hero!.exports].find(e=>e.id===id);if(!record)throw Error('This advertisement is not in the current project.');const blob=await previewBlob(this.store,record.assetId,record.sha256,true);try{await download(blob,'advertisement-'+id+'.png');}catch{throw Error('The advertisement is still saved. Your browser could not start the download; check its download permissions and try this saved file again.');}this.store.clearError();this.store.notify('Download requested from the saved advertisement.');}
  private async composeTake(take:HeroTake,copy:CopyEdit,fidelityReviewed:boolean){

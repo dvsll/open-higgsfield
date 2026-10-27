@@ -38,6 +38,8 @@ export type ReferenceAnalysis={
  transferablePrinciples:string[];
  analysisMethod:string;
  warnings:string[];
+ /** Optional FFmpeg audio measurements — never implies soundtrack reuse rights. */
+ audio?:import('./sound-director.ts').ReferenceAudioAnalysis;
 };
 
 export type CampaignShotBrief={

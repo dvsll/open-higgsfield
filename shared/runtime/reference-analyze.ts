@@ -7,6 +7,7 @@ import {tmpdir} from 'node:os';
 import type {IncomingMessage} from 'node:http';
 import type {CreativeHook} from '../lib/creative-intelligence.ts';
 import type {ReferenceAnalysis,ReferenceRights,ReferenceShot,Confidence} from '../lib/reference-video.ts';
+import {analyzeMediaAudio} from './sound-mix.ts';
 
 export class ReferenceError extends Error{constructor(public status:number,message:string){super(message);}}
 type Env=Record<string,string|undefined>;
@@ -149,6 +150,10 @@ export async function analyzeReferenceVideo(body:any,root:string,env:Env):Promis
    analysisMethod:'ffmpeg-ffprobe scene-change + keyframe extract + difference blackframe heuristic; no generative vision model',
    warnings:[...warnings,'Inspiration-only: do not copy frames, logos or distinctive footage into exported ads.','Direct product replacement in reference video is unavailable on this install.']
   };
+  try{
+   analysis.audio=await analyzeMediaAudio(path,env);
+   if(analysis.audio.hasAudio)analysis.warnings.push('Reference audio detected. Video rights ≠ soundtrack rights; confirm audio rights separately before reuse.');
+  }catch{analysis.warnings.push('Reference audio analysis skipped.');}
   await writeFile(join(root,`ref-analysis-${analysis.id}.json`),JSON.stringify(analysis,null,2));
   return analysis;
  }finally{await rm(work,{recursive:true,force:true}).catch(()=>{});}

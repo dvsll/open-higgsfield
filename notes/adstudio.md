@@ -54,6 +54,8 @@ Append dated decisions, render times and requests here. Only the adstudio owner 
 
 ## Where we left off
 
+**2026-10-27 SOUND DIRECTOR:** Same final worktree/branch **8304**. Adaptive `SoundPlan` + FFmpeg mix on silent commercial masters. Stable Audio Open 1.0 / T5-base **NOT installed** (Comfy nodes present; no auto-download). Modes: Auto / Mute / Replace licensed / authorized Reference audio. Video rights ≠ audio rights. Persistence: optional `creative.soundByTakeId` (no schema migration). Proof PASS `outputs/sound-proof-2026-10-27T19-46-18/` (A audible AAC max−38dB, B authorized ref audio, C inspiration extract 403 + original bed, D mute silent). Contract `adstudio/SOUND_DIRECTOR_API.md`. 8301–8303/Director untouched.
+
 **2026-10-27 FINAL INTEGRATION DELIVERED:** Worktree `C:\Users\osiam\open-higgsfield-final` · branch `feat/adstudio-final-integration` · preview **http://127.0.0.1:8304/adstudio/journey.html** (`npm run dev:final`). Base quality `25d6bbd` + journey `e928091`. Merge preserves `CreativeWorkspace.journey?` + `inspiration?` (no DB version bump). Journey UI: Short video gated on Comfy+LTX+FFmpeg; Animate this ad; reference upload → inspired multi-shot; MP4 gallery + download + reload recovery. Static product-safe path retained.
 
 **E2E PASS** `outputs/final-e2e-2026-10-27T19-24-18/` (static PNG → noref MP4 1.3MB → inspired MP4 0.9MB → reload 2 videos). Caps: shot+ffmpeg+comfy. Tests: typecheck/build PASS; journey 7/7; creative 6/6; website 5/5; adstudio-ui 6/6. Studio suite + `klein-scene-app` fail identically on quality branch (pre-existing; not introduced here). 8301/8302/8303/Director untouched. No merge to main.

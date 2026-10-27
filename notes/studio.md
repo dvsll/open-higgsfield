@@ -4,6 +4,9 @@ Append dated decisions, render times and requests here. Only the studio owner ed
 
 ## Where we left off (update this before switching agents)
 
+**Latest handoff - 2026-10-27, Admin model flow and diagnostics popup:** Admin now has Models/Add models and Diagnostics/Open error logs actions. ErrorLogs mounts only inside shared Popup, retains polling/expand/download behavior. Add models shared popup has Choose media-filtered supported packs, Review deduplicated missing files/GB/licenses/source repo links/models folder, Install status/progress/cancel/retry via Back, and explicit available-model inventory check. Reuses existing GET setup, POST connect/download/cancel and GET models; no new backend/downloader/dependency/model. Existing installed files are reused, selection survives popup reopen in session and active setup opens status stage. File presence and actual compatible Studio models are shown separately. Browser verified log popup and installed Audio pack choose/review/continue/readiness path with no downloads, resulting inventory includes Stable Audio, LTX, Z-Image and geometry. Screenshots outputs/admin-logs-popup.png and outputs/admin-model-review.png. Typecheck/build and all24 tests pass, install-plan regression covers shared-file dedup and missing-only size. Arbitrary checkpoint integration is not claimed; flow offers manifest-supported packs.
+
+
 **Latest handoff - 2026-10-27, optional element description:** Create/Edit element description is explicitly optional; removed native required flag and submit guard on empty description. Name/reference requirements unchanged. Typecheck and Elements tests pass.
 
 

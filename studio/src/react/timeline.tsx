@@ -70,7 +70,7 @@ function Clip({ item, index }: { item: ClipItem; index: number }) {
           </span>
         )}
       </span>
-      {item.hasAudio&&<span className="clip-linked-sound" title="Soundtrack attached to this video">♫ Linked sound</span>}
+      {item.hasAudio&&<span className="clip-linked-sound" data-compact={item.width<112} aria-label="Linked sound" title="Soundtrack attached to this video"><span aria-hidden="true">♫</span><span className="linked-sound-label">Linked sound</span></span>}
       <div className="grip" title="Drag to trim" />
       {item.keys?.map((key) => (
         <Guide key={key.id} item={key} />

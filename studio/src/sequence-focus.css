@@ -70,4 +70,4 @@
 .tl [data-marquee-selected]{outline:1px solid var(--ui-accent)!important;outline-offset:-1px;box-shadow:inset 0 0 0 1px #e9c46a55!important}
 #ruler{cursor:ew-resize;touch-action:none}
 
-.ruler-playhead{position:absolute;top:0;bottom:0;width:2px;background:var(--ui-accent,#e9c46a);z-index:10;pointer-events:none}.ruler-playhead::before{content:"";position:absolute;top:0;left:-4px;border-left:5px solid transparent;border-right:5px solid transparent;border-top:6px solid var(--ui-accent,#e9c46a)}
+.ruler-playhead{position:absolute;transform:translateX(-50%);top:0;bottom:0;width:2px;background:var(--ui-accent,#e9c46a);z-index:10;pointer-events:none}.ruler-playhead::before{content:"";position:absolute;top:0;left:50%;transform:translateX(-50%);border-left:5px solid transparent;border-right:5px solid transparent;border-top:6px solid var(--ui-accent,#e9c46a)}

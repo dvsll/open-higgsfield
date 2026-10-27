@@ -4,6 +4,9 @@ Append dated decisions, render times and requests here. Only the studio owner ed
 
 ## Where we left off (update this before switching agents)
 
+**Latest handoff - 2026-10-27, narrow linked badge and centered ruler cap:** Linked-sound badge now uses a bounded nowrap flex row and icon-only form below112px clip width, preventing wrapping/spill into neighboring lanes. Ruler marker is centered on its time coordinate with translateX(-50 percent), with triangle independently centered on stem. Typecheck and React regression pass. No backend changes.
+
+
 **Latest handoff - 2026-10-27, timeline navigation and marquee:** Added service-based marquee selection on empty lane space, Shift additive/Shift-drag over clips, shared selection IDs on video/key/layer React hosts, visible selection bounds, toolbar/Delete bulk removal through existing saved state; removed lane-background seek. Existing direct clip/key drag behavior remains. Ruler alone scrubs; cancellation clears drag. Bright ruler handle is a separate React ruler marker while lane line is muted28 percent and pointer-transparent. Track disclosures use restrained transparent styling and smaller arrows. Alt/Ctrl wheel requests pointer-anchored zoom1-32x; Shift wheel pans horizontally, plain wheel scrolls vertically via dock body. Zoom modifies timeline scale without media duration changes. Browser drag selected two independent audio clips and enabled Delete with no video, verified bright handle and muted line. No deletion performed in smoke test. Screenshot outputs/timeline-selection-controls.png. Typecheck/build and24 Studio tests pass, wheel regression updated for modifier zoom. No backend/dependency/model changes.
 
 

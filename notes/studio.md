@@ -4,6 +4,9 @@ Append dated decisions, render times and requests here. Only the studio owner ed
 
 ## Where we left off (update this before switching agents)
 
+**Latest handoff - 2026-10-27, selected video guide action:** Video Prompt shows Use selected video as guide when shared Selected media contains a video. Shared shell exposes current selection and emits change event; React action handles busy/error/result. New local videoGuide service validates owned video, decodes start/mid/end at up to1024px, uploads PNGs through existing route and releases video resources. Generic addVideoReference shared with3D handoff chooses compatible multi-guide LTX, creates new shot (preserves source), retains typed prompt and quantizes timing to existing121-frame cap. Registered guide images generated in Project files. Real browser selected saved blockout Video011, clicked action and reached3 timed guides ready without inference. Screenshot outputs/selected-video-guide.png. Typecheck/build and24 scripts pass. This is sampled-frame conditioning, not dense video-to-video; long sources retimed to existing shot limit. No new dependency/model/backend changes.
+
+
 **Latest handoff - 2026-10-27, dotted camera trajectory:** Editor draws warm dotted world-space path for configured spatial camera motion, updates from Advanced prompt changes, selected pivot and camera/object placement. Shared cameraPose sampler now drives playback and129-point trajectory so preview cannot drift from actual movement. Empty/invalid instruction hides path; tilt has no position trajectory. Path hidden in camera view/recording and excluded from scene export; resources/listener disposed. Browser verified saved orbit displays arc beside camera; screenshot outputs/camera-trajectory.png. Typecheck/build and24 scripts pass; regression checks orbit initial pose/radius, dolly approach and stationary tilt. No backend/dependency/model changes.
 
 

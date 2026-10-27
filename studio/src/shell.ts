@@ -239,7 +239,7 @@ function maker(edit?:Style){
 function select(m: Media | null) {
   const key = m ? JSON.stringify([m.type, m.label, m.spec, m.u, m.img,m.video,m.audio]) : '';
   if (key === mediaKey) return;
-  mediaKey = key; media = m; drawMedia();
+  mediaKey = key; media = m; drawMedia();dispatchEvent(new Event('osh-media-selection'));
 }
 function drawMedia() {
   const box = $('#shared .media'); if (!box) return;
@@ -271,4 +271,4 @@ function open(app: string) {
 /** Highlight elements in use (chips on in the generator, regions selected in Edit). */
 function mark(ids: string[]) { dispatchEvent(new CustomEvent('osh-element-usage',{detail:ids}));document.querySelectorAll<HTMLElement>('#studioElements .el').forEach((b) => b.classList.toggle('on', ids.includes(b.dataset.id!))); }
 
-export const SHELL = { mount, mark, select, open, ELEMENTS, APPS, styleFit };
+export const SHELL = { selected:()=>media, mount, mark, select, open, ELEMENTS, APPS, styleFit };

@@ -1,3 +1,4 @@
+import {VideoGuide} from './video-guide';
 import {PromptMedia} from './prompt-media';
 import {NumberInput} from './number-input';
 import type {ReactNode} from 'react';
@@ -121,7 +122,7 @@ export function DirectorSurface() {
               <div className="row primary-prompt-row">
                 <div className="prompt-field" data-model-kind="video" data-model-control="shotPromptInput">
                   <label htmlFor="shotPromptInput">Prompt</label>
-                  <textarea id="shotPromptInput" rows={2} placeholder="Describe your video, including any movement and sound…" />
+                  <textarea id="shotPromptInput" rows={2} placeholder="Describe your video, including any movement and sound…" /><VideoGuide/>
                 </div>
               </div>
               <AdvancedPrompt>

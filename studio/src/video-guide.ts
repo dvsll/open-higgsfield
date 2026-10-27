@@ -1,0 +1,8 @@
+import {OSH} from '../../shared/runtime/client';
+import type {SceneVideo} from './scene-video';
+export async function videoGuide(url:string,prompt:string):Promise<SceneVideo>{
+ if(!/^\/outputs\/[a-f0-9]{16}\.(webm|mp4)$/.test(url))throw Error('Choose a project video.');
+ const video=document.createElement('video');video.muted=true;video.preload='auto';video.playsInline=true;
+ const wait=(name:string,run:()=>void)=>new Promise<void>((resolve,reject)=>{const clear=()=>{clearTimeout(timer);video.removeEventListener(name,done);video.removeEventListener('error',fail)},done=()=>{clear();resolve()},fail=()=>{clear();reject(Error('Could not read the selected video.'))},timer=setTimeout(fail,15000);video.addEventListener(name,done,{once:true});video.addEventListener('error',fail,{once:true});run()});
+ try{await wait('loadeddata',()=>{video.src=url;video.load()});const duration=video.duration;if(!Number.isFinite(duration)||duration<=0)throw Error('Video duration is unavailable.');const canvas=document.createElement('canvas'),scale=Math.min(1,1024/video.videoWidth,1024/video.videoHeight);canvas.width=Math.max(1,Math.round(video.videoWidth*scale));canvas.height=Math.max(1,Math.round(video.videoHeight*scale));const context=canvas.getContext('2d');if(!context)throw Error('Could not capture video guides.');const keys=[];for(const fraction of [0,.5,1]){const time=Math.min(duration-.001,duration*fraction);if(Math.abs(video.currentTime-time)>.0001)await wait('seeked',()=>{video.currentTime=time});context.drawImage(video,0,0,canvas.width,canvas.height);keys.push({image:(await OSH.upload(canvas.toDataURL('image/png'))).url,t:duration*fraction})}return {url,duration,prompt,keys}}finally{video.removeAttribute('src');video.load()}
+}

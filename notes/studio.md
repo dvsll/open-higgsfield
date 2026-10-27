@@ -4,6 +4,9 @@ Append dated decisions, render times and requests here. Only the studio owner ed
 
 ## Where we left off (update this before switching agents)
 
+**Latest handoff - 2026-10-27:** Renamed Edit history dock title/menu entry to History; stable panel ID and saved layouts unchanged. Typecheck passes.
+
+
 **Latest handoff - 2026-10-27, undo branch graph:** Edit history shows chronological connected lanes; linear edits stay in one lane, alternate children fork to separate lanes. Current ancestry is warm accent, alternate paths muted; Current row marked, full row restores existing snapshot. Nodes distinguish prompt/image/take/structure/start with subtle shapes. Current state scrolls into view on update and hidden-window reveal via ResizeObserver; manual scroll remains until another edit/reveal. Existing undo/redo/navigation retained. Browser verified latest state visible at panel bottom; branch geometry/action classification covered by React regression. Typecheck/build pass. No history storage format or backend changes.
 
 

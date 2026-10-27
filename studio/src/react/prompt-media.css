@@ -9,3 +9,8 @@
 .studio-window[data-window=prompts] .primary-prompt-row>.prompt-field>label{display:flex;align-items:center;min-height:20px;box-sizing:border-box}
 
 .image-composer .image-results{display:none}
+
+.composer[data-media="3d"] #promptModelSlot>.modelbar,.composer:not([data-media="3d"]) #promptModelSlot>.geometry-modelbar{display:none}.geometry-composer{flex:1;min-height:0;overflow:auto}.geometry-composer .geometry-prompt{max-height:none;padding:var(--ui-space)}.geometry-composer textarea{font:inherit;background:var(--ui-bg);color:var(--ui-text);border:1px solid var(--ui-border);box-sizing:border-box;width:100%;min-height:110px;resize:vertical;padding:8px}.camera-prompt{margin-top:24px;padding-top:16px;border-top:1px solid var(--ui-border)}.camera-prompt>label{display:block;margin-bottom:8px;color:var(--ui-muted);font-size:var(--ui-small)}.camera-prompt-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0}.camera-prompt-actions label{display:flex;gap:8px;align-items:center}.camera-prompt small,.camera-prompt p,.geometry-composer [role=status]{font-size:var(--ui-small);color:var(--ui-muted)}
+
+
+.studio-window[data-window=prompts] .geometry-prompt-actions>button{background:var(--ui-accent);border:1px solid #f0d28f;color:#241c0d;padding:10px 16px;min-height:44px;font:inherit;font-weight:600}.geometry-composer .geometry-prompt>label{font-size:var(--ui-small)}

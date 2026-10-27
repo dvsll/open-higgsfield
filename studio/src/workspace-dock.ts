@@ -38,7 +38,7 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
   Overlays:{tree:split('y',overlayTop,panel('timeline'),topRatio),mode:'video'},
   Training:{tree:split('x',panel('files'),split('y',split('x',panel('training-data'),panel('stylization'),.65),panel('training-runs'),.7),.22),mode:'video'},
   Edit:{tree:split('x',panel('files'),split('x',panel('edit-viewer'),split('y',panel('edit-controls'),panel('edit-versions'),.65),.7),.2),mode:'video'},
-  '3D': { tree: split('x', panel('files'), panel('stage'), .22), mode: 'video' },
+  '3D': { tree: split('x',panel('files'),split('x',panel('prompts'),panel('stage'),.36),.22), mode:'video',promptMedia:'3d' },
   Rendering: { tree: split('x',panel('files'),split('x',panel('viewer'),panel('prompts'),.6),.2), mode: 'video' }
  };
  const fallback=presets[custom?.active||'Video']||Object.values(presets)[0];
@@ -65,6 +65,7 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
  if(!custom&&!localStorage.getItem('osh-image-library-layout-v1')){store.layouts.Image=clone(presets.Image);localStorage.setItem('osh-image-library-layout-v1','1')}
  for(const value of [...Object.values(store.layouts),...Object.values(store.deletedLayouts||{})])for(const id of ids(value.tree))if(['takes','stash'].includes(id)||id.startsWith('note-')||Object.hasOwn(store.notes,id))value.tree=remove(value.tree,id);
  if(!custom&&!localStorage.getItem('osh-prompt-3d-layout-v1')){store.layouts['3D']=clone(presets['3D']);localStorage.setItem('osh-prompt-3d-layout-v1','1')}
+ if(!custom&&!localStorage.getItem('osh-3d-shared-prompt-v1')){store.layouts['3D']=clone(presets['3D']);localStorage.setItem('osh-3d-shared-prompt-v1','1')}
  let active = store.active;
  let setup = clone(store.layouts[active] || presets[active] || fallback);
  if(!custom){const replace=(tree:LayoutNode|null):LayoutNode|null=>tree?.kind==='panel'?(tree.id==='overlay-create'?panel('captions'):tree):tree?{...tree,first:replace(tree.first)!,second:replace(tree.second)!}:null;for(const value of [...Object.values(store.layouts),...Object.values(store.deletedLayouts||{})])value.tree=ids(value.tree).includes('captions')?remove(value.tree,'overlay-create'):replace(value.tree);setup.tree=ids(setup.tree).includes('captions')?remove(setup.tree,'overlay-create'):replace(setup.tree)}
@@ -203,7 +204,7 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
   active=name;setup=next;if(!custom)dispatchEvent(new CustomEvent('osh-prompt-media',{detail:next.promptMedia||(name==='Audio'?'audio':next.mode==='image'?'image':'video')}));choices();render();persist();document.dispatchEvent(new CustomEvent('osh-workspace-selected',{detail:{name,mode:setup.mode}}));return true;
  }
  if(!custom)setup.tree=remove(setup.tree,'properties');
- const promptMedia=(media:string)=>{switching=true;try{workflow(media==='image'?'image':'video')}finally{switching=false}if(document.body.dataset.workflow!==(media==='image'?'image':'video'))return;setup.mode=media==='image'?'image':'video';setup.promptMedia=media==='image'?'image':media==='audio'?'audio':'video';dispatchEvent(new CustomEvent('osh-prompt-media',{detail:media}));persist()};
+ const promptMedia=(media:string)=>{switching=true;try{workflow(media==='image'?'image':'video')}finally{switching=false}if(document.body.dataset.workflow!==(media==='image'?'image':'video'))return;setup.mode=media==='image'?'image':'video';setup.promptMedia=media==='image'?'image':media==='audio'?'audio':media==='3d'?'3d':'video';dispatchEvent(new CustomEvent('osh-prompt-media',{detail:media}));persist()};
  if(!custom)addEventListener('osh-prompt-media-request',((event:CustomEvent)=>promptMedia(event.detail)) as EventListener);
  addEventListener('osh-reveal-window',((event:CustomEvent)=>{if(!custom&&event.detail==='keyframes'){promptMedia('image');openWindow('prompts');return}if(panels.has(event.detail))openWindow(event.detail)}) as EventListener);
  document.addEventListener('osh-workspace-select',((event:CustomEvent)=>{if(presets[event.detail]||!custom&&event.detail==='Director')select(event.detail)}) as EventListener);

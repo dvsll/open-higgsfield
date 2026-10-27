@@ -1,5 +1,5 @@
 import {panel,split,type LayoutNode} from './window-layout.ts';
-export type Setup={tree:LayoutNode|null;mode:string;promptMedia?:'video'|'image'|'audio'};
+export type Setup={tree:LayoutNode|null;mode:string;promptMedia?:'video'|'image'|'audio'|'3d'};
 export const basicVideoWorkspace=():Setup=>({tree:split('x',panel('prompts'),panel('viewer'),.5),mode:'video'});
 export function workspaceNameError(name:string,names:string[],current?:string):string{
  const trimmed=name.trim();

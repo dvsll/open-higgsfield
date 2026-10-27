@@ -1,3 +1,4 @@
+import {PromptMedia} from './prompt-media';
 import {NumberInput} from './number-input';
 import type {ReactNode} from 'react';
 import {createPortal} from 'react-dom';
@@ -109,6 +110,7 @@ export function DirectorSurface() {
             </div>
           </section>
           <section className="composer" aria-label="Generation prompts">
+            <PromptMedia/>
             <div className="prompt-scroll">
               <div className="modelbar compact-modelbar">
                 <label htmlFor="videoModel">Model</label>

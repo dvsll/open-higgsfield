@@ -10,13 +10,8 @@ type Options={read:()=>LayerState;change:(state:LayerState)=>void;time:()=>numbe
 export function mountSequenceLayers(options:Options){
  const root=document.getElementById('overlayPreview')!,players=new Map<string,HTMLAudioElement>();let previewKey='';
  let audioReady=false;
- const creators=new Map<'audio'|'overlays',{host:HTMLElement;revision:number}>();
- function creator(kind:'audio'|'overlays'){
-  const entry=creators.get(kind)!;
-  renderView(entry.host,createElement(LayerEditor,{key:entry.revision,group:kind,embedded:true,audioReady,start:options.time(),duration:Math.min(4,Math.max(.1,options.duration()-options.time())),onClose:()=>{entry.revision++;creator(kind)},onSave:layer=>{const state=options.read();options.change({...state,[kind]:[...state[kind],layer]});entry.revision++;creator(kind)}}));
- }
- for(const kind of ['audio'] as const){const host=document.createElement('div');host.id=kind==='audio'?'studioAudioCreator':'studioOverlayCreator';creators.set(kind,{host,revision:0});document.body.append(host);creator(kind)}
- void fetch('/api/models').then(r=>r.json()).then(result=>{audioReady=!!result.audio?.available;creator('audio')}).catch(()=>{});
+ addEventListener('osh-audio-generated',((event:CustomEvent<Layer>)=>{const state=options.read();options.change({...state,audio:[...state.audio,{...event.detail,start:options.time()}]})}) as EventListener);
+ void fetch('/api/models').then(r=>r.json()).then(result=>{audioReady=!!result.audio?.available}).catch(()=>{});
  function edit(kind:'overlays'|'audio',existing?:Layer){
   const toggle=document.getElementById(kind==='audio'?'audioTrackToggle':'overlayTrackToggle');if(toggle?.getAttribute('aria-expanded')!=='true')toggle?.click();
   options.select();if(kind==='audio'&&existing?.url)selectCaptionSource({id:existing.id,url:existing.url,label:existing.name,start:existing.start,duration:existing.duration,origin:'timeline'});const host=document.createElement('div');document.body.append(host);
@@ -42,5 +37,5 @@ export function mountSequenceLayers(options:Options){
   }
   for(const [id,player]of players)if(!state.audio.some(item=>item.id===id)){player.pause();player.removeAttribute('src');player.load();players.delete(id)}
  }
- return {render,play,busy:()=>!!document.querySelector('.sequence-layer-editor [data-generating=true]')};
+ return {render,play,busy:()=>!!document.querySelector('.sequence-layer-editor [data-generating=true],.audio-composer[data-generating=true]')};
 }

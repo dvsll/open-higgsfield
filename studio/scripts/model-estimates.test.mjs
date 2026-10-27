@@ -21,3 +21,8 @@ for (const m of [imageModel, videoModel]) {
   assert.equal(m.capabilities.find(c => c.name === 'Elements').status, 'prompt');
 }
 console.log('PASS: timing defaults, frame scaling/cap, model-specific observations, invalid times and capability truthfulness.');
+
+const {modelInstallPlan}=await import('../src/model-install-plan.ts');
+const common={file:'encoder.safetensors',size_gb:2,license:'Apache-2.0',url:'https://example.test/encoder',installed:true};
+const packPlan=modelInstallPlan([{id:'one',name:'One',models:[common,{...common,file:'one.safetensors',size_gb:3,installed:false}]},{id:'two',name:'Two',models:[common,{...common,file:'two.safetensors',size_gb:4,installed:false}]}],['one','two']);
+assert.equal(packPlan.files.length,3);assert.equal(packPlan.missing.length,2);assert.equal(packPlan.sizeGB,7);assert.equal(modelInstallPlan([],[]).sizeGB,0);

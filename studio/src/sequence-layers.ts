@@ -1,3 +1,5 @@
+import {SC} from './scene';
+import {revealGeneratedFile} from './generated-file';
 import {createElement} from 'react';
 import {renderView,unmountView} from './react/render';
 import {LayerEditor,LayerLane,OverlayPreview} from './react/sequence-layers';
@@ -10,13 +12,8 @@ type Options={read:()=>LayerState;change:(state:LayerState)=>void;time:()=>numbe
 export function mountSequenceLayers(options:Options){
  const root=document.getElementById('overlayPreview')!,players=new Map<string,HTMLAudioElement>();let previewKey='';
  let audioReady=false;
- const creators=new Map<'audio'|'overlays',{host:HTMLElement;revision:number}>();
- function creator(kind:'audio'|'overlays'){
-  const entry=creators.get(kind)!;
-  renderView(entry.host,createElement(LayerEditor,{key:entry.revision,group:kind,embedded:true,audioReady,start:options.time(),duration:Math.min(4,Math.max(.1,options.duration()-options.time())),onClose:()=>{entry.revision++;creator(kind)},onSave:layer=>{const state=options.read();options.change({...state,[kind]:[...state[kind],layer]});entry.revision++;creator(kind)}}));
- }
- for(const kind of ['audio','overlays'] as const){const host=document.createElement('div');host.id=kind==='audio'?'studioAudioCreator':'studioOverlayCreator';creators.set(kind,{host,revision:0});document.body.append(host);creator(kind)}
- void fetch('/api/models').then(r=>r.json()).then(result=>{audioReady=!!result.audio?.available;creator('audio')}).catch(()=>{});
+ addEventListener('osh-audio-generated',((event:CustomEvent<Layer>)=>{const layer=event.detail as Layer&{replaceId?:string},state=options.read(),target=state.audio.find(item=>item.id===layer.replaceId);if(target)options.change({...state,audio:state.audio.map(item=>item===target?{...item,url:layer.url,text:layer.text,duration:layer.duration}:item)});const files=SC.get('osh-project-files')||[];SC.set('osh-project-files',[...files,{url:layer.url,label:layer.name,kind:'audio',origin:'generated',duration:layer.duration}]);if(target)dispatchEvent(new Event('osh-project-media'));else revealGeneratedFile(layer.url!)}) as EventListener);
+ void fetch('/api/models').then(r=>r.json()).then(result=>{audioReady=!!result.audio?.available}).catch(()=>{});
  function edit(kind:'overlays'|'audio',existing?:Layer){
   const toggle=document.getElementById(kind==='audio'?'audioTrackToggle':'overlayTrackToggle');if(toggle?.getAttribute('aria-expanded')!=='true')toggle?.click();
   options.select();if(kind==='audio'&&existing?.url)selectCaptionSource({id:existing.id,url:existing.url,label:existing.name,start:existing.start,duration:existing.duration,origin:'timeline'});const host=document.createElement('div');document.body.append(host);
@@ -42,5 +39,5 @@ export function mountSequenceLayers(options:Options){
   }
   for(const [id,player]of players)if(!state.audio.some(item=>item.id===id)){player.pause();player.removeAttribute('src');player.load();players.delete(id)}
  }
- return {render,play,busy:()=>!!document.querySelector('.sequence-layer-editor [data-generating=true]')};
+ return {render,play,busy:()=>!!document.querySelector('.sequence-layer-editor [data-generating=true],.audio-composer[data-generating=true]')};
 }

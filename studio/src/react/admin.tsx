@@ -1,8 +1,13 @@
+import {Popup} from './popup';
+import {AdminModels,type ModelSetup} from './admin-models';
+import {logBrowserError} from '../error-log';
+import {ErrorLogs} from './error-logs';
 import {useEffect,useState,useRef} from 'react';
 import './admin.css';
-type Runtime={connected:boolean;canStart?:boolean;launchDirectory?:string;proxy:boolean;url:string;rendering?:boolean;detectedInstances?:string[];config?:{mode:string;modelsDir?:string}|null;task?:{busy:boolean;phase:string;message:string}};
+type Runtime=ModelSetup&{connected:boolean;canStart?:boolean;launchDirectory?:string;proxy:boolean;url:string;rendering?:boolean;detectedInstances?:string[];config?:{mode:string;modelsDir?:string}|null;task?:{busy:boolean;phase:string;message:string}};
 export function AdminButton(){return <button className="toolbar-admin" onClick={()=>{location.href='/studio/admin'}}>Admin</button>}
 export function AdminPage(){
+ const [logsOpen,setLogsOpen]=useState(false);
  const [runtime,setRuntime]=useState<Runtime|null>(null),[error,setError]=useState('');
  const [address,setAddress]=useState(''),[connecting,setConnecting]=useState(false),[notice,setNotice]=useState('');
  const initialized=useRef(false);useEffect(()=>{if(runtime&&!initialized.current){initialized.current=true;setAddress(runtime.url)}},[runtime]);
@@ -17,7 +22,7 @@ export function AdminPage(){
    const result=await response.json();if(!response.ok)throw Error(result.error||'Reconnection failed');
    setNotice('Reconnection requested. Checking the runtime…');
    const status=await fetch('/api/setup',{cache:'no-store'});if(status.ok)setRuntime(await status.json());
-  }catch(e){setNotice((e as Error).message)}finally{setConnecting(false)}
+  }catch(e){logBrowserError(e,'Admin reconnect');setNotice((e as Error).message)}finally{setConnecting(false)}
  }
  return <div className="admin-page"><header><a href="/studio/director">← Studio</a><h1>Admin</h1></header><main><h2>Local runtime</h2>
   <p>Manage the local generation runtime.</p>
@@ -28,5 +33,8 @@ export function AdminPage(){
   {runtime&&!runtime.connected&&<p>{runtime.canStart?'Studio can start the detected local ComfyUI and reconnect automatically.':'No launchable local installation found. Use Local setup to install ComfyUI, or configure its folder with COMFYUI_DIR.'}</p>}
   {error&&<p role="status">{error}</p>}
   <div className="popup-actions">{url&&<a href={url} target="_blank" rel="noopener noreferrer">Open ComfyUI ↗</a>}<button onClick={()=>dispatchEvent(new Event('osh-open-runtime-setup'))}>Local setup</button></div>
+ <AdminModels setup={runtime}/>
+ <section className="admin-section"><div className="admin-section-title"><div><h2>Diagnostics</h2><p>Runtime and browser errors</p></div><button onClick={()=>setLogsOpen(true)}>Open error logs</button></div></section>
+ {logsOpen&&<Popup title="Error logs" onClose={()=>setLogsOpen(false)} className="admin-logs-popup"><ErrorLogs/></Popup>}
  </main></div>;
 }

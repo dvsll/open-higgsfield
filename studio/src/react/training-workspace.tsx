@@ -20,7 +20,7 @@ function chooseBase(model:string){
  const kind=trainingKind(model);SC.set('osh-training-'+trainingKind(state.draft.model)+'-draft',state.draft);
  const previous=SC.get('osh-training-'+kind+'-draft');
  const draft:TrainingInput=previous?{...previous,model,projectId:currentProject.id}:{...defaults,model,images:[],...(kind==='video'?{size:256,frames:17,fps:24}:{})};
- SC.set('osh-training-draft',draft);update({draft,message:''});
+ SC.set('osh-training-draft',draft);update({draft,message:''});window.dispatchEvent(new Event('osh-training-media-changed'));
 }
 let checking=false;
 async function refresh(){if(checking)return;checking=true;try{const response=await fetch('/api/training?projectId='+encodeURIComponent(currentProject.id));const value=await response.json();if(!response.ok)throw Error(value.error||'Could not read training status.');update({models:value.models||[],runs:value.runs||[],checked:true,ready:!!value.available,missing:value.missing||[]})}catch(error){update({checked:true,ready:false,message:(error as Error).message})}finally{checking=false}}

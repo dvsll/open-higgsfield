@@ -21,12 +21,10 @@ export function WindowsMenu({
   panels,
   visible,
   onToggle,
-  onNew,
 }: {
   panels: { id: string; title: string }[];
   visible: string[];
   onToggle: (id: string) => void;
-  onNew: () => void;
 }) {
   return (
     <>
@@ -41,7 +39,6 @@ export function WindowsMenu({
           {title}
         </button>
       ))}
-      <button onClick={onNew}>+ New notes window…</button>
     </>
   );
 }

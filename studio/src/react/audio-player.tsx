@@ -1,3 +1,4 @@
+import './audio-player.css';
 import {useEffect,useRef,useState,type CSSProperties} from 'react';
 const clock=(value:number)=>Number.isFinite(value)?`${Math.floor(value/60)}:${String(Math.floor(value%60)).padStart(2,'0')}`:'0:00';
 export function AudioPlayer({url,label,onTimeChange,onDuration,seek}:{url:string;label:string;onTimeChange?:(time:number)=>void;onDuration?:(duration:number)=>void;seek?:{time:number}}){

@@ -67,3 +67,13 @@ try{
  drag('dragover','image','overlayTrack');assert.equal(classes.get('overlayTrack').size,1);assert.equal(classes.get('trk').size,1,'images may also become scene guides');
  drag('drop','image','overlayTrack',image);assert.equal(dropped[1][1],'overlays');assert.equal(drag('drop','image','trk',image).defaultPrevented,false,'legacy guide handler retains ownership');
 }finally{await dropServer.close();Object.assign(globalThis,originalDrop);delete globalThis.__sequenceDropTest}
+
+const captionSource={id:'voice',url:'/outputs/1111111111111111.flac',label:'Voice',start:0,origin:'library'};
+const subtitles=projectFiles({}, {}, [], {},[{url:'/outputs/aaaaaaaaaaaaaaaa.srt',label:'Voice captions.srt',kind:'captions',origin:'generated',captionSource}]);assert.equal(subtitles[0].kind,'captions');assert.equal(subtitles[0].origin,'generated');assert.deepEqual(subtitles[0].captionSource,captionSource);
+
+const firstNames=projectFiles({HISTORY:[{url:image,label:'A very long scene prompt'}]},{});
+assert.equal(firstNames[0].label,'Image 001');
+const nextNames=projectFiles({HISTORY:[{url:video,label:'Another prompt'},{url:image,label:'Changed source label'}]}, {},[],{},firstNames);
+assert.equal(nextNames.find(file=>file.url===image).label,'Image 001');assert.equal(nextNames.find(file=>file.url===video).label,'Video 002');
+const renamed=projectFiles(current,{},[],{},[{...firstNames[0],userLabel:'Yellow cup'}]);assert.equal(renamed.find(file=>file.url===image).label,'Yellow cup');
+const {projectDownloadName}=await import('../src/project-files-index.ts');assert.equal(projectDownloadName(renamed.find(file=>file.url===image)),'Yellow cup.png');

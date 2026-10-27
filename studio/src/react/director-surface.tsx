@@ -1,3 +1,4 @@
+import {PromptMedia} from './prompt-media';
 import {NumberInput} from './number-input';
 import type {ReactNode} from 'react';
 import {createPortal} from 'react-dom';
@@ -109,6 +110,7 @@ export function DirectorSurface() {
             </div>
           </section>
           <section className="composer" aria-label="Generation prompts">
+            <PromptMedia/>
             <div className="prompt-scroll">
               <div className="modelbar compact-modelbar">
                 <label htmlFor="videoModel">Model</label>
@@ -234,7 +236,7 @@ export function DirectorSurface() {
           <div className="hist" id="hist"></div>
         </main>
         <aside className="r">
-          <div className="sec">{'Image workshop'}</div>
+          <div className="image-prompt-scroll prompt-scroll">
             <div className="modelbar image-modelbar compact-modelbar">
               <label htmlFor="keyframeModel">Model</label>
             <select id="keyframeModel" disabled>
@@ -254,14 +256,15 @@ export function DirectorSurface() {
             <p id="modelStatus" role="status"></p>
             <div id="modelInventory"></div>
           </details>
-          <div className="prompt-field" data-model-kind="keyframe" data-model-control="kp">
-            <label htmlFor="kp">{'Image prompt'}</label>
+          <div className="row primary-prompt-row"><div className="prompt-field" data-model-kind="keyframe" data-model-control="kp">
+            <label htmlFor="kp">{'Prompt'}</label>
             <textarea
               id="kp"
               rows={3}
               defaultValue="Mia holds Bolt up to the window, first light on his face"
             />
           </div>
+          </div><details className="prompt-advanced"><summary>Advanced</summary><div className="advanced-prompt-content">
           <div className="sec">{'Framing'}</div>
           <div className="chips" id="frm"></div>
           <div hidden style={{ color: 'var(--faint)', fontSize: '12px' }}>
@@ -290,11 +293,11 @@ export function DirectorSurface() {
               <span>{'4'}</span>
             </div>
           </div>
-          <button className="pill solid" id="kgo" style={{ width: '100%' }}>
+          </div></details></div><div className="generate-action"><button className="pill solid" id="kgo" style={{ width: '100%' }}>
             {'Generate 4 keyframes'}
           </button>
           <div id="keyframeGenerationEstimate" className="keyframe-generation-estimate" />
-          <div className="sec">
+          </div><div className="image-results"><div className="sec">
             {'Results '}
             <span>
               {'Select an image to preview it'}
@@ -303,7 +306,7 @@ export function DirectorSurface() {
           <div id="res">
             <div className="empty">{'Generated images show up here.'}</div>
           </div>
-        </aside>
+          </div></aside>
       </div>
       <svg id="generateArrow" aria-hidden="true">
         <defs>

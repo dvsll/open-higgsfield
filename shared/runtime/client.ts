@@ -42,7 +42,7 @@ async function post<T>(name: string, body: unknown): Promise<T> {
    const r = await fetch('/api/'+name, { method:'POST',headers:{'Content-Type':'application/json',...(id?{'X-OSH-Request':id}:{})},body:JSON.stringify(body) });
    const j=await r.json().catch(()=>({error:r.statusText}));if(!r.ok||j.error)throw new Error(j.error||r.statusText);
    return j as T;
-  } catch(error){failed=true;throw error} finally{finished=true;if(timer)clearInterval(timer);if(id){const now=Date.now();emitActivity({id,phase:failed?'error':'complete',message:failed?'Generation failed. Check the message in the workspace.':'Media ready.',startedAt:now,phaseStartedAt:now,updatedAt:now,percent:null,step:null,steps:null})}}
+  } catch(error){failed=true;if(typeof window!=='undefined')window.dispatchEvent(new CustomEvent('osh-request-error',{detail:{operation:name,message:(error as Error).message,id}}));throw error} finally{finished=true;if(timer)clearInterval(timer);if(id){const now=Date.now();emitActivity({id,phase:failed?'error':'complete',message:failed?'Generation failed. Check the message in the workspace.':'Media ready.',startedAt:now,phaseStartedAt:now,updatedAt:now,percent:null,step:null,steps:null})}}
 }
 
 export type HeroResult={url:string;width:number;height:number;sha256:string;sourceSha256:string;seconds:number;method:string;workflowSha256?:string;model?:string;jobId?:string;provenanceId?:string;originalSha256?:string};
@@ -53,7 +53,7 @@ export const OSH = {
   async creativePlanRecord(planId:string,projectId:string){const r=await fetch('/api/creative/plan/'+encodeURIComponent(planId)+'?projectId='+encodeURIComponent(projectId),{cache:'no-store',signal:AbortSignal.timeout(10000)});const d=await r.json();if(!r.ok)throw Error(d.error||r.statusText);return d as import('../lib/creative-engine').CreativePlan;},
   creativePrepare:(body:{planId:string;current:import('../lib/creative-engine').CreativeInput;image:string;original:string;confirmation:{direction:boolean;facts:boolean}})=>post<import('../lib/creative-engine').CreativePrepared>('creative/prepare',body),
   creativeCompose:(body:{planId:string;preparedId:string;projectId:string;hero:string;provenanceId:string;heroAssetId:string;logo?:string;logoAssetId?:string;fidelityReviewed:boolean;copy?:Partial<Pick<import('../lib/static-ad').StaticDesign,'headline'|'body'|'cta'|'size'>>})=>post<{url:string;width:number;height:number;sha256:string;sources:Record<string,string>;design:import('../lib/static-ad').StaticDesign}>('creative/compose',body),
-  captions:(audio:string,model?:string,device='cpu',language='auto')=>post<{model:string;language:string|null;duration:number;seconds:number;segments:import('../lib/captions').CaptionSegment[]}>('captions',{audio,model,device,language}),
+  captions:(audio:string,model?:string,device?:string,language='auto')=>post<{model:string;language:string|null;duration:number;seconds:number;segments:import('../lib/captions').CaptionSegment[];srt?:string|null}>('captions',{audio,model,device,language}),
   qwenHero:(image:string,settings:import('../lib/hero-ad').HeroSettings,original:string,projectId?:string)=>post<HeroResult>('hero/qwen',{image,settings,original,...(projectId?{projectId}:{})}),
 
   finishHero:(image:string,settings:import('../lib/hero-ad').HeroSettings)=>post<HeroResult>('hero/finish',{image,settings}),

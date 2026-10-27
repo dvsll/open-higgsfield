@@ -1,3 +1,4 @@
+import {ProjectImagePicker} from './project-image-picker';
 import {useSemanticSearch} from './semantic-search';
 import '../media-model-picker.css';
 import { useEffect, useRef, useState } from 'react';
@@ -127,8 +128,8 @@ export function ElementLibrary({
     }
     const n = name.trim(),
       d = description.trim();
-    if (!n || !d) {
-      setStatus('Add a name and description.');
+    if (!n) {
+      setStatus('Add a name.');
       return;
     }
     if (
@@ -216,23 +217,7 @@ export function ElementLibrary({
                 </div>
               ))}
             </div>
-            <details>
-              <summary>Use a generated image</summary>
-              <div className="element-pool">
-                {pool.slice(0, 24).map((item) => (
-                  <button
-                    key={item.url}
-                    type="button"
-                    title={item.label}
-                    onClick={() => {
-                      if (refs.length < 4 && !refs.includes(item.url)) setRefs([...refs, item.url]);
-                    }}
-                  >
-                    <img src={item.url} alt={item.label} />
-                  </button>
-                ))}
-              </div>
-            </details>
+            <ProjectImagePicker onPick={item=>{if(refs.includes(item.url))return;if(refs.length>=4){setStatus('Up to 4 references. Remove one to choose another.');return}setRefs([...refs,item.url]);setStatus('')}}/>
           </section>
           <section>
             <label>
@@ -256,10 +241,9 @@ export function ElementLibrary({
               </select>
             </label>
             <label>
-              Description
+              Description (optional)
               <textarea
                 data-description
-                required
                 rows={5}
                 maxLength={500}
                 placeholder="Describe appearance, colors and details to preserve…"

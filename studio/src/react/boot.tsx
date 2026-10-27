@@ -1,8 +1,10 @@
+import {installErrorLogs,logBrowserError} from '../error-log';
 import { createRoot } from 'react-dom/client';
 import { flushSync } from 'react-dom';
 import type { ReactNode } from 'react';
 import './app.css';
 export async function bootStudio(surface: ReactNode, start: () => Promise<unknown>) {
+  installErrorLogs();
   // Controllers need mounted, measurable surfaces, but their undocked scaffold must never paint.
   document.body.dataset.studioBoot = 'loading';
   const loadingHost = document.createElement('div');
@@ -20,6 +22,7 @@ export async function bootStudio(surface: ReactNode, start: () => Promise<unknow
     await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
     document.body.dataset.studioBoot = 'ready';
   } catch (error) {
+    logBrowserError(error,'Studio startup');
     console.error('Studio startup failed', error);
     flushSync(() => root.render(
       <main className="studio-startup-error" role="alert">

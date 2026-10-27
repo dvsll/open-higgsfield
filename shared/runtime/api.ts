@@ -1,3 +1,4 @@
+import {ErrorJournal} from './error-log.ts';
 import {geometryGraph,geometryBase,trainingObj} from '../lib/geometry.ts';
 import {trainingInput,trainingGraph,trainingRuns,saveTrainingRun,trainingBase,videoTrainingBase,geometryTrainingBase,trainingKind,type TrainingRun} from './training.ts';
 import {searchInput,searchResults} from './semantic-search.ts';
@@ -17,7 +18,7 @@ import { RuntimeSetup, setupAccess } from './setup.ts';
 import { startComfyProxy } from './proxy.ts';
 import {PromptRewriter,PromptRewriteError,promptInstruction,promptModel,promptDevice} from './prompt-rewriter.ts';
 import {precisionSources} from './precision-image.ts';
-import {captionSegments} from '../lib/captions.ts';
+import {captionSegments,captionSrt} from '../lib/captions.ts';
 import { JobActivity, phaseForProgress } from './job-activity.ts';
 import {ComfyDiagnostics,loadingLog,nodeProgressMessage} from './comfy-diagnostics.ts';
 import { Comfy } from "@comfyorg/sdk";
@@ -84,7 +85,7 @@ const FPS = 24;
 const MAX_BODY = 64 * 1024;
 const MAX_UPLOAD_BODY = 8 * 1024 * 1024;
 const MAX_QUEUE = 4;
-const OUTPUT_NAME = /^[a-f0-9]{16}\.(png|obj|glb|webm|mp4|flac|mp3|wav|m4a|ogg|safetensors)$/;
+const OUTPUT_NAME = /^[a-f0-9]{16}\.(png|obj|glb|webm|mp4|flac|mp3|wav|m4a|ogg|srt|safetensors)$/;
 
 type Env = Record<string, string | undefined>;
 type Key = { image: string; t: number; strength?: number };
@@ -570,6 +571,7 @@ function sameToken(a: string | undefined, b: string): boolean {
 function requirePathSeparator(){return process.platform==='win32'?'\\':'/';}
 
 function middleware(env: Env,setup:RuntimeSetup,rewriter:PromptRewriter,creative:ReturnType<typeof createCreativeEngine>,brandBackend:CreativeBackend,brand:ReturnType<typeof createBrandService>): Connect.NextHandleFunction {
+  const errors=new ErrorJournal(join(OUTPUTS,`runtime-errors-${Number(env.OSH_PORT||8288)}.json`));let lastSetupError='';
   const token = env.OSH_TOKEN || "";
   const session=env.QWEN_APP_SESSION_DIR?resolve(env.QWEN_APP_SESSION_DIR):'';
   if(env.QWEN_APP_RELAY_URL&&(!session.startsWith(OUTPUTS+requirePathSeparator())||!session.endsWith(requirePathSeparator()+'session')))throw new Error('Qwen acceptance session must be an outputs/.../session folder.');
@@ -602,7 +604,7 @@ function middleware(env: Env,setup:RuntimeSetup,rewriter:PromptRewriter,creative
         if (!['GET','HEAD'].includes(req.method||'') || !OUTPUT_NAME.test(name)) return send(res, 404, { error: "not found" });
         const p = join(OUTPUTS, name);
         if (!existsSync(p)) return send(res, 404, { error: "not found" });
-        const size=statSync(p).size,headers:Record<string,string|number>={"Content-Type":name.endsWith('.safetensors')?'application/octet-stream':name.endsWith('.glb')?'model/gltf-binary':name.endsWith('.obj')?'text/plain':name.endsWith('.png')?'image/png':mediaTypes[name.split('.').at(-1)!]||'video/webm',"Accept-Ranges":"bytes","Cache-Control":"private, max-age=31536000, immutable","X-Content-Type-Options":"nosniff"};
+        const size=statSync(p).size,headers:Record<string,string|number>={"Content-Type":name.endsWith('.safetensors')?'application/octet-stream':name.endsWith('.glb')?'model/gltf-binary':name.endsWith('.srt')?'application/x-subrip; charset=utf-8':name.endsWith('.obj')?'text/plain':name.endsWith('.png')?'image/png':mediaTypes[name.split('.').at(-1)!]||'video/webm',"Accept-Ranges":"bytes","Cache-Control":"private, max-age=31536000, immutable","X-Content-Type-Options":"nosniff"};
         const range=req.headers.range;
         if(range){const match=/^bytes=(\d*)-(\d*)$/.exec(range);let start=Number(match?.[1]||0),end=match?.[2]?Number(match[2]):size-1;if(match&&!match[1]&&match[2]){start=Math.max(0,size-Number(match[2]));end=size-1;}
           if(!match||(!match[1]&&!match[2])||start>end||start>=size||!Number.isSafeInteger(start)||!Number.isSafeInteger(end)){res.writeHead(416,{'Content-Range':`bytes */${size}`});return res.end();}
@@ -611,6 +613,7 @@ function middleware(env: Env,setup:RuntimeSetup,rewriter:PromptRewriter,creative
         res.writeHead(200,{...headers,'Content-Length':size});if(req.method==='HEAD')return res.end();return createReadStream(p).pipe(res);
       }
       const route = `${req.method} ${url.pathname}`;
+      if(url.pathname==='/api/errors'){if(!setupAccess(req))return send(res,403,{error:'Error logs are only available from this computer and the app’s own origin.'});if(req.method==='GET')return send(res,200,{entries:errors.list()});return send(res,405,{error:'Method not allowed'})}
       if(route==='GET /api/creative/status')return send(res,200,await creative.status());
       if(req.method==='GET'&&/^\/api\/creative\/plan\/[a-f0-9]{16}$/.test(url.pathname))return send(res,200,await creative.get(url.pathname.split('/').pop()!,url.searchParams.get('projectId')||''));
       if(route==='POST /api/creative/plan')return send(res,200,await creative.plan(await readBody(req,256*1024)));
@@ -656,8 +659,8 @@ function middleware(env: Env,setup:RuntimeSetup,rewriter:PromptRewriter,creative
       }
       if(url.pathname.startsWith('/api/setup')){
        if(!setupAccess(req))return send(res,403,{error:'Runtime setup is only available from this computer and the app’s own origin.'});
-       if(route==='GET /api/setup')return send(res,200,{...await setup.status(),rendering:queued>0||trainingPending});
-       if(req.method==='POST'){if((queued>0||trainingPending)&&route!=='POST /api/setup/cancel')return send(res,409,{error:'Finish the current generation before changing the local runtime or model files.'});const body=await readBody(req);try{const result=route==='POST /api/setup/connect'?setup.connect(body):route==='POST /api/setup/install'?setup.install(body):route==='POST /api/setup/download'?setup.download(body):route==='POST /api/setup/start'?setup.start():route==='POST /api/setup/cancel'?setup.cancel():null;return send(res,result?202:404,result||{error:'Unknown setup action'})}catch(error:any){return send(res,400,{error:error.message})}}
+       if(route==='GET /api/setup'){const status=await setup.status();if(status.task.phase==='error'){const key=status.task.startedAt+':'+status.task.message;if(lastSetupError!==key){lastSetupError=key;errors.add('Local setup',new Error(status.task.message))}}return send(res,200,{...status,rendering:queued>0||trainingPending})}
+       if(req.method==='POST'){if((queued>0||trainingPending)&&route!=='POST /api/setup/cancel')return send(res,409,{error:'Finish the current generation before changing the local runtime or model files.'});const body=await readBody(req);try{const result=route==='POST /api/setup/connect'?setup.connect(body):route==='POST /api/setup/install'?setup.install(body):route==='POST /api/setup/download'?setup.download(body):route==='POST /api/setup/start'?setup.start():route==='POST /api/setup/cancel'?setup.cancel():null;return send(res,result?202:404,result||{error:'Unknown setup action'})}catch(error:any){errors.add(route,error,{status:400});return send(res,400,{error:error.message})}}
       }
       if(req.method==='GET'&&/^\/api\/activity\/[a-f0-9]{32}$/.test(url.pathname)){const state=activity.get(url.pathname.split('/').pop()!);return send(res,state?200:404,state?{...state,serverNow:Date.now()}:{error:'No activity for this request'})}
       const tracked=async(handler:(body:any)=>Promise<any>,limit=MAX_BODY)=>{if(setup.task.busy)throw new HttpError(503,'Local runtime setup is in progress. Finish or stop setup before generating.');const body=await readBody(req,limit);if(!body||typeof body!=='object'||Array.isArray(body))throw new HttpError(400,'Expected a JSON request object.');body._requestId=req.headers['x-osh-request']||body._requestId;let id:string|null;try{id=activity.begin(body._requestId)}catch(error:any){throw new HttpError(400,error.message)}try{const result=await handler(body);activity.update(id,'complete','Media ready.');return result}catch(error:any){activity.update(id,'error','Generation stopped: '+String(error.message||error));throw error}};
@@ -726,6 +729,7 @@ function middleware(env: Env,setup:RuntimeSetup,rewriter:PromptRewriter,creative
          if(semanticCache.size>=100)semanticCache.delete(semanticCache.keys().next().value!);semanticCache.set(key,result);return send(res,200,result);
         }finally{semanticPending=false}
       }
+      if(route==='POST /api/captions/srt'){const body=await readBody(req,512*1024);if(!Array.isArray(body?.segments)||body.segments.length>500||body.segments.some((segment:any)=>!Number.isFinite(segment?.end)||segment.end>86400))throw new HttpError(400,'Check the caption text and timing before saving.');const segments=captionSegments(body.segments,86400);if(!segments.length||segments.length!==body.segments.length)throw new HttpError(400,'Check the caption text and timing before saving.');const name=outputName('srt');mkdirSync(OUTPUTS,{recursive:true});await writeFile(join(OUTPUTS,name),captionSrt(segments),'utf8');return send(res,200,{url:'/outputs/'+name})}
       if (route === 'GET /api/captions') {
         const nodes=await comfyJson(env,'/object_info');
         const models=(nodes.OSHWhisperCaptions?.input?.required?.model?.[0]||[]).filter((model:unknown)=>typeof model==='string'&&/^Whisper [\w.-]+ · CPU$/.test(model));
@@ -736,10 +740,10 @@ function middleware(env: Env,setup:RuntimeSetup,rewriter:PromptRewriter,creative
         const source=outputPath(body.audio);if(statSync(source).size>32*1024*1024)throw new HttpError(400,'Select audio under 32 MB and 10 minutes.');
         const nodes=await comfyJson(env,'/object_info'),models=nodes.OSHWhisperCaptions?.input?.required?.model?.[0]||[],model=body.model===undefined?models[0]:body.model;if(!nodes.LoadAudio||!models.length)throw new HttpError(503,'Install a local Whisper model and restart ComfyUI.');if(typeof model!=='string'||!models.includes(model))throw new HttpError(400,'Choose an installed caption model, then try again.');
         await ensureProxy(env);const c=client(env),wf=c.workflows.fromJson(await loadGraph('captions_whisper'));
-        const devices=nodes.OSHWhisperCaptions?.input?.optional?.device?.[0]||['cpu'],device=body.device??'cpu';if(!['cpu','cuda'].includes(device)||!devices.includes(device))throw new HttpError(400,'Choose an available caption processing device.');if(nodes.OSHWhisperCaptions?.input?.optional?.device)wf.setInput('2','device',device);const language=body.language??'auto';if(typeof language!=='string'||!(/^(auto|[a-z]{2,3})$/).test(language))throw new HttpError(400,'Choose a supported caption language.');if(language!=='auto'&&!nodes.OSHWhisperCaptions?.input?.optional?.language)throw new HttpError(503,'Update the Studio caption node and restart ComfyUI to select a language.');if(nodes.OSHWhisperCaptions?.input?.optional?.language)wf.setInput('2','language',language);wf.setInput('2','model',model);wf.setInput('1','audio',c.assets.fromFile(source));const started=Date.now(),job=await serialize(()=>runWf(c,wf,body._requestId)),output=job.getOutputs('2')[0];
+        const devices=nodes.OSHWhisperCaptions?.input?.optional?.device?.[0]||['cpu'],device=body.device??devices[0]??'cpu';if(!['cpu','cuda'].includes(device)||!devices.includes(device))throw new HttpError(400,'Choose an available caption processing device.');if(nodes.OSHWhisperCaptions?.input?.optional?.device)wf.setInput('2','device',device);const language=body.language??'auto';if(typeof language!=='string'||!(/^(auto|[a-z]{2,3})$/).test(language))throw new HttpError(400,'Choose a supported caption language.');if(language!=='auto'&&!nodes.OSHWhisperCaptions?.input?.optional?.language)throw new HttpError(503,'Update the Studio caption node and restart ComfyUI to select a language.');if(nodes.OSHWhisperCaptions?.input?.optional?.language)wf.setInput('2','language',language);wf.setInput('2','model',model);wf.setInput('1','audio',c.assets.fromFile(source));const started=Date.now(),job=await serialize(()=>runWf(c,wf,body._requestId)),output=job.getOutputs('2')[0];
         if(!output)throw new HttpError(502,'The caption workflow returned no transcript.');
         const result=JSON.parse(Buffer.from(await output.toBytes()).toString('utf8'));
-        return {model,language:typeof result.language==='string'?result.language:null,duration:result.duration,seconds:(Date.now()-started)/1000,segments:captionSegments(result.segments)};
+        const segments=captionSegments(result.segments),name=segments.length?outputName('srt'):null;if(name)await writeFile(join(OUTPUTS,name),captionSrt(segments),'utf8');return {model,language:typeof result.language==='string'?result.language:null,duration:result.duration,seconds:(Date.now()-started)/1000,segments,srt:name?'/outputs/'+name:null};
       }));
       if (route === 'GET /api/precision-image') {
         const catalog = await localModels(env), nodes = await comfyJson(env, '/object_info'), graph = await loadGraph('precision_zimage');
@@ -788,6 +792,7 @@ function middleware(env: Env,setup:RuntimeSetup,rewriter:PromptRewriter,creative
       return send(res, 404, { error: "unknown endpoint" });
     } catch (e: any) {
       const status = e instanceof HttpError || e instanceof ComposeError || e instanceof BrandError || e instanceof StaticAdError || e instanceof HeroError || e instanceof PromptRewriteError || e instanceof CreativeError ? e.status : 500;
+      if(isApi&&url.pathname!=='/api/errors')errors.add(`${req.method} ${url.pathname}`,e,{status,requestId:typeof req.headers['x-osh-request']==='string'?req.headers['x-osh-request']:undefined});
       if (status === 500) console.error(`[api] ${url.pathname} failed:`, e);
       send(res, status, { error: status === 500 ? "generation failed (see server log)" : e.message });
     }

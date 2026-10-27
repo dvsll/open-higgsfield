@@ -1,3 +1,4 @@
+import {ErrorJournal} from './error-log.ts';
 import {geometryGraph,geometryBase,trainingObj} from '../lib/geometry.ts';
 import {trainingInput,trainingGraph,trainingRuns,saveTrainingRun,trainingBase,videoTrainingBase,geometryTrainingBase,trainingKind,type TrainingRun} from './training.ts';
 import {searchInput,searchResults} from './semantic-search.ts';
@@ -570,6 +571,7 @@ function sameToken(a: string | undefined, b: string): boolean {
 function requirePathSeparator(){return process.platform==='win32'?'\\':'/';}
 
 function middleware(env: Env,setup:RuntimeSetup,rewriter:PromptRewriter,creative:ReturnType<typeof createCreativeEngine>,brandBackend:CreativeBackend,brand:ReturnType<typeof createBrandService>): Connect.NextHandleFunction {
+  const errors=new ErrorJournal(join(OUTPUTS,`runtime-errors-${Number(env.OSH_PORT||8288)}.json`));let lastSetupError='';
   const token = env.OSH_TOKEN || "";
   const session=env.QWEN_APP_SESSION_DIR?resolve(env.QWEN_APP_SESSION_DIR):'';
   if(env.QWEN_APP_RELAY_URL&&(!session.startsWith(OUTPUTS+requirePathSeparator())||!session.endsWith(requirePathSeparator()+'session')))throw new Error('Qwen acceptance session must be an outputs/.../session folder.');
@@ -611,6 +613,7 @@ function middleware(env: Env,setup:RuntimeSetup,rewriter:PromptRewriter,creative
         res.writeHead(200,{...headers,'Content-Length':size});if(req.method==='HEAD')return res.end();return createReadStream(p).pipe(res);
       }
       const route = `${req.method} ${url.pathname}`;
+      if(url.pathname==='/api/errors'){if(!setupAccess(req))return send(res,403,{error:'Error logs are only available from this computer and the app’s own origin.'});if(req.method==='GET')return send(res,200,{entries:errors.list()});return send(res,405,{error:'Method not allowed'})}
       if(route==='GET /api/creative/status')return send(res,200,await creative.status());
       if(req.method==='GET'&&/^\/api\/creative\/plan\/[a-f0-9]{16}$/.test(url.pathname))return send(res,200,await creative.get(url.pathname.split('/').pop()!,url.searchParams.get('projectId')||''));
       if(route==='POST /api/creative/plan')return send(res,200,await creative.plan(await readBody(req,256*1024)));
@@ -634,8 +637,8 @@ function middleware(env: Env,setup:RuntimeSetup,rewriter:PromptRewriter,creative
       }
       if(url.pathname.startsWith('/api/setup')){
        if(!setupAccess(req))return send(res,403,{error:'Runtime setup is only available from this computer and the app’s own origin.'});
-       if(route==='GET /api/setup')return send(res,200,{...await setup.status(),rendering:queued>0||trainingPending});
-       if(req.method==='POST'){if((queued>0||trainingPending)&&route!=='POST /api/setup/cancel')return send(res,409,{error:'Finish the current generation before changing the local runtime or model files.'});const body=await readBody(req);try{const result=route==='POST /api/setup/connect'?setup.connect(body):route==='POST /api/setup/install'?setup.install(body):route==='POST /api/setup/download'?setup.download(body):route==='POST /api/setup/start'?setup.start():route==='POST /api/setup/cancel'?setup.cancel():null;return send(res,result?202:404,result||{error:'Unknown setup action'})}catch(error:any){return send(res,400,{error:error.message})}}
+       if(route==='GET /api/setup'){const status=await setup.status();if(status.task.phase==='error'){const key=status.task.startedAt+':'+status.task.message;if(lastSetupError!==key){lastSetupError=key;errors.add('Local setup',new Error(status.task.message))}}return send(res,200,{...status,rendering:queued>0||trainingPending})}
+       if(req.method==='POST'){if((queued>0||trainingPending)&&route!=='POST /api/setup/cancel')return send(res,409,{error:'Finish the current generation before changing the local runtime or model files.'});const body=await readBody(req);try{const result=route==='POST /api/setup/connect'?setup.connect(body):route==='POST /api/setup/install'?setup.install(body):route==='POST /api/setup/download'?setup.download(body):route==='POST /api/setup/start'?setup.start():route==='POST /api/setup/cancel'?setup.cancel():null;return send(res,result?202:404,result||{error:'Unknown setup action'})}catch(error:any){errors.add(route,error,{status:400});return send(res,400,{error:error.message})}}
       }
       if(req.method==='GET'&&/^\/api\/activity\/[a-f0-9]{32}$/.test(url.pathname)){const state=activity.get(url.pathname.split('/').pop()!);return send(res,state?200:404,state?{...state,serverNow:Date.now()}:{error:'No activity for this request'})}
       const tracked=async(handler:(body:any)=>Promise<any>,limit=MAX_BODY)=>{if(setup.task.busy)throw new HttpError(503,'Local runtime setup is in progress. Finish or stop setup before generating.');const body=await readBody(req,limit);if(!body||typeof body!=='object'||Array.isArray(body))throw new HttpError(400,'Expected a JSON request object.');body._requestId=req.headers['x-osh-request']||body._requestId;let id:string|null;try{id=activity.begin(body._requestId)}catch(error:any){throw new HttpError(400,error.message)}try{const result=await handler(body);activity.update(id,'complete','Media ready.');return result}catch(error:any){activity.update(id,'error','Generation stopped: '+String(error.message||error));throw error}};
@@ -766,6 +769,7 @@ function middleware(env: Env,setup:RuntimeSetup,rewriter:PromptRewriter,creative
       return send(res, 404, { error: "unknown endpoint" });
     } catch (e: any) {
       const status = e instanceof HttpError || e instanceof ComposeError || e instanceof BrandError || e instanceof StaticAdError || e instanceof HeroError || e instanceof PromptRewriteError || e instanceof CreativeError ? e.status : 500;
+      if(isApi&&url.pathname!=='/api/errors')errors.add(`${req.method} ${url.pathname}`,e,{status,requestId:typeof req.headers['x-osh-request']==='string'?req.headers['x-osh-request']:undefined});
       if (status === 500) console.error(`[api] ${url.pathname} failed:`, e);
       send(res, status, { error: status === 500 ? "generation failed (see server log)" : e.message });
     }

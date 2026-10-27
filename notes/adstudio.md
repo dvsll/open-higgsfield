@@ -601,3 +601,5 @@ Studio coordination 2026-10-26: caption polish adds optional cpu/cuda request an
 Studio coordination 2026-10-26: shared/lib/captions.ts gains additive bounded parseCaptionSrt helper for local browser SRT corrections; existing transcription/export behavior and API unchanged. No Ad Studio edits or dependencies.
 
 Studio coordination 2026-10-26: Captions adds optional language (auto default), modelDevices capability map distinct from runtime devices, repeat-output error guard. Old caption node accepts auto and rejects explicit unavailable language override honestly. Existing audio/video/creative SDK paths unchanged. Idle Studio-owned ComfyUI refreshed for caption language input; no models/dependencies downloaded.
+
+Studio coordination 2026-10-27: additive protected local GET /api/errors, bounded per-port persisted ErrorJournal, sanitized API/setup failures and request IDs; no request bodies/headers retained. Shared SDK emits browser-only osh-request-error event with operation/message/id, no body. Ad Studio UI untouched; default generation/proxy contracts unchanged.

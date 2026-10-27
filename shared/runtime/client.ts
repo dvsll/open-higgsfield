@@ -42,7 +42,7 @@ async function post<T>(name: string, body: unknown): Promise<T> {
    const r = await fetch('/api/'+name, { method:'POST',headers:{'Content-Type':'application/json',...(id?{'X-OSH-Request':id}:{})},body:JSON.stringify(body) });
    const j=await r.json().catch(()=>({error:r.statusText}));if(!r.ok||j.error)throw new Error(j.error||r.statusText);
    return j as T;
-  } catch(error){failed=true;throw error} finally{finished=true;if(timer)clearInterval(timer);if(id){const now=Date.now();emitActivity({id,phase:failed?'error':'complete',message:failed?'Generation failed. Check the message in the workspace.':'Media ready.',startedAt:now,phaseStartedAt:now,updatedAt:now,percent:null,step:null,steps:null})}}
+  } catch(error){failed=true;if(typeof window!=='undefined')window.dispatchEvent(new CustomEvent('osh-request-error',{detail:{operation:name,message:(error as Error).message,id}}));throw error} finally{finished=true;if(timer)clearInterval(timer);if(id){const now=Date.now();emitActivity({id,phase:failed?'error':'complete',message:failed?'Generation failed. Check the message in the workspace.':'Media ready.',startedAt:now,phaseStartedAt:now,updatedAt:now,percent:null,step:null,steps:null})}}
 }
 
 export type HeroResult={url:string;width:number;height:number;sha256:string;sourceSha256:string;seconds:number;method:string;workflowSha256?:string;model?:string;jobId?:string;provenanceId?:string;originalSha256?:string};

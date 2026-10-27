@@ -281,9 +281,8 @@ export class AdApplication {
    await this.store.projects.save(p);return {intelligence:intel,shotPlan};
   });
  }
- /** Multi-shot commercial from a shot plan: distinct stills → LTX per beat → FFmpeg assemble. */
- private async produceMultiShotCommercial(take:HeroTake,plan:import('../../shared/lib/creative-engine.ts').CreativePlan,shotPlan:CampaignShotPlan,templatePrefix:string){
-  const p=this.store.active();
+ /** Multi-shot commercial from a shot plan: distinct stills → LTX per beat → FFmpeg assemble. Mutates the caller's project clone so save persists takes. */
+ private async produceMultiShotCommercial(p:import('./projects.ts').AdProject,take:HeroTake,plan:import('../../shared/lib/creative-engine.ts').CreativePlan,shotPlan:CampaignShotPlan,templatePrefix:string){
   if(!this.client.shot)throw Error('Local video generation is unavailable.');
   const hero=await this.store.asset(take.assetId);if(!hero||await blobHash(hero.original)!==take.sha256)throw Error('Restore the saved campaign photograph first.');
   await this.checkSourceUse(take.settings.sourceId,take.settings.brandId,take.settings.productId);
@@ -319,7 +318,6 @@ export class AdApplication {
    if(!assembled.ok)throw Error(body.error||'Assemble failed');
    mp4=body.url;assembleNote=body.note||shotPlan.editing.transition;
   }catch(e){
-   // Fall back to exporting the last generative clip if assemble fails
    try{mp4=(await this.client.exportVideo(clips.at(-1)!.source)).url;}catch{mp4=clips.at(-1)!.source;}
    assembleNote='assemble-fallback: '+(e as Error).message;
   }
@@ -328,11 +326,10 @@ export class AdApplication {
    try{const exported=await this.client.exportVideo(clips[0].source);exports.push({id:crypto.randomUUID(),url:exported.url,tagline:take.adDesign?.headline||'',created:Date.now()});if(!/\.mp4$/.test(mp4))mp4=exported.url;}catch{/* */}
   }
   const totalSec=clips.reduce((a,c)=>a+c.seconds,0);
-  const video:Take={id:crypto.randomUUID(),created:Date.now(),assetId:take.assetId,source:clips[0].source,kind:'generation',mode:'creative',ratio:'9:16',settings:{...defaults(),mode:'creative',ratios:['9:16'],duration:shotPlan.shots.reduce((a,s)=>a+shotRenderDuration(s),0),seed:seed0,pitch:prompts.join('\n---\n').slice(0,1500),tagline:take.adDesign?.headline||'',model:campaignVideoSize.model,template:`${templatePrefix}:${take.id}:${shotPlan.id}:x${clips.length}`},prompt:prompts.join('\n---\n').slice(0,2000),frames:clips.length*49,fps:24,width:campaignVideoSize.width,height:campaignVideoSize.height,seconds:totalSec,exports:exports.length?exports:[{id:crypto.randomUUID(),url:mp4,tagline:take.adDesign?.headline||'',created:Date.now()}]};
-  // Prefer assembled MP4 as playable source when available
-  if(/\.mp4$/.test(mp4))video.source=mp4;
+  const playable=/\.mp4$/.test(mp4)?mp4:clips[0].source;
+  const video:Take={id:crypto.randomUUID(),created:Date.now(),assetId:take.assetId,source:playable,kind:'generation',mode:'creative',ratio:'9:16',settings:{...defaults(),mode:'creative',ratios:['9:16'],duration:shotPlan.shots.reduce((a,s)=>a+shotRenderDuration(s),0),seed:seed0,pitch:prompts.join('\n---\n').slice(0,1500),tagline:take.adDesign?.headline||'',model:campaignVideoSize.model,template:`${templatePrefix}:${take.id}:${shotPlan.id}:x${clips.length}`},prompt:prompts.join('\n---\n').slice(0,2000),frames:Math.max(1,clips.length*49),fps:24,width:campaignVideoSize.width,height:campaignVideoSize.height,seconds:totalSec,exports:exports.length?exports:[{id:crypto.randomUUID(),url:playable,tagline:take.adDesign?.headline||'',created:Date.now()}]};
   p.takes.push(video);
-  return {video,mp4,shotPlan,clips,assembleNote,prompts,warning:`${clips.length}-shot commercial (${shotPlan.creativeHook}). ${assembleNote} Product replacement of reference footage is unavailable.`};
+  return {video,mp4:playable,shotPlan,clips,assembleNote,prompts,warning:`${clips.length}-shot commercial (${shotPlan.creativeHook}). ${assembleNote} Product replacement of reference footage is unavailable.`};
  }
  /** Reference-inspired multi-shot commercial from analyzed inspiration + brand stills. */
  async generateInspiredCommercial(takeId:string){
@@ -350,12 +347,14 @@ export class AdApplication {
    }
    p.attempt={id:crypto.randomUUID(),status:'running',created:Date.now(),takeIds:[],engine:'ltx-video'};await this.store.projects.save(p);
    try{
-    const result=await this.produceMultiShotCommercial(take,plan,shotPlan,p.creative?.inspiration?.analysis?'inspired':'original');
-    p.attempt={id:p.attempt!.id,status:'complete',created:p.attempt!.created,takeIds:[result.video.id],engine:'ltx-video'};
-    await this.store.projects.save(p);
+    const live=this.store.active();
+    live.creative=p.creative;live.attempt=p.attempt;
+    const result=await this.produceMultiShotCommercial(live,take,plan,shotPlan,p.creative?.inspiration?.analysis?'inspired':'original');
+    live.attempt={id:live.attempt!.id,status:'complete',created:live.attempt!.created,takeIds:[result.video.id],engine:'ltx-video'};
+    await this.store.projects.save(live);
     this.store.notify(`${result.clips.length}-shot commercial ready (${shotPlan.creativeHook}). Reference footage was not copied.`);
     return result;
-   }catch(e){p.attempt={id:p.attempt!.id,status:'failed',created:p.attempt!.created,takeIds:[],engine:'ltx-video',error:(e as Error).message};await this.store.projects.save(p).catch(()=>{});throw e;}
+   }catch(e){const live=this.store.active();live.attempt={id:p.attempt!.id,status:'failed',created:p.attempt!.created,takeIds:[],engine:'ltx-video',error:(e as Error).message};await this.store.projects.save(live).catch(()=>{});throw e;}
   });
  }
  /** Animate a saved static take as an original multi-shot commercial (no reference required). */
@@ -370,12 +369,14 @@ export class AdApplication {
    p.creative!.inspiration={...(p.creative!.inspiration||{videoUrl:'',rights:'inspiration-only',productReplacementAvailable:false}),shotPlan,productReplacementAvailable:false};
    p.attempt={id:crypto.randomUUID(),status:'running',created:Date.now(),takeIds:[],engine:'ltx-video'};await this.store.projects.save(p);
    try{
-    const result=await this.produceMultiShotCommercial(take,plan,shotPlan,'campaign');
-    p.attempt={id:p.attempt!.id,status:'complete',created:p.attempt!.created,takeIds:[result.video.id],engine:'ltx-video'};
-    await this.store.projects.save(p);
+    const live=this.store.active();
+    live.creative=p.creative;live.attempt=p.attempt;
+    const result=await this.produceMultiShotCommercial(live,take,plan,shotPlan,'campaign');
+    live.attempt={id:live.attempt!.id,status:'complete',created:live.attempt!.created,takeIds:[result.video.id],engine:'ltx-video'};
+    await this.store.projects.save(live);
     this.store.notify(`${result.clips.length}-shot commercial ready. Compare product identity across beats.`);
     return {...result,prompt:campaignMotionPrompt(plan,take.scene?.archetype,shotPlan.creativeHook)};
-   }catch(e){p.attempt={id:p.attempt!.id,status:'failed',created:p.attempt!.created,takeIds:[],engine:'ltx-video',error:(e as Error).message};await this.store.projects.save(p).catch(()=>{});throw e;}
+   }catch(e){const live=this.store.active();live.attempt={id:p.attempt!.id,status:'failed',created:p.attempt!.created,takeIds:[],engine:'ltx-video',error:(e as Error).message};await this.store.projects.save(live).catch(()=>{});throw e;}
   });
  }
  async downloadAdvertisement(id:string,download:Download=browserDownload){if(this.store.getSnapshot().busy)throw Error('Finish the current operation first.');const p=this.store.active(),record=[...p.staticAds!.exports,...p.hero!.exports].find(e=>e.id===id);if(!record)throw Error('This advertisement is not in the current project.');const blob=await previewBlob(this.store,record.assetId,record.sha256,true);try{await download(blob,'advertisement-'+id+'.png');}catch{throw Error('The advertisement is still saved. Your browser could not start the download; check its download permissions and try this saved file again.');}this.store.clearError();this.store.notify('Download requested from the saved advertisement.');}

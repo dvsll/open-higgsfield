@@ -54,21 +54,11 @@ Append dated decisions, render times and requests here. Only the adstudio owner 
 
 ## Where we left off
 
-**2026-10-27 multi-shot DONE (pushed):** Branch `feat/adstudio-campaign-quality` @ **`8800fae`+** (see `git log`), worktree `C:\Users\osiam\open-higgsfield-quality`, preview **http://127.0.0.1:8303/adstudio/**. Shot plan → 2 LTX beats (source still + hero still) → `/api/reference/assemble` (FFmpeg). Browser E2E **PASS** `outputs/multishot-e2e-2026-10-27T19-07-42/` (noref + inspired, distinct MP4s, reload, download). API bench `outputs/multishot-api-2026-10-27T19-07-02/`. Gallery `outputs/multishot-delivery-gallery.html`. Contract `adstudio/CREATIVE_JOURNEY_API.md`. Product replacement unavailable. 8301/8302/Director untouched. No auto-merge.
+**2026-10-27 FINAL INTEGRATION (this worktree):** `C:\Users\osiam\open-higgsfield-final` · branch `feat/adstudio-final-integration` · preview **http://127.0.0.1:8304/adstudio/journey.html**. Base `origin/feat/adstudio-campaign-quality@25d6bbd` + merge `origin/feat/adstudio-creative-journey@e928091`. Quality/Journey agent worktrees (8303/8302) and 8301/Director untouched. Incorporating newer Journey UI: rebase/cherry-pick onto this branch or merge journey → final; never edit the journey worktree from here.
 
-**2026-10-27 creative intelligence + reference video (WIP uncommitted on quality worktree):** Branch `feat/adstudio-campaign-quality` worktree `C:\Users\osiam\open-higgsfield-quality`, preview **http://127.0.0.1:8303/adstudio/**. Base SHA still `bbf017d` until commit. Animate browser E2E **PASS** (`outputs/animate-browser-2026-10-27T17-57-21/`, MP4 download). New: `shared/lib/creative-intelligence.ts`, `shared/lib/reference-video.ts`, `shared/runtime/reference-analyze.ts`, API `/api/reference/*` + `/api/inspiration/search`, UI “Have a video you like?”, `uploadInspiration` / `generateInspiredCommercial`. Bench PASS `outputs/reference-inspired-2026-10-27T18-04-28/` (analysis+shot plan+inspired MP4). Gallery `outputs/creative-intelligence-gallery.html`. Journey contract `adstudio/CREATIVE_JOURNEY_API.md`. Product replacement **unavailable**. Pexels optional via `PEXELS_API_KEY`. 8301/8302/Director untouched. No auto-merge.
+**2026-10-27 multi-shot DONE (quality branch):** `feat/adstudio-campaign-quality` @ `25d6bbd`, 8303. Shot plan → 2 LTX beats → FFmpeg assemble. Browser E2E PASS `outputs/multishot-e2e-2026-10-27T19-07-42/`.
 
-**2026-10-27 competition static+video:** Same worktree/branch **8303**. Reused Director LTX path (`OSH.shot` → `shot_ltxv` → LTX-2B). `animateCampaign` + **Animate this ad** in React. Evidence: `outputs/campaign-video-2026-10-27T17-38-49/bakery/` + `…17-39-48/beauty/` (WebM+MP4+contacts); gallery `…17-39-48/comparison.html`. Statics remain Creative Restage ★ paths. Not owner-approved. Journey/8302/8301 untouched. No auto-merge.
-
-**2026-10-27 creative review → Creative Restage primary:** Worktree `C:\Users\osiam\open-higgsfield-quality`, branch `feat/adstudio-campaign-quality`, port **8303**. Journey/8302 and 8301 untouched.
-
-INSPECTION: Hybrid `klein-harmonized` bakery still foil-tray cutout DNA (rejected for creative quality). Beauty hybrid integrated but drifted from coastal.
-
-METHOD NOW: Klein engine → **Creative Restage** (`/api/hero/scene`, `klein-scene`). Food prompts prefer removing disposable foil trays. Hybrid `/api/hero/campaign` kept for tooling. Product-safe unchanged.
-
-STRONGEST: Bakery no-tray restage `outputs/creative-restage-2026-10-27T17-09-09/bakery-v2-notray/advertisement.png`. Beauty coastal restage `…/beauty/advertisement.png`. Gallery + review: that folder’s `comparison.html`, `CREATIVE_REVIEW.md`.
-
-LIMITS: Restage is not product-safe (packaging may vanish; count can drift). Owner approval still required. Do not auto-merge.
+**2026-10-27 Journey delivered (journey branch):** `feat/adstudio-creative-journey` @ `e928091`, 8302. Six-stage React journey, batch static generation, optional `creative.journey` metadata (no DB migration). See `adstudio/CREATIVE_JOURNEY.md`.
 
 **2026-10-27 COMPLETE - real local source-integrated campaigns / owner review pending:** feat/adstudio-workspace, origin/main4b24838 still reconciled. Default Klein now uses native MIT BiRefNet isolation -> real concept/category/brand-driven Klein environment -> original product silhouette/pixels, container seam repair, uniform placement and contact shadows -> deterministic full photographic campaign text; no framed photo. No Director source edits, schema/origin change or old asset removal. Added one pinned444473596-byte MIT BiRefNet file only (Comfy-Org/BiRefNet35767b2, SHA9ab37426bf4de0567af6b5d21b16151357149139362e6e8992021b8ce356a154), no dependencies/cloud/spend. Separate reference-edit experiment FAILED strict count/geometry/pose review; preserved as research API/evidence, not main UI default. Product-safe/older backgrounds remain functional.
 

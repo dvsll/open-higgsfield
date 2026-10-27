@@ -48,3 +48,4 @@ desktop.ini
 .idea/
 .vscode/
 .runtime/
+.journey-cache/

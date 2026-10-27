@@ -41,6 +41,7 @@ export default defineConfig(({ mode }) => {
           designLab: "studio/design-lab.html",
           adstudio: "adstudio/index.html",
           adstudioTools: "adstudio/tools.html",
+          adstudioJourney: "adstudio/journey.html",
         },
       },
     },

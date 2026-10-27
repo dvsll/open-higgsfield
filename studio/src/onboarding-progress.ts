@@ -27,12 +27,12 @@ export function guidesPlaced(keys: { img?: string; anchor?: string }[]): boolean
  return keys.some(k => k.img && k.anchor === 'start') && keys.some(k => k.img && k.anchor === 'end');
 }
 
-export function continuesImageTour(state:{entry?:Workflow;step:string;dismissed?:boolean;suspended?:boolean}|null,entry:Workflow):boolean{return !!state&&!state.dismissed&&!state.suspended&&state.entry==='image'&&entry==='video'&&['image-review','image-video'].includes(state.step)}
+export function continuesImageTour(state:{entry?:Workflow;step:string;dismissed?:boolean;suspended?:boolean}|null,entry:Workflow):boolean{return !!state&&!state.dismissed&&!state.suspended&&state.entry==='image'&&entry==='video'&&['image-review','return-video','add','position','image-video'].includes(state.step)}
 export function workflowTourStep(state:{entry?:Workflow;step:string;dismissed?:boolean;suspended?:boolean}|null,entry:Workflow):string|null{
  if(!state||state.dismissed||state.suspended)return null;
  if(['video','director'].includes(state.entry||'')){
   if(entry==='image'&&['switch-image','keyframes'].includes(state.step))return 'keyframes';
   if(entry==='video'&&['return-video','add','position','regenerate'].includes(state.step))return state.step==='return-video'?'add':state.step;
  }
- return continuesImageTour(state,entry)?'image-video':null;
+ return continuesImageTour(state,entry)?(['image-review','return-video'].includes(state!.step)?'add':state!.step):null;
 }

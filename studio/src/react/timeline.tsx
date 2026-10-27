@@ -111,7 +111,7 @@ export function Ruler({
   return <><i className="ruler-playhead" aria-hidden="true"/>{Array.from({length:count},(_,index)=>{
     const time = +(index * step).toFixed(3);
     return <span key={index} style={{left:time*pixels,whiteSpace:'nowrap'}}>{time}s</span>;
-  })}{half&&step*pixels>=80&&Array.from({length:Math.max(0,count-1)},(_,index)=><span key={"minor"+index} aria-hidden="true" style={{left:(index+.5)*step*pixels}}>·</span>)}</>;
+  })}{half&&step*pixels>=80&&Array.from({length:Math.max(0,count-1)},(_,index)=><span key={"minor"+index} aria-hidden="true" style={{left:(index+.5)*step*pixels}}>Â·</span>)}</>;
 }
 
 export function BoundCard({

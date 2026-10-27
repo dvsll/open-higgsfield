@@ -4,6 +4,9 @@ Append dated decisions, render times and requests here. Only the studio owner ed
 
 ## Where we left off (update this before switching agents)
 
+**Latest handoff - 2026-10-27, undo branch graph:** Edit history shows chronological connected lanes; linear edits stay in one lane, alternate children fork to separate lanes. Current ancestry is warm accent, alternate paths muted; Current row marked, full row restores existing snapshot. Nodes distinguish prompt/image/take/structure/start with subtle shapes. Current state scrolls into view on update and hidden-window reveal via ResizeObserver; manual scroll remains until another edit/reveal. Existing undo/redo/navigation retained. Browser verified latest state visible at panel bottom; branch geometry/action classification covered by React regression. Typecheck/build pass. No history storage format or backend changes.
+
+
 **Latest handoff - 2026-10-27, adaptive timeline ruler:** Shared sequence/opened-scene ruler chooses readable 1/2/5 time intervals from pixels per second and label length. Zoomed-out labels no longer overlap; half-interval marks only appear with enough space. Playhead and ruler seeking unchanged. Typecheck and React UI regression pass.
 
 

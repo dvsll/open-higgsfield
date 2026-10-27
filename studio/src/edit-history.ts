@@ -25,7 +25,7 @@ export function mountEditHistory(read:()=>EditState,restore:(state:EditState)=>v
   return 'Edit image workshop';
  }
  function flush(){clearTimeout(timer);if(applying)return;const state=read(),before=tree.nodes.find(n=>n.id===tree.current)!.state;if(recordHistory(tree,state,label(before,state))){persist();draw()}}
- function draw(){const rows:HistoryRow[]=[];const visit=(parent:string|null,depth:number)=>{for(const node of tree.nodes.filter(n=>n.parent===parent)){rows.push({id:node.id,label:node.label,at:node.at,depth});visit(node.id,depth+1)}};visit(null,0);
+ function draw(){const rows:HistoryRow[]=[];const visit=(parent:string|null,depth:number)=>{for(const node of tree.nodes.filter(n=>n.parent===parent)){rows.push({id:node.id,label:node.label,at:node.at,parent:node.parent,depth});visit(node.id,depth+1)}};visit(null,0);rows.sort((a,b)=>tree.nodes.findIndex(n=>n.id===a.id)-tree.nodes.findIndex(n=>n.id===b.id));
   for(const direction of ['undo','redo'] as const){const button=document.querySelector<HTMLButtonElement>(`[data-history-${direction}]`);if(button){button.disabled=busy()||!historyTarget(tree,direction);button.onclick=()=>move(direction)}}
   renderView(root,createElement(HistoryView,{rows,current:tree.current,status:statusMessage,canUndo:!!historyTarget(tree,'undo'),canRedo:!!historyTarget(tree,'redo'),onUndo:()=>move('undo'),onRedo:()=>move('redo'),onGo:id=>{flush();go(id)}}));
  }

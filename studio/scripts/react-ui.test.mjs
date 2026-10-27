@@ -121,6 +121,17 @@ try {
   const {ViewerTether}=await server.ssrLoadModule('/studio/src/react/viewer-tether.tsx');const tether=renderToStaticMarkup(createElement(ViewerTether,{target:'timeline',onChange:()=>{}}));assert.match(tether,/aria-label="Link Timeline viewer to a Sequence window"/);assert.doesNotMatch(tether,/<select|>Link sequence</);assert.match(tether,/viewer-pickwhip[^>]*aria-pressed="true"/);
   const chooser=renderToStaticMarkup(createElement(ModelChooser,{groups:[],research:[],attach:()=>{},onChoose:()=>{},onClose:()=>{},polisher:{id:'qwen',model:'Qwen3',available:true,cpuSupported:false,reason:''}}));assert.match(chooser,/<summary>Advanced<\/summary>/);assert.match(chooser,/text processing device/);assert.match(chooser,/CPU · unavailable for this workflow/);assert.match(chooser,/value="cpu" disabled/);
   const { HistoryView,PromptHistory } = await server.ssrLoadModule('/studio/src/react/history.tsx');
+  const branchGraph=renderToStaticMarkup(createElement(HistoryView,{rows:[{id:'root',parent:null,label:'Start',depth:0,at:1},{id:'a',parent:'root',label:'First',depth:1,at:2},{id:'b',parent:'a',label:'Next',depth:2,at:3},{id:'c',parent:'root',label:'Alternate',depth:1,at:4}],current:'c',status:'',canUndo:true,canRedo:false,onUndo(){},onRedo(){},onGo(){}}));
+  assert.match(branchGraph,/history-connections/);
+  assert.match(branchGraph,/M 12 16 L 28 28 L 28 112/);
+  assert.match(branchGraph,/history-current/);
+  const {historyAction}=await server.ssrLoadModule('/studio/src/react/history.tsx');
+  assert.equal(historyAction('Motion prompt: Scene'),'prompt');
+  assert.equal(historyAction('Video take: Scene'),'take');
+  assert.equal(historyAction('Keyframes: Scene'),'image');
+  assert.equal(historyAction('Edit sequence layers'),'structure');
+  assert.ok(!branchGraph.includes('history-depth'));
+
   const history = renderToStaticMarkup(
     createElement(HistoryView, {
       rows: [{ id: 'n', label: 'Edit', at: 1, depth: 1 }],

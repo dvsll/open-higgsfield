@@ -1,6 +1,13 @@
-import { useState, useId, type CSSProperties } from 'react';
+import { useState, useId, useRef, useLayoutEffect, type CSSProperties } from 'react';
 import {Popup} from './popup';
-export type HistoryRow = { id: string; label: string; at: number; depth: number };
+export function historyAction(label:string):'prompt'|'image'|'take'|'structure'|'start'{
+ if(label==='Starting point')return 'start';
+ if(/prompt/i.test(label))return 'prompt';
+ if(/image|keyframe/i.test(label))return 'image';
+ if(/take/i.test(label))return 'take';
+ return 'structure';
+}
+export type HistoryRow = { id: string; label: string; at: number; depth: number; parent?:string|null };
 export function HistoryView({
   rows,
   current,
@@ -20,6 +27,13 @@ export function HistoryView({
   onRedo: () => void;
   onGo: (id: string) => void;
 }) {
+  const treeRef=useRef<HTMLDivElement>(null);
+  useLayoutEffect(()=>{const tree=treeRef.current;if(!tree)return;const reveal=()=>{if(tree.getClientRects().length)tree.querySelector('[aria-selected=true]')?.scrollIntoView({block:'nearest',inline:'nearest'})};reveal();const observer=new ResizeObserver(reveal);observer.observe(tree);return()=>observer.disconnect()},[current,rows.length]);
+  const positions=new Map<string,{lane:number;index:number}>(),childCounts=new Map<string,number>();
+  let lastLane=0;
+  rows.forEach((row,index)=>{const parent=row.parent?positions.get(row.parent):undefined,sibling=row.parent?(childCounts.get(row.parent)||0):0;if(row.parent)childCounts.set(row.parent,sibling+1);positions.set(row.id,{index,lane:parent?(sibling===0?parent.lane:++lastLane):0})});
+  const active=new Set<string>();let cursor=rows.find(row=>row.id===current);while(cursor&&!active.has(cursor.id)){active.add(cursor.id);cursor=rows.find(row=>row.id===cursor!.parent)}
+  const graphWidth=24+lastLane*16;
   return (
     <>
       <div className="history-tools">
@@ -34,6 +48,9 @@ export function HistoryView({
         {status}
       </p>
       <div
+        ref={treeRef}
+        className="history-graph"
+        style={{"--history-graph-width":`${graphWidth}px`} as CSSProperties}
         role="tree"
         aria-label="Project edit branches"
         onKeyDown={(e) => {
@@ -50,18 +67,20 @@ export function HistoryView({
           items[next].focus();
         }}
       >
+        <svg className="history-connections" width={graphWidth} height={rows.length*32} aria-hidden="true">{rows.map(row=>{const point=positions.get(row.id)!,parent=row.parent?positions.get(row.parent):undefined;if(!parent)return null;const x=12+point.lane*16,px=12+parent.lane*16,y=point.index*32+16,py=parent.index*32+16;return <path key={row.id} className={active.has(row.id)?'active':''} d={`M ${px} ${py} L ${x} ${py+12} L ${x} ${y}`}/>})}</svg>
         {rows.map((row) => (
           <button
             key={row.id}
             role="treeitem"
             aria-level={row.depth + 1}
             aria-selected={row.id === current}
-            style={{ '--history-depth': Math.min(row.depth, 8) } as CSSProperties}
-            title={new Date(row.at).toLocaleString()}
+            data-current={row.id===current||undefined}
+            title={`${historyAction(row.label)} · ${new Date(row.at).toLocaleString()}`}
             onClick={() => onGo(row.id)}
           >
-            {row.id === current ? '● ' : '↳ '}
-            {row.label}
+            <span data-action={historyAction(row.label)} className={'history-node'+(active.has(row.id)?' active':'')} style={{left:10+positions.get(row.id)!.lane*16}} aria-hidden="true"/>
+            <span className="history-label">
+            {row.label}</span>{row.id===current&&<span className="history-current">Current</span>}
           </button>
         ))}
       </div>

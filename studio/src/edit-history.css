@@ -18,3 +18,14 @@ dialog.prompt-history-popup{width:min(850px,calc(100vw - 32px))}
 .prompt-history-popup .popup-actions button{font:inherit;border:1px solid var(--ui-border,#3a404b);border-radius:0;background:#20232a;color:inherit;padding:6px 10px;cursor:pointer}
 .prompt-history-popup .popup-actions button:disabled{opacity:.4;cursor:default}
 @media(max-width:600px){.prompt-comparison{grid-template-columns:1fr}.prompt-time-selection{flex-wrap:wrap;gap:4px}}
+
+.history-graph{position:relative;isolation:isolate;min-width:0;gap:0!important}.history-connections{position:absolute;left:0;top:0;pointer-events:none;z-index:-1;overflow:visible}.history-connections path{fill:none;stroke:var(--ui-border);stroke-width:1.5}.history-connections path.active{stroke:var(--ui-accent);opacity:.65}.edit-history .history-graph [role=treeitem]{position:relative;display:flex;align-items:center;gap:8px;box-sizing:border-box;height:32px;min-height:32px;padding:0 8px 0 calc(var(--history-graph-width) + 8px);border:0;border-left:2px solid transparent;white-space:nowrap;flex:none}.edit-history .history-graph [role=treeitem]:hover{background:#ffffff08}.edit-history .history-graph [aria-selected=true]{background:#edc86f12;border-left-color:var(--ui-accent)}.history-label{overflow:hidden;text-overflow:ellipsis;min-width:0}.history-node{position:absolute;top:12px;width:7px;height:7px;box-sizing:border-box;background:var(--ui-bg);border:1px solid var(--ui-muted);border-radius:50%}.history-node.active{border-color:var(--ui-accent)}[data-current=true]>.history-node{background:var(--ui-accent);box-shadow:0 0 0 3px #edc86f22}.history-current{margin-left:auto;font-size:10px;color:var(--ui-accent);flex:none}.history-status:empty{display:none}
+
+/* Shape distinguishes actions while accent stays reserved for the current path. */
+.history-node[data-action=prompt]{border-radius:50%!important}
+.history-node[data-action=image]{border-radius:0;transform:translateX(-50%) rotate(45deg);width:6px;height:6px;top:12.5px}
+.history-node[data-action=take]{border-radius:0;border-width:2px;width:8px;height:8px}
+.history-node[data-action=structure]{border-radius:0;width:9px;height:4px;top:14px;left:7px}
+.history-node[data-action=start]{border-radius:0;outline:1px solid var(--ui-muted);outline-offset:2px}
+
+.history-node{transform:translateX(-50%)}

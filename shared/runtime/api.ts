@@ -621,9 +621,30 @@ function middleware(env: Env,setup:RuntimeSetup,rewriter:PromptRewriter,creative
        const path=join(OUTPUTS,'hero-qwen',url.pathname.split('/').pop()!,'provenance.json');if(!existsSync(path))return send(res,404,{error:'No saved Qwen provenance'});if(statSync(path).size>512*1024)throw new HttpError(413,'Qwen provenance too large');return send(res,200,JSON.parse(await readFile(path,'utf8')));
       }
       if(route==='GET /api/hero/capabilities'){
-       const nodes=await comfyJson(env,'/object_info').catch(()=>({}));let reimagine=false;try{const models=await localModels(env),graph=await loadGraph('hero_zimage_experimental');reimagine=!!(models.zimageTurbo&&Object.values(graph).every(n=>nodes[n.class_type]));}catch{}
+       // finish/product-safe never depends on GPU admission. AI engines require installed
+       // weights/nodes AND a verified free/reclaimable VRAM reading above the floor.
+       const gib=1024**3,appBusy=queued>0||trainingPending||setup.task.busy;
+       const [nodes,queue,stats]=await Promise.all([comfyJson(env,'/object_info').catch(()=>({})),comfyJson(env,'/queue').catch(()=>null),comfyJson(env,'/system_stats').catch(()=>null)]);
+       const device=stats?.devices?.find((d:any)=>d.type==='cuda');
+       const vramKnown=!!device&&[device.vram_free,device.torch_vram_total,device.torch_vram_free].every((v:any)=>Number.isFinite(v)&&v>=0);
+       const vramFreeBytes=vramKnown?device.vram_free+Math.max(0,device.torch_vram_total-device.torch_vram_free):undefined;
+       const queueKnown=Array.isArray(queue?.queue_running)&&Array.isArray(queue?.queue_pending);
+       const queueBusy=queueKnown&&(queue.queue_running.length>0||queue.queue_pending.length>0);
+       const busy=appBusy||queueBusy;
+       const admit=(minGib:number)=>{
+        if(appBusy)return {ok:false as const,reason:'Local generation or setup is busy. Product-safe design remains available.'};
+        if(!queueKnown)return {ok:false as const,reason:'Cannot verify the local ComfyUI queue. Product-safe design remains available.'};
+        if(queueBusy)return {ok:false as const,reason:`ComfyUI is busy (${queue.queue_running.length} running, ${queue.queue_pending.length} queued). Product-safe design remains available.`};
+        if(typeof vramFreeBytes!=='number')return {ok:false as const,reason:'Cannot verify free GPU memory for local image generation. Product-safe design remains available.'};
+        if(vramFreeBytes<minGib*gib)return {ok:false as const,reason:`Free/reclaimable VRAM ${(vramFreeBytes/gib).toFixed(1)} GiB is below the ${minGib} GiB admission floor for local image generation. Product-safe design remains available.`};
+        return {ok:true as const,reason:''};
+       };
+       let installed=false;try{const models=await localModels(env),graph=await loadGraph('hero_zimage_experimental');installed=!!(models.zimageTurbo&&Object.values(graph).every(n=>nodes[n.class_type]));}catch{installed=false;}
+       const zAdmit=admit(3.5),reimagine=installed&&zAdmit.ok;
+       const zimage={available:reimagine,installed,reason:installed?(zAdmit.ok?'Local Z-Image Turbo graph and memory admission passed.':zAdmit.reason):'Z-Image Turbo is not available on this ComfyUI (weights or graph nodes missing).'};
        let qwen:any;try{qwen=relay?await relay.capability('http://'+req.headers.host):await qwenAvailability(nodes,setup.config?.modelsDir||env.COMFYUI_MODELS_DIR);}catch(error:any){qwen={id:'qwen-fp8',available:false,reason:String(error?.message||error||'Qwen capability check failed')};}
-       return send(res,200,{finish:true,reimagine,experimental:true,qwen});
+       const qAdmit=admit(8);if(qwen?.available&&!qAdmit.ok)qwen={...qwen,available:false,reason:qAdmit.reason};
+       return send(res,200,{finish:true,reimagine,experimental:true,qwen,zimage,vramFreeBytes:typeof vramFreeBytes==='number'?vramFreeBytes:null,comfyConnected:!!stats,busy});
       }
       if(route==='POST /api/hero/finish')return send(res,200,await finishHero(await readBody(req),OUTPUTS,env));
       if(route==='POST /api/hero/export')return send(res,200,await exportHeroAd(await readBody(req),OUTPUTS));

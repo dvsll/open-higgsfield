@@ -12,18 +12,39 @@ def installed_models():
     return [label for label, path in MODELS.items() if all(os.path.isfile(os.path.join(path, name)) for name in ['model.bin', 'config.json', 'tokenizer.json'])]
 
 
+def available_devices():
+    try:
+        import ctranslate2
+        import ctypes
+        import sys
+        # CTranslate2 can see a GPU even when its CUDA 12 libraries are missing.
+        if sys.platform == 'win32':
+            ctypes.WinDLL('cublas64_12.dll')
+            ctypes.WinDLL('cudnn64_9.dll')
+        else:
+            ctypes.CDLL('libcublas.so.12')
+            ctypes.CDLL('libcudnn.so.9')
+        if ctranslate2.get_cuda_device_count() > 0 and 'float16' in ctranslate2.get_supported_compute_types('cuda'):
+            return ['cpu', 'cuda']
+    except Exception:
+        pass
+    return ['cpu']
+
+
 class OSHWhisperCaptions:
     @classmethod
     def INPUT_TYPES(cls):
         ready = installed_models() if importlib.util.find_spec('faster_whisper') else []
-        return {'required': {'audio': ('AUDIO',), 'model': (ready,)}}
+        return {'required': {'audio': ('AUDIO',), 'model': (ready,)}, 'optional': {'device': (available_devices(), {'default': 'cpu'})}}
 
     RETURN_TYPES = ()
     FUNCTION = 'transcribe'
     OUTPUT_NODE = True
     CATEGORY = 'Studio/Captions'
 
-    def transcribe(self, audio, model):
+    def transcribe(self, audio, model, device='cpu'):
+        if device not in available_devices():
+            raise ValueError('Choose an available caption processing device.')
         if model not in installed_models():
             raise ValueError('Choose an installed local Whisper model.')
         from faster_whisper import WhisperModel
@@ -40,8 +61,8 @@ class OSHWhisperCaptions:
         segments = []
         language = None
         if np.max(np.abs(samples)) > 0.001:
-            # CPU int8 deliberately avoids contention with video generation VRAM.
-            engine = WhisperModel(MODELS[model], device='cpu', compute_type='int8', cpu_threads=4, local_files_only=True)
+            # CPU remains the default; GPU is an explicit advanced choice.
+            engine = WhisperModel(MODELS[model], device=device, compute_type='float16' if device == 'cuda' else 'int8', cpu_threads=4, local_files_only=True)
             stream, info = engine.transcribe(samples, beam_size=5, temperature=0, vad_filter=False, word_timestamps=True,
                                               condition_on_previous_text=False, no_speech_threshold=0.6)
             language = info.language
@@ -82,4 +103,4 @@ class OSHWhisperCaptions:
 
 
 NODE_CLASS_MAPPINGS = {'OSHWhisperCaptions': OSHWhisperCaptions}
-NODE_DISPLAY_NAME_MAPPINGS = {'OSHWhisperCaptions': 'Studio · Whisper captions (CPU)'}
+NODE_DISPLAY_NAME_MAPPINGS = {'OSHWhisperCaptions': 'Studio · Whisper captions'}

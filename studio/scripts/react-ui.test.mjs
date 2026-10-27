@@ -17,6 +17,7 @@ try {
   const director=renderToStaticMarkup(createElement(DirectorSurface));assert.doesNotMatch(director,/id="(?:audio|overlay)TrackAttributes"/);assert.doesNotMatch(director,/id="els"/);assert.ok(director.indexOf('id="overlayTrack"')<director.indexOf('id="trk"'));assert.ok(director.indexOf('id="trk"')<director.indexOf('id="audioTrack"'));
   const {CloseButton}=await server.ssrLoadModule('/studio/src/react/close-button.tsx');
   const close=renderToStaticMarkup(createElement(CloseButton,{label:'Close walkthrough'}));assert.match(close,/aria-label="Close walkthrough"/);assert.match(close,/<svg/);assert.doesNotMatch(close,/>Close/);
+  const {AudioPlayer}=await server.ssrLoadModule('/studio/src/react/audio-player.tsx');const player=renderToStaticMarkup(createElement(AudioPlayer,{url:'/outputs/1111111111111111.webm',label:'Voice'}));assert.match(player,/aria-label="Play source"/);assert.match(player,/aria-label="Seek Voice"/);assert.doesNotMatch(player,/<audio[^>]*controls/);
   const {AdvancedPrompt}=await server.ssrLoadModule('/studio/src/react/prompt-advanced.tsx');
   const advanced=renderToStaticMarkup(createElement(AdvancedPrompt,null,createElement('textarea',{'aria-label':'Motion prompt'})));
   assert.match(advanced,/<details[^>]*id="promptAdvanced"/);assert.doesNotMatch(advanced,/<details[^>]* open/);assert.match(advanced,/<summary>Advanced<\/summary>/);assert.match(advanced,/Auto-fill in simple view/);

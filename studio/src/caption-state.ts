@@ -7,3 +7,9 @@ export function applyCaptions(state:LayerState,source:CaptionSource,segments:Cap
  if(retained.length+accepted.length>600)throw Error('Too many overlay clips. Remove some overlays before adding these captions.');
  return {...state,overlays:[...retained,...accepted.map(segment=>({id:crypto.randomUUID(),name:'Caption · '+segment.text.slice(0,50),kind:'text' as const,start:source.start+segment.start,duration:segment.end-segment.start,text:segment.text,position:'bottom-center',size:5,captionSource:source.id}))]};
 }
+
+/** Resolve drops against the current project library, never arbitrary media URLs. */
+export function captionFileSource(files:{url:string;kind:string;label:string}[],url:string):CaptionSource|null{
+ const file=files.find(item=>item.url===url&&['audio','video'].includes(item.kind));
+ return file&&/^\/outputs\/[a-f0-9]{16}\.(flac|wav|mp3|m4a|ogg|webm|mp4)$/.test(url)?{id:'file:'+url,url,label:file.label,start:0,origin:'library'}:null;
+}

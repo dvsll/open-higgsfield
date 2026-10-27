@@ -594,3 +594,6 @@ Additive shared API /api/search + semantic_minilm SDK workflow/repo node (local 
 
 
 **Studio coordination - 2026-10-26, video and geometry LoRA:** Additive shared TrainingInput clip fields and image/OBJ geometry pairs; /api/models geometry choices and adapter children by media, /api/geometry and /api/training-mesh, owned GLB/OBJ output MIME. LTX2B sampler adapter binding; new optional Hunyuan mini pack and SHA-pinned encoder checkpoint validation. Native training/geometry nodes updated; existing Ad Studio UI/routes not edited. Three.js MIT frontend dependency for Studio only. Actual SDK/API video and geometry training plus adapter inference pass on12GB. Materials remain unavailable.
+
+
+Studio coordination 2026-10-26: caption polish adds optional cpu/cuda request and custom node device enum; defaults remain CPU, legacy CPU-only node supported. GET /api/captions adds devices. Existing SDK/proxy route unchanged; no Ad Studio UI changes or new dependencies/models.

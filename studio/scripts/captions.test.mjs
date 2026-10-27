@@ -14,3 +14,7 @@ assert.throws(()=>captionSegments(null));
 assert.match(captionSrt(segments),/00:00:01,250 --> 00:00:03,000/);
 assert.match(captionSrt([{start:59.9996,end:61,text:'Rounded'}]),/00:01:00,000 --> 00:01:01,000/);
 console.log('PASS: speech segment validation, source-relative timeline offsets, duration clipping, source-specific replacement, immutable history input and SRT timing.');
+
+const {captionFileSource}=await import('../src/caption-state.ts');
+const library=[{url:'/outputs/1111111111111111.webm',kind:'video',label:'Video'},{url:'/outputs/2222222222222222.flac',kind:'audio',label:'Audio'},{url:'/outputs/3333333333333333.png',kind:'image',label:'Image'}];
+assert.equal(captionFileSource(library,library[0].url).url,library[0].url);assert.equal(captionFileSource(library,library[1].url).origin,'library');assert.equal(captionFileSource(library,library[2].url),null);assert.equal(captionFileSource(library,'https://example.com/audio.wav'),null);assert.equal(captionFileSource(library,'/outputs/4444444444444444.flac'),null);

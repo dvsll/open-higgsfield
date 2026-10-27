@@ -707,14 +707,14 @@ function middleware(env: Env,setup:RuntimeSetup,rewriter:PromptRewriter,creative
       if (route === 'GET /api/captions') {
         const nodes=await comfyJson(env,'/object_info');
         const models=(nodes.OSHWhisperCaptions?.input?.required?.model?.[0]||[]).filter((model:unknown)=>typeof model==='string'&&/^Whisper [\w.-]+ · CPU$/.test(model));
-        return send(res,200,{available:!!nodes.LoadAudio&&models.length>0,model:models[0]||null,models,setup:'Run shared/runtime/setup-captions.py with ComfyUI Python, then restart ComfyUI.'});
+        return send(res,200,{available:!!nodes.LoadAudio&&models.length>0,model:models[0]||null,models,devices:nodes.OSHWhisperCaptions?.input?.optional?.device?.[0]||['cpu'],setup:'Run shared/runtime/setup-captions.py with ComfyUI Python, then restart ComfyUI.'});
       }
       if (route === 'POST /api/captions') return send(res,200,await tracked(async body=>{
         if(typeof body.audio!=='string'||!/^\/outputs\/[a-f0-9]{16}\.(flac|wav|mp3|m4a|ogg|webm|mp4)$/.test(body.audio))throw new HttpError(400,'Select an audio or video file from this project.');
         const source=outputPath(body.audio);if(statSync(source).size>32*1024*1024)throw new HttpError(400,'Select audio under 32 MB and 10 minutes.');
         const nodes=await comfyJson(env,'/object_info'),models=nodes.OSHWhisperCaptions?.input?.required?.model?.[0]||[],model=body.model===undefined?models[0]:body.model;if(!nodes.LoadAudio||!models.length)throw new HttpError(503,'Install a local Whisper model and restart ComfyUI.');if(typeof model!=='string'||!models.includes(model))throw new HttpError(400,'Choose an installed caption model, then try again.');
         await ensureProxy(env);const c=client(env),wf=c.workflows.fromJson(await loadGraph('captions_whisper'));
-        wf.setInput('2','model',model);wf.setInput('1','audio',c.assets.fromFile(source));const started=Date.now(),job=await serialize(()=>runWf(c,wf,body._requestId)),output=job.getOutputs('2')[0];
+        const devices=nodes.OSHWhisperCaptions?.input?.optional?.device?.[0]||['cpu'],device=body.device??'cpu';if(!['cpu','cuda'].includes(device)||!devices.includes(device))throw new HttpError(400,'Choose an available caption processing device.');if(nodes.OSHWhisperCaptions?.input?.optional?.device)wf.setInput('2','device',device);wf.setInput('2','model',model);wf.setInput('1','audio',c.assets.fromFile(source));const started=Date.now(),job=await serialize(()=>runWf(c,wf,body._requestId)),output=job.getOutputs('2')[0];
         if(!output)throw new HttpError(502,'The caption workflow returned no transcript.');
         const result=JSON.parse(Buffer.from(await output.toBytes()).toString('utf8'));
         return {model,language:typeof result.language==='string'?result.language:null,duration:result.duration,seconds:(Date.now()-started)/1000,segments:captionSegments(result.segments)};

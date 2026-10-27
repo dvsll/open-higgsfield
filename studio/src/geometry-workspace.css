@@ -15,3 +15,9 @@
 
 .scene-playback{position:absolute;bottom:12px;left:12px;right:12px;z-index:3;display:flex;gap:6px;align-items:center;flex-wrap:wrap;pointer-events:none}.geometry-viewer .scene-playback button{pointer-events:auto;background:var(--card);color:var(--txt);border:1px solid var(--line);padding:6px 8px;min-height:30px;cursor:pointer}.scene-playback button svg{display:block;width:16px;height:16px;fill:currentColor}.scene-playback [role=status]{font-size:11px;color:var(--txt);background:var(--card);padding:6px}.geometry-viewer .scene-playback button:hover{border-color:var(--key)}
 
+
+.geometry-scene{position:relative}.geometry-export-scene{position:absolute;top:12px;right:12px;z-index:4}.geometry-object-name{position:absolute;top:12px;left:12px;z-index:2;pointer-events:none;font-size:11px;color:var(--txt);background:var(--card);padding:5px 8px}.geometry-scene-reference{display:grid;gap:6px;font-size:11px;margin-top:16px}.geometry-scene-reference select{max-width:100%}
+
+
+.geometry-tools input:not([type=number]){background:var(--card);color:var(--txt);border:1px solid var(--line);padding:6px;font:inherit;max-width:180px}
+

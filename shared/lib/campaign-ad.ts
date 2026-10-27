@@ -12,14 +12,15 @@ export function campaignSVG(d:StaticDesign,images:StaticImages,w:number,h:number
   for(;size>=18;size-=2){lines=[];let line='';const measure=(s:string)=>Array.from(s).reduce((n,c)=>n+(/[MW@]/.test(c)?.95:/[ilI.,' ]/.test(c)?.28:.57)*size,0);for(const word of value.trim().split(/\s+/)){if(measure(word)>width)throw Error('Shorten an unbroken word for this campaign layout.');if(line&&measure(line+' '+word)>width){lines.push(line);line=word;}else line+=(line?' ':'')+word;}if(line)lines.push(line);if(lines.length*size*1.05<=maxHeight)break;}
   if(size<18)throw Error('Shorten the campaign copy.');textBounds.push({text:value,x,y,width,height:lines.length*size*1.05,fontSize:size});parts.push(`<text fill="${d.textColor}" font-family="${family}" font-size="${size}" font-weight="${weight}" letter-spacing="${spacing}">${lines.map((l,i)=>`<tspan x="${x}" y="${y+size*.83+i*size*1.05}">${esc(l)}</tspan>`).join('')}</text>`);
  };
- parts.push(`<defs><linearGradient id="campaign-top" x2="0" y2="1"><stop offset="0" stop-color="#100d0a" stop-opacity=".78"/><stop offset=".24" stop-color="#100d0a" stop-opacity=".46"/><stop offset=".48" stop-color="#100d0a" stop-opacity="0"/></linearGradient><linearGradient id="campaign-foot" x2="0" y2="1"><stop offset=".65" stop-color="#100d0a" stop-opacity="0"/><stop offset="1" stop-color="#100d0a" stop-opacity=".78"/></linearGradient></defs><rect width="${w}" height="${h}" fill="${d.background}"/>`);
+ // Restrained lettering veils — photography stays primary; avoid heavy poster gradients.
+ parts.push(`<defs><linearGradient id="campaign-top" x2="0" y2="1"><stop offset="0" stop-color="#100d0a" stop-opacity=".42"/><stop offset=".18" stop-color="#100d0a" stop-opacity=".18"/><stop offset=".38" stop-color="#100d0a" stop-opacity="0"/></linearGradient><linearGradient id="campaign-foot" x2="0" y2="1"><stop offset=".78" stop-color="#100d0a" stop-opacity="0"/><stop offset="1" stop-color="#100d0a" stop-opacity=".35"/></linearGradient></defs><rect width="${w}" height="${h}" fill="${d.background}"/>`);
  // Fit the entire 4:5 scene across all formats; never stretch or crop product edges.
  const scale=Math.min(w/768,h/960),pw=768*scale,ph=960*scale,px=(w-pw)/2,py=h-ph;
  parts.push(`<image href="${raster(images.photo)}" x="${px}" y="${py}" width="${pw}" height="${ph}" preserveAspectRatio="xMidYMid meet"/><rect width="${w}" height="${h}" fill="url(#campaign-top)"/><rect width="${w}" height="${h}" fill="url(#campaign-foot)"/>`);
  const family=bold?'Inter, Arial, sans-serif':'Georgia, Times New Roman, serif';
- text(d.brandName.toUpperCase(),m,52,w-2*m-(images.logo?140:0),48,23,'Arial, sans-serif',700,2);
- if(images.logo)parts.push(`<image href="${raster(images.logo)}" x="${w-m-118}" y="44" width="118" height="92" preserveAspectRatio="xMidYMid meet"/>`);
- const headlineTop=h===1920?168:134; text(d.headline,m,headlineTop,w-2*m, h===1080?190:250,bold?104:food?100:106,family,bold?800:400,bold?-2:-1.2);
+ text(d.brandName.toUpperCase(),m,48,w-2*m-(images.logo?140:0),40,20,'Arial, sans-serif',600,1.5);
+ if(images.logo)parts.push(`<image href="${raster(images.logo)}" x="${w-m-100}" y="40" width="100" height="78" preserveAspectRatio="xMidYMid meet"/>`);
+ const headlineTop=h===1920?150:118; text(d.headline,m,headlineTop,w-2*m, h===1080?160:210,bold?72:food?68:70,family,bold?700:400,bold?-1.2:-0.8);
  text(d.body,m,h-172,w-2*m,70,28,'Arial, sans-serif');
  text(d.cta,m,h-74,w*.6,42,24,'Arial, sans-serif',600,.5);
  text(d.website,w*.62,h-74,w*.38-m,42,18,'Arial, sans-serif');

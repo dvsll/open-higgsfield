@@ -19,15 +19,22 @@ const page=await ctx.newPage();
 const report={base,out,ref,steps:[],pass:false};
 const step=async(name,fn)=>{const t=Date.now();await fn();report.steps.push({name,ms:Date.now()-t});console.log('PASS',name,(Date.now()-t)+'ms');await page.screenshot({path:join(out,name+'.png'),fullPage:true});};
 const click=async l=>{await l.waitFor({state:'visible',timeout:30000});for(let i=0;i<240;i++){if(await l.isEnabled()){await l.click();return;}await page.waitForTimeout(250);}throw Error('Disabled: '+await l.innerText());};
-const saveVideo=async(name)=>{
- const vid=page.locator('.campaign-video video').first();
- await vid.waitFor({timeout:900000});
- const src=await vid.getAttribute('src');assert.ok(src);
+const saveVideo=async(name,{preferSrc,minCount=1,timeout=900000}={})=>{
+ const started=Date.now();
+ let src='';
+ while(Date.now()-started<timeout){
+  const count=await page.locator('.campaign-video video').count();
+  if(count>=minCount){
+   src=await page.locator('.campaign-video video').first().getAttribute('src')||'';
+   if(src&&(!preferSrc||src!==preferSrc))break;
+  }
+  await page.waitForTimeout(1000);
+ }
+ assert.ok(src&&(!preferSrc||src!==preferSrc),`expected new video src (avoided ${preferSrc||'none'})`);
  const r=await page.request.get(base+src);const bytes=Buffer.from(await r.body());
  await writeFile(join(out,name),bytes);
  report[name]={src,bytes:bytes.length,sha256:sha(bytes)};
- // frames
- await new Promise((ok)=>{const p=spawn(ffmpeg,['-y','-i',join(out,name),'-ss','0.05','-vframes','1',join(out,name+'-first.jpg'),'-ss','1.2','-vframes','1',join(out,name+'-mid.jpg'),'-sseof','-0.15','-vframes','1',join(out,name+'-final.jpg')],{stdio:'ignore'});p.on('close',()=>ok());});
+ await new Promise((ok)=>{const p=spawn(ffmpeg,['-y','-i',join(out,name),'-ss','0.05','-vframes','1',join(out,name+'-first.jpg'),'-ss','1.0','-vframes','1',join(out,name+'-mid.jpg'),'-sseof','-0.15','-vframes','1',join(out,name+'-final.jpg')],{stdio:'ignore'});p.on('close',()=>ok());});
  return src;
 };
 
@@ -47,13 +54,14 @@ try{
   await page.getByRole('button',{name:/Export PNG/}).waitFor({timeout:60000});
   await page.locator('label.fidelity input').check();
  });
+ let norefSrc='';
  await step('03-noref-multishot',async()=>{
   await click(page.getByRole('button',{name:/Animate this ad/}));
   await page.locator('.job-status, .campaign-video video').first().waitFor({timeout:20000});
-  await saveVideo('noref-commercial.mp4');
+  norefSrc=await saveVideo('noref-commercial.mp4');
   const meta=await page.locator('.campaign-video small').first().innerText();
   report.norefMeta=meta;
-  assert.match(meta,/LTX|Inspired|shot/i);
+  assert.match(meta,/Original|Inspired|shot/i);
  });
  await step('04-upload-ref',async()=>{
   await copyFile(ref,join(out,'reference-used.mp4'));
@@ -64,13 +72,13 @@ try{
   assert.match(report.inspiration,/shot/i);
  });
  await step('05-inspired-multishot',async()=>{
+  const before=await page.locator('.campaign-video video').count();
   await click(page.getByRole('button',{name:/Generate inspired commercial/}));
-  await page.locator('.campaign-video video').first().waitFor({timeout:20000});
-  // Wait for new video (count may increase)
-  await page.waitForTimeout(2000);
-  await page.locator('.campaign-video video').first().waitFor({timeout:900000});
-  await saveVideo('inspired-commercial.mp4');
+  await page.locator('.job-status').first().waitFor({timeout:20000}).catch(()=>{});
+  await saveVideo('inspired-commercial.mp4',{preferSrc:norefSrc,minCount:Math.max(1,before)});
   report.inspiredMeta=await page.locator('.campaign-video small').first().innerText();
+  assert.match(report.inspiredMeta,/Inspired|shot/i);
+  assert.notEqual(report['inspired-commercial.mp4'].sha256,report['noref-commercial.mp4'].sha256,'inspired must be a new encode');
  });
  await step('06-reload',async()=>{
   await page.reload({waitUntil:'domcontentloaded'});

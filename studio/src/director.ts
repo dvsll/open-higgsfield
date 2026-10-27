@@ -1,4 +1,5 @@
 // @ts-nocheck -- existing canvas/media controller; React views are strictly typed.
+import {savedSceneVideo} from './scene-video';
 import {revealGeneratedFile} from './generated-file';
 import {mountTimelineMarquee} from './timeline-marquee';
 import {Glyph,Crumb,Chips} from './react/controls';
@@ -39,7 +40,7 @@ import { mountWorkspaceDock } from './workspace-dock';
 import { SHELL } from './shell';
 import {mentionRanges,elementMentionText} from './mention-matching';
 import { OSH } from '../../shared/runtime/client';
-import { localGeneration, mountModels, estimateContext } from './models';
+import { localGeneration, mountModels, estimateContext, chooseGuideModel } from './models';
 import {mountSequenceScroll} from './sequence-scroll';
 import './sequence-empty.css';
 import './sequence-focus.css';
@@ -234,6 +235,7 @@ function head(){const s=currentShot();const deleteMedia=document.querySelector('
  if(document.activeElement!==$('#motion'))$('#motion').value=s.m;dispatchEvent(new Event('osh-prompt-values'))}
 function checkTourPlacement(){const shot=SH.find(s=>s.id===onboarding?.shotId);if(touring()&&onboarding.step==='position'&&shot){if(onboarding.entry==='image'){if(shot.keys.some(k=>k.img===onboarding.images[0]&&k.anchor==='start'))advanceTour('image-video')}else if(guidesPlaced(shot.keys))advanceTour('regenerate')}}
 addEventListener('osh-tour-keyframe-view',()=>{const index=SH.findIndex(s=>s.id===onboarding?.shotId);if(index>=0)openShot(index)});
+addEventListener('osh-3d-video-reference',async()=>{const reference=savedSceneVideo();if(!reference)return;try{await chooseGuideModel()}catch(error){toast(error.message);return}const shot=newScene();shot.n='3D camera reference';shot.fps=24;shot.renderFrames=Math.max(9,Math.min(121,Math.ceil((reference.duration*24-1)/8)*8+1));shot.d=shot.renderFrames/24;shot.prompt=reference.prompt;shot.keys=reference.keys.map((key,index)=>({id:crypto.randomUUID(),img:key.image,t:key.t/reference.duration*shot.d,u:.5,spec:shot.spec,...(index===0?{anchor:'start'}:index===2?{anchor:'end'}:{})}));SH.push(shot);cur=SH.length-1;open=cur;clipSelected=true;selKey=null;librarySelection=null;G=start(cur);setPlaying(false);dispatchEvent(new CustomEvent('osh-prompt-media-request',{detail:'video'}));dispatchEvent(new CustomEvent('osh-reveal-window',{detail:'prompts'}));dispatchEvent(new CustomEvent('osh-reveal-window',{detail:'timeline'}));timeline();head();save();toast('3D camera guides added to a new scene.');});
 addEventListener('osh-project-file-keyframe',event=>{if(workspaceMode!=='video')return;const file=(SC.get('osh-project-files')||[]).find(file=>file.kind==='image'&&file.url===event.detail?.url);if(!file)return;const[i,t]=keyTarget();addKey(i,t,{img:file.url,spec:currentShot().spec,u:.5})});
 function addKey(i,t,v,source='click'){if(!SH.length)i=ensureScene();const s=SH[i],guided=touring()&&onboarding.step==='add'&&s.id===onboarding.shotId;if(guided){if(s.keys.some(k=>k.img===v.img))return toast('Choose a different image for the other frame');if(source==='click')t=s.d*(s.keys.filter(k=>k.img).length+1)/3;v={...v,spec:s.spec}}const k={t,u:v.u,spec:v.spec,img:v.img};if(source==='drop'){const edge=Math.min(.15,18/pxs);k.anchor=t<=edge?'start':t>=s.d-edge?'end':undefined;if(k.anchor){k.t=k.anchor==='start'?0:s.d;for(const other of s.keys)if(other.anchor===k.anchor){delete other.anchor;other.t=k.anchor==='start'?Math.min(.2,s.d/2):Math.max(0,s.d-.2)}}}open=i;s.keys.push(k);selKey=k;cur=i;s.r=false;G=start(i)+Math.min(k.t,s.d-.01);playing=false;setPlaying(false);timeline();head();save();if(guided&&(onboarding.entry==='image'?s.keys.some(k=>k.img===onboarding.images[0]):s.keys.filter(k=>k.img).length>=2)){advanceTour('position');checkTourPlacement()}toast(`Keyframe added to shot ${i+1} at ${k.t.toFixed(1)}s`)}
 addEventListener('osh-video-timing',e=>{if(playing)setPlaying(false);const s=currentShot();s.renderFrames=e.detail.frames;s.fps=e.detail.fps;s.d=s.renderFrames/s.fps;s.keys.forEach(k=>{k.t=k.anchor==='end'?s.d:Math.min(k.t,s.d)});G=Math.max(0,Math.min(G,tot()-.01));timeline();head();save()});

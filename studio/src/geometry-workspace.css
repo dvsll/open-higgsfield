@@ -12,3 +12,6 @@
 
 .geometry-viewer .geometry-camera-button{position:absolute;top:12px;right:12px;z-index:2;display:grid;place-items:center;width:32px;height:32px;padding:6px;background:var(--card);color:var(--txt);border:1px solid var(--line);cursor:pointer}.geometry-camera-button svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linejoin:round}.geometry-viewer .geometry-camera-button:hover,.geometry-viewer .geometry-camera-button:focus-visible{color:var(--key);border-color:var(--key)}
 
+
+.scene-playback{position:absolute;bottom:12px;left:12px;right:12px;z-index:3;display:flex;gap:6px;align-items:center;flex-wrap:wrap;pointer-events:none}.geometry-viewer .scene-playback button{pointer-events:auto;background:var(--card);color:var(--txt);border:1px solid var(--line);padding:6px 8px;min-height:30px;cursor:pointer}.scene-playback button svg{display:block;width:16px;height:16px;fill:currentColor}.scene-playback [role=status]{font-size:11px;color:var(--txt);background:var(--card);padding:6px}.geometry-viewer .scene-playback button:hover{border-color:var(--key)}
+

@@ -1,0 +1,10 @@
+import {useEffect,useState} from 'react';
+import {SC} from '../scene';
+import {cameraMove} from '../camera-motion';
+import {savedSceneVideo,type SceneVideo} from '../scene-video';
+export function ScenePlayback(){
+ const [busy,setBusy]=useState(false),[playing,setPlaying]=useState(false),[message,setMessage]=useState(''),[reference,setReference]=useState<SceneVideo|null>(savedSceneVideo);
+ useEffect(()=>{const update=(event:Event)=>{const value=(event as CustomEvent).detail;setBusy(value.busy);setMessage(value.message);if(value.reference)setReference(value.reference)},done=()=>setPlaying(false),motion=(event:Event)=>setPlaying((event as CustomEvent).detail?.action==='play');addEventListener('osh-camera-motion',motion);addEventListener('osh-scene-video-status',update);addEventListener('osh-camera-motion-ended',done);return()=>{removeEventListener('osh-camera-motion',motion);removeEventListener('osh-scene-video-status',update);removeEventListener('osh-camera-motion-ended',done)}},[]);
+ const run=(record=false)=>{try{const saved=SC.get('osh-3d-camera')||{},move=cameraMove(saved.prompt||'',saved.duration||4);dispatchEvent(new CustomEvent('osh-camera-motion',{detail:{action:record?'record':'play',move}}));setPlaying(!record);setMessage('')}catch(error){setMessage((error as Error).message);dispatchEvent(new Event('osh-camera-prompt-reveal'))}};
+ return <div className="scene-playback"><button type="button" disabled={busy} aria-label={playing?'Stop scene playback':'Play scene'} title={playing?'Stop':'Play scene'} onClick={()=>{if(playing){dispatchEvent(new CustomEvent('osh-camera-motion',{detail:{action:'stop'}}));setPlaying(false)}else run()}}><svg viewBox="0 0 16 16" aria-hidden="true">{playing?<path d="M4 4h8v8H4z"/>:<path d="m5 3 8 5-8 5z"/>}</svg></button><button type="button" disabled={busy} onClick={()=>run(true)}>{busy?'Saving video…':'Create reference video'}</button>{reference&&<button type="button" disabled={busy} onClick={()=>dispatchEvent(new CustomEvent('osh-3d-video-reference',{detail:reference}))}>Use for video generation</button>}{message&&<span role="status">{message}</span>}</div>
+}

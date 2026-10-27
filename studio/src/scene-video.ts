@@ -1,0 +1,18 @@
+import {OSH} from '../../shared/runtime/client';
+import {SC} from './scene';
+import {revealGeneratedFile} from './generated-file';
+export type SceneVideo={url:string;duration:number;prompt:string;keys:{image:string;t:number}[]};
+export function savedSceneVideo():SceneVideo|null{const value=SC.get('osh-3d-reference');return value&&/^\/outputs\/[a-f0-9]{16}\.(webm|mp4)$/.test(value.url)&&Number.isFinite(value.duration)&&value.duration>0&&value.duration<=60&&Array.isArray(value.keys)&&value.keys.length===3&&value.keys.every((key:{image:string;t:number})=>!!key&&/^\/outputs\/[a-f0-9]{16}\.png$/.test(key.image)&&Number.isFinite(key.t)&&key.t>=0&&key.t<=value.duration)?value:null}
+export function recordingState(busy:boolean,message='',reference?:SceneVideo){dispatchEvent(new CustomEvent('osh-scene-video-status',{detail:{busy,message,reference}}))}
+export function recordScene(source:HTMLCanvasElement,duration:number){
+ if(typeof MediaRecorder==='undefined'||!source.captureStream)throw Error('Video capture is unavailable in this browser.');
+ const type=['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'].find(value=>MediaRecorder.isTypeSupported(value));if(!type)throw Error('This browser cannot record WebM video.');
+ const canvas=document.createElement('canvas'),scale=Math.min(1,1280/source.width,720/source.height);canvas.width=Math.max(2,Math.round(source.width*scale/2)*2);canvas.height=Math.max(2,Math.round(source.height*scale/2)*2);const context=canvas.getContext('2d');if(!context)throw Error('Could not capture the scene.');
+ const stream=canvas.captureStream(24),recorder=new MediaRecorder(stream,{mimeType:type,videoBitsPerSecond:4000000}),chunks:Blob[]=[],frames:string[]=[],abort=new AbortController();let cancelled=false,finished=false;
+ const stopTracks=()=>stream.getTracks().forEach(track=>track.stop());
+ recorder.ondataavailable=event=>{if(event.data.size)chunks.push(event.data)};
+ recorder.onerror=()=>{cancelled=true;stopTracks();recordingState(false,'Scene recording failed.');};
+ recorder.onstop=()=>{stopTracks();if(cancelled)return;void (async()=>{try{recordingState(true,'Saving reference video…');const blob=new Blob(chunks,{type:'video/webm'});if(!blob.size||frames.length!==3)throw Error('Recording was incomplete. Try again with the viewport visible.');const response=await fetch('/api/media',{method:'POST',headers:{'Content-Type':'video/webm'},body:blob,signal:abort.signal}),asset=await response.json();if(!response.ok)throw Error(asset.error||'Video import failed.');const keys=[];for(const [index,image] of frames.entries()){if(cancelled)return;const frame=await OSH.upload(image);keys.push({image:frame.url,t:duration*index/2})}if(cancelled)return;const reference:SceneVideo={url:asset.url,duration,prompt:SC.get('osh-geometry')?.prompt||'',keys};SC.set('osh-3d-reference',reference);SC.set('osh-project-files',[...(SC.get('osh-project-files')||[]),{url:asset.url,label:'3D camera reference',kind:'video',origin:'generated'},...keys.map(key=>({url:key.image,label:'Camera guide',kind:'image',origin:'generated'}))]);revealGeneratedFile(asset.url);recordingState(false,'Reference video ready.',reference)}catch(error){if(!cancelled)recordingState(false,(error as Error).message)}})()};
+ recorder.start();recordingState(true,'Recording scene…');
+ return {draw(progress:number){if(finished||cancelled)return;context.drawImage(source,0,0,canvas.width,canvas.height);if(frames.length===0||frames.length===1&&progress>=.5||frames.length===2&&progress>=1)frames.push(canvas.toDataURL('image/png'))},finish(){if(finished)return;finished=true;recorder.stop()},cancel(){cancelled=true;abort.abort();if(recorder.state!=='inactive')recorder.stop();stopTracks();recordingState(false,'Recording cancelled.')}};
+}

@@ -54,7 +54,11 @@ Append dated decisions, render times and requests here. Only the adstudio owner 
 
 ## Where we left off
 
-**2026-10-27 FINAL INTEGRATION (this worktree):** `C:\Users\osiam\open-higgsfield-final` · branch `feat/adstudio-final-integration` · preview **http://127.0.0.1:8304/adstudio/journey.html**. Base `origin/feat/adstudio-campaign-quality@25d6bbd` + merge `origin/feat/adstudio-creative-journey@e928091`. Quality/Journey agent worktrees (8303/8302) and 8301/Director untouched. Incorporating newer Journey UI: rebase/cherry-pick onto this branch or merge journey → final; never edit the journey worktree from here.
+**2026-10-27 FINAL INTEGRATION DELIVERED:** Worktree `C:\Users\osiam\open-higgsfield-final` · branch `feat/adstudio-final-integration` · preview **http://127.0.0.1:8304/adstudio/journey.html** (`npm run dev:final`). Base quality `25d6bbd` + journey `e928091`. Merge preserves `CreativeWorkspace.journey?` + `inspiration?` (no DB version bump). Journey UI: Short video gated on Comfy+LTX+FFmpeg; Animate this ad; reference upload → inspired multi-shot; MP4 gallery + download + reload recovery. Static product-safe path retained.
+
+**E2E PASS** `outputs/final-e2e-2026-10-27T19-24-18/` (static PNG → noref MP4 1.3MB → inspired MP4 0.9MB → reload 2 videos). Caps: shot+ffmpeg+comfy. Tests: typecheck/build PASS; journey 7/7; creative 6/6; website 5/5; adstudio-ui 6/6. Studio suite + `klein-scene-app` fail identically on quality branch (pre-existing; not introduced here). 8301/8302/8303/Director untouched. No merge to main.
+
+**Codex / Journey UI handoff:** Keep developing on `feat/adstudio-creative-journey` (8302). To pull newer UI into final: from this worktree `git fetch && git merge origin/feat/adstudio-creative-journey` (or cherry-pick). On conflict in `creative-service.ts`, keep BOTH `journey?` and `inspiration?`. Do not edit journey/quality worktrees from final. Remaining UI for Codex: promote Journey as `/adstudio/` default entry when ready; richer per-shot progress copy in Reveal; optional Short-video shortcut that auto-selects quantity=1 after still; polish inspired/original video captions; do not reintroduce the technical dashboard.
 
 **2026-10-27 multi-shot DONE (quality branch):** `feat/adstudio-campaign-quality` @ `25d6bbd`, 8303. Shot plan → 2 LTX beats → FFmpeg assemble. Browser E2E PASS `outputs/multishot-e2e-2026-10-27T19-07-42/`.
 

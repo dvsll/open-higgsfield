@@ -23,7 +23,8 @@
     "test:qwen-text": "node --experimental-transform-types --test --test-concurrency=1 adstudio/scripts/qwen-text-reliability.test.mjs adstudio/scripts/qwen-request-readiness.test.mjs",
     "test:local-ai": "node --experimental-transform-types --test --test-concurrency=1 adstudio/scripts/klein-background.test.mjs adstudio/scripts/klein-composition.test.mjs adstudio/scripts/klein-app-flow.test.mjs adstudio/scripts/klein-scene.test.mjs adstudio/scripts/klein-scene-app.test.mjs adstudio/scripts/product-campaign.test.mjs",
     "test:journey": "node --experimental-transform-types --test adstudio/scripts/journey.test.mjs",
-    "dev:journey": "node --experimental-transform-types adstudio/scripts/serve-journey.mjs"
+    "dev:journey": "node --experimental-transform-types adstudio/scripts/serve-journey.mjs",
+    "dev:final": "node --experimental-transform-types adstudio/scripts/serve-final.mjs"
   },
   "license": "MIT",
   "devDependencies": {

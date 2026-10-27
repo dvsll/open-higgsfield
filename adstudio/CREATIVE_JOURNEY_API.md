@@ -1,6 +1,8 @@
 # Creative Journey UI ↔ Open Ad Studio API (quality branch)
 
-Target: Codex Creative Journey UI on **8302**. Implementation lives on `feat/adstudio-campaign-quality` (8303 quality worktree). Do **not** edit Director source or auto-merge.
+Target: unified Journey on **8304** (`feat/adstudio-final-integration`, worktree `open-higgsfield-final`). Engine/API from `feat/adstudio-campaign-quality` @ `25d6bbd`; Journey UI from `feat/adstudio-creative-journey` @ `e928091`. Do **not** edit Director, 8301/8302/8303 agent worktrees, or auto-merge to main.
+
+**Incorporating newer Journey UI commits:** from the final worktree, `git fetch origin && git merge origin/feat/adstudio-creative-journey` (or cherry-pick). Resolve `creative-service.ts` by keeping both `journey?` and `inspiration?` on `CreativeWorkspace`. Never edit the journey worktree from the integration branch.
 
 ## Preserve
 

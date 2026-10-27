@@ -5,7 +5,7 @@ import {resolveGenerationEngine,type GenerationEngineId} from './generation-engi
 import type {AdProject} from './projects.ts';
 export type JourneySource={id:string;name:string;draft:CreativeDraft;permission:boolean;planId?:string;review?:string};
 export type JourneyCard={id:string;sourceId:string;planId:string;conceptId:string;title:string;state:'waiting'|'preparing'|'generating'|'composing'|'saving'|'ready'|'failed'|'cancelled';takeId?:string;exportId?:string;error?:string;message?:string};
-export type JourneyState={version:1;stage:number;sources:JourneySource[];quantity:number;cards:JourneyCard[];batchId?:string;introduction?:{website:string;name:string}};
+export type JourneyState={version:1;stage:number;sources:JourneySource[];quantity:number;cards:JourneyCard[];batchId?:string;introduction?:{website:string;name:string};format?:'static'|'video'};
 export const emptyJourney=():JourneyState=>({version:1,stage:1,sources:[],quantity:1,cards:[]});
 export function journeyFor(p:AdProject):JourneyState {const j=p.creative?.journey;if(!j)return emptyJourney();if(j.version!==1||!Array.isArray(j.sources)||!Array.isArray(j.cards)||!Number.isInteger(j.stage)||j.stage<1||j.stage>6)throw Error('Unsupported journey record. Your saved project has been kept.');return structuredClone(j);}
 export const reviewKey=(plan:CreativePlan)=>creativeSnapshot(plan.input)+'\n'+JSON.stringify(plan.concepts)+'\n'+plan.selectedId;
@@ -55,11 +55,11 @@ export class JourneyService {
    // receipt reuse, invented confirmation, duplicate output, or auto retry.
    const child=await this.app.choose(base.id,card.conceptId);await this.app.approve(child.id,true);
    if(this.stopped){await patch(card.id,{state:'cancelled',message:'Not submitted'});continue;}
-   await patch(card.id,{state:chosen.id==='product-safe'?'composing':'generating',message:chosen.label});
-   const take=await this.app.generate(child.id,chosen.id);await patch(card.id,{state:'saving',takeId:take.id});await this.app.store.flush();
+   await patch(card.id,{state:chosen.id==='product-safe'?'composing':'generating',message:chosen.label,planId:child.id});
+   const take=await this.app.generate(child.id,chosen.id);await patch(card.id,{state:'saving',takeId:take.id,planId:child.id});await this.app.store.flush();
    const p=this.app.store.active(),record=p.staticAds!.exports.slice().reverse().find(e=>e.assetId===take.assetId||take.adDesign?.campaign&&e.design.photoId===take.assetId);
    if(!record)throw Error('Raw result saved; final advertisement export is missing. Open history instead of regenerating.');
-   await patch(card.id,{state:'ready',exportId:record.id,message:chosen.label});active=undefined;
+   await patch(card.id,{state:'ready',exportId:record.id,message:chosen.label,planId:child.id});active=undefined;
   }
  }catch(error){const message=error instanceof Error?error.message:String(error);if(active)await patch(active,{state:this.stopped?'cancelled':'failed',error:message}).catch(()=>{});await this.save(j=>{for(const c of j.cards)if(c.state==='waiting')Object.assign(c,{state:'cancelled',message:'Not submitted after campaign stopped'});}).catch(()=>{});throw error;
  }finally{if(typeof window!=='undefined')window.removeEventListener('osh-generation-progress',progress);this.running=false;}

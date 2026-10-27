@@ -1,3 +1,4 @@
+import {CloseButton} from './close-button';
 import {PromptInput,PromptReferences} from './prompt-input';
 import {VideoGuide} from './video-guide';
 import {PromptMedia} from './prompt-media';
@@ -56,7 +57,7 @@ export function DirectorSurface() {
                 <p>Use this image as the first frame of a video.</p>
               </div>
               <button id="animateImage">Turn into a video →</button>
-              <button id="editWorkshopImage">Download image</button>
+              <CloseButton id="editWorkshopImage" label="Dismiss image suggestion"/>
             </div>
           </section>
           <section className="viewer" aria-label="Video viewer">

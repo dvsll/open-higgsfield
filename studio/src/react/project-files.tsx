@@ -1,14 +1,15 @@
 import {useEffect,useState,type DragEvent} from 'react';
 import {SC} from '../scene';
 import {trainingKind} from '../../../shared/lib/training';
-import type {ProjectFile} from '../project-files-index';
+import {projectDownloadName,type ProjectFile} from '../project-files-index';
 import {removeFileFolder,type FileOrganization} from '../project-file-folders';
 import {FilePreview} from './file-preview';
 import {Popup} from './popup';
 import './project-files.css';
 
 const kinds=[['video','Videos'],['image','Images'],['audio','Audio'],['captions','Captions']] as const;
-export function ProjectFilesView({files,organization,onOrganize,onSelect,onOpen,onUseKeyframe}:{files:ProjectFile[];organization:FileOrganization;onOrganize:(value:FileOrganization)=>void;onSelect:(file:ProjectFile)=>void;onOpen:(file:ProjectFile)=>void;onUseKeyframe?:(file:ProjectFile)=>void}){
+export function ProjectFilesView({files,organization,onOrganize,onSelect,onOpen,onUseKeyframe,onRename}:{files:ProjectFile[];onRename?:(file:ProjectFile,label:string)=>void;organization:FileOrganization;onOrganize:(value:FileOrganization)=>void;onSelect:(file:ProjectFile)=>void;onOpen:(file:ProjectFile)=>void;onUseKeyframe?:(file:ProjectFile)=>void}){
+ const [renaming,setRenaming]=useState<ProjectFile|null>(null),[fileName,setFileName]=useState('');
  const [selected,setSelected]=useState(''),[editing,setEditing]=useState<string|null>(null),[name,setName]=useState(''),[dragOver,setDragOver]=useState<string|null>(null);
  const [filter,setFilter]=useState<'all'|'generated'|'uploaded'>('all');const visible=files.filter(file=>filter==='all'||file.origin===filter);
  useEffect(()=>{const showGuides=()=>setFilter('all');window.addEventListener('osh-tour-show-guides',showGuides);return()=>window.removeEventListener('osh-tour-show-guides',showGuides)},[]);
@@ -25,7 +26,8 @@ export function ProjectFilesView({files,organization,onOrganize,onSelect,onOpen,
   <button draggable className="project-file-select" title={file.label} aria-label={file.label} aria-pressed={selected===file.url} onClick={()=>{setSelected(file.url);onSelect(file)}} onDoubleClick={()=>onOpen(file)}>
    <FilePreview file={file}/><span className="file-copy"><strong>{file.label}</strong><small>{file.kind} · {file.url.split('.').at(-1)?.toUpperCase()}</small></span>
   </button>
-  <a href={file.url} download={file.url.split('/').pop()} title={'Download '+file.label} aria-label={'Download '+file.label}><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v10m-4-4 4 4 4-4M4 14v3h12v-3"/></svg></a>
+  <div className="project-file-actions">{onRename&&<button type="button" title={'Rename '+file.label} aria-label={'Rename '+file.label} onClick={()=>{setFileName(file.label);setRenaming(file)}}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5 4 4M4 20l4-1L20 7a2.8 2.8 0 0 0-4-4L4 15v5Z"/></svg></button>}
+  <a href={file.url} download={projectDownloadName(file)} title={'Download '+file.label} aria-label={'Download '+file.label}><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v10m-4-4 4 4 4-4M4 14v3h12v-3"/></svg></a></div>
  </div>;
  const section=(id:string,title:string,items:ProjectFile[],custom=false)=><details key={id} className="file-group" data-drop={dragOver===id} open onDragOver={event=>{if(!event.dataTransfer.types.includes('application/x-studio-file')||!custom&&!event.dataTransfer.types.includes('application/x-studio-file-'+id))return;event.preventDefault();event.dataTransfer.dropEffect='move';setDragOver(id)}} onDragLeave={event=>{if(!event.currentTarget.contains(event.relatedTarget as Node))setDragOver(null)}} onDrop={event=>drop(event,custom?id:'',custom?undefined:id)}>
   <summary><span>{title}</span><span className="file-count">{items.length}</span>{custom&&<button type="button" aria-label={'Manage folder '+title} title="Rename or remove folder" onClick={event=>{event.preventDefault();setName(title);setEditing(id)}}>⋯</button>}</summary>
@@ -41,6 +43,7 @@ export function ProjectFilesView({files,organization,onOrganize,onSelect,onOpen,
    {kinds.map(([kind,title])=>{const items=visible.filter(file=>file.kind===kind&&!organization.assignments[file.url]);return items.length?section(kind,title,items):null})}
    {!visible.length&&<p className="files-empty">{filter==='all'?'Your images, videos and audio appear here as you create them.':`No ${filter} media.`}</p>}
   </div>
+  {renaming&&onRename&&<Popup title="Rename media" onClose={()=>setRenaming(null)}><form className="file-folder-form" onSubmit={event=>{event.preventDefault();const label=fileName.trim();if(!label)return;onRename(renaming,label);setRenaming(null)}}><label>Name<input autoFocus value={fileName} maxLength={80} onChange={event=>setFileName(event.target.value)}/></label><div className="file-folder-actions"><button type="submit" disabled={!fileName.trim()}>Save name</button></div></form></Popup>}
   {editing!==null&&<Popup title={editing==='new'?'New folder':'Manage folder'} onClose={()=>setEditing(null)}><form className="file-folder-form" onSubmit={event=>{event.preventDefault();const clean=name.trim();if(!clean)return;const folders=editing==='new'?[...organization.folders,{id:crypto.randomUUID(),name:clean}]:organization.folders.map(folder=>folder.id===editing?{...folder,name:clean}:folder);onOrganize({...organization,folders});setEditing(null)}}>
    <label>Folder name<input autoFocus value={name} maxLength={60} onChange={event=>setName(event.target.value)} placeholder="e.g. Scene references"/></label>
    {editing!=='new'&&<p>Removing a folder returns its files to their media groups.</p>}

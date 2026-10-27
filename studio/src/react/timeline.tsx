@@ -102,17 +102,18 @@ export function Ruler({
   pixels: number;
   half?: boolean;
 }) {
-  return (
-    <>
-      <i className="ruler-playhead" aria-hidden="true"/>
-      {Array.from({ length: Math.floor(duration * (half ? 2 : 1)) + 1 }, (_, index) => (
-        <span key={index} style={{ left: (index / (half ? 2 : 1)) * pixels }}>
-          {half && index % 2 ? 'Â·' : index / (half ? 2 : 1) + 's'}
-        </span>
-      ))}
-    </>
-  );
+  const spacing = Math.max(56, String(Math.floor(duration)).length * 7 + 20);
+  const minimum = spacing / Math.max(.001, pixels);
+  const power = 10 ** Math.floor(Math.log10(Math.max(minimum, .001)));
+  const interval = [1, 2, 5, 10].map(value => value * power).find(value => value >= minimum)!;
+  const step = Math.max(half ? .5 : 1, interval);
+  const count = Math.min(2000, Math.floor(Math.max(0, duration) / step) + 1);
+  return <><i className="ruler-playhead" aria-hidden="true"/>{Array.from({length:count},(_,index)=>{
+    const time = +(index * step).toFixed(3);
+    return <span key={index} style={{left:time*pixels,whiteSpace:'nowrap'}}>{time}s</span>;
+  })}{half&&step*pixels>=80&&Array.from({length:Math.max(0,count-1)},(_,index)=><span key={"minor"+index} aria-hidden="true" style={{left:(index+.5)*step*pixels}}>·</span>)}</>;
 }
+
 export function BoundCard({
   className,
   bind,

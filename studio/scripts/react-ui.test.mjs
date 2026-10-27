@@ -64,6 +64,11 @@ try {
   const ruler = renderToStaticMarkup(createElement(Ruler, { duration: 2, pixels: 100, half: true }));
   assert.ok(ruler.includes('left:150px'));
   assert.ok(ruler.includes('2s'));
+  const zoomedOutRuler=renderToStaticMarkup(createElement(Ruler,{duration:600,pixels:1}));
+  assert.ok(zoomedOutRuler.includes('100s'));
+  assert.ok(!zoomedOutRuler.includes('>1s<'));
+  assert.ok((zoomedOutRuler.match(/<span/g)||[]).length<12);
+
   const { TourPopover, TourChoice } = await server.ssrLoadModule('/studio/src/react/onboarding.tsx');
   const tour = renderToStaticMarkup(
     createElement(TourPopover, {

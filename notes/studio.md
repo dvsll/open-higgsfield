@@ -4,6 +4,9 @@ Append dated decisions, render times and requests here. Only the studio owner ed
 
 ## Where we left off (update this before switching agents)
 
+**Latest handoff - 2026-10-27, adaptive timeline ruler:** Shared sequence/opened-scene ruler chooses readable 1/2/5 time intervals from pixels per second and label length. Zoomed-out labels no longer overlap; half-interval marks only appear with enough space. Playhead and ruler seeking unchanged. Typecheck and React UI regression pass.
+
+
 **Latest handoff - 2026-10-27, shared prompt surface and 3D redesign:** All four media use the same React PromptInput surface/reference footer; simple view fills available height including legacy mention editor override. 3D Generate aligns right below shared Advanced; video guides moved into Advanced. Picker supports actual 3D image/mesh references and Video image-to-start-key attachment. Current Image/Audio backends are text-only and explicitly disclose unsupported conditioning. Real floor/wall/box/capsule proxies coexist with meshes, persist and clear primitive data on replacement. Camera mini timeline seeks actual camera, receives playback updates. Removed duplicate prompt playback/download/status clutter. Browser verified picker attach/remove, proxy persistence, camera scrub and simple prompt fill. Native attachment drag not acceptance-verified. Structural blockout-to-video fidelity remains missing; RGB sampled guides are not structural conditioning. No new dependencies/models/backend changes. Typecheck/build and24 scripts pass.
 
 

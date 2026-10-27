@@ -19,11 +19,15 @@
 .caption-player-play[data-playing=false] svg{fill:currentColor;stroke:none}
 .caption-player-time{font-size:10px;font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--ui-muted,#a1acbb)}
 .caption-player input[type=range]{appearance:none;-webkit-appearance:none;width:100%;min-width:0;height:20px;margin:0;padding:0;background:transparent;border:0;border-radius:0;cursor:pointer}
-.caption-player input[type=range]::-webkit-slider-runnable-track{height:2px;background:var(--ui-border,#39414e);border-radius:0}
-.caption-player input[type=range]::-webkit-slider-thumb{appearance:none;-webkit-appearance:none;width:3px;height:10px;margin-top:-4px;background:var(--ui-accent,#e9c46a);border:0;border-radius:0}
-.caption-player input[type=range]::-moz-range-track{height:2px;background:var(--ui-border,#39414e);border-radius:0}
-.caption-player input[type=range]::-moz-range-thumb{width:3px;height:10px;background:var(--ui-accent,#e9c46a);border:0;border-radius:0}
+.caption-player input[type=range]::-webkit-slider-runnable-track{height:8px;border:1px solid var(--ui-border,#39414e);box-sizing:border-box;background:linear-gradient(to right,var(--ui-accent,#e9c46a) 0 var(--played,0%),transparent var(--played,0%) 100%);border-radius:0}
+.caption-player input[type=range]::-webkit-slider-thumb{appearance:none;-webkit-appearance:none;width:2px;height:18px;margin-top:-6px;background:var(--ui-accent,#e9c46a);border:0;border-radius:0}
+.caption-player input[type=range]::-moz-range-track{height:8px;border:1px solid var(--ui-border,#39414e);box-sizing:border-box;background:linear-gradient(to right,var(--ui-accent,#e9c46a) 0 var(--played,0%),transparent var(--played,0%) 100%);border-radius:0}
+.caption-player input[type=range]::-moz-range-thumb{width:2px;height:18px;background:var(--ui-accent,#e9c46a);border:0;border-radius:0}
 .captions-advanced>summary{cursor:pointer;padding:6px 8px;border:1px solid var(--ui-border,#39414e)}
 .captions-advanced label{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:10px}
 .captions-advanced select{min-width:80px;max-width:100%}
 @container(max-width:280px){.caption-player{grid-template-columns:24px minmax(0,1fr) 24px;gap:2px 8px}.caption-player-time{grid-column:2;grid-row:2;text-align:left}.caption-player input[type=range]{grid-column:2;grid-row:1}.captions-window .caption-player button{grid-row:1}.caption-player button:last-child{grid-column:3}}
+
+.caption-cue-actions{display:flex;gap:6px;justify-content:flex-end}.caption-cue-actions button{font-size:11px;padding:3px 6px}
+
+.captions-content{display:flex;flex-direction:column;gap:10px;min-width:0}

@@ -20,3 +20,6 @@
 
 .video-guide-action{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px;font-size:var(--ui-small)}.video-guide-action span{color:var(--ui-muted)}
 
+
+.video-guide-action label{display:flex;gap:8px;align-items:center;color:var(--ui-muted)}
+

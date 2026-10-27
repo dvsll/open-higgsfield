@@ -21,7 +21,7 @@ function Guide({ item }: { item: GuideItem }) {
     item.bind(ref.current!);
   }, [item]);
   return (
-    <div ref={ref}>
+    <div ref={ref} data-timeline-selection-id={'key:'+item.id}>
       <canvas width={160} height={96} />
       <span className="anchor-label" />
     </div>
@@ -35,7 +35,7 @@ function Clip({ item, index }: { item: ClipItem; index: number }) {
   return (
     <div
       ref={ref}
-      className={'clip' + (item.selected ? ' on' : '')}
+      className={'clip' + (item.selected ? ' on' : '')} data-timeline-selection-id={'shot:'+item.id}
       style={{ width: item.width }}
       role={item.opened ? undefined : 'option'}
       aria-label={`Shot ${index + 1}: ${item.name}`}
@@ -104,6 +104,7 @@ export function Ruler({
 }) {
   return (
     <>
+      <i className="ruler-playhead" aria-hidden="true"/>
       {Array.from({ length: Math.floor(duration * (half ? 2 : 1)) + 1 }, (_, index) => (
         <span key={index} style={{ left: (index / (half ? 2 : 1)) * pixels }}>
           {half && index % 2 ? '·' : index / (half ? 2 : 1) + 's'}

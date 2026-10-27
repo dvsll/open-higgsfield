@@ -1,4 +1,4 @@
-import {useState,type DragEvent} from 'react';
+import {useEffect,useState,type DragEvent} from 'react';
 import type {ProjectFile} from '../project-files-index';
 import {removeFileFolder,type FileOrganization} from '../project-file-folders';
 import {FilePreview} from './file-preview';
@@ -9,10 +9,11 @@ const kinds=[['video','Videos'],['image','Images'],['audio','Audio']] as const;
 export function ProjectFilesView({files,organization,onOrganize,onSelect,onOpen,onUseKeyframe}:{files:ProjectFile[];organization:FileOrganization;onOrganize:(value:FileOrganization)=>void;onSelect:(file:ProjectFile)=>void;onOpen:(file:ProjectFile)=>void;onUseKeyframe?:(file:ProjectFile)=>void}){
  const [selected,setSelected]=useState(''),[editing,setEditing]=useState<string|null>(null),[name,setName]=useState(''),[dragOver,setDragOver]=useState<string|null>(null);
  const [filter,setFilter]=useState<'all'|'generated'|'uploaded'>('all');const visible=files.filter(file=>filter==='all'||file.origin===filter);
+ useEffect(()=>{const showGuides=()=>setFilter('all');window.addEventListener('osh-tour-show-guides',showGuides);return()=>window.removeEventListener('osh-tour-show-guides',showGuides)},[]);
  const current=visible.find(file=>file.url===selected);
  const move=(url:string,folder:string)=>{if(!files.some(file=>file.url===url))return;const assignments={...organization.assignments};if(folder)assignments[url]=folder;else delete assignments[url];onOrganize({...organization,assignments})};
  const drop=(event:DragEvent,folder:string,kind?:string)=>{event.preventDefault();setDragOver(null);const url=event.dataTransfer.getData('application/x-studio-file');if(kind&&files.find(file=>file.url===url)?.kind!==kind)return;move(url,folder)};
- const row=(file:ProjectFile)=><div key={file.url} className="project-file" data-selected={selected===file.url} draggable onDragStart={event=>{event.dataTransfer.setData('application/x-studio-file',file.url);event.dataTransfer.setData('application/x-studio-file-'+file.kind,'1');event.dataTransfer.effectAllowed='copyMove';const preview=event.currentTarget.querySelector<HTMLElement>('.file-preview');if(preview)event.dataTransfer.setDragImage(preview,preview.clientWidth/2,preview.clientHeight/2)}}>
+ const row=(file:ProjectFile)=><div key={file.url} className="project-file" data-file-url={file.url} data-selected={selected===file.url} draggable onDragStart={event=>{event.dataTransfer.setData('application/x-studio-file',file.url);event.dataTransfer.setData('application/x-studio-file-'+file.kind,'1');event.dataTransfer.effectAllowed='copyMove';const preview=event.currentTarget.querySelector<HTMLElement>('.file-preview');if(preview)event.dataTransfer.setDragImage(preview,preview.clientWidth/2,preview.clientHeight/2)}}>
   <button draggable className="project-file-select" title={file.label} aria-label={file.label} aria-pressed={selected===file.url} onClick={()=>{setSelected(file.url);onSelect(file)}} onDoubleClick={()=>onOpen(file)}>
    <FilePreview file={file}/><span className="file-copy"><strong>{file.label}</strong><small>{file.kind} · {file.url.split('.').at(-1)?.toUpperCase()}</small></span>
   </button>

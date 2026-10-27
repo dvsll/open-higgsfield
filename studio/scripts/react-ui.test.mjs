@@ -15,6 +15,8 @@ try {
   assert.match(library,/Copper Robot reference/);assert.match(library,/No reference/);assert.match(library,/Search elements/);assert.match(library,/Edit Copper Robot/);assert.match(library,/not identity conditioning/);
   const {DirectorSurface}=await server.ssrLoadModule('/studio/src/react/director-surface.tsx');
   const director=renderToStaticMarkup(createElement(DirectorSurface));assert.doesNotMatch(director,/id="(?:audio|overlay)TrackAttributes"/);assert.doesNotMatch(director,/id="els"/);assert.ok(director.indexOf('id="overlayTrack"')<director.indexOf('id="trk"'));assert.ok(director.indexOf('id="trk"')<director.indexOf('id="audioTrack"'));
+  const {CloseButton}=await server.ssrLoadModule('/studio/src/react/close-button.tsx');
+  const close=renderToStaticMarkup(createElement(CloseButton,{label:'Close walkthrough'}));assert.match(close,/aria-label="Close walkthrough"/);assert.match(close,/<svg/);assert.doesNotMatch(close,/>Close/);
   const {AdvancedPrompt}=await server.ssrLoadModule('/studio/src/react/prompt-advanced.tsx');
   const advanced=renderToStaticMarkup(createElement(AdvancedPrompt,null,createElement('textarea',{'aria-label':'Motion prompt'})));
   assert.match(advanced,/<details[^>]*id="promptAdvanced"/);assert.doesNotMatch(advanced,/<details[^>]* open/);assert.match(advanced,/<summary>Advanced<\/summary>/);assert.match(advanced,/Auto-fill in simple view/);

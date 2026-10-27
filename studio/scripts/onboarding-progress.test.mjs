@@ -81,12 +81,12 @@ el.ondrop({preventDefault(){},clientX:210,dataTransfer:{getData:()=>'/outputs/22
 
 // Run the real image-generation controller against a deterministic CPU stub.
 const imageCode=source.slice(source.indexOf("$('#kgo').onclick=async()=>"),source.indexOf('\nfunction res()'));
-const button={disabled:false,textContent:''},promptInput={value:'Prepared guide prompt'};
+const button={disabled:false,textContent:''},promptInput={value:'Prepared START guide prompt',focus(){}};
 let generated=0,guideRenders=0;
 const imageContext={$:selector=>selector==='#kgo'?button:promptInput,SP:value=>value,touring:()=>true,specFromUI:()=>({}),OSH:{online:true},workspaceMode:'image',keyframeBatch:4,results:[],imageDraft:{},onboarding:{entry:'video',step:'keyframes',images:[]},localGeneration:{keyframe:async()=>({url:'/outputs/'+String(++generated).repeat(16)+'.png'})},res:()=>{},SC:{set:()=>{}},advanceTour:step=>{imageContext.onboarding.step=step},renderTour:()=>guideRenders++,saveWorkshop:()=>{},syncWorkspace:()=>{},pushHist:()=>{},toast:()=>{}};
 const generateGuide=Function('ctx','with(ctx){'+imageCode+";return $('#kgo').onclick}")(imageContext);
 await generateGuide();assert.equal(imageContext.onboarding.step,'keyframes');assert.equal(guideRenders,1);assert.equal(button.disabled,false);
-await generateGuide();assert.equal(imageContext.onboarding.step,'return-video');assert.equal(imageContext.onboarding.images.length,2);assert.equal(imageContext.imageDraft.url,'/outputs/2222222222222222.png');
+await generateGuide();assert.equal(generated,1,'A repeated START prompt cannot silently create END');promptInput.value='Distinct END guide prompt';await generateGuide();assert.deepEqual(imageContext.onboarding.guidePrompts,['Prepared START guide prompt','Distinct END guide prompt']);assert.equal(imageContext.onboarding.step,'return-video');assert.equal(imageContext.onboarding.images.length,2);assert.equal(imageContext.imageDraft.url,'/outputs/2222222222222222.png');
 imageContext.onboarding={entry:'image',step:'image',images:[]};await generateGuide();assert.equal(imageContext.onboarding.step,'image-review');
 
 // The Image invitation waits for the actual decoded clip, not generation completion or a timer.
@@ -95,10 +95,10 @@ const review=new Function('touring','onboarding','s','vid','advanceTour',reviewL
 const waiting={step:'watch-video',shotId:'scene',firstVideo:'/outputs/clip.webm'};
 const viewed={id:'scene',video:waiting.firstVideo};
 let next='';
-review(()=>true,waiting,viewed,{readyState:1,duration:4,currentTime:4},step=>next=step);assert.equal(next,'');
-review(()=>true,waiting,viewed,{readyState:4,duration:4,currentTime:1},step=>next=step);assert.equal(next,'');
-review(()=>true,waiting,{...viewed,video:'other'},{readyState:4,duration:4,currentTime:4},step=>next=step);assert.equal(next,'');
-review(()=>true,waiting,viewed,{readyState:4,duration:4,currentTime:3.99},step=>next=step);assert.equal(next,'switch-image');assert.equal(waiting.videoReviewed,true);
+review(()=>true,waiting,viewed,{readyState:1,src:'http://localhost/outputs/clip.webm',seeking:false,duration:4,currentTime:4},step=>next=step);assert.equal(next,'');
+review(()=>true,waiting,viewed,{readyState:4,src:'http://localhost/outputs/clip.webm',seeking:false,duration:4,currentTime:1},step=>next=step);assert.equal(next,'');
+review(()=>true,waiting,{...viewed,video:'other'},{readyState:4,src:'http://localhost/outputs/clip.webm',seeking:false,duration:4,currentTime:4},step=>next=step);assert.equal(next,'');
+review(()=>true,waiting,viewed,{readyState:4,src:'http://localhost/outputs/clip.webm',seeking:false,duration:4,currentTime:3.99},step=>next=step);assert.equal(next,'switch-image');assert.equal(waiting.videoReviewed,true);
 const pauseSource=source.split('\n').find(line=>line.startsWith('function reviewPausedFirstVideo'));
 let pausedStage='';const pausedTour={step:'watch-video',shotId:'scene',firstVideo:'/outputs/clip.webm'};
 let pausedVideo={readyState:4,seeking:false,currentTime:0,src:'http://localhost/outputs/clip.webm'};
@@ -107,3 +107,25 @@ const runPause=()=>pauseReview(()=>pausedVideo,()=>true,pausedTour,[{id:'scene',
 runPause();assert.equal(pausedStage,'','initial paused state does not interrupt viewing');pausedVideo.currentTime=1;pausedVideo.seeking=true;runPause();assert.equal(pausedStage,'');pausedVideo.seeking=false;runPause();assert.equal(pausedStage,'switch-image');assert.equal(pausedTour.videoReviewed,true);
 assert.deepEqual(guideDropPosition(4,400,0),{time:0,anchor:'start',percent:0});assert.equal(guideDropPosition(4,400,380).anchor,'end');assert.equal(guideDropPosition(4,400,200).time,2);assert.equal(guideDropPosition(4,40,20).anchor,null);assert.equal(guideDropPosition(4,400,-100).time,0);assert.equal(guideDropPosition(4,400,900).time,4);
 el.ondragover({preventDefault(){},clientX:210,dataTransfer:{types:['application/x-studio-file-image']}});assert.equal(el.dataset.guideDrop,'Keyframe · 2.00s');el.ondragover({preventDefault(){},clientX:15,dataTransfer:{types:['application/x-studio-file-image']}});assert.equal(el.dataset.guideDrop,'START');el.ondragleave({relatedTarget:null});assert.equal(el.dataset.guideDrop,undefined);
+
+waiting.afterReview='add-scenes';next='';review(()=>true,waiting,viewed,{readyState:4,src:'http://localhost/outputs/clip.webm',seeking:false,duration:4,currentTime:4},step=>next=step);assert.equal(next,'add-scenes','Keyframe render review precedes the add-scenes lesson');
+const editPrompt=source.split('\n').find(line=>line.startsWith("$('#shotPromptInput').oninput="));
+const rendered={prompt:'old',r:true,video:'/outputs/clip.webm'};const promptControl={};new Function('$','currentShot','head','save',editPrompt)(()=>promptControl,()=>rendered,()=>{},()=>{});promptControl.oninput({target:{value:'new direction'}});assert.equal(rendered.r,true);assert.equal(rendered.video,'/outputs/clip.webm');assert.equal(rendered.prompt,'new direction');
+
+// Execute the actual successful shot controller: review every new take from its beginning.
+const shotCode=source.slice(source.indexOf('async function realShot('),source.indexOf('\nasync function fake('));
+for(const stage of ['regenerate','image-video','watch-video','play-video']){
+ const scene={id:'review-scene',n:'Scene',d:4,prompt:'new',r:false,keys:[{img:'start',anchor:'start',t:0},{img:'end',anchor:'end',t:4}],audioLinked:false};
+ const ctx={SH:[scene],busy:async(_,job)=>job(),$:()=>({open:true}),shouldRewriteBeforeGeneration:()=>false,localGeneration:{shot:async()=>({url:'/outputs/new.webm',frames:97,duration:4,fps:24})},shotPrompt:()=>scene.prompt,start:()=>0,G:3.99,setPlaying:()=>{},pushHist:()=>{},shotId:s=>s.id,touring:()=>true,onboarding:{shotId:scene.id,step:stage,afterReview:'add-scenes'},advanceTour:step=>ctx.onboarding.step=step};
+ const render=Function('ctx','with(ctx){'+shotCode+';return realShot}')(ctx);await render(0,'Render');assert.equal(ctx.onboarding.step,'play-video');assert.equal(ctx.onboarding.firstVideo,'/outputs/new.webm');assert.equal(ctx.onboarding.videoReviewed,false);assert.equal(ctx.G,0);assert.equal(ctx.onboarding.afterReview,'add-scenes');
+}
+
+// The edge-aligned thumbnail must not jump 44px when leaving START/END.
+const placementLine=source.split('\n').find(line=>line.includes('const w=s.d*pxs-3,px='));
+const px=new Function('s','pxs',placementLine+';return px')({d:4},100);
+assert.equal(px(0),0);assert.equal(px(.2),0);assert.equal(px(.4),0);assert(px(.5)>0&&px(.5)<=10);assert.equal(px(4),317);
+
+assert.deepEqual(windowLesson('play-video',new Set(['prompts']),false),{window:'viewer',stage:'menu'});assert.equal(windowLesson('play-video',new Set(['viewer']),false),null);
+const playLine=source.split('\n').find(line=>line.startsWith("$('#play').onclick="));
+const playControl={};const playCtx={$:()=>playControl,playing:false,span:()=>[0,4],G:0,setPlaying:value=>playCtx.playing=value,touring:()=>true,onboarding:{step:'play-video'},advanceTour:step=>playCtx.onboarding.step=step,reviewPausedFirstVideo:()=>{}};
+Function('ctx','with(ctx){'+playLine+'}')(playCtx);assert.equal(playCtx.onboarding.step,'play-video','Rendering does not dismiss the Play instruction');playControl.onclick();assert.equal(playCtx.playing,true);assert.equal(playCtx.onboarding.step,'watch-video','Pressing Play dismisses guidance and begins review');

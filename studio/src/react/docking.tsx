@@ -1,3 +1,4 @@
+import {CloseButton} from './close-button';
 import {ViewerTether} from './viewer-tether';
 import { parkPanel } from '../panel-lifecycle';
 import { useLayoutEffect, useRef, type CSSProperties, type PointerEvent } from 'react';
@@ -144,16 +145,7 @@ export function WindowChrome({
           {title}
         </button>
         {tether&&<ViewerTether {...tether}/>}
-        <button
-          className="window-close"
-          title={'Close ' + title}
-          aria-label={'Close ' + title}
-          onClick={onClose}
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M6 6l12 12M18 6L6 18" />
-          </svg>
-        </button>
+        <CloseButton className="window-close" label={'Close '+title} onClick={onClose}/>
       </div>
       <div ref={body} className="window-body" />
     </>

@@ -1,44 +1,61 @@
-# Narrow API contract — Creative Journey UI ↔ creative intelligence / reference video
+# Creative Journey UI ↔ Open Ad Studio API (quality branch)
 
-For Codex Creative Journey UI (port 8302). Quality worktree implements these on the shared Vite API.
+Target: Codex Creative Journey UI on **8302**. Implementation lives on `feat/adstudio-campaign-quality` (8303 quality worktree). Do **not** edit Director source or auto-merge.
 
-## Unchanged (preserve)
+## Preserve
 
-- `POST /api/hero/scene` — Klein Creative Restage
-- `POST /api/hero/campaign` — hybrid/product-safe tooling
-- `POST /api/shot` — LTX via OSH.shot
-- `POST /api/export` — FFmpeg MP4
-- Existing static PNG / provenance flows
+| Route / client | Role |
+|---|---|
+| `POST /api/hero/scene` | Klein Creative Restage static |
+| `POST /api/hero/campaign` | Hybrid tooling (not default UI) |
+| `POST /api/shot` | LTX-2B generative motion (`OSH.shot`) |
+| `POST /api/export` | Single-clip WebM→MP4 |
+| Product-safe static PNG + provenance | Unchanged |
 
-## New
+## Creative intelligence (shared lib)
+
+- `buildCreativeIntelligence(plan, hook?)` → brand/category/`sensoryLane`, hook, photo + video concepts, fidelity constraints
+- `proposeCreativeHooks(plan)` → 2–3 abstract mechanisms (not scene templates)
+- Lanes adapt copy for food / comfort-care / scent / athletic / refined-object / general from disclosed text — not a cookie-only system
+
+## Reference video
 
 ### `POST /api/reference/upload`
-- Body: raw `video/mp4` | `video/webm` | `video/quicktime` (≤40MB, ≤60s)
-- Returns: `{url, originalUrl, sha256, bytes, duration, width, height, rights:'inspiration-only', productReplacementAvailable:false}`
+Raw body: `video/mp4` \| `video/webm` \| `video/quicktime` (≤40MB, ≤60s)  
+→ `{url, originalUrl, sha256, bytes, duration, width, height, rights:'inspiration-only', productReplacementAvailable:false}`
 
 ### `POST /api/reference/analyze`
-- JSON: `{url, originalUrl?, bytes?, rights?:'inspiration-only'|'user-owned-or-licensed'}`
-- Returns: `ReferenceAnalysis` (shots, transitions, pacing, transferablePrinciples, analysisMethod, warnings)
-- Method is FFmpeg scene/keyframe/heuristics — not a vision LLM claim
+JSON `{url, originalUrl?, bytes?, rights?}`  
+→ `ReferenceAnalysis` (shots, transitions, pacing, transferablePrinciples, `analysisMethod`, warnings)  
+Method: FFmpeg scene-change + keyframes + motion heuristic. **Not** a vision LLM.
 
 ### `POST /api/reference/plan`
-- JSON: `{plan: CreativePlan, analysis?: ReferenceAnalysis, hook?: CreativeHook}`
-- Returns: `{intelligence: CreativeIntelligence, shotPlan: CampaignShotPlan, productReplacementAvailable:false}`
+JSON `{plan: CreativePlan, analysis?: ReferenceAnalysis, hook?: CreativeHook}`  
+→ `{intelligence, shotPlan: CampaignShotPlan, productReplacementAvailable:false}`  
+`CampaignShotPlan.shots[]` drives the final timeline (purpose, duration, keyframe strategy, motion brief, edit transition).
 
-### `POST /api/inspiration/search`
-- JSON: `{query?: string, intelligence?: {category,intendedFeeling,creativeHook,photographicApproach,marketingGoal}, media?:'photos'|'video'}`
-- Returns: `{configured, provider:'pexels', query, results[]}` — empty + note if `PEXELS_API_KEY` unset
-- Sends **queries only**; never customer photos
+### `POST /api/reference/assemble`
+JSON `{shots:[{source}], transition:'cut'|'dissolve'|'wipe', width?:720|1080, closing?:pngUrl, ctaSeconds?}`  
+→ assembled `/outputs/*.mp4`  
+**Honest:** FFmpeg transitions are deterministic edits, not AI camera moves.
 
-## Client actions (AdApplication)
+### `POST /api/inspiration/search` (optional)
+Queries only (never customer photos). Empty results if `PEXELS_API_KEY` unset.
 
-- `uploadInspiration(file, rights)`
-- `planCampaignShots(hook?)`
-- `generateInspiredCommercial(takeId)` — LTX from saved static hero + shot-plan prompt; **not** reference footage remix
-- `animateCampaign(takeId)` — existing path (verified)
+## AdApplication client actions
+
+| Method | Behavior |
+|---|---|
+| `uploadInspiration(file, rights)` | Upload + analyze + optional shot plan |
+| `planCampaignShots(hook?)` | Persist intelligence + shot plan |
+| `generateInspiredCommercial(takeId)` | **Multi-shot:** plan → distinct stills (source vs hero) → LTX per beat → assemble |
+| `animateCampaign(takeId)` | **Multi-shot original** (no reference): `planOriginalCampaign` → same producer |
+
+Templates: `inspired:…:xN`, `campaign:…:xN`, `original:…:xN`.
 
 ## Hard limits
 
-- `productReplacementAvailable` is always `false` on this install
+- `productReplacementAvailable` always `false` on this install
 - Inspiration-only references must not appear as export source footage
-- Do not label FFmpeg-only moves as AI motion
+- Do not label FFmpeg wipes/dissolves as generative AI motion
+- Keep 8301 / 8302 / Director untouched; no auto-merge to main

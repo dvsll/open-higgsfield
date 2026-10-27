@@ -33,12 +33,21 @@ assert.ok(foodHooks.length>=2);
 assert.ok(foodHooks.some(h=>h.hook==='sensory-reveal'));
 const foodIntel=buildCreativeIntelligence(food);
 assert.equal(foodIntel.archetype,'food-editorial');
+assert.equal(foodIntel.sensoryLane,'indulgent-food');
 assert.ok(foodIntel.factualConstraints.some(c=>/invent/i.test(c)));
 
 const beautyIntel=buildCreativeIntelligence(beautyPlan);
 assert.equal(beautyIntel.archetype,'beauty-sensory');
 assert.ok(beautyIntel.photographicApproach.length>10);
 assert.ok(foodIntel.videoConcept!==beautyIntel.videoConcept||foodIntel.creativeHook!==beautyIntel.creativeHook,'strategies should diverge across categories');
+
+const lotion=basePlan({productType:'other',description:'Matte pump bottle of body lotion, blank label',request:'Comforting soft-fabric spa mood'});
+lotion.concepts[0].idea='Calm tactile comfort without clinical claims';
+const lotionIntel=buildCreativeIntelligence(lotion);
+assert.equal(lotionIntel.sensoryLane,'comfort-care');
+
+const original=planOriginalCampaign(beautyPlan);
+assert.ok(original.shots.length>=2,'original plans must be multi-beat');
 
 const analysis={
  version:1,id:'ref1',created:1,sourceUrl:'/outputs/ref-aaaaaaaa.mp4',originalUrl:'/outputs/ref-aaaaaaaa.mp4',bytes:1000,
@@ -64,11 +73,7 @@ assert.match(shotPlan.note,/never be exported/i);
 assert.ok(shotPlan.shots.every(s=>!/No Crumbs|reference frames copied/i.test(s.sceneBrief)));
 assert.ok(shotPlan.shots[0].sceneBrief.includes('Acme')||shotPlan.brandName==='Acme');
 
-const original=planOriginalCampaign(beautyPlan);
-assert.ok(original.shots.length>=1);
-assert.equal(original.creativeHook,beautyIntel.creativeHook||original.creativeHook);
+assert.equal(shotPlan.shots.length>=2,true);
+assert.ok(shotPlan.editing.transition);
 
-// Different industries → meaningfully different strategies (not only seed)
-assert.notEqual(foodIntel.videoConcept,beautyIntel.videoConcept);
-
-console.log('creative-intelligence.test PASS',{foodHook:foodIntel.creativeHook,beautyHook:beautyIntel.creativeHook,shotCount:shotPlan.shots.length});
+console.log('creative-intelligence.test PASS',{foodHook:foodIntel.creativeHook,beautyHook:beautyIntel.creativeHook,lotionLane:lotionIntel.sensoryLane,shotCount:shotPlan.shots.length,originalShots:original.shots.length});

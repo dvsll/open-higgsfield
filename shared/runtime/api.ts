@@ -65,7 +65,7 @@ function applyResolved(graph:Record<string,any>,resolved:Resolved){
 import { identifyHardware, serverTiming, recordRender } from './render-timings.ts';
 import { productFormats, productPlan, renderProduct, ProductRenderError, type ProductRatio, type ProductMode, type CameraMotion } from './product-video.ts';
 import {importMedia,composeAd,ComposeError,mediaTypes} from './ad-compose.ts';
-import {importReferenceVideo,analyzeReferenceVideo,searchInspiration,researchQueries,ReferenceError} from './reference-analyze.ts';
+import {importReferenceVideo,analyzeReferenceVideo,assembleCommercial,searchInspiration,researchQueries,ReferenceError} from './reference-analyze.ts';
 import {planFromReference,planOriginalCampaign} from '../lib/reference-video.ts';
 import {buildCreativeIntelligence} from '../lib/creative-intelligence.ts';
 import {analysisStatus,collectBrandImage} from './brand-research.ts';
@@ -723,6 +723,10 @@ function middleware(env: Env,setup:RuntimeSetup,rewriter:PromptRewriter,creative
          if(body?.intelligence)body.query=body.query||researchQueries(body.intelligence)[0];
          return send(res,200,await searchInspiration(body,env));
         }catch(e:any){if(e instanceof ReferenceError)return send(res,e.status,{error:e.message});throw e;}
+      }
+      if(route==='POST /api/reference/assemble'){
+        try{return send(res,200,await assembleCommercial(await readBody(req,256*1024),OUTPUTS,env));}
+        catch(e:any){if(e instanceof ReferenceError)return send(res,e.status,{error:e.message});throw e;}
       }
       if(route==='POST /api/compose-ad')return send(res,200,await composeAd(await readBody(req),OUTPUTS,env));
       if (route === 'GET /api/capabilities') return send(res,200,await capabilities(env));

@@ -185,3 +185,82 @@ export function researchQueries(intel:{category:string;intendedFeeling:string;cr
   `${intel.photographicApproach} brand film still`
  ].map(s=>s.replace(/\s+/g,' ').trim().slice(0,100));
 }
+
+const clipUrl=/^\/outputs\/[a-f0-9]{16}\.(mp4|webm)$/;
+const pngUrl=/^\/outputs\/[a-f0-9]{16}\.png$/;
+
+/**
+ * Assemble original shot clips into one vertical commercial.
+ * Transitions are deterministic FFmpeg edits (not AI motion). Optional end-card PNG.
+ */
+export async function assembleCommercial(body:any,root:string,env:Env){
+ if(!body||!Array.isArray(body.shots)||body.shots.length<1||body.shots.length>6)throw new ReferenceError(400,'Provide 1–6 generated shot clips.');
+ const transition=body.transition==='wipe'||body.transition==='dissolve'||body.transition==='cut'?body.transition:'dissolve';
+ const width=body.width===1080?1080:720,height=Math.round(width*16/9),fps=24;
+ const paths:string[]=[];
+ for(const s of body.shots){
+  if(typeof s?.source!=='string'||!clipUrl.test(s.source))throw new ReferenceError(400,'Each shot needs a local /outputs/*.webm|mp4 clip.');
+  const p=join(root,s.source.slice('/outputs/'.length));
+  try{await readFile(p);}catch{throw new ReferenceError(404,'A shot clip is missing; regenerate before assembling.');}
+  paths.push(p);
+ }
+ let closing:string|undefined;
+ if(body.closing){
+  if(typeof body.closing!=='string'||!pngUrl.test(body.closing))throw new ReferenceError(400,'End card must be a local PNG output.');
+  closing=join(root,body.closing.slice('/outputs/'.length));
+  try{await readFile(closing);}catch{throw new ReferenceError(404,'End card PNG missing.');}
+ }
+ const cta=typeof body.ctaSeconds==='number'&&Number.isFinite(body.ctaSeconds)?Math.min(3,Math.max(0,body.ctaSeconds)):closing?1.4:0;
+ const name=randomBytes(8).toString('hex')+'.mp4',destination=join(root,name);
+ const fade=transition==='cut'?0:0.35;
+ const wipeBlack=transition==='wipe'?0.35:0;
+ const started=Date.now();
+ try{
+  const args=['-nostdin','-hide_banner','-loglevel','error','-y'];
+  for(const p of paths)args.push('-protocol_whitelist','file,pipe','-i',p);
+  let idx=paths.length;
+  const blackIdx=wipeBlack?idx++:-1;
+  if(wipeBlack)args.push('-f','lavfi','-i',`color=c=0x050505:s=${width}x${height}:d=${wipeBlack}:r=${fps}`);
+  const closeIdx=closing&&cta?idx++:-1;
+  if(closing&&cta)args.push('-loop','1','-framerate',String(fps),'-t',String(cta),'-i',closing);
+  const filters:string[]=[];
+  const norm=`scale=${width}:${height}:force_original_aspect_ratio=decrease:force_divisible_by=2:flags=lanczos,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:color=0x141519,setsar=1,fps=${fps},format=yuv420p,settb=AVTB`;
+  paths.forEach((_,i)=>filters.push(`[${i}:v]${norm}[v${i}]`));
+  if(blackIdx>=0)filters.push(`[${blackIdx}:v]${norm}[vblack]`);
+  if(closeIdx>=0)filters.push(`[${closeIdx}:v]${norm},fade=t=in:st=0:d=0.25[vend]`);
+  // Build concat list: v0 (+ black) + v1 (+ black) ...
+  const labels:string[]=[];
+  paths.forEach((_,i)=>{labels.push(`v${i}`);if(wipeBlack&&i<paths.length-1)labels.push('vblack');});
+  if(closeIdx>=0)labels.push('vend');
+  if(labels.length===1){
+   filters.push(`[${labels[0]}]format=yuv420p[outv]`);
+  }else if(fade<=0||transition==='wipe'){
+   filters.push(`${labels.map(l=>`[${l}]`).join('')}concat=n=${labels.length}:v=1:a=0[outv]`);
+  }else{
+   // dissolve xfade across clips only (no black)
+   let cur='v0',elapsed=0;
+   // probe durations via ffprobe for offsets
+   const durs:number[]=[];
+   for(const p of paths){
+    const info=await probe(p,env);
+    durs.push(Math.max(0.5,info.duration));
+   }
+   elapsed=durs[0];
+   for(let i=1;i<paths.length;i++){
+    const next=`xf${i}`;
+    const offset=Math.max(0,elapsed-fade);
+    filters.push(`[${cur}][v${i}]xfade=transition=fade:duration=${fade}:offset=${offset.toFixed(3)}[${next}]`);
+    cur=next;elapsed+=durs[i]-fade;
+   }
+   if(closeIdx>=0){
+    const next='xfend';
+    filters.push(`[${cur}][vend]xfade=transition=fade:duration=${fade}:offset=${Math.max(0,elapsed-fade).toFixed(3)}[${next}]`);
+    cur=next;
+   }
+   filters.push(`[${cur}]format=yuv420p[outv]`);
+  }
+  args.push('-filter_complex',filters.join(';'),'-map','[outv]','-an','-c:v','libx264','-preset','fast','-crf','19','-pix_fmt','yuv420p','-movflags','+faststart',destination);
+  await run(tools(env).ffmpeg,args,180000);
+  return {url:'/outputs/'+name,width,height,fps,seconds:(Date.now()-started)/1000,transition,shots:paths.length,note:transition==='wipe'||transition==='dissolve'||transition==='cut'?`FFmpeg ${transition} edit — not generative AI motion.`:'Assembled'};
+ }catch(e){await unlink(destination).catch(()=>{});throw e;}
+}

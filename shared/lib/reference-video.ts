@@ -45,7 +45,8 @@ export type CampaignShotBrief={
  purpose:ReferenceShot['purpose'];
  duration:number;
  sceneBrief:string;
- startKeyframeStrategy:'hero-still'|'generated-open'|'hold';
+ /** Which still seeds LTX for this beat. */
+ startKeyframeStrategy:'source-still'|'hero-still'|'generated-open'|'hold';
  endKeyframeStrategy:'hero-still'|'generated-close'|'hold';
  cameraMovement:string;
  motionConstraints:string[];
@@ -66,13 +67,46 @@ export type CampaignShotPlan={
  sourceAnalysisId?:string;
  rights:ReferenceRights;
  shots:CampaignShotBrief[];
- editing:{transition:'cut'|'dissolve';brandOverlay:boolean;endingCta:boolean};
+ editing:{transition:'cut'|'dissolve'|'wipe';brandOverlay:boolean;endingCta:boolean};
  fidelityRequirements:string[];
  intelligence:CreativeIntelligence;
  note:string;
 };
 
 const clip=(s:string|undefined,n=220)=>(s||'').replace(/\s+/g,' ').trim().slice(0,n);
+
+function purposesFor(hook:CreativeHook,n:number):ReferenceShot['purpose'][]{
+ const arc:ReferenceShot['purpose'][]=hook==='dramatic-reveal'?['anticipation','reveal','payoff']
+  :hook==='rhythmic-comparison'?['comparison','comparison','payoff']
+  :hook==='sensory-reveal'?['anticipation','reveal','payoff']
+  :hook==='artistic-metaphor'?['anticipation','interaction','payoff']
+  :['interaction','reveal','payoff'];
+ return Array.from({length:n},(_,i)=>arc[Math.min(i,arc.length-1)]);
+}
+
+function keyStrategy(purpose:ReferenceShot['purpose'],index:number):CampaignShotBrief['startKeyframeStrategy']{
+ if(purpose==='anticipation'||(purpose==='interaction'&&index===0))return 'source-still';
+ if(purpose==='comparison'&&index===0)return 'source-still';
+ return 'hero-still';
+}
+
+function briefFor(purpose:ReferenceShot['purpose'],brand:string,product:string,intel:CreativeIntelligence,hook:CreativeHook,principle:string,index:number){
+ const feel=intel.intendedFeeling;
+ const photo=intel.photographicApproach;
+ if(purpose==='anticipation')return `Opening beat for ${brand}: build anticipation. ${photo} Product still present but not the final hero scale. Feeling: ${feel}. ${product}`;
+ if(purpose==='reveal')return `Reveal beat for ${brand}: the product becomes unmistakable. ${photo} Hook ${hook}. ${product}`;
+ if(purpose==='payoff')return `Payoff beat for ${brand}: settle on a clear branded product hold. ${feel}. ${product}`;
+ if(purpose==='comparison')return `Matched comparison beat ${index+1} for ${brand}. Stable framing, intentional variation. ${product}`;
+ return `Development beat for ${brand}. ${principle||hook}. ${product}`;
+}
+
+function scaleDurations(raw:number[],n:number,totalTarget:number){
+ const base=raw.length?raw.slice(0,n):Array.from({length:n},()=>totalTarget/n);
+ const sum=base.reduce((a,b)=>a+b,0)||1;
+ const scaled=base.map(d=>Math.max(1.5,Math.min(3,+(d/sum*totalTarget).toFixed(2))));
+ while(scaled.reduce((a,b)=>a+b,0)>totalTarget+.05&&scaled.length){const i=scaled.indexOf(Math.max(...scaled));scaled[i]=Math.max(1.5,+(scaled[i]-0.15).toFixed(2));}
+ return scaled;
+}
 
 /** Map measured pacing + inferred mechanism into an original brand shot plan (not a frame copy). */
 export function planFromReference(plan:CreativePlan,analysis:ReferenceAnalysis,intel?:CreativeIntelligence):CampaignShotPlan{
@@ -81,34 +115,25 @@ export function planFromReference(plan:CreativePlan,analysis:ReferenceAnalysis,i
  const brand=plan.input.brand.dna.name||'Brand';
  const hook=intelligence.creativeHook;
  const principles=analysis.transferablePrinciples;
- const n=Math.min(3,Math.max(1,analysis.shots.length||1));
- const total=Math.min(9,Math.max(campaignVideoSize.duration,n*2.5));
- const durations=analysis.shots.slice(0,n).map(s=>s.duration);
- const sum=durations.reduce((a,b)=>a+b,0)||1;
- const scaled=durations.map(d=>Math.max(1.2,Math.min(4,+(d/sum*total).toFixed(2))));
- while(scaled.reduce((a,b)=>a+b,0)>total+.05&&scaled.length){const i=scaled.indexOf(Math.max(...scaled));scaled[i]=Math.max(1.2,+(scaled[i]-0.2).toFixed(2));}
- const purposes:ReferenceShot['purpose'][]=hook==='dramatic-reveal'?['anticipation','reveal','payoff']
-  :hook==='rhythmic-comparison'?['comparison','comparison','payoff']
-  :hook==='sensory-reveal'?['anticipation','reveal','payoff']
-  :['interaction','payoff'];
+ const n=Math.min(3,Math.max(2,analysis.shots.length||2));
+ const total=Math.min(8,Math.max(4.5,n*2.2));
+ const scaled=scaleDurations(analysis.shots.map(s=>s.duration),n,total);
+ const purposes=purposesFor(hook,n);
+ const transition=hook==='dramatic-reveal'?'wipe':n>1?'dissolve':'cut';
  const shots:CampaignShotBrief[]=[];
  for(let i=0;i<n;i++){
-  const purpose=purposes[Math.min(i,purposes.length-1)];
+  const purpose=purposes[i];
   const ref=analysis.shots[i];
   shots.push({
    index:i,
    purpose,
-   duration:scaled[i]??campaignVideoSize.duration,
-   sceneBrief:purpose==='anticipation'
-    ?`Original ${brand} setup that builds anticipation without copying reference frames. Product: ${product}. Feeling: ${intelligence.intendedFeeling}.`
-    :purpose==='reveal'||purpose==='payoff'
-    ?`Original ${brand} product reveal/payoff. Keep product recognizable. ${product}. Hook: ${hook}.`
-    :purpose==='comparison'
-    ?`Matched composition for ${brand} variant/interaction beat ${i+1}. ${product}.`
-    :`Original ${brand} interaction/lifestyle beat. ${product}. Principle: ${principles[i%principles.length]||hook}.`,
-   startKeyframeStrategy:i===0?'hero-still':'generated-open',
+   duration:scaled[i]??2,
+   sceneBrief:briefFor(purpose,brand,product,intelligence,hook,principles[i%principles.length]||'',i),
+   startKeyframeStrategy:keyStrategy(purpose,i),
    endKeyframeStrategy:i===n-1?'hero-still':'hold',
-   cameraMovement:ref?.camera.motion==='static'?'Gentle push or hold with intentional stillness.':`Adapt reference motion character (${ref?.camera.motion||'subtle move'}) without copying framing.`,
+   cameraMovement:ref?.camera.motion==='mostly-static'||ref?.camera.motion==='static'
+    ?'Intentional hold or very gentle push — stillness is a creative choice.'
+    :`Adapt motion character (${ref?.camera.motion||'subtle move'}) without copying framing.`,
    motionConstraints:[
     'Do not recreate reference frames, logos, packaging or distinctive footage.',
     'Preserve disclosed product facts only.',
@@ -124,27 +149,35 @@ export function planFromReference(plan:CreativePlan,analysis:ReferenceAnalysis,i
   concept:clip(intelligence.videoConcept,280),
   intendedOutcome:clip(intelligence.visualReaction+' '+intelligence.intendedFeeling,220),
   creativeHook:hook,sourceAnalysisId:analysis.id,rights:analysis.rights,
-  shots,editing:{transition:n>1?'dissolve':'cut',brandOverlay:true,endingCta:true},
+  shots,editing:{transition,brandOverlay:true,endingCta:true},
   fidelityRequirements:intelligence.factualConstraints,
   intelligence,
   note:'Shot plan adapts transferable creative structure only. Inspiration-only references must never be exported as source footage.'
  };
 }
 
-/** Original plan when no reference is provided. */
+/** Original multi-beat plan when no reference is provided. */
 export function planOriginalCampaign(plan:CreativePlan,hook?:CreativeHook):CampaignShotPlan{
  const intelligence=buildCreativeIntelligence(plan,hook);
+ const n=intelligence.creativeHook==='lifestyle-moment'?2:3;
  const fake:ReferenceAnalysis={
-  version:1,id:'original',created:Date.now(),sourceUrl:'',originalUrl:'',bytes:0,duration:0,width:0,height:0,fps:24,
+  version:1,id:'original',created:Date.now(),sourceUrl:'',originalUrl:'',bytes:0,duration:n*2.4,width:0,height:0,fps:24,
   rights:'inspiration-only',creativeMechanism:intelligence.creativeHook,mechanismConfidence:'inferred',
-  shots:[{index:0,start:0,end:3,duration:3,purpose:'payoff',composition:'hero',camera:{motion:'push-in',confidence:'inferred'},interaction:'none',keyframeUrls:[]}],
-  transitions:[],pacing:{avgShotSec:3,relative:[{index:0,share:1}],note:'Single hero beat'},
+  shots:Array.from({length:n},(_,i)=>({index:i,start:i*2.4,end:(i+1)*2.4,duration:2.4,purpose:'other' as const,composition:'planned',camera:{motion:'push-in',confidence:'inferred' as const},interaction:'none',keyframeUrls:[]})),
+  transitions:[],pacing:{avgShotSec:2.4,relative:Array.from({length:n},(_,i)=>({index:i,share:1/n})),note:'Original multi-beat plan'},
   visualStyle:{lighting:'brand-led',graphics:'end-card',ending:'brand payoff',confidence:'inferred'},
-  transferablePrinciples:[intelligence.videoConcept],analysisMethod:'creative-intelligence-only',warnings:[]
+  transferablePrinciples:[intelligence.videoConcept,intelligence.photographicApproach],
+  analysisMethod:'creative-intelligence-only',warnings:[]
  };
  return planFromReference(plan,fake,intelligence);
 }
 
-export function motionPromptForShot(brief:CampaignShotBrief,product:string){
- return `Short original product commercial shot. ${brief.sceneBrief} Camera: ${brief.cameraMovement} Keep product recognizable and stable. No new logos/text/hands morphing. Constraints: ${brief.motionConstraints.join(' ')} Product: ${clip(product,160)}`;
+export function motionPromptForShot(brief:CampaignShotBrief,product:string,intel?:CreativeIntelligence){
+ const lane=intel?` Sensory lane: ${intel.sensoryLane}. Feeling: ${intel.intendedFeeling}.`:'';
+ return `Short original product commercial shot (${brief.purpose}). ${brief.sceneBrief}${lane} Camera: ${brief.cameraMovement} Keep product recognizable and stable. No new logos/text/hands morphing. Constraints: ${brief.motionConstraints.join(' ')} Product: ${clip(product,160)}`;
+}
+
+/** Per-shot LTX duration clamp for 10GB sequential jobs. */
+export function shotRenderDuration(brief:CampaignShotBrief){
+ return Math.max(1.5,Math.min(2.5,brief.duration||2));
 }

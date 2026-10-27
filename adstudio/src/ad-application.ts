@@ -14,7 +14,7 @@ import {browserDownload,type Download} from './download.ts';
 import {adScenePrompt,campaignDesign} from '../../shared/lib/ad-scene.ts';
 import {campaignMotionPrompt,campaignVideoSize} from '../../shared/lib/campaign-motion.ts';
 import {buildCreativeIntelligence} from '../../shared/lib/creative-intelligence.ts';
-import {planFromReference,planOriginalCampaign,motionPromptForShot,type ReferenceAnalysis,type CampaignShotPlan} from '../../shared/lib/reference-video.ts';
+import {planFromReference,planOriginalCampaign,motionPromptForShot,shotRenderDuration,type ReferenceAnalysis,type CampaignShotPlan} from '../../shared/lib/reference-video.ts';
 import {prepareReference} from './reference.ts';
 import {defaults,type Take} from './projects.ts';
 import {resolveGenerationEngine,type GenerationEngineId,type GenerationReadiness} from './generation-engines.ts';
@@ -281,11 +281,63 @@ export class AdApplication {
    await this.store.projects.save(p);return {intelligence:intel,shotPlan};
   });
  }
- /** Reference-inspired commercial: animate hero still with mechanism-aware motion (LTX), assemble via existing export. Not product replacement. */
+ /** Multi-shot commercial from a shot plan: distinct stills → LTX per beat → FFmpeg assemble. */
+ private async produceMultiShotCommercial(take:HeroTake,plan:import('../../shared/lib/creative-engine.ts').CreativePlan,shotPlan:CampaignShotPlan,templatePrefix:string){
+  const p=this.store.active();
+  if(!this.client.shot)throw Error('Local video generation is unavailable.');
+  const hero=await this.store.asset(take.assetId);if(!hero||await blobHash(hero.original)!==take.sha256)throw Error('Restore the saved campaign photograph first.');
+  await this.checkSourceUse(take.settings.sourceId,take.settings.brandId,take.settings.productId);
+  const source=await this.store.asset(take.settings.sourceId);
+  if(!source)throw Error('Restore the original product photograph used for this campaign.');
+  const seed0=Number(plan.input.seed??take.settings.seed??61)||61;
+  const intel=shotPlan.intelligence||buildCreativeIntelligence(plan,shotPlan.creativeHook);
+  const clips:{source:string;purpose:string;prompt:string;duration:number;seconds:number}[]=[];
+  const prompts:string[]=[];
+  for(const brief of shotPlan.shots){
+   const useSource=brief.startKeyframeStrategy==='source-still'||brief.startKeyframeStrategy==='generated-open';
+   const still=useSource?source:hero;
+   const fitted=await prepareReference(await this.encode(still.original),campaignVideoSize.width,campaignVideoSize.height,'fit');
+   const uploaded=await this.client.upload(fitted);
+   const duration=shotRenderDuration(brief);
+   const prompt=motionPromptForShot(brief,plan.input.facts.description,intel);
+   prompts.push(prompt);
+   const shot=await this.client.shot([{image:uploaded.url,t:0}],prompt,duration,seed0+brief.index*17,{width:campaignVideoSize.width,height:campaignVideoSize.height,model:campaignVideoSize.model});
+   clips.push({source:shot.url,purpose:brief.purpose,prompt,duration,seconds:shot.seconds??0});
+  }
+  if(!clips.length)throw Error('No shots were generated.');
+  let mp4=clips[0].source,assembleNote='single-shot';
+  const closing=/^\/outputs\/[a-f0-9]{16}\.png$/.test(take.url)?take.url:undefined;
+  try{
+   const assembled=await fetch('/api/reference/assemble',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+    shots:clips.map(c=>({source:c.source})),
+    transition:shotPlan.editing.transition,
+    width:720,
+    closing:shotPlan.editing.endingCta?closing:undefined,
+    ctaSeconds:shotPlan.editing.endingCta&&closing?1.4:0
+   }),signal:AbortSignal.timeout(180000)});
+   const body=await assembled.json();
+   if(!assembled.ok)throw Error(body.error||'Assemble failed');
+   mp4=body.url;assembleNote=body.note||shotPlan.editing.transition;
+  }catch(e){
+   // Fall back to exporting the last generative clip if assemble fails
+   try{mp4=(await this.client.exportVideo(clips.at(-1)!.source)).url;}catch{mp4=clips.at(-1)!.source;}
+   assembleNote='assemble-fallback: '+(e as Error).message;
+  }
+  const exports:Take['exports']=/\.mp4$/.test(mp4)?[{id:crypto.randomUUID(),url:mp4,tagline:take.adDesign?.headline||'',created:Date.now()}]:[];
+  if(!exports.length){
+   try{const exported=await this.client.exportVideo(clips[0].source);exports.push({id:crypto.randomUUID(),url:exported.url,tagline:take.adDesign?.headline||'',created:Date.now()});if(!/\.mp4$/.test(mp4))mp4=exported.url;}catch{/* */}
+  }
+  const totalSec=clips.reduce((a,c)=>a+c.seconds,0);
+  const video:Take={id:crypto.randomUUID(),created:Date.now(),assetId:take.assetId,source:clips[0].source,kind:'generation',mode:'creative',ratio:'9:16',settings:{...defaults(),mode:'creative',ratios:['9:16'],duration:shotPlan.shots.reduce((a,s)=>a+shotRenderDuration(s),0),seed:seed0,pitch:prompts.join('\n---\n').slice(0,1500),tagline:take.adDesign?.headline||'',model:campaignVideoSize.model,template:`${templatePrefix}:${take.id}:${shotPlan.id}:x${clips.length}`},prompt:prompts.join('\n---\n').slice(0,2000),frames:clips.length*49,fps:24,width:campaignVideoSize.width,height:campaignVideoSize.height,seconds:totalSec,exports:exports.length?exports:[{id:crypto.randomUUID(),url:mp4,tagline:take.adDesign?.headline||'',created:Date.now()}]};
+  // Prefer assembled MP4 as playable source when available
+  if(/\.mp4$/.test(mp4))video.source=mp4;
+  p.takes.push(video);
+  return {video,mp4,shotPlan,clips,assembleNote,prompts,warning:`${clips.length}-shot commercial (${shotPlan.creativeHook}). ${assembleNote} Product replacement of reference footage is unavailable.`};
+ }
+ /** Reference-inspired multi-shot commercial from analyzed inspiration + brand stills. */
  async generateInspiredCommercial(takeId:string){
-  return this.store.run('Producing reference-inspired commercial',async()=>{
+  return this.store.run('Producing multi-shot commercial',async()=>{
    const p=this.store.active();if(p.attempt?.status==='running')throw Error('Finish or cancel the current generation first.');
-   if(!this.client.shot)throw Error('Local video generation is unavailable.');
    const take=p.hero?.takes.find(t=>t.id===takeId);if(!take)throw Error('Select a saved advertisement photograph first.');
    const planId=p.creative?.activeId;if(!planId)throw Error('Accept a creative direction first.');
    const plan=await this.creative.open(p.id,planId);
@@ -296,50 +348,33 @@ export class AdApplication {
     shotPlan=analysis?planFromReference(plan,analysis,intel):planOriginalCampaign(plan);
     p.creative!.inspiration={...(p.creative!.inspiration||{videoUrl:'',rights:'inspiration-only',productReplacementAvailable:false}),shotPlan,productReplacementAvailable:false};
    }
-   const brief=shotPlan.shots[0];
-   const prompt=brief?motionPromptForShot(brief,plan.input.facts.description):campaignMotionPrompt(plan,take.scene?.archetype,shotPlan.creativeHook);
-   const seed=Number(plan.input.seed??take.settings.seed??61)||61;
-   const raw=await this.store.asset(take.assetId);if(!raw||await blobHash(raw.original)!==take.sha256)throw Error('Restore the saved campaign photograph first.');
-   await this.checkSourceUse(take.settings.sourceId,take.settings.brandId,take.settings.productId);
-   const fitted=await prepareReference(await this.encode(raw.original),campaignVideoSize.width,campaignVideoSize.height,'fit');
-   const uploaded=await this.client.upload(fitted);
    p.attempt={id:crypto.randomUUID(),status:'running',created:Date.now(),takeIds:[],engine:'ltx-video'};await this.store.projects.save(p);
    try{
-    const shot=await this.client.shot([{image:uploaded.url,t:0}],prompt,campaignVideoSize.duration,seed,{width:campaignVideoSize.width,height:campaignVideoSize.height,model:campaignVideoSize.model});
-    let mp4=shot.url,exports:Take['exports']=[];
-    try{const exported=await this.client.exportVideo(shot.url);mp4=exported.url;exports=[{id:crypto.randomUUID(),url:exported.url,tagline:take.adDesign?.headline||'',created:Date.now()}];}catch{/* WebM ok */}
-    const video:Take={id:crypto.randomUUID(),created:Date.now(),assetId:take.assetId,source:shot.url,kind:'generation',mode:'creative',ratio:'9:16',settings:{...defaults(),mode:'creative',ratios:['9:16'],duration:campaignVideoSize.duration,seed,pitch:prompt,tagline:take.adDesign?.headline||'',model:campaignVideoSize.model,template:'inspired:'+take.id+':'+(shotPlan.id||'plan')},prompt,frames:shot.frames??73,fps:shot.fps??24,width:campaignVideoSize.width,height:campaignVideoSize.height,seconds:shot.seconds??0,exports};
-    p.takes.push(video);p.attempt={id:p.attempt!.id,status:'complete',created:p.attempt!.created,takeIds:[video.id],engine:'ltx-video'};
+    const result=await this.produceMultiShotCommercial(take,plan,shotPlan,p.creative?.inspiration?.analysis?'inspired':'original');
+    p.attempt={id:p.attempt!.id,status:'complete',created:p.attempt!.created,takeIds:[result.video.id],engine:'ltx-video'};
     await this.store.projects.save(p);
-    this.store.notify('Reference-inspired commercial ready. Structure adapted — reference footage was not copied.');
-    return {video,mp4,prompt,shotPlan,warning:'Inspiration-based LTX motion. Product replacement of reference footage is unavailable. Compare fidelity.'};
+    this.store.notify(`${result.clips.length}-shot commercial ready (${shotPlan.creativeHook}). Reference footage was not copied.`);
+    return result;
    }catch(e){p.attempt={id:p.attempt!.id,status:'failed',created:p.attempt!.created,takeIds:[],engine:'ltx-video',error:(e as Error).message};await this.store.projects.save(p).catch(()=>{});throw e;}
   });
  }
- /** Animate a saved static campaign take via existing OSH.shot (LTX-2B) — same creative direction, no new brief. */
+ /** Animate a saved static take as an original multi-shot commercial (no reference required). */
  async animateCampaign(takeId:string){
   return this.store.run('Animating your advertisement',async()=>{
    const p=this.store.active();if(p.attempt?.status==='running')throw Error('Finish or cancel the current generation first.');
-   if(!this.client.shot)throw Error('Local video generation is unavailable.');
    const take=p.hero?.takes.find(t=>t.id===takeId);if(!take)throw Error('Select a saved advertisement photograph first.');
    if(!(take.model==='klein-scene'||take.model==='klein-harmonized'||take.model==='klein-integrated'||take.model==='product-safe'||take.model==='klein-background'))throw Error('Animate works from a saved campaign photograph.');
    const planId=p.creative?.activeId;if(!planId)throw Error('Accept a creative direction before animating.');
    const plan=await this.creative.open(p.id,planId);
-   const raw=await this.store.asset(take.assetId);if(!raw||await blobHash(raw.original)!==take.sha256)throw Error('Restore the saved campaign photograph before animating.');
-   await this.checkSourceUse(take.settings.sourceId,take.settings.brandId,take.settings.productId);
-   const prompt=campaignMotionPrompt(plan,take.scene?.archetype),seed=Number(plan.input.seed??take.settings.seed??61)||61;
-   const fitted=await prepareReference(await this.encode(raw.original),campaignVideoSize.width,campaignVideoSize.height,'fit');
-   const uploaded=await this.client.upload(fitted);
+   const shotPlan=planOriginalCampaign(plan);
+   p.creative!.inspiration={...(p.creative!.inspiration||{videoUrl:'',rights:'inspiration-only',productReplacementAvailable:false}),shotPlan,productReplacementAvailable:false};
    p.attempt={id:crypto.randomUUID(),status:'running',created:Date.now(),takeIds:[],engine:'ltx-video'};await this.store.projects.save(p);
    try{
-    const shot=await this.client.shot([{image:uploaded.url,t:0}],prompt,campaignVideoSize.duration,seed,{width:campaignVideoSize.width,height:campaignVideoSize.height,model:campaignVideoSize.model});
-    let mp4=shot.url,exports:Take['exports']=[];
-    try{const exported=await this.client.exportVideo(shot.url);mp4=exported.url;exports=[{id:crypto.randomUUID(),url:exported.url,tagline:take.adDesign?.headline||'',created:Date.now()}];}catch{/* WebM still saved; MP4 needs FFmpeg */}
-    const video:Take={id:crypto.randomUUID(),created:Date.now(),assetId:take.assetId,source:shot.url,kind:'generation',mode:'creative',ratio:'9:16',settings:{...defaults(),mode:'creative',ratios:['9:16'],duration:campaignVideoSize.duration,seed,pitch:prompt,tagline:take.adDesign?.headline||'',model:campaignVideoSize.model,template:'campaign:'+take.id},prompt,frames:shot.frames??73,fps:shot.fps??24,width:campaignVideoSize.width,height:campaignVideoSize.height,seconds:shot.seconds??0,exports};
-    p.takes.push(video);p.attempt={id:p.attempt!.id,status:'complete',created:p.attempt!.created,takeIds:[video.id],engine:'ltx-video'};
+    const result=await this.produceMultiShotCommercial(take,plan,shotPlan,'campaign');
+    p.attempt={id:p.attempt!.id,status:'complete',created:p.attempt!.created,takeIds:[result.video.id],engine:'ltx-video'};
     await this.store.projects.save(p);
-    this.store.notify(exports.length?'Cinematic commercial ready (LTX). Compare product identity with the static ad.':'WebM saved. Install/configure FFmpeg for MP4 export.');
-    return {video,mp4,prompt,warning:'LTX creative motion. Product geometry may drift — compare first/middle/final frames with the static campaign.'};
+    this.store.notify(`${result.clips.length}-shot commercial ready. Compare product identity across beats.`);
+    return {...result,prompt:campaignMotionPrompt(plan,take.scene?.archetype,shotPlan.creativeHook)};
    }catch(e){p.attempt={id:p.attempt!.id,status:'failed',created:p.attempt!.created,takeIds:[],engine:'ltx-video',error:(e as Error).message};await this.store.projects.save(p).catch(()=>{});throw e;}
   });
  }

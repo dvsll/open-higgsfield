@@ -70,7 +70,7 @@ assert.equal(workflowTourStep({...videoTour,step:'position'},'video'),'position'
 assert.equal(workflowTourStep({...videoTour,dismissed:true},'image'),null);
 assert.equal(workflowTourStep({...videoTour,suspended:true},'image'),null);
 assert.equal(workflowTourStep(videoTour,'rendering'),null);
-assert.equal(workflowTourStep({entry:'image',step:'image-review'},'video'),'image-video');
+assert.equal(workflowTourStep({entry:'image',step:'image-review'},'video'),'add');
 assert.equal(windowLesson('switch-image',new Set(),false),null);
 assert.deepEqual(windowLesson('add',new Set(['timeline']),false),{window:'files',stage:'menu'});
 assert.equal(windowLesson('add',new Set(['files','timeline']),false),null);
@@ -129,3 +129,9 @@ assert.deepEqual(windowLesson('play-video',new Set(['prompts']),false),{window:'
 const playLine=source.split('\n').find(line=>line.startsWith("$('#play').onclick="));
 const playControl={};const playCtx={$:()=>playControl,playing:false,span:()=>[0,4],G:0,setPlaying:value=>playCtx.playing=value,touring:()=>true,onboarding:{step:'play-video'},advanceTour:step=>playCtx.onboarding.step=step,reviewPausedFirstVideo:()=>{}};
 Function('ctx','with(ctx){'+playLine+'}')(playCtx);assert.equal(playCtx.onboarding.step,'play-video','Rendering does not dismiss the Play instruction');playControl.onclick();assert.equal(playCtx.playing,true);assert.equal(playCtx.onboarding.step,'watch-video','Pressing Play dismisses guidance and begins review');
+
+// Image-first must also teach a real drag; switching alone cannot attach a keyframe.
+assert.equal(workflowTourStep({entry:'image',step:'return-video'},'video'),'add');
+context.onboarding={entry:'image',shotId:'shot',step:'add',images:['solo']};shot.keys=[];api.addKey(0,2,{img:'solo',spec:{},u:.5});assert.equal(context.onboarding.step,'position');assert.equal(shot.keys.length,1);assert.equal(shot.keys[0].anchor,undefined);shot.keys[0].anchor='start';api.checkTourPlacement();assert.equal(context.onboarding.step,'image-video');
+const animateLine=source.split('\n').find(line=>line.startsWith("$('#animateImage').onclick="));const animateControl={};let autoAttachments=0;
+const animateCtx={$:()=>animateControl,touring:()=>true,onboarding:{entry:'image',images:[]},imageDraft:{url:'solo'},advanceTour:step=>animateCtx.onboarding.step=step,setWorkflow:()=>autoAttachments++,ensureScene:()=>autoAttachments++};Function('ctx','with(ctx){'+animateLine+'}')(animateCtx);animateControl.onclick();assert.equal(autoAttachments,0);assert.equal(animateCtx.onboarding.step,'return-video');assert.deepEqual(animateCtx.onboarding.images,['solo']);

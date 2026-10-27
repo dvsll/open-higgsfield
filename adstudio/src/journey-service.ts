@@ -5,7 +5,7 @@ import {resolveGenerationEngine,type GenerationEngineId} from './generation-engi
 import type {AdProject} from './projects.ts';
 export type JourneySource={id:string;name:string;draft:CreativeDraft;permission:boolean;planId?:string;review?:string};
 export type JourneyCard={id:string;sourceId:string;planId:string;conceptId:string;title:string;state:'waiting'|'preparing'|'generating'|'composing'|'saving'|'ready'|'failed'|'cancelled';takeId?:string;exportId?:string;error?:string;message?:string};
-export type JourneyState={version:1;stage:number;sources:JourneySource[];quantity:number;cards:JourneyCard[];batchId?:string};
+export type JourneyState={version:1;stage:number;sources:JourneySource[];quantity:number;cards:JourneyCard[];batchId?:string;introduction?:{website:string;name:string}};
 export const emptyJourney=():JourneyState=>({version:1,stage:1,sources:[],quantity:1,cards:[]});
 export function journeyFor(p:AdProject):JourneyState {const j=p.creative?.journey;if(!j)return emptyJourney();if(j.version!==1||!Array.isArray(j.sources)||!Array.isArray(j.cards)||!Number.isInteger(j.stage)||j.stage<1||j.stage>6)throw Error('Unsupported journey record. Your saved project has been kept.');return structuredClone(j);}
 export const reviewKey=(plan:CreativePlan)=>creativeSnapshot(plan.input)+'\n'+JSON.stringify(plan.concepts)+'\n'+plan.selectedId;
@@ -35,6 +35,11 @@ export class JourneyService {
  async run(engine:GenerationEngineId,approved:boolean){
  if(this.running)throw Error('The campaign is already running.');if(!approved)throw Error('Review the listed directions before generating.');this.running=true;this.stopped=false;
  const projectId=this.app.store.active().id;let active:string|undefined;
+ const progress=(event:Event)=>{const detail=(event as CustomEvent<{id:string;phase:string;message:string}>).detail,id=active,attempt=this.app.store.active().attempt;
+  if(!id||!attempt||detail.id!==attempt.id.replaceAll('-',''))return;
+  void this.save(j=>{const card=j.cards.find(c=>c.id===id);if(card?.state==='generating'){card.message=detail.message;if(detail.phase==='complete')card.state='composing';}}).catch(error=>this.app.store.report(error));
+ };
+ if(typeof window!=='undefined')window.addEventListener('osh-generation-progress',progress);
  const patch=async(id:string,change:Partial<JourneyCard>)=>this.save(j=>{const c=j.cards.find(c=>c.id===id);if(c)Object.assign(c,change);});
  try{
   await this.app.store.flush();const initial=this.state(),plans=await this.plans(),cards=campaignQueue(initial.sources,plans,initial.quantity);
@@ -57,6 +62,6 @@ export class JourneyService {
    await patch(card.id,{state:'ready',exportId:record.id,message:chosen.label});active=undefined;
   }
  }catch(error){const message=error instanceof Error?error.message:String(error);if(active)await patch(active,{state:this.stopped?'cancelled':'failed',error:message}).catch(()=>{});await this.save(j=>{for(const c of j.cards)if(c.state==='waiting')Object.assign(c,{state:'cancelled',message:'Not submitted after campaign stopped'});}).catch(()=>{});throw error;
- }finally{this.running=false;}
+ }finally{if(typeof window!=='undefined')window.removeEventListener('osh-generation-progress',progress);this.running=false;}
  }
 }

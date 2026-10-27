@@ -1,5 +1,14 @@
 # Website-first blind-test readiness
 
+**Latest checkpoint, 2026-10-26: DEGRADED GO for source-first testing.** Owner
+confirms Abel discovery, selection, same-brand navigation and refresh:
+OWNER-REPORTED PASS, not independent automated browser verification. Optional
+Qwen3 is currently paused for GPU memory pressure; non-AI planning stays labeled
+and usable. No fresh inference success is claimed. Reviewed-request CPU contracts
+pass; local image weights remain unavailable and paid generation requires separate
+authorization. See [QWEN_RELIABILITY.md](QWEN_RELIABILITY.md). Earlier checkpoint
+statements below are historical, not a reversal of the owner's accepted results.
+
 Website-first foundation tested at **b6752b3f6117ef5a3e0108a6a805b7007b288f9e**.
 Baseline: `3a6b343fbf6186c1a1456808e6333582e5c82012`.
 Original readiness report: `bcb888366cae5400192deb814646f568ea2724b8`. The subsequent targeted repair below changes application code; use `git log -1 -- adstudio/src/ad-application.ts` for its exact commit.

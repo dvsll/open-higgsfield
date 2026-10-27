@@ -24,8 +24,11 @@ React POST `/api/brand/research` `{website,analyze:false,deferAnalysis:true}` re
 products first, with `analysisState:"pending"` and a server-issued receipt. Optional
 POST `/api/brand/analyze` `{key}` uses only server-retained evidence and returns its
 validated result. States are pending/completed/unavailable/failed. Concurrent/repeated
-receipts and identical model input share one attempt via a16-entry/30min process
-cache; failures are cached, no silent retry. Unavailable status can be rechecked on
+receipts and identical model input share one attempt via a16-entry process cache.
+Receipts/successes last30min; failed results have a60-second cross-receipt cooldown,
+while the original receipt never retries. A later explicit discovery can recover;
+no background retry. Different evidence while analysis is busy returns unavailable
+immediately rather than waiting behind a long text job. Unavailable status can be rechecked on
 a new discovery. Expired/unknown receipt =>409; malformed key =>400. API restart
 expires volatile receipts; existing project/catalog data is retained. Legacy callers
 without `deferAnalysis` keep synchronous semantics; `analyze:false` stays source-only.
@@ -331,11 +334,22 @@ GET `/api/creative/status` may add `checks:{weights,loader,text,output}`. It now
 checks the actual CLIPLoader type/device, TextGenerate controls/token limit and
 SaveText format, not just node names. Text planning requires loopback HTTP ComfyUI
 and proxy configuration, never a silently selected remote provider. Native workflow
-still uses existing Qwen3 4B FP8: greedy/no thinking/template+system,2400tokens,
-180s scoped SDK wait,15s output fetch,32KB text limit; failed text job cancellation
+still uses existing Qwen3 4B FP8: greedy/no thinking/template+system,600tokens,
+180s scoped SDK wait including in-flight polling/result abort,15s output fetch,
+32KB text limit; failed text job cancellation
 targets only that job. No expired-job retry for creative text; Director's default
 30min workflow timeout/retry behavior is retained. Saved planning.json records
 actual context/settings/provider/timing; no duplicate image data.
+
+Ad Studio text status/submission additionally checks the native queue and
+conservative free/reclaimable VRAM (6GiB) / free RAM (2GiB) headroom, before and
+inside serialization. Busy/unverifiable/low-headroom states do not submit text;
+source products and explicitly non-AI planning remain available. This admission
+policy is not a model-fit/speed guarantee. Failed text reports job/native state
+and cancellation-request status; cancellation is never claimed as termination.
+Invalid returned text is retained as raw evidence without successful observations.
+Explicitly accepted inferred style preferences may guide planning but remain
+inferred evidence, not verified business claims.
 
 Qwen image hashes, source binding, review freshness, paid/private gates, one-job
 receipts, long HTTP transport, exact-Pod watchdogs and provenance remain unchanged.

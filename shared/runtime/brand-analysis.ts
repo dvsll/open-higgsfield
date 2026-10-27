@@ -20,7 +20,8 @@ export function parseBrandAnalysis(raw:string,r:BrandResearch,rejected:(field:st
 }
 export async function brandBackendStatus(backend:CreativeBackend):Promise<AnalysisProvider>{try{const s=await backend.status();return {provider:'comfy-qwen3',available:s.available,model:s.model,reason:s.reason+' Text-only brand suggestions require review; no image understanding is claimed.'};}catch{return {provider:'comfy-qwen3',available:false,reason:'Installed local Qwen3 is unreachable. Website facts and editing remain available; no model was downloaded.'};}}
 export async function analyzeBrand(r:BrandResearch,backend:CreativeBackend){
- const request=brandAnalysisRequest(r),raw=await backend.generate(request.system,request.content),suggestions=parseBrandAnalysis(raw,r,field=>r.warnings.push('Rejected AI '+field+' suggestion: operating-frequency or service claim was not supported by its cited page.'));
+ const request=brandAnalysisRequest(r),raw=await backend.generate(request.system,request.content);r.analysisRaw=raw;
+ const suggestions=parseBrandAnalysis(raw,r,field=>r.warnings.push('Rejected AI '+field+' suggestion: operating-frequency or service claim was not supported by its cited page.'));
  // Website facts retain priority; competing suggestions remain inspectable.
  r.analysisRaw=raw;r.observations.push(...suggestions);r.aiCompleted=true;r.analysisState='completed';return {raw,request};
 }

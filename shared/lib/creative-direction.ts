@@ -10,7 +10,9 @@ export type CreativeGrounding={
 // and website boilerplate stay evidence, even if no visual preference was given.
 export function creativeGrounding(input:CreativeInput):CreativeGrounding {
  const b=input.brand,read=(keys:('tone'|'visualStyle'|'guidelines'|'positioning'|'audience'|'creativePreferences')[])=>keys.filter(k=>b.dna[k]?.trim()).map(k=>({key:k,text:b.dna[k]||'',status:brandFieldStatus(b,k)}));
- const declared=read(['tone','visualStyle','guidelines','creativePreferences']).filter(s=>s.status!=='inferred');
+ // Explicitly accepted AI style preferences can guide surroundings. Their
+ // evidence remains inferred: acceptance is not proof of a business claim.
+ const declared=read(['tone','visualStyle','guidelines','creativePreferences']).filter(s=>s.status!=='inferred'||b.approvedFields?.includes(s.key));
  const request=input.request||'',signals=[...declared.map(s=>s.text),request].join(' ').toLowerCase();
  // Deliberately limited vocabulary: unknown prose is retained in the objective,
  // never repeated as photographic direction or treated as new product evidence.

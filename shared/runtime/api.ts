@@ -75,7 +75,7 @@ import {createQwenRelay} from './qwen-relay.ts';
 import {acceptanceGate,acceptanceRequest,claimAcceptanceJob} from './qwen-app-session.ts';
 import {createBrandService} from './brand-service.ts';
 import {brandBackendStatus} from './brand-analysis.ts';
-import {createCreativeEngine,creativeTextStatus,creativeTextRouting,creativeSDKText,creativeTextDeadlineMs,CreativeError,type CreativeBackend} from './creative-engine.ts';
+import {createCreativeEngine,creativeTextReadiness,creativeTextRouting,creativeSDKText,creativeTextDeadlineMs,waitCreativeTextJob,textDeadlineError,CreativeError,type CreativeBackend} from './creative-engine.ts';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const WORKFLOWS = join(ROOT, "shared", "workflows");
@@ -143,8 +143,18 @@ function outputPath(url: unknown): string {
   return p;
 }
 
+function creativeTextExecution(c:Comfy){return {
+ wait:waitCreativeTextJob,
+ failed:async(job:Awaited<ReturnType<Comfy['submit']>>,error:unknown,started:number,cancellation:string)=>{
+  // Read only this text job's state, never its prompt or an unrelated job.
+  const base=clientUrls.get(c)||'http://127.0.0.1:8188',read=async(path:string)=>{try{const r=await fetch(base+path,{signal:AbortSignal.timeout(2000)});return r.ok?await r.json():null;}catch{return null;}};
+  const [queue,history]=await Promise.all([read('/queue'),read('/history/'+encodeURIComponent(job.id))]),native=history?.[job.id];
+  const state=native?.status?.status_str||(queue?.queue_running?.some((r:any)=>r[1]===job.id)?'running':queue?.queue_pending?.some((r:any)=>r[1]===job.id)?'queued':'unknown'),message=String((error as Error)?.message||'Text execution failed').replace(/[\r\n]/g,' ').slice(0,180);
+  return new CreativeError(textDeadlineError(error)?504:502,`${message}; text job ${job.id}, elapsed ${Date.now()-started} ms, native ${state}, cancellation ${cancellation}. No retry.`);
+ }
+};}
 /** Run a workflow; retry once if the proxy reports the job expired (happens right after a proxy restart). */
-async function runWf(c: Comfy, wf: Parameters<Comfy['run']>[0], requestId?:string,retryExpired=true,timeoutMs=30*60*1000) {
+async function runWf(c: Comfy, wf: Parameters<Comfy['run']>[0], requestId?:string,retryExpired=true,timeoutMs=30*60*1000,textExecution?:ReturnType<typeof creativeTextExecution>) {
  async function execute(){
   activity.update(requestId,'preparing','Preparing model and prompt. First-time loading can take a few minutes; no generation steps yet.');
   const stopDiagnostics=requestId?await diagnostics.watch(clientUrls.get(c)||'http://127.0.0.1:8188',entry=>activity.note(requestId,entry)):()=>{};
@@ -155,7 +165,12 @@ async function runWf(c: Comfy, wf: Parameters<Comfy['run']>[0], requestId?:strin
    else if(event.kind==='statusChange'&&event.status==='queued')activity.update(requestId,'queued','Waiting for the local generation worker.');
    else if(event.kind==='log'){const message=loadingLog(event.message);if(message){activity.note(requestId,{at:Date.now(),source:'sdk',message});if(/downloading/i.test(message))activity.update(requestId,'downloading',message);else if(/requested to load|loading (?:model|weights|checkpoint|text encoder)/i.test(message))activity.update(requestId,'preparing',message)}}
   }}catch{/* Completion polling remains authoritative if live progress is unavailable. */}})();
-  try{await job.wait(timeoutMs);await job.result();return job}catch(error){if(timeoutMs<30*60*1000)try{await job.cancel(AbortSignal.timeout(5000));}catch{/* Only this failed text job; never interrupt unrelated jobs. */}throw error}finally{controller.abort();void stream}
+  const started=Date.now();
+  try{if(textExecution)await textExecution.wait(job);else{await job.wait(timeoutMs);await job.result();}return job}catch(error){
+   let cancellation='not requested';if(timeoutMs<30*60*1000)try{await job.cancel(AbortSignal.timeout(5000));cancellation='requested (not proof of termination)';}catch{cancellation='request failed';}
+   if(textExecution)throw await textExecution.failed(job,error,started,cancellation);
+   throw error;
+  }finally{controller.abort();void stream}
   }finally{stopDiagnostics()}
  }
  try{return await execute()}catch(error:any){if(retryExpired&&error?.code==='job_failed'&&/expired/i.test(String(error.message)))return execute();throw error}
@@ -764,9 +779,14 @@ export function comfyApi(env: Env): Plugin {
    status:async()=>{try{const nodes=await comfyJson(env,'/object_info');const available=!!nodes.TextGenerate?.input?.optional?.system_prompt&&!!nodes.SaveText&&nodes.CLIPLoader?.input?.required?.clip_name?.[0]?.includes(promptModel);return {available,cpuSupported:false,id:promptModel,model:'Qwen3 4B · ComfyUI',reason:available?'Uses installed Qwen3 through ComfyUI. GPU/offload is managed by ComfyUI unless CPU is selected.':'Prompt polishing needs current ComfyUI TextGenerate/SaveText nodes and the Qwen3 4B text encoder from the image model pack.'}}catch{return {available:false,id:promptModel,model:'Qwen3 4B · ComfyUI',reason:'Connect ComfyUI to polish prompts. Advanced manual editing is available.'}}},
    generate:async(content,device)=>{if(queued>0)throw new PromptRewriteError(409,'ComfyUI is busy generating. Polish again when the current job finishes.');await ensureProxy(env);const c=client(env),wf=c.workflows.fromJson(await loadGraph('prompt_polish'));wf.setInput('1','device',device);wf.setInput('2','prompt',content);wf.setInput('2','system_prompt',promptInstruction);if(queued>0)throw new PromptRewriteError(409,'ComfyUI is busy generating. Polish again when the current job finishes.');const job=await serialize(()=>runWf(c,wf));const output=job.getOutputs('3')[0];if(!output)throw new PromptRewriteError(502,'ComfyUI returned no polished prompt. Your prompt is unchanged.');return Buffer.from(await output.toBytes()).toString('utf8')}
   });
+  const textReadiness=async(ownJob=false)=>{creativeTextRouting(env);const [nodes,queue,stats]=await Promise.all(['/object_info','/queue','/system_stats'].map(path=>comfyJson(env,path).catch(()=>null)));return creativeTextReadiness(nodes,queue,stats,(!ownJob&&queued>0)||trainingPending||setup.task.busy);};
   const creativeBackend:CreativeBackend={
-   status:async()=>{try{creativeTextRouting(env);}catch(e){return {available:false,model:promptModel,reason:(e as Error).message};}return creativeTextStatus(await comfyJson(env,'/object_info').catch(()=>({})));},
-   generate:async(system,content)=>{creativeTextRouting(env);if(queued>0||setup.task.busy)throw new CreativeError(409,'Local generation/setup is busy. Finish it before creative planning.');await ensureProxy(env);if(queued>0||setup.task.busy)throw new CreativeError(409,'Local generation/setup is busy. Finish it before creative planning.');const c=client(env);return creativeSDKText(c,await loadGraph('prompt_polish'),system,content,wf=>serialize(()=>runWf(c,wf,undefined,false,creativeTextDeadlineMs)));}
+   status:async()=>{try{return await textReadiness();}catch(e){return {available:false,model:promptModel,reason:(e as Error).message};}},
+   generate:async(system,content)=>{
+    const ready=await textReadiness();if(!ready.available)throw new CreativeError(409,ready.reason);await ensureProxy(env);
+    if(queued>0||setup.task.busy)throw new CreativeError(409,'Local generation/setup is busy. No text job submitted.');const c=client(env);
+    return creativeSDKText(c,await loadGraph('prompt_polish'),system,content,wf=>serialize(async()=>{const latest=await textReadiness(true);if(!latest.available)throw new CreativeError(409,latest.reason);return runWf(c,wf,undefined,false,creativeTextDeadlineMs,creativeTextExecution(c));}));
+   }
   };
   const creative=createCreativeEngine(OUTPUTS,creativeBackend),brand=createBrandService(env,creativeBackend);
   return {

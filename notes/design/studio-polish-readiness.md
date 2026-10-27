@@ -15,3 +15,7 @@ Updated October 26, 2026. Call these gaps out when discussing or changing the af
 | Design lab | Separate concept page explicitly marked as mockup. | Concept controls are not features of the production app. |
 
 Training source: installed ComfyUI `comfy_extras/nodes_train.py` and `nodes_dataset.py`, including its experimental node flags. Repo-owned `osh_training` I/O nodes preserve exact dataset captions, base identity, steps and loss. Downloads of old Tiny-SD/Small-SD research bundles are not compatible runnable Studio models and no longer appear in the chooser.
+
+
+### 2026-10-27: 3D scene implementation
+Prompt-to-OBJ generation is now proven with a real stool using installed Z-Image and Hunyuan mini. Project-scoped multi-object viewport, selection, numeric transforms, selected-only regeneration routing and scene OBJ export are connected. Whole-environment generation remains an unvalidated quality case and yields a single untextured mesh; no material generation, scene decomposition or production environment fidelity is claimed.

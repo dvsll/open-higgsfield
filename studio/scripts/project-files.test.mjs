@@ -77,3 +77,11 @@ const nextNames=projectFiles({HISTORY:[{url:video,label:'Another prompt'},{url:i
 assert.equal(nextNames.find(file=>file.url===image).label,'Image 001');assert.equal(nextNames.find(file=>file.url===video).label,'Video 002');
 const renamed=projectFiles(current,{},[],{},[{...firstNames[0],userLabel:'Yellow cup'}]);assert.equal(renamed.find(file=>file.url===image).label,'Yellow cup');
 const {projectDownloadName}=await import('../src/project-files-index.ts');assert.equal(projectDownloadName(renamed.find(file=>file.url===image)),'Yellow cup.png');
+
+const meshFile='/outputs/1234567890abcdef.obj',meshPreview='/outputs/fedcba0987654321.glb';
+const meshes=projectFiles({}, {},[],{},[{url:meshFile,label:'Mesh',kind:'mesh',origin:'generated',previewUrl:meshPreview}]);assert.equal(meshes[0].kind,'mesh');assert.equal(meshes[0].previewUrl,meshPreview);assert.equal(meshes[0].label,'Mesh 001');assert.equal(projectDownloadName(meshes[0]),'Mesh 001.obj');
+const {sceneMesh,readScene,placeGeneratedMesh}=await import('../src/geometry-scene.ts');
+const mesh=sceneMesh('/outputs/aaaaaaaaaaaaaaaa.glb','/outputs/bbbbbbbbbbbbbbbb.obj');mesh.position=[2,3,4];mesh.name='Chair';
+const environment=sceneMesh('/outputs/cccccccccccccccc.glb','','Room','environment'),replacement=sceneMesh('/outputs/dddddddddddddddd.glb','/outputs/eeeeeeeeeeeeeeee.obj');
+const changed=placeGeneratedMesh([mesh,environment],mesh.id,replacement);
+assert.deepEqual(changed[0],{...mesh,url:replacement.url,obj:replacement.obj});assert.equal(changed[1],environment);assert.equal(mesh.url,'/outputs/aaaaaaaaaaaaaaaa.glb');assert.equal(placeGeneratedMesh([mesh],'',replacement).length,2);assert.equal(readScene([{...mesh,url:'https://external.test/model.glb'}]).length,0);assert.equal(readScene([{...mesh,scale:NaN}]).length,0);assert.deepEqual(readScene(changed),changed);

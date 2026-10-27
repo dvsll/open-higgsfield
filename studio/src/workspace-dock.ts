@@ -38,7 +38,7 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
   Overlays:{tree:split('y',overlayTop,panel('timeline'),topRatio),mode:'video'},
   Training:{tree:split('x',panel('files'),split('y',split('x',panel('training-data'),panel('stylization'),.65),panel('training-runs'),.7),.22),mode:'video'},
   Edit:{tree:split('x',panel('files'),split('x',panel('edit-viewer'),split('y',panel('edit-controls'),panel('edit-versions'),.65),.7),.2),mode:'video'},
-  '3D': { tree: split('x', panel('stage'), panel('elements'), .75), mode: 'video' },
+  '3D': { tree: split('x', panel('files'), panel('stage'), .22), mode: 'video' },
   Rendering: { tree: split('x',panel('files'),split('x',panel('viewer'),panel('prompts'),.6),.2), mode: 'video' }
  };
  const fallback=presets[custom?.active||'Video']||Object.values(presets)[0];
@@ -64,6 +64,7 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
  if(!custom){const mergeImages=(tree:LayoutNode|null):LayoutNode|null=>tree?.kind==='panel'?(tree.id==='keyframes'?panel('prompts'):tree):tree?{...tree,first:mergeImages(tree.first)!,second:mergeImages(tree.second)!}:null;for(const value of [...Object.values(store.layouts),...Object.values(store.deletedLayouts||{})])value.tree=ids(value.tree).includes('prompts')?remove(value.tree,'keyframes'):mergeImages(value.tree)}
  if(!custom&&!localStorage.getItem('osh-image-library-layout-v1')){store.layouts.Image=clone(presets.Image);localStorage.setItem('osh-image-library-layout-v1','1')}
  for(const value of [...Object.values(store.layouts),...Object.values(store.deletedLayouts||{})])for(const id of ids(value.tree))if(['takes','stash'].includes(id)||id.startsWith('note-')||Object.hasOwn(store.notes,id))value.tree=remove(value.tree,id);
+ if(!custom&&!localStorage.getItem('osh-prompt-3d-layout-v1')){store.layouts['3D']=clone(presets['3D']);localStorage.setItem('osh-prompt-3d-layout-v1','1')}
  let active = store.active;
  let setup = clone(store.layouts[active] || presets[active] || fallback);
  if(!custom){const replace=(tree:LayoutNode|null):LayoutNode|null=>tree?.kind==='panel'?(tree.id==='overlay-create'?panel('captions'):tree):tree?{...tree,first:replace(tree.first)!,second:replace(tree.second)!}:null;for(const value of [...Object.values(store.layouts),...Object.values(store.deletedLayouts||{})])value.tree=ids(value.tree).includes('captions')?remove(value.tree,'overlay-create'):replace(value.tree);setup.tree=ids(setup.tree).includes('captions')?remove(setup.tree,'overlay-create'):replace(setup.tree)}

@@ -7,7 +7,7 @@ import {FilePreview} from './file-preview';
 import {Popup} from './popup';
 import './project-files.css';
 
-const kinds=[['video','Videos'],['image','Images'],['audio','Audio'],['captions','Captions']] as const;
+const kinds=[['video','Videos'],['image','Images'],['audio','Audio'],['captions','Captions'],['mesh','Meshes']] as const;
 export function ProjectFilesView({files,organization,onOrganize,onSelect,onOpen,onUseKeyframe,onRename}:{files:ProjectFile[];onRename?:(file:ProjectFile,label:string)=>void;organization:FileOrganization;onOrganize:(value:FileOrganization)=>void;onSelect:(file:ProjectFile)=>void;onOpen:(file:ProjectFile)=>void;onUseKeyframe?:(file:ProjectFile)=>void}){
  const [renaming,setRenaming]=useState<ProjectFile|null>(null),[fileName,setFileName]=useState('');
  const [selected,setSelected]=useState(''),[editing,setEditing]=useState<string|null>(null),[name,setName]=useState(''),[dragOver,setDragOver]=useState<string|null>(null);

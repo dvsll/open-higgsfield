@@ -65,6 +65,9 @@ function applyResolved(graph:Record<string,any>,resolved:Resolved){
 import { identifyHardware, serverTiming, recordRender } from './render-timings.ts';
 import { productFormats, productPlan, renderProduct, ProductRenderError, type ProductRatio, type ProductMode, type CameraMotion } from './product-video.ts';
 import {importMedia,composeAd,ComposeError,mediaTypes} from './ad-compose.ts';
+import {importReferenceVideo,analyzeReferenceVideo,searchInspiration,researchQueries,ReferenceError} from './reference-analyze.ts';
+import {planFromReference,planOriginalCampaign} from '../lib/reference-video.ts';
+import {buildCreativeIntelligence} from '../lib/creative-intelligence.ts';
 import {analysisStatus,collectBrandImage} from './brand-research.ts';
 import {BrandError} from './brand-web.ts';
 import {exportStaticAd,StaticAdError} from './static-ad.ts';
@@ -697,6 +700,30 @@ function middleware(env: Env,setup:RuntimeSetup,rewriter:PromptRewriter,creative
         if(statSync(file).size>512*1024)throw new HttpError(400,'Local example is too large');return send(res,200,JSON.parse(await readFile(file,'utf8')));
       }
       if(route==='POST /api/media')return send(res,200,await importMedia(req,OUTPUTS,env));
+      if(route==='POST /api/reference/upload'){
+        try{return send(res,200,await importReferenceVideo(req,OUTPUTS,env));}
+        catch(e:any){if(e instanceof ReferenceError)return send(res,e.status,{error:e.message});throw e;}
+      }
+      if(route==='POST /api/reference/analyze'){
+        try{return send(res,200,await analyzeReferenceVideo(await readBody(req,64*1024),OUTPUTS,env));}
+        catch(e:any){if(e instanceof ReferenceError)return send(res,e.status,{error:e.message});throw e;}
+      }
+      if(route==='POST /api/reference/plan'){
+        const body=await readBody(req,2*1024*1024);
+        try{
+         if(!body?.plan)throw new ReferenceError(400,'Provide a reviewed creative plan.');
+         const intel=buildCreativeIntelligence(body.plan,body.hook);
+         const shotPlan=body.analysis?planFromReference(body.plan,body.analysis,intel):planOriginalCampaign(body.plan,body.hook);
+         return send(res,200,{intelligence:intel,shotPlan,productReplacementAvailable:false});
+        }catch(e:any){if(e instanceof ReferenceError)return send(res,e.status,{error:e.message});throw e;}
+      }
+      if(route==='POST /api/inspiration/search'){
+        try{
+         const body=await readBody(req,16*1024);
+         if(body?.intelligence)body.query=body.query||researchQueries(body.intelligence)[0];
+         return send(res,200,await searchInspiration(body,env));
+        }catch(e:any){if(e instanceof ReferenceError)return send(res,e.status,{error:e.message});throw e;}
+      }
       if(route==='POST /api/compose-ad')return send(res,200,await composeAd(await readBody(req),OUTPUTS,env));
       if (route === 'GET /api/capabilities') return send(res,200,await capabilities(env));
       if (route === "GET /api/models") return send(res, 200, await localModels(env));
@@ -808,7 +835,7 @@ function middleware(env: Env,setup:RuntimeSetup,rewriter:PromptRewriter,creative
       if (route === "POST /api/shot") return send(res, 200, await tracked(body=>shot(body, env)));
       return send(res, 404, { error: "unknown endpoint" });
     } catch (e: any) {
-      const status = e instanceof HttpError || e instanceof ComposeError || e instanceof BrandError || e instanceof StaticAdError || e instanceof HeroError || e instanceof PromptRewriteError || e instanceof CreativeError ? e.status : 500;
+      const status = e instanceof HttpError || e instanceof ComposeError || e instanceof ReferenceError || e instanceof BrandError || e instanceof StaticAdError || e instanceof HeroError || e instanceof PromptRewriteError || e instanceof CreativeError ? e.status : 500;
       if(isApi&&url.pathname!=='/api/errors')errors.add(`${req.method} ${url.pathname}`,e,{status,requestId:typeof req.headers['x-osh-request']==='string'?req.headers['x-osh-request']:undefined});
       if (status === 500) console.error(`[api] ${url.pathname} failed:`, e);
       send(res, status, { error: status === 500 ? "generation failed (see server log)" : e.message });

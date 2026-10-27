@@ -54,6 +54,8 @@ Append dated decisions, render times and requests here. Only the adstudio owner 
 
 ## Where we left off
 
+**2026-10-27 creative intelligence + reference video (WIP uncommitted on quality worktree):** Branch `feat/adstudio-campaign-quality` worktree `C:\Users\osiam\open-higgsfield-quality`, preview **http://127.0.0.1:8303/adstudio/**. Base SHA still `bbf017d` until commit. Animate browser E2E **PASS** (`outputs/animate-browser-2026-10-27T17-57-21/`, MP4 download). New: `shared/lib/creative-intelligence.ts`, `shared/lib/reference-video.ts`, `shared/runtime/reference-analyze.ts`, API `/api/reference/*` + `/api/inspiration/search`, UI “Have a video you like?”, `uploadInspiration` / `generateInspiredCommercial`. Bench PASS `outputs/reference-inspired-2026-10-27T18-04-28/` (analysis+shot plan+inspired MP4). Gallery `outputs/creative-intelligence-gallery.html`. Journey contract `adstudio/CREATIVE_JOURNEY_API.md`. Product replacement **unavailable**. Pexels optional via `PEXELS_API_KEY`. 8301/8302/Director untouched. No auto-merge.
+
 **2026-10-27 competition static+video:** Same worktree/branch **8303**. Reused Director LTX path (`OSH.shot` → `shot_ltxv` → LTX-2B). `animateCampaign` + **Animate this ad** in React. Evidence: `outputs/campaign-video-2026-10-27T17-38-49/bakery/` + `…17-39-48/beauty/` (WebM+MP4+contacts); gallery `…17-39-48/comparison.html`. Statics remain Creative Restage ★ paths. Not owner-approved. Journey/8302/8301 untouched. No auto-merge.
 
 **2026-10-27 creative review → Creative Restage primary:** Worktree `C:\Users\osiam\open-higgsfield-quality`, branch `feat/adstudio-campaign-quality`, port **8303**. Journey/8302 and 8301 untouched.

@@ -1,6 +1,6 @@
 // Compact image-generation engine probe for Ad Studio. Deterministic product-safe
 // design stays available without ComfyUI; AI modes report honest readiness only.
-export type GenerationEngineId='automatic'|'product-safe'|'qwen'|'zimage';
+export type GenerationEngineId='automatic'|'product-safe'|'qwen'|'zimage'|'klein';
 export type EngineCapability={
  id:GenerationEngineId;
  label:string;
@@ -13,6 +13,7 @@ export type EngineCapability={
  requiresWeights:boolean;
 };
 export type GenerationReadiness={
+ klein?:{available:boolean;installed:boolean;tested:boolean;status?:string;reason:string};
  finish:boolean;
  qwen:{available:boolean;reason?:string;missingFiles?:string[]};
  reimagine?:boolean;
@@ -53,6 +54,7 @@ export function describeEngines(ready:GenerationReadiness):EngineCapability[]{
  const zimage:EngineCapability=zServerOk&&zMem.ok
   ?{...ZIMAGE,available:true,status:'available',reason:ready.zimage?.reason||'Experimental local Z-Image is ready.'}
   :{...ZIMAGE,available:false,status:zInstalled?zMem.status:'not-installed',reason:zInstalled?(zServerOk?zMem.reason:(ready.zimage?.reason||zMem.reason)):(ready.zimage?.reason||'No compatible local still-image weights are installed for this runtime.')};
+ const klein=kleinCapability(ready);
  const autoTarget=resolveGenerationEngine('automatic',ready);
  const automatic:EngineCapability={
   id:'automatic',label:'Automatic',short:autoTarget.label,
@@ -64,7 +66,7 @@ export function describeEngines(ready:GenerationReadiness):EngineCapability[]{
   preservesOriginalPhotograph:autoTarget.preservesOriginalPhotograph,
   requiresWeights:autoTarget.requiresWeights
  };
- return [automatic,productSafe,qwen,zimage];
+ return [automatic,productSafe,klein,qwen,zimage];
 }
 function zimageReady(ready:GenerationReadiness){
  const wanted=!!ready.zimage?.available||!!ready.reimagine;
@@ -80,8 +82,10 @@ function qwenReady(ready:GenerationReadiness){
  const mem=memoryStatus(ready,Q_MIN);if(!mem.ok)return {ok:false as const,reason:mem.reason};
  return {ok:true as const};
 }
+function kleinCapability(ready:GenerationReadiness):EngineCapability{const k=ready.klein;return {id:'klein',label:'FLUX.2 Klein 4B FP8',short:'AI background + original photograph ? Apache-2.0',available:!!k?.available,status:(k?.status||'not-installed') as EngineCapability['status'],reason:k?.reason||'Klein is not installed or has not completed a verified runtime test.',generatesAiPixels:true,preservesOriginalPhotograph:true,requiresWeights:true};}
 export function resolveGenerationEngine(choice:GenerationEngineId,ready:GenerationReadiness):EngineCapability{
  if(choice==='product-safe')return {...PRODUCT_SAFE,available:true,status:'available',reason:'Product-safe design · original photograph'};
+ if(choice==='klein'){const k=kleinCapability(ready);if(!k.available)throw Error(k.reason);return k;}
  if(choice==='qwen'){
   const q=qwenReady(ready);if(!q.ok)throw Error(q.reason);
   return {...QWEN,available:true,status:'available',reason:'Local Qwen Image Edit'};
@@ -90,8 +94,9 @@ export function resolveGenerationEngine(choice:GenerationEngineId,ready:Generati
   const z=zimageReady(ready);if(!z.ok)throw Error(z.reason);
   return {...ZIMAGE,available:true,status:'available',reason:'Experimental local image model'};
  }
+ if(ready.klein?.available)return kleinCapability(ready);
  if(qwenReady(ready).ok)return {...QWEN,available:true,status:'available',reason:'Automatic selected Qwen Image Edit'};
  if(zimageReady(ready).ok)return {...ZIMAGE,available:true,status:'available',reason:'Automatic selected local AI image'};
  return {...PRODUCT_SAFE,available:true,status:'available',reason:'Automatic selected Product-safe design · original photograph'};
 }
-export function engineSelectable(engines:EngineCapability[]){return engines.filter(e=>e.id==='automatic'||e.id==='product-safe'||e.available||e.id==='qwen'||e.id==='zimage');}
+export function engineSelectable(engines:EngineCapability[]){return engines.filter(e=>e.id==='automatic'||e.id==='product-safe'||e.available||e.id==='qwen'||e.id==='zimage'||e.id==='klein');}

@@ -34,7 +34,7 @@ export function staticSVG(d:StaticDesign,images:StaticImages){
  const button=(x:number,y:number,width:number)=>{rect(x,y,width,72,d.accent);text(d.cta,x+28,y+16,width-56,42,30,ink(d.accent),700);};
  // Full-bleed atmosphere: soft vertical wash, never a flat debug fill.
  parts.push(`<defs><linearGradient id="osh-wash" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${escape(mix(d.background,d.accent,.12))}"/><stop offset="55%" stop-color="${escape(d.background)}"/><stop offset="100%" stop-color="${escape(soft)}"/></linearGradient></defs>`);
- rect(0,0,w,h,'url(#osh-wash)');if(images.support){image(images.support,0,0,w,h,'xMidYMid slice');rect(0,0,w,h,d.background,'opacity="0.82"');}
+ rect(0,0,w,h,'url(#osh-wash)');if(images.support){image(images.support,0,0,w,h,'xMidYMid slice');rect(0,0,w,h,d.background,d.supportGeneration?'opacity="0.22"':'opacity="0.82"');}
  let photoBox:{x:number;y:number;width:number;height:number};const m=72,square=h===1080,story=h===1920;
  if(d.concept==='spotlight'){
   // Premium editorial spotlight: brand lockup, dominant photo stage, grounded CTA.
@@ -53,7 +53,7 @@ export function staticSVG(d:StaticDesign,images:StaticImages){
  }else if(d.concept==='editorial'){
   // Bold split: copy column + tall photograph, strong accent rule.
   rect(0,0,22,h,d.accent);
-  parts.push(`<rect x="0" y="0" width="${w}" height="${h}" fill="${escape(mix(d.background,d.accent,.06))}"/>`);
+  parts.push(`<rect x="0" y="0" width="${w}" height="${h}" fill="${escape(mix(d.background,d.accent,.06))}" opacity="${images.support&&d.supportGeneration?.model==='klein-background'?0.55:1}"/>`);
   image(images.logo,m,44,148,140);text(d.brandName.toUpperCase(),248,86,700,40,18,mix(d.textColor,d.background,.18),700);
   const top=232,bottom=h-208;photoBox={x:500,y:top,width:w-500-m,height:bottom-top};
   rect(photoBox.x+12,photoBox.y+16,photoBox.width,photoBox.height,mix(d.background,'#000000',.2),'opacity="0.4"');

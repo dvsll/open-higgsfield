@@ -13,7 +13,8 @@ const workflows=join(dirname(fileURLToPath(import.meta.url)),'../workflows');
 type Graph=Record<string,{class_type:string;inputs:Record<string,any>}>;
 type Weight={file:string;bytes:number;sha256:string};
 export async function qwenContract(){return JSON.parse(await readFile(join(workflows,'hero_qwen2511_contract.json'),'utf8')) as {id:string;graphSha256:string;files:Weight[];upstream:unknown};}
-export async function qwenWorkflow(){const bytes=await readFile(join(workflows,'hero_qwen2511_benchmark.json')),pins=await qwenContract();if(heroSha(bytes)!==pins.graphSha256)throw new HeroError(503,'Pinned Qwen workflow changed. No inference started.');return JSON.parse(bytes.toString()) as Graph;}
+export function verifiedWorkflowText(bytes:Buffer,expected:string){const text=bytes.toString('utf8').replace(/\r\n/g,'\n');if(heroSha(text)!==expected)throw new HeroError(503,'Pinned Qwen workflow changed. No inference started.');return text;}
+export async function qwenWorkflow(){const bytes=await readFile(join(workflows,'hero_qwen2511_benchmark.json')),pins=await qwenContract();return JSON.parse(verifiedWorkflowText(bytes,pins.graphSha256)) as Graph;}
 export function inspectQwenNodes(graph:Graph,nodes:any){
  const missingNodes:string[]=[],missingModels:string[]=[],invalid:string[]=[];
  for(const [id,n]of Object.entries(graph)){const spec=nodes[n.class_type];if(!spec){missingNodes.push(n.class_type);continue;}

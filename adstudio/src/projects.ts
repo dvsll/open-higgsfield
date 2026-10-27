@@ -12,7 +12,7 @@ export type Settings = {template:string;mode:Mode;motion:'push'|'pan-left'|'pan-
 export type ProductAsset = {palette?:import('../../shared/lib/brand.ts').ImagePalette;provenance?:import('../../shared/lib/source-provenance.ts').WebsiteSource;originalWidth?:number;originalHeight?:number;id:string;name:string;original:Blob;normalized:Blob;width:number;height:number;created:number};
 export type EditRecipe = {start:number;end:number;speed:number;reverse:boolean;width:number;height:number};
 export type Take = {id:string;created:number;assetId:string;source:string;parentId?:string;kind:'generation'|'edit';mode:Mode;ratio:Ratio;settings:Settings;prompt:string;frames:number;fps:number;width:number;height:number;seconds:number;background?:string;edit?:EditRecipe;exports:{id:string;url:string;tagline:string;created:number}[]};
-export type Attempt = {id:string;status:'running'|'complete'|'failed'|'interrupted';created:number;takeIds:string[];error?:string};
+export type Attempt = {engine?:string;id:string;status:'running'|'complete'|'failed'|'interrupted';created:number;takeIds:string[];error?:string};
 export type AdProject = {version:3;id:string;name:string;created:number;updated:number;settings:Settings;assetId?:string;brandId?:string;staticAds?:StaticWorkspace;hero?:HeroWorkspace;creative?:CreativeWorkspace;takes:Take[];attempt?:Attempt;composition:Composition};
 export const defaults = ():Settings => ({template:'portrait-push',mode:'camera',motion:'push',ratios:['9:16'],duration:3,seed:1,pitch:'A slow camera push toward the product, soft studio lighting, subtle reflections, premium commercial product shot.',tagline:'',vibe:'studio',framing:'fit'});
 export function newProject(name='Untitled ad'):AdProject {

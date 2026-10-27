@@ -40,6 +40,7 @@ export default defineConfig(({ mode }) => {
           edit: "studio/edit.html",
           designLab: "studio/design-lab.html",
           adstudio: "adstudio/index.html",
+          adstudioWorkspace: "adstudio/workspace.html",
           adstudioTools: "adstudio/tools.html",
           adstudioJourney: "adstudio/journey.html",
         },

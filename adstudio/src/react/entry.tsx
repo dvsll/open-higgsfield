@@ -9,7 +9,7 @@ import './app.css';
 class WorkspaceBoundary extends Component<{children:ReactNode},{error:string}>{
  state={error:''};
  static getDerivedStateFromError(error:Error){return {error:error.message};}
- render(){return this.state.error?<section className="boot"><h1>This workspace needs attention.</h1><p>{this.state.error}</p><p>Your saved projects and original files have not been reset.</p><button onClick={()=>location.reload()}>Retry opening workspace</button><a href="./tools.html#hero">Open specialist tools →</a></section>:this.props.children;}
+ render(){return this.state.error?<section className="boot"><h1>This workspace needs attention.</h1><p>{this.state.error}</p><p>Your saved projects and original files have not been reset.</p><button onClick={()=>location.reload()}>Retry opening workspace</button><a href="./">Creative Journey →</a><a href="./tools.html#hero">Open specialist tools →</a></section>:this.props.children;}
 }
 async function start(){
  if(['#static','#create','#compose'].includes(location.hash)){location.replace('./tools.html'+location.hash);return;}

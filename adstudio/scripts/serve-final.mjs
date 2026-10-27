@@ -11,4 +11,4 @@ const server=await createServer({
 });
 for(const sig of ['SIGINT','SIGTERM'])process.once(sig,async()=>{await server.close();process.exit(0);});
 await server.listen();
-console.log('Final Ad Studio: http://127.0.0.1:8304/adstudio/journey.html');
+console.log('Final Ad Studio: http://127.0.0.1:8304/adstudio/');

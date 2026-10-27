@@ -115,8 +115,9 @@ export function planFromReference(plan:CreativePlan,analysis:ReferenceAnalysis,i
  const brand=plan.input.brand.dna.name||'Brand';
  const hook=intelligence.creativeHook;
  const principles=analysis.transferablePrinciples;
- const n=Math.min(3,Math.max(2,analysis.shots.length||2));
- const total=Math.min(8,Math.max(4.5,n*2.2));
+ // Two beats on 10GB keeps sequential LTX+assemble reliable while still producing beginning→payoff.
+ const n=2;
+ const total=Math.min(6,Math.max(3.6,n*2));
  const scaled=scaleDurations(analysis.shots.map(s=>s.duration),n,total);
  const purposes=purposesFor(hook,n);
  const transition=hook==='dramatic-reveal'?'wipe':n>1?'dissolve':'cut';
@@ -177,7 +178,7 @@ export function motionPromptForShot(brief:CampaignShotBrief,product:string,intel
  return `Short original product commercial shot (${brief.purpose}). ${brief.sceneBrief}${lane} Camera: ${brief.cameraMovement} Keep product recognizable and stable. No new logos/text/hands morphing. Constraints: ${brief.motionConstraints.join(' ')} Product: ${clip(product,160)}`;
 }
 
-/** Per-shot LTX duration clamp for 10GB sequential jobs. */
+/** Per-shot LTX duration clamp for 10GB sequential jobs (short beats keep multi-shot reliable). */
 export function shotRenderDuration(brief:CampaignShotBrief){
- return Math.max(1.5,Math.min(2.5,brief.duration||2));
+ return Math.max(1.5,Math.min(2,Number(brief.duration)||1.8));
 }

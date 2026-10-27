@@ -38,7 +38,7 @@ try{
   await page.locator('input[type="file"][accept*="image"]').first().setInputFiles(source);
   await page.getByPlaceholder('Your business name').fill('No Crumbs Bakery');
   await page.locator('label').filter({hasText:/^What.*photograph/}).locator('textarea').fill('Four chocolate chip cookies on walnut with cream linen.');
-  await page.locator('.request-input').fill('Warm sensory bakery launch with a clear reveal payoff.');
+  await page.locator('.request-input').fill('Warm bakery lifestyle moment for a short commercial.');
   await click(page.getByRole('button',{name:/Develop advertisement/}));
   await page.getByRole('button',{name:/Accept direction/}).waitFor({timeout:220000});
   await click(page.getByRole('button',{name:/Accept direction/}));

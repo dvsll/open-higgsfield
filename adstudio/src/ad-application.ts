@@ -293,6 +293,7 @@ export class AdApplication {
   const clips:{source:string;purpose:string;prompt:string;duration:number;seconds:number}[]=[];
   const prompts:string[]=[];
   for(const brief of shotPlan.shots){
+   this.store.notify(`Generating shot ${brief.index+1}/${shotPlan.shots.length} (${brief.purpose})…`);
    const useSource=brief.startKeyframeStrategy==='source-still'||brief.startKeyframeStrategy==='generated-open';
    const still=useSource?source:hero;
    const fitted=await prepareReference(await this.encode(still.original),campaignVideoSize.width,campaignVideoSize.height,'fit');
@@ -300,9 +301,19 @@ export class AdApplication {
    const duration=shotRenderDuration(brief);
    const prompt=motionPromptForShot(brief,plan.input.facts.description,intel);
    prompts.push(prompt);
-   const shot=await this.client.shot([{image:uploaded.url,t:0}],prompt,duration,seed0+brief.index*17,{width:campaignVideoSize.width,height:campaignVideoSize.height,model:campaignVideoSize.model});
+   let shot:Awaited<ReturnType<NonNullable<AppClient['shot']>>>|undefined;let lastErr:Error|undefined;
+   for(let attempt=0;attempt<2;attempt++){
+    try{
+     if(attempt>0)await new Promise(r=>setTimeout(r,4000));
+     shot=await this.client.shot([{image:uploaded.url,t:0}],prompt,duration,seed0+brief.index*17+attempt,{width:campaignVideoSize.width,height:campaignVideoSize.height,model:campaignVideoSize.model});
+     if(shot?.url)break;
+    }catch(e){lastErr=e as Error;}
+   }
+   if(!shot?.url)throw lastErr||Error(`Shot ${brief.index+1} (${brief.purpose}) returned no video.`);
    clips.push({source:shot.url,purpose:brief.purpose,prompt,duration,seconds:shot.seconds??0});
+   await new Promise(r=>setTimeout(r,1500));
   }
+  this.store.notify(`Assembling ${clips.length}-shot commercial…`);
   if(!clips.length)throw Error('No shots were generated.');
   let mp4=clips[0].source,assembleNote='single-shot';
   const closing=/^\/outputs\/[a-f0-9]{16}\.png$/.test(take.url)?take.url:undefined;

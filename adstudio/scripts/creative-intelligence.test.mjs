@@ -73,7 +73,7 @@ assert.match(shotPlan.note,/never be exported/i);
 assert.ok(shotPlan.shots.every(s=>!/No Crumbs|reference frames copied/i.test(s.sceneBrief)));
 assert.ok(shotPlan.shots[0].sceneBrief.includes('Acme')||shotPlan.brandName==='Acme');
 
-assert.equal(shotPlan.shots.length>=2,true);
+assert.equal(shotPlan.shots.length,2);
 assert.ok(shotPlan.editing.transition);
 
 console.log('creative-intelligence.test PASS',{foodHook:foodIntel.creativeHook,beautyHook:beautyIntel.creativeHook,lotionLane:lotionIntel.sensoryLane,shotCount:shotPlan.shots.length,originalShots:original.shots.length});

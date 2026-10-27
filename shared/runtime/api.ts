@@ -621,8 +621,9 @@ function middleware(env: Env,setup:RuntimeSetup,rewriter:PromptRewriter,creative
        const path=join(OUTPUTS,'hero-qwen',url.pathname.split('/').pop()!,'provenance.json');if(!existsSync(path))return send(res,404,{error:'No saved Qwen provenance'});if(statSync(path).size>512*1024)throw new HttpError(413,'Qwen provenance too large');return send(res,200,JSON.parse(await readFile(path,'utf8')));
       }
       if(route==='GET /api/hero/capabilities'){
-       const nodes=await comfyJson(env,'/object_info').catch(()=>({}));let reimagine=false;try{const models=await localModels(env),graph=await loadGraph('hero_zimage_experimental');reimagine=models.zimageTurbo&&Object.values(graph).every(n=>nodes[n.class_type]);}catch{}
-       return send(res,200,{finish:true,reimagine,experimental:true,qwen:relay?await relay.capability('http://'+req.headers.host):await qwenAvailability(nodes,setup.config?.modelsDir||env.COMFYUI_MODELS_DIR)});
+       const nodes=await comfyJson(env,'/object_info').catch(()=>({}));let reimagine=false;try{const models=await localModels(env),graph=await loadGraph('hero_zimage_experimental');reimagine=!!(models.zimageTurbo&&Object.values(graph).every(n=>nodes[n.class_type]));}catch{}
+       let qwen:any;try{qwen=relay?await relay.capability('http://'+req.headers.host):await qwenAvailability(nodes,setup.config?.modelsDir||env.COMFYUI_MODELS_DIR);}catch(error:any){qwen={id:'qwen-fp8',available:false,reason:String(error?.message||error||'Qwen capability check failed')};}
+       return send(res,200,{finish:true,reimagine,experimental:true,qwen});
       }
       if(route==='POST /api/hero/finish')return send(res,200,await finishHero(await readBody(req),OUTPUTS,env));
       if(route==='POST /api/hero/export')return send(res,200,await exportHeroAd(await readBody(req),OUTPUTS));

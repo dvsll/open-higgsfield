@@ -7,7 +7,20 @@ type Product=Omit<BrandProduct,'id'|'imageIds'> & {discovery:ProductDiscovery};
 const attr=(n:WebNode,k:string)=>n.attrs?.find(a=>a.name===k)?.value||'';
 function nodes(root:WebNode){const found:WebNode[]=[],stack=[root];while(stack.length&&found.length<60000){const n=stack.pop()!;found.push(n);const children=n.childNodes||[];for(let i=children.length-1;i>=0;i--)stack.push(children[i]);}return found;}
 export function canonicalProductURL(value:string){const u=new URL(value);u.hash='';for(const k of [...u.searchParams.keys()])if(/^(?:variant|selling_plan|utm_.+|gclid|fbclid)$/i.test(k))u.searchParams.delete(k);u.pathname=u.pathname.replace(/\/collections\/[^/]+\/products\//i,'/products/').replace(/\/$/,'')||'/';u.searchParams.sort();return u.href;}
-export function productPermalink(value:string,base:string){try{const u=new URL(value,base);return u.origin===new URL(base).origin&&/\/products?\/[^/]+\/?$/i.test(u.pathname)&&!/(?:^|\/)(?:cdn|images|assets|files|media)\//i.test(u.pathname)&&! /\.(?:png|jpe?g|webp|svg|gif|pdf|zip)$/i.test(u.pathname);}catch{return false;}}
+export function productPermalink(value:string,base:string){try{
+ const u=new URL(value,base);if(u.origin!==new URL(base).origin)return false;
+ const path=(u.pathname.replace(/\/$/,'')||'/');
+ if(/(?:^|\/)(?:cdn|images|assets|files|media)\//i.test(path)||/\.(?:png|jpe?g|webp|svg|gif|pdf|zip)$/i.test(path))return false;
+ if(/\/products?\/[^/]+$/i.test(path))return true;
+ // Brand marketing detail pages (not bare category hubs): /model-name or /shop/buy-family/model.
+ if(/^\/shop\/buy-[a-z0-9-]+\/[a-z0-9-]+$/i.test(path))return true;
+ if(/^\/[a-z0-9][a-z0-9-]{2,60}$/i.test(path)){
+  const seg=path.slice(1);
+  if(/^(?:shop|store|support|search|account|bag|cart|buy|newsroom|education|business|retail|today|legal|privacy|sitemap|jobs|contact|about|mac|ipad|iphone|watch|tv|tv-home|entertainment|accessories|airpods|airtag|vision|vision-pro|homepod|icloud|apple-card|apple-pay|apple-one|environment|healthcare|gaming|services)$/i.test(seg))return false;
+  return /\d/.test(seg)||seg.includes('-');
+ }
+ return false;
+}catch{return false;}}
 export function discoverProducts(all:WebNode[],structured:any[],text:(n:WebNode)=>string,resolve:(s:string)=>string,url:string){
  const parent=new Map<WebNode,WebNode>();for(const n of all)for(const c of n.childNodes||[])parent.set(c,n);
  const excluded=(n:WebNode)=>{for(let p:WebNode|undefined=n;p;p=parent.get(p))if(['nav','header','footer'].includes(p.tagName||'')||['navigation','menu'].includes(attr(p,'role'))||/(?:^|[ -_])(?:testimonial|comparison)(?:$|[ -_])/i.test(attr(p,'class')))return true;return false;};
@@ -18,6 +31,8 @@ export function discoverProducts(all:WebNode[],structured:any[],text:(n:WebNode)
  const goodImage=(s:string)=>s&&!/[<>{}]|%3[ce]/i.test(s)&&!/^(?:data:|javascript:)/i.test(s)&&! /\.(?:svg|gif)(?:[?#]|$)/i.test(s);
  function add(name:string,description:string,productUrl:string,images:string[],method:ProductDiscovery['method']){
   name=clean(name,200).replace(/\s+/g,' ').trim();if(!name){stats.rejected++;return;}
+  // Reject storefront chrome, services and navigation labeled as if they were sellable SKUs.
+  if(/^(?:apple store(?: online)?|store|shop(?: now)?|support|home|menu|cart|bag|search|sign in|log in|account|learn more|buy now|explore|today at apple|services?|gift cards?|order status|find a store)$/i.test(name)||/\b(?:customer service|tech support|gift card|order status)\b/i.test(name)){stats.rejected++;return;}
   const explicit=resolve(productUrl);productUrl=canonicalProductURL(explicit||url);
   if(new URL(productUrl).origin!==new URL(url).origin){stats.rejected++;return;}
   const key=createHash('sha256').update(productUrl+'\n'+name).digest('hex').slice(0,16);

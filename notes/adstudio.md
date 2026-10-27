@@ -54,6 +54,17 @@ Append dated decisions, render times and requests here. Only the adstudio owner 
 
 ## Where we left off
 
+**2026-10-26 - website→ad Generate ad path (Phases A–E):** Product-safe design always available without ComfyUI. Journey Generate ad + honest engine selector (Automatic / Product-safe / Qwen / Local AI Z-Image). Automatic falls back to product-safe; never labels deterministic output as AI. Real PNG evidence `outputs/product-safe-ad/advertisement.png` (1080×1350, PNG signature, brand/headline/CTA + synthetic product photo, Comfy offline). Capabilities GET now returns 200 with `finish:true` even when Qwen pin/Comfy fail (honest `qwen.available:false`). Generate with product-safe/automatic tolerates unreachable capabilities.
+
+Phase C blocked environmentally: RTX 3080 ~0.9–1.1 GiB free VRAM; Qwen Image Edit weights missing (~30GB); hero `reimagine:false` on this Comfy models path; no new model downloads. Z-Image generate path wired via `reimagineHero` when capability + VRAM≥3.5GiB; low VRAM reports `insufficient-vram`.
+
+Phase D: Apple homepage live probe → 4 product records after rejecting storefront chrome (“Apple Store Online”); marketing permalinks (`/phone-16-pro`, `/shop/buy-…`) supported without brand hardcoding. Target → 0 products + empty-state + manual authorized photo path into same Generate ad. Abel/Arduino catalog fixtures still PASS.
+
+Shared touch: `shared/runtime/brand-products.ts`, `shared/runtime/api.ts` (capabilities resilience). Director source untouched. 8301 restarted from current workspace (`serve-8301-live.mjs`), same origin. Typecheck + catalog/UI/website-http/creative-http/generation-engines PASS. Owner Chrome acceptance NOT VERIFIED.
+
+Owner test: http://127.0.0.1:8301/adstudio/ → upload own photo → Develop → Accept → engine Product-safe or Automatic → Generate ad → Export PNG.
+
+
 **2026-10-26 - final Qwen3 reliability / DEGRADED GO:** Based on shared main9498696. Retained native console proves failed catalog job fe63c28d spent147.48s on its first token,1/600 at interruption220.36s; API returned181.586s, exact cancel requested then native interruption~39s later. Successful f6ec90b2:203tokens/14.790s native,17.46s collection/API. Same settings,4034 vs4073 prompt chars and884 system chars, immediate native start, no SaveText on failure: native execution/initial token stall, not long output/SDK delivery. Historical VRAM/process snapshot missing: exact underlying cause UNRESOLVED; current game +~8.9GB GPU usage/~1.1GiB reclaimable VRAM consistent with contention/offloading but not historical proof.
 
 FIX: optional Ad text checks native queue/setup/training and conservative6GiB reclaimable VRAM/2GiB free RAM twice before submit; low-memory admission184ms,0newjobs/unchanged native history/empty queue. Did not launch a doomed test or stop other work. Existing180s now aborts in-flight polling/result,5s exact-job cancel +bounded diagnostics/no retry;15s/32KB output limits retained. Same receipt never retries; identical in-flight evidence dedup; other evidence while busy returns source-first immediately. Success cache30min, failure cooldown60s then fresh explicit discovery can recover. Invalid raw output quarantined; existing status displays reason. Explicitly accepted AI style preferences can guide planning while remaining inferred, not verified claims. No IDB schema, image generation/relay/approval/budget/source gates or Director defaults changed.

@@ -1,3 +1,5 @@
+import {SC} from './scene';
+import {revealGeneratedFile} from './generated-file';
 import {createElement} from 'react';
 import {renderView,unmountView} from './react/render';
 import {LayerEditor,LayerLane,OverlayPreview} from './react/sequence-layers';
@@ -10,7 +12,7 @@ type Options={read:()=>LayerState;change:(state:LayerState)=>void;time:()=>numbe
 export function mountSequenceLayers(options:Options){
  const root=document.getElementById('overlayPreview')!,players=new Map<string,HTMLAudioElement>();let previewKey='';
  let audioReady=false;
- addEventListener('osh-audio-generated',((event:CustomEvent<Layer>)=>{const state=options.read();options.change({...state,audio:[...state.audio,{...event.detail,start:options.time()}]})}) as EventListener);
+ addEventListener('osh-audio-generated',((event:CustomEvent<Layer>)=>{const layer=event.detail as Layer&{replaceId?:string},state=options.read(),target=state.audio.find(item=>item.id===layer.replaceId);if(target)options.change({...state,audio:state.audio.map(item=>item===target?{...item,url:layer.url,text:layer.text,duration:layer.duration}:item)});const files=SC.get('osh-project-files')||[];SC.set('osh-project-files',[...files,{url:layer.url,label:layer.name,kind:'audio',origin:'generated',duration:layer.duration}]);if(target)dispatchEvent(new Event('osh-project-media'));else revealGeneratedFile(layer.url!)}) as EventListener);
  void fetch('/api/models').then(r=>r.json()).then(result=>{audioReady=!!result.audio?.available}).catch(()=>{});
  function edit(kind:'overlays'|'audio',existing?:Layer){
   const toggle=document.getElementById(kind==='audio'?'audioTrackToggle':'overlayTrackToggle');if(toggle?.getAttribute('aria-expanded')!=='true')toggle?.click();

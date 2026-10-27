@@ -83,7 +83,7 @@ el.ondrop({preventDefault(){},clientX:210,dataTransfer:{getData:()=>'/outputs/22
 const imageCode=source.slice(source.indexOf("$('#kgo').onclick=async()=>"),source.indexOf('\nfunction res()'));
 const button={disabled:false,textContent:''},promptInput={value:'Prepared START guide prompt',focus(){}};
 let generated=0,guideRenders=0;
-const imageContext={$:selector=>selector==='#kgo'?button:promptInput,SP:value=>value,touring:()=>true,specFromUI:()=>({}),OSH:{online:true},workspaceMode:'image',keyframeBatch:4,results:[],imageDraft:{},onboarding:{entry:'video',step:'keyframes',images:[]},localGeneration:{keyframe:async()=>({url:'/outputs/'+String(++generated).repeat(16)+'.png'})},res:()=>{},SC:{set:()=>{}},advanceTour:step=>{imageContext.onboarding.step=step},renderTour:()=>guideRenders++,saveWorkshop:()=>{},syncWorkspace:()=>{},pushHist:()=>{},toast:()=>{}};
+const imageContext={selKey:null,librarySelection:null,SH:[],$:selector=>selector==='#kgo'?button:promptInput,SP:value=>value,touring:()=>true,specFromUI:()=>({}),OSH:{online:true},workspaceMode:'image',keyframeBatch:4,results:[],imageDraft:{},onboarding:{entry:'video',step:'keyframes',images:[]},localGeneration:{keyframe:async()=>({url:'/outputs/'+String(++generated).repeat(16)+'.png'})},res:()=>{},SC:{set:()=>{}},advanceTour:step=>{imageContext.onboarding.step=step},renderTour:()=>guideRenders++,saveWorkshop:()=>{},syncWorkspace:()=>{},pushHist:()=>{},toast:()=>{}};
 const generateGuide=Function('ctx','with(ctx){'+imageCode+";return $('#kgo').onclick}")(imageContext);
 await generateGuide();assert.equal(imageContext.onboarding.step,'keyframes');assert.equal(guideRenders,1);assert.equal(button.disabled,false);
 await generateGuide();assert.equal(generated,1,'A repeated START prompt cannot silently create END');promptInput.value='Distinct END guide prompt';await generateGuide();assert.deepEqual(imageContext.onboarding.guidePrompts,['Prepared START guide prompt','Distinct END guide prompt']);assert.equal(imageContext.onboarding.step,'return-video');assert.equal(imageContext.onboarding.images.length,2);assert.equal(imageContext.imageDraft.url,'/outputs/2222222222222222.png');
@@ -116,7 +116,7 @@ const rendered={prompt:'old',r:true,video:'/outputs/clip.webm'};const promptCont
 const shotCode=source.slice(source.indexOf('async function realShot('),source.indexOf('\nasync function fake('));
 for(const stage of ['regenerate','image-video','watch-video','play-video']){
  const scene={id:'review-scene',n:'Scene',d:4,prompt:'new',r:false,keys:[{img:'start',anchor:'start',t:0},{img:'end',anchor:'end',t:4}],audioLinked:false};
- const ctx={SH:[scene],busy:async(_,job)=>job(),$:()=>({open:true}),shouldRewriteBeforeGeneration:()=>false,localGeneration:{shot:async()=>({url:'/outputs/new.webm',frames:97,duration:4,fps:24})},shotPrompt:()=>scene.prompt,start:()=>0,G:3.99,setPlaying:()=>{},pushHist:()=>{},shotId:s=>s.id,touring:()=>true,onboarding:{shotId:scene.id,step:stage,afterReview:'add-scenes'},advanceTour:step=>ctx.onboarding.step=step};
+ const ctx={generationDraft:null,SH:[scene],busy:async(_,job)=>job(),$:()=>({open:true}),shouldRewriteBeforeGeneration:()=>false,localGeneration:{shot:async()=>({url:'/outputs/new.webm',frames:97,duration:4,fps:24})},shotPrompt:()=>scene.prompt,start:()=>0,G:3.99,setPlaying:()=>{},pushHist:()=>{},shotId:s=>s.id,touring:()=>true,onboarding:{shotId:scene.id,step:stage,afterReview:'add-scenes'},advanceTour:step=>ctx.onboarding.step=step};
  const render=Function('ctx','with(ctx){'+shotCode+';return realShot}')(ctx);await render(0,'Render');assert.equal(ctx.onboarding.step,'play-video');assert.equal(ctx.onboarding.firstVideo,'/outputs/new.webm');assert.equal(ctx.onboarding.videoReviewed,false);assert.equal(ctx.G,0);assert.equal(ctx.onboarding.afterReview,'add-scenes');
 }
 
@@ -135,3 +135,10 @@ assert.equal(workflowTourStep({entry:'image',step:'return-video'},'video'),'add'
 context.onboarding={entry:'image',shotId:'shot',step:'add',images:['solo']};shot.keys=[];api.addKey(0,2,{img:'solo',spec:{},u:.5});assert.equal(context.onboarding.step,'position');assert.equal(shot.keys.length,1);assert.equal(shot.keys[0].anchor,undefined);shot.keys[0].anchor='start';api.checkTourPlacement();assert.equal(context.onboarding.step,'image-video');
 const animateLine=source.split('\n').find(line=>line.startsWith("$('#animateImage').onclick="));const animateControl={};let autoAttachments=0;
 const animateCtx={$:()=>animateControl,touring:()=>true,onboarding:{entry:'image',images:[]},imageDraft:{url:'solo'},advanceTour:step=>animateCtx.onboarding.step=step,setWorkflow:()=>autoAttachments++,ensureScene:()=>autoAttachments++};Function('ctx','with(ctx){'+animateLine+'}')(animateCtx);animateControl.onclick();assert.equal(autoAttachments,0);assert.equal(animateCtx.onboarding.step,'return-video');assert.deepEqual(animateCtx.onboarding.images,['solo']);
+
+// Untargeted generation saves an asset without replacing the current timeline shot.
+{
+ const scene={id:'existing',n:'Existing',d:4,prompt:'new',video:'/outputs/original.webm',r:true,keys:[],audioLinked:false};let output;
+ const ctx={generationDraft:null,currentShot:()=>scene,SH:[scene],busy:async(_,job)=>job(),$:()=>({open:true}),shouldRewriteBeforeGeneration:()=>false,localGeneration:{shot:async()=>({url:'/outputs/library.webm',frames:97,duration:4,fps:24})},shotPrompt:s=>s.prompt,start:()=>0,G:2,setPlaying:()=>{},pushHist:(asset,reveal)=>output={asset,reveal},shotId:s=>s.id,touring:()=>false};
+ const render=Function('ctx','with(ctx){'+shotCode+';return realShot}')(ctx);await render(0,'Render',true);assert.equal(scene.video,'/outputs/original.webm');assert.equal(ctx.G,2);assert.equal(output.asset.url,'/outputs/library.webm');assert.equal(output.reveal,true);
+}

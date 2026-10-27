@@ -43,3 +43,5 @@
 .project-files .project-file[data-training-compatible=true] .project-file-select{border-color:#e9c46a80;background:#e9c46a0b}
 .project-files .project-file[data-training-compatible=false]{opacity:.4}
 .project-files .project-file[data-training-compatible=false]:hover,.project-files .project-file[data-training-compatible=false]:focus-within{opacity:.75}
+
+.project-files .project-file[data-generated-attention=true]{opacity:1;background:#e9c46a12;box-shadow:inset 2px 0 var(--ui-accent,#e9c46a)}.project-files .project-file[data-generated-attention=true] .project-file-select{border-color:var(--ui-accent,#e9c46a)}

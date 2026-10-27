@@ -7,3 +7,5 @@
 .studio-window[data-window=prompts] .composer .generate-action :is(#kgo,button[type=submit]){background:var(--ui-accent);border:1px solid #f0d28f;color:#241c0d;font-weight:600;box-shadow:none}.prompt-header :is(label,.media-modelbar>span:first-child){font-size:var(--ui-small);color:var(--ui-muted)}
 
 .studio-window[data-window=prompts] .primary-prompt-row>.prompt-field>label{display:flex;align-items:center;min-height:20px;box-sizing:border-box}
+
+.image-composer .image-results{display:none}

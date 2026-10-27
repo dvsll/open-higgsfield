@@ -4,6 +4,9 @@ Append dated decisions, render times and requests here. Only the studio owner ed
 
 ## Where we left off (update this before switching agents)
 
+**Latest handoff - 2026-10-27, generated output routing:** Shared generated-file event reveals Project files, clears source filters, opens containing folders, scrolls new asset into view and keeps accent until next pointer/key interaction without changing selected media. Image result grid hidden; standalone Audio no longer previews in Prompt or auto-inserts into sequence. Audio saved as generated Project file; explicit selected audio layer regenerates in place. Image selected key/active workshop image retains replacement behavior; keyframe edits invalidate shot render. Untargeted Video renders from detached draft into history/library without modifying existing shots or playhead; targeted sequence and guided onboarding preserve their existing update/review path. Native prompt helper accepts active detached generation draft. Targeted replacements refresh library without stealing focus. Controller regression covers untargeted video preserving original URL/time plus onboarding review paths. Typecheck/build and all24 tests pass (onboarding stub updated for captured target state). Browser real audio generation verified visible persistent Project files accent, no embedded Audio preview, and clearing after user interaction; screenshot outputs/generated-file-highlight.png. No backend/model changes.
+
+
 **Latest handoff - 2026-10-27, narrow linked badge and centered ruler cap:** Linked-sound badge now uses a bounded nowrap flex row and icon-only form below112px clip width, preventing wrapping/spill into neighboring lanes. Ruler marker is centered on its time coordinate with translateX(-50 percent), with triangle independently centered on stem. Typecheck and React regression pass. No backend changes.
 
 

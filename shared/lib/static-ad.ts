@@ -11,11 +11,12 @@ export const emptyStaticAds=():StaticWorkspace=>({version:1,drafts:[],exports:[]
 export function luminance(color:string){const a=color.slice(1).match(/../g)!.map(s=>parseInt(s,16)/255).map(c=>c<=.04045?c/12.92:((c+.055)/1.055)**2.4);return a[0]*.2126+a[1]*.7152+a[2]*.0722;}
 export const ink=(background:string)=>luminance(background)>.35?'#100b08':'#fffaf0';
 export function contrast(a:string,b:string){const values=[luminance(a),luminance(b)].sort((x,y)=>y-x);return (values[0]+.05)/(values[1]+.05);}
+function mix(a:string,b:string,t:number){const parse=(c:string)=>c.slice(1).match(/../g)!.map(s=>parseInt(s,16));const A=parse(a),B=parse(b);return '#'+[0,1,2].map(i=>Math.round(A[i]+(B[i]-A[i])*t).toString(16).padStart(2,'0')).join('');}
 export function newStaticDesign(brand:BrandProfile,productId?:string,concept:StaticConcept='spotlight'):StaticDraft{
  const context=brandContext(brand,productId?[productId]:[]),product=brand.products.find(p=>p.id===productId),photo=brand.assets.find(a=>product?.imageIds.includes(a.id))||brand.assets.find(a=>a.role==='product')||brand.assets.find(a=>a.role==='reference');
  const colors=advertisingColors(brand);
- const background=concept==='spotlight'?(colors.find(c=>luminance(c)>.6)||(brand.palette?colors[0]:undefined)||'#eadcc8'):concept==='editorial'?(colors.find(c=>luminance(c)<.04)||(brand.palette?colors[0]:undefined)||'#100b08'):(colors.find(c=>luminance(c)>.1&&luminance(c)<.4)||(brand.palette?(colors[1]||colors[0]):undefined)||'#9a5528');
- const design:StaticDesign={version:1,id:crypto.randomUUID(),name:staticConcepts.find(c=>c.id===concept)!.name,brandId:brand.id,brandRevision:context.revision,brandReviewed:context.reviewed,productId:product?.id,photoId:photo?.assetId||'',photoConfirmed:!product||Boolean(photo&&product.imageIds.includes(photo.id)),logoId:brand.assets.find(a=>a.role==='logo')?.assetId,concept,size:'feed',brandName:brand.dna.name.slice(0,60),headline:product?.name.slice(0,80)||'Explore the collection',body:'',cta:'Discover more',website:brand.website?new URL(brand.website).hostname.replace(/^www\./,''):'',background,accent:colors.find(c=>luminance(c)>.08&&luminance(c)<.5)||(brand.palette?(colors[1]||colors[0]):undefined)||'#9a5528',textColor:(brand.palette?colors.find(c=>contrast(c,background)>=4.5):undefined)||ink(background)};
+ const background=concept==='spotlight'?(colors.find(c=>luminance(c)>.55)||(brand.palette?colors[0]:undefined)||'#f3ebe1'):concept==='editorial'?(colors.find(c=>luminance(c)<.12)||(brand.palette?colors[0]:undefined)||'#12100e'):(colors.find(c=>luminance(c)>.12&&luminance(c)<.45)||(brand.palette?(colors[1]||colors[0]):undefined)||'#7a3f1d');
+ const design:StaticDesign={version:1,id:crypto.randomUUID(),name:staticConcepts.find(c=>c.id===concept)!.name,brandId:brand.id,brandRevision:context.revision,brandReviewed:context.reviewed,productId:product?.id,photoId:photo?.assetId||'',photoConfirmed:!product||Boolean(photo&&product.imageIds.includes(photo.id)),logoId:brand.assets.find(a=>a.role==='logo')?.assetId,concept,size:'feed',brandName:brand.dna.name.slice(0,60),headline:product?.name.slice(0,80)||'Explore the collection',body:'',cta:'Discover more',website:brand.website?new URL(brand.website).hostname.replace(/^www\./,''):'',background,accent:colors.find(c=>luminance(c)>.08&&luminance(c)<.55)||(brand.palette?(colors[1]||colors[0]):undefined)||'#9a5528',textColor:(brand.palette?colors.find(c=>contrast(c,background)>=4.5):undefined)||ink(background)};
  return {design,history:createHistory(design)};
 }
 export function validateStaticDesign(value:unknown):StaticDesign{const d=value as StaticDesign,fail=()=>{throw Error('Invalid static ad. Your previous concepts and exports were kept.');};if(!d||d.version!==1||typeof d.id!=='string'||!d.id||typeof d.brandId!=='string'||typeof d.photoId!=='string'||typeof d.photoConfirmed!=='boolean'||!staticConcepts.some(c=>c.id===d.concept)||!Object.hasOwn(staticSizes,d.size))return fail();for(const [key,max]of [['name',80],['brandName',60],['headline',80],['body',180],['cta',48],['website',80]] as const)if(typeof d[key]!=='string'||d[key].length>max)return fail();for(const color of [d.background,d.accent,d.textColor])if(!/^#[a-f0-9]{6}$/i.test(color))return fail();for(const key of ['logoId','supportId','productId'] as const)if(d[key]!==undefined&&typeof d[key]!=='string')return fail();return d;}
@@ -26,28 +27,53 @@ function wrapped(value:string,width:number,size:number){const lines:string[]=[];
 export type StaticImages={photo:string;logo?:string;support?:string};
 export function staticSVG(d:StaticDesign,images:StaticImages){
  validateStaticDesign(d);const {width:w,height:h}=staticSizes[d.size],parts:string[]=[],textBounds:{text:string;x:number;y:number;width:number;height:number;fontSize:number}[]=[],warnings:string[]=[];
+ const soft=mix(d.background,d.textColor,luminance(d.background)>.4?.08:.18),panel=mix(d.background,ink(d.background)==='#100b08'?'#ffffff':'#000000',luminance(d.background)>.4?.55:.22);
  const rect=(x:number,y:number,width:number,height:number,fill:string,extra='')=>parts.push(`<rect x="${x}" y="${y}" width="${width}" height="${height}" fill="${fill}" ${extra}/>`);
- const image=(data:string|undefined,x:number,y:number,width:number,height:number)=>{if(data){if(!/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(data))throw Error('Only embedded local raster images are supported.');parts.push(`<image href="${data}" x="${x}" y="${y}" width="${width}" height="${height}" preserveAspectRatio="xMidYMid meet"/>`);}};
- const text=(value:string,x:number,y:number,width:number,height:number,initial:number,color=d.textColor,weight=400)=>{if(!value.trim())return;let size=initial,lines=wrapped(value,width,size);while((lines.length*size*1.17>height||lines.some(l=>estimate(l,size)>width))&&size>20){size-=2;lines=wrapped(value,width,size);}if(lines.length*size*1.17>height)throw Error('Text is too long for this layout. Shorten it or choose another concept.');if(size<initial*.75)warnings.push('Some text was reduced to fit. Check legibility at phone size.');textBounds.push({text:value,x,y,width,height:lines.length*size*1.17,fontSize:size});parts.push(`<text fill="${color}" font-family="Arial, sans-serif" font-size="${size}" font-weight="${weight}">${lines.map((line,i)=>`<tspan x="${x}" y="${y+size*.85+i*size*1.17}">${escape(line)}</tspan>`).join('')}</text>`);};
- const button=(x:number,y:number,width:number)=>{rect(x,y,width,76,d.accent);text(d.cta,x+24,y+18,width-48,44,34,ink(d.accent),700);};
- rect(0,0,w,h,d.background);if(images.support){image(images.support,0,0,w,h);rect(0,0,w,h,d.background,'opacity="0.9"');}
- let photoBox:{x:number;y:number;width:number;height:number};const m=64,square=h===1080;
+ const image=(data:string|undefined,x:number,y:number,width:number,height:number,fit='xMidYMid meet')=>{if(data){if(!/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(data))throw Error('Only embedded local raster images are supported.');parts.push(`<image href="${data}" x="${x}" y="${y}" width="${width}" height="${height}" preserveAspectRatio="${fit}"/>`);}};
+ const text=(value:string,x:number,y:number,width:number,height:number,initial:number,color=d.textColor,weight=400)=>{if(!value.trim())return;let size=initial,lines=wrapped(value,width,size);while((lines.length*size*1.18>height||lines.some(l=>estimate(l,size)>width))&&size>18){size-=2;lines=wrapped(value,width,size);}if(lines.length*size*1.18>height)throw Error('Text is too long for this layout. Shorten it or choose another concept.');if(size<initial*.72)warnings.push('Some text was reduced to fit. Check legibility at phone size.');textBounds.push({text:value,x,y,width,height:lines.length*size*1.18,fontSize:size});parts.push(`<text fill="${color}" font-family="Inter, Arial, Helvetica, sans-serif" font-size="${size}" font-weight="${weight}" letter-spacing="${weight>=700?-0.4:0}">${lines.map((line,i)=>`<tspan x="${x}" y="${y+size*.82+i*size*1.18}">${escape(line)}</tspan>`).join('')}</text>`);};
+ const button=(x:number,y:number,width:number)=>{rect(x,y,width,72,d.accent);text(d.cta,x+28,y+16,width-56,42,30,ink(d.accent),700);};
+ // Full-bleed atmosphere: soft vertical wash, never a flat debug fill.
+ parts.push(`<defs><linearGradient id="osh-wash" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${escape(mix(d.background,d.accent,.12))}"/><stop offset="55%" stop-color="${escape(d.background)}"/><stop offset="100%" stop-color="${escape(soft)}"/></linearGradient></defs>`);
+ rect(0,0,w,h,'url(#osh-wash)');if(images.support){image(images.support,0,0,w,h,'xMidYMid slice');rect(0,0,w,h,d.background,'opacity="0.82"');}
+ let photoBox:{x:number;y:number;width:number;height:number};const m=72,square=h===1080,story=h===1920;
  if(d.concept==='spotlight'){
-  text(d.brandName,m,54,w-310,58,30,d.textColor,700);image(images.logo,w-220,36,156,148);
-  text(d.headline,m,square?166:184,w-2*m,square?130:170,square?56:68,d.textColor,700);
-  photoBox={x:m,y:square?316:380,width:w-2*m,height:h-(square?560:640)};rect(photoBox.x,photoBox.y,photoBox.width,photoBox.height,ink(d.background)==='#100b08'?'#fffaf0':'#17110d');image(images.photo,photoBox.x+16,photoBox.y+16,photoBox.width-32,photoBox.height-32);
-  text(d.body,m,h-226,w-2*m,58,26);if(d.cta)button(m,h-140,Math.min(570,Math.max(300,estimate(d.cta,34)+64)));
-  text(d.website,w-410,h-112,346,48,28);
+  // Premium editorial spotlight: brand lockup, dominant photo stage, grounded CTA.
+  rect(0,0,w,10,d.accent);
+  parts.push(`<circle cx="${w-140}" cy="120" r="220" fill="${escape(mix(d.accent,d.background,.55))}" opacity="0.28"/>`);
+  text(d.brandName.toUpperCase(),m,52,w-280,36,20,mix(d.textColor,d.background,.2),700);
+  image(images.logo,w-188,36,116,110);
+  text(d.headline,m,story?148:124,w-2*m,story?210:176,story?66:60,d.textColor,700);
+  photoBox={x:m,y:square?292:story?372:328,width:w-2*m,height:h-(square?508:story?688:588)};
+  rect(photoBox.x+18,photoBox.y+22,photoBox.width,photoBox.height,mix(d.background,'#000000',.12),'opacity="0.35"');
+  rect(photoBox.x,photoBox.y,photoBox.width,photoBox.height,panel);
+  rect(photoBox.x+4,photoBox.y+4,photoBox.width-8,photoBox.height-8,mix(d.background,'#ffffff',luminance(d.background)>.4?.42:.1));
+  image(images.photo,photoBox.x+32,photoBox.y+32,photoBox.width-64,photoBox.height-64,'xMidYMid slice');
+  text(d.body,m,h-(story?228:204),w-2*m,56,24);if(d.cta)button(m,h-124,Math.min(520,Math.max(280,estimate(d.cta,30)+72)));
+  text(d.website,w-380,h-100,300,40,22,mix(d.textColor,d.background,.35),500);
  }else if(d.concept==='editorial'){
-  image(images.logo,m,48,184,176);text(d.brandName,280,92,736,70,30,d.textColor,700);
-  const top=272,bottom=h-220;photoBox={x:536,y:top,width:480,height:bottom-top};rect(photoBox.x,photoBox.y,photoBox.width,photoBox.height,'#eadcc8');image(images.photo,photoBox.x+12,photoBox.y+12,photoBox.width-24,photoBox.height-24);
-  text(d.headline,m,top+20,420,square?280:390,square?52:64,d.textColor,700);text(d.body,m,top+(square?340:450),420,Math.max(70,bottom-top-(square?340:450)),28);
-  rect(m,h-190,w-2*m,2,d.accent);if(d.cta)button(m,h-140,Math.min(620,Math.max(300,estimate(d.cta,34)+64)));text(d.website,w-380,h-108,316,44,28);
+  // Bold split: copy column + tall photograph, strong accent rule.
+  rect(0,0,22,h,d.accent);
+  parts.push(`<rect x="0" y="0" width="${w}" height="${h}" fill="${escape(mix(d.background,d.accent,.06))}"/>`);
+  image(images.logo,m,44,148,140);text(d.brandName.toUpperCase(),248,86,700,40,18,mix(d.textColor,d.background,.18),700);
+  const top=232,bottom=h-208;photoBox={x:500,y:top,width:w-500-m,height:bottom-top};
+  rect(photoBox.x+12,photoBox.y+16,photoBox.width,photoBox.height,mix(d.background,'#000000',.2),'opacity="0.4"');
+  rect(photoBox.x,photoBox.y,photoBox.width,photoBox.height,mix(d.background,d.accent,.1));
+  image(images.photo,photoBox.x+20,photoBox.y+20,photoBox.width-40,photoBox.height-40,'xMidYMid slice');
+  text(d.headline,m,top+12,392,square?250:348,square?46:54,d.textColor,700);
+  text(d.body,m,top+(square?292:392),392,Math.max(64,bottom-top-(square?292:392)),26);
+  rect(m,h-176,Math.min(420,w/2),4,d.accent);if(d.cta)button(m,h-128,Math.min(560,Math.max(280,estimate(d.cta,30)+72)));
+  text(d.website,w-360,h-96,280,36,22,mix(d.textColor,d.background,.35),500);
  }else{
-  image(images.logo,m,48,200,190);text(d.brandName,300,72,716,130,48,d.textColor,700);
-  photoBox={x:128,y:280,width:824,height:h-(square?576:664)};rect(photoBox.x-12,photoBox.y-12,photoBox.width+24,photoBox.height+24,'#eadcc8');image(images.photo,photoBox.x,photoBox.y,photoBox.width,photoBox.height);
-  text(d.headline,m,h-(square?260:332),w-2*m,square?94:138,square?44:58,d.textColor,700);text(d.body,m,h-184,w-2*m,52,25);
-  if(d.cta)text(d.cta,m,h-104,600,60,34,d.textColor,700);text(d.website,w-390,h-94,326,44,28);
+  // Brand poster: photographic stage with masthead band and invitation footing.
+  photoBox={x:0,y:square?150:story?180:160,width:w,height:h-(square?430:story?540:480)};
+  image(images.photo,photoBox.x,photoBox.y,photoBox.width,photoBox.height,'xMidYMid slice');
+  parts.push(`<defs><linearGradient id="osh-poster-top" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${escape(mix(d.background,d.accent,.28))}" stop-opacity="0.96"/><stop offset="100%" stop-color="${escape(d.background)}" stop-opacity="0"/></linearGradient><linearGradient id="osh-poster-bot" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${escape(d.background)}" stop-opacity="0"/><stop offset="55%" stop-color="${escape(mix(d.background,'#000000',luminance(d.background)>.4?.08:.35))}" stop-opacity="0.88"/><stop offset="100%" stop-color="${escape(mix(d.background,'#000000',luminance(d.background)>.4?.12:.45))}" stop-opacity="0.96"/></linearGradient></defs>`);
+  rect(0,0,w,square?180:story?210:190,'url(#osh-poster-top)');
+  rect(0,h-(square?360:story?460:400),w,square?360:story?460:400,'url(#osh-poster-bot)');
+  image(images.logo,m,36,132,120);text(d.brandName.toUpperCase(),220,58,w-300,80,28,d.textColor,700);
+  text(d.headline,m,h-(square?250:story?310:290),w-2*m,square?100:140,square?44:54,d.textColor,700);
+  text(d.body,m,h-176,w-2*m,48,24);if(d.cta)button(m,h-116,Math.min(500,Math.max(260,estimate(d.cta,30)+72)));
+  text(d.website,w-360,h-90,280,36,22,mix(d.textColor,d.background,.28),500);
  }
  if(contrast(d.background,d.textColor)<4.5)warnings.push('Text/background contrast is below 4.5:1. Adjust colors before publishing.');
  return {svg:`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">${parts.join('')}</svg>`,width:w,height:h,photoBox,textBounds,warnings};

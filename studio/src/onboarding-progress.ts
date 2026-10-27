@@ -19,7 +19,7 @@ export function canResumeWorkflow(state: { entry?:Workflow; shotId?:string; dism
 }
 export function ownsTour(page:'director'|'edit', entry?:Workflow): boolean { return page === 'edit' ? entry === 'edit' : entry !== 'edit'; }
 export function windowLesson(step:string, visible:ReadonlySet<string>, menuOpen:boolean):{window:string;stage:'menu'|'item'}|null {
- const required:Record<string,string[]>={'play-video':['viewer'],keyframes:['keyframes'],add:['files','timeline'],position:['timeline'],image:['keyframes'],'image-review':['viewer'],'image-video':['prompts'],prompt:['prompts'],regenerate:['prompts'],'render-settings':['properties'],'render-takes':['takes'],'3d':['stage']};
+ const required:Record<string,string[]>={'play-video':['viewer'],keyframes:['prompts'],add:['files','timeline'],position:['timeline'],image:['prompts'],'image-review':['viewer'],'image-video':['prompts'],prompt:['prompts'],regenerate:['prompts'],'render-settings':['properties'],'render-takes':['takes'],'3d':['stage']};
  const missing=required[step]?.find(id=>!visible.has(id));
  return missing?{window:missing,stage:menuOpen?'item':'menu'}:null;
 }

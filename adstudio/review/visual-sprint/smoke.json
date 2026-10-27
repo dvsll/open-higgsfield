@@ -1,0 +1,23 @@
+{
+  "pass": true,
+  "resolution": "1600x1100",
+  "screenshotsUse": "Existing real local AI beauty output restored in a disposable test browser. No new inference.",
+  "checks": [
+    "Opening -> product upload -> brand -> visible facts and permission -> deterministic direction",
+    "Select direction and review -> editions -> reload persistence",
+    "Saved real PNG reveal and byte-identical download",
+    "Preview/Escape, compare, edit-copy live preview",
+    "Existing MP4 playback, still/film switch, exact-video MP4 download byte identity, sound disclosure and offline Auto gate",
+    "390px onboarding/results/opening no horizontal overflow"
+  ],
+  "errors": [],
+  "postRequests": [
+    "http://127.0.0.1:8305/api/upload",
+    "http://127.0.0.1:8305/api/creative/plan",
+    "http://127.0.0.1:8305/api/creative/select",
+    "http://127.0.0.1:8305/api/creative/select",
+    "http://127.0.0.1:8305/api/creative/select",
+    "http://127.0.0.1:8305/api/upload",
+    "http://127.0.0.1:8305/api/creative/prepare"
+  ]
+}

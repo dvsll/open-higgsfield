@@ -605,3 +605,6 @@ Studio coordination 2026-10-26: Captions adds optional language (auto default), 
 Studio coordination 2026-10-27: additive protected local GET /api/errors, bounded per-port persisted ErrorJournal, sanitized API/setup failures and request IDs; no request bodies/headers retained. Shared SDK emits browser-only osh-request-error event with operation/message/id, no body. Ad Studio UI untouched; default generation/proxy contracts unchanged.
 
 2026-10-27 Studio shared runtime update: caption responses add srt URL (null for empty transcript); POST /api/captions/srt persists validated cues to owned outputs with application/x-subrip MIME. Omitted captions device chooses first compatible advertised device. Existing callers supported; no new dependencies/models or Ad Studio UI changes. See shared/workflows/CONTRACT.md.
+
+
+2026-10-27 Studio shared coordination: additive GET/POST /api/image-selection; native SAM3.1 SDK/proxy segmentation graph, optional selection_sam31 pack (SAM License, official Comfy-Org repack). Owned PNG+point/text returns mask. Existing generation routes unchanged. /api/precision-image now reports actual automaticSubjectSelection availability. No adstudio app changes.

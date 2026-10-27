@@ -8,3 +8,12 @@ export async function precisionSources(root:string,body:any){
  if(!pixels.some((value,index)=>index%4===1&&value>0))throw Object.assign(new Error('Select an area before generating an edit.'),{status:400});
  return {image,mask};
 }
+
+export async function segmentationSource(root:string,body:any){
+ const image=await heroSource(root,body?.image);
+ if(image.width>768||image.height>768)throw Object.assign(new Error('Use an editing image up to 768px per side.'),{status:400});
+ const point=body?.point;
+ if(point!==undefined&&(!Number.isFinite(point?.x)||!Number.isFinite(point?.y)||point.x<0||point.y<0||point.x>=image.width||point.y>=image.height))throw Object.assign(new Error('Choose a point inside the image.'),{status:400});
+ if(point===undefined&&(typeof body?.prompt!=='string'||!body.prompt.trim()||body.prompt.length>120))throw Object.assign(new Error('Name the object to select (up to120 characters).'),{status:400});
+ return {image,point:point?{x:Math.floor(point.x),y:Math.floor(point.y)}:null,prompt:point?'':body.prompt.trim()};
+}

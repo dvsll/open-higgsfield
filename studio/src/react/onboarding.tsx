@@ -135,7 +135,7 @@ export function TourPopover({
             {experience} guidance. Choose one below and we’ll guide you to it in the workspace selector.
           </p>
           <div className="tour-workflow-teasers">
-            {(['image', 'video', 'edit', 'rendering', '3d'] as Workflow[])
+            {(['image', 'video', '3d'] as Workflow[])
               .filter((next) => next !== entry)
               .map((next) => (
                 <button key={next} className="tour-workflow-card" onClick={() => onWorkflow(next)}>

@@ -17,7 +17,7 @@ import {searchInput,searchResults} from './semantic-search.ts';
 import { RuntimeSetup, setupAccess } from './setup.ts';
 import { startComfyProxy } from './proxy.ts';
 import {PromptRewriter,PromptRewriteError,promptInstruction,promptModel,promptDevice} from './prompt-rewriter.ts';
-import {precisionSources} from './precision-image.ts';
+import {precisionSources,segmentationSource} from './precision-image.ts';
 import {captionSegments,captionSrt} from '../lib/captions.ts';
 import { JobActivity, phaseForProgress } from './job-activity.ts';
 import {ComfyDiagnostics,loadingLog,nodeProgressMessage} from './comfy-diagnostics.ts';
@@ -723,11 +723,24 @@ function middleware(env: Env,setup:RuntimeSetup,rewriter:PromptRewriter,creative
         const result=JSON.parse(Buffer.from(await output.toBytes()).toString('utf8'));
         const segments=captionSegments(result.segments),name=segments.length?outputName('srt'):null;if(name)await writeFile(join(OUTPUTS,name),captionSrt(segments),'utf8');return {model,language:typeof result.language==='string'?result.language:null,duration:result.duration,seconds:(Date.now()-started)/1000,segments,srt:name?'/outputs/'+name:null};
       }));
+      if(route==='GET /api/image-selection'){
+        const nodes=await comfyJson(env,'/object_info'),choices=nodes.CheckpointLoaderSimple?.input?.required?.ckpt_name?.[0]||[];
+        return send(res,200,{available:!!nodes.SAM3_Detect&&choices.includes('sam3.1_multiplex_fp16.safetensors'),model:'SAM3.1',reason:'Install the SAM3.1 selection pack in Admin / local setup.'});
+      }
+      if(route==='POST /api/image-selection')return send(res,200,await tracked(async body=>{
+        let source;try{source=await segmentationSource(OUTPUTS,body)}catch(error:any){throw new HttpError(error.status||400,error.message)}
+        const nodes=await comfyJson(env,'/object_info'),choices=nodes.CheckpointLoaderSimple?.input?.required?.ckpt_name?.[0]||[];
+        if(!nodes.SAM3_Detect||!choices.includes('sam3.1_multiplex_fp16.safetensors'))throw new HttpError(503,'Install the SAM3.1 selection pack in Admin / local setup.');
+        const graph=await loadGraph('segment_sam3');
+        if(source.point){delete graph['3'];delete graph['4'].inputs.conditioning;graph['4'].inputs.positive_coords=JSON.stringify([source.point])}else graph['3'].inputs.text=source.prompt;
+        await ensureProxy(env);const c=client(env),wf=c.workflows.fromJson(graph);wf.setInput('2','image',c.assets.fromFile(source.image.path));
+        const job=await serialize(()=>runWf(c,wf,body._requestId));return {mask:await save(job,'6','png'),width:source.image.width,height:source.image.height,model:'SAM3.1'};
+      }));
       if (route === 'GET /api/precision-image') {
         const catalog = await localModels(env), nodes = await comfyJson(env, '/object_info'), graph = await loadGraph('precision_zimage');
         return send(res, 200, {
           available: catalog.zimageTurbo && Object.values(graph).every(n => nodes[n.class_type]),
-          automaticSubjectSelection: false,
+          automaticSubjectSelection: !!nodes.SAM3_Detect && (nodes.CheckpointLoaderSimple?.input?.required?.ckpt_name?.[0]||[]).includes('sam3.1_multiplex_fp16.safetensors'),
           model: 'Z-Image Turbo · masked resynthesis',
           note: 'Experimental masked resynthesis, not an instruction-edit checkpoint. Outside the mask is composited from the original.',
         });

@@ -33,13 +33,11 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
  const videoTop=wide?split('x',split('y',panel('assets'),panel('files'),.5),creation,.19):creation;
  const presets: Record<string, Setup> = custom?.presets||{
   Video: { tree: split('y', videoTop, panel('timeline'), topRatio), mode: 'video' },
-  Image: { tree: split('x',split('y',panel('assets'),panel('files'),.5),creation,.22), mode: 'image' },
+  Image: { tree: split('x',split('y',panel('files'),panel('edit-versions'),.7),split('x',panel('assets'),split('y',panel('prompts'),panel('edit-controls'),.6),.62),.22), mode: 'image' },
   Audio:{tree:split('y',split('x',panel('files'),panel('prompts'),.35),panel('timeline'),topRatio),mode:'video'},
   Overlays:{tree:split('y',overlayTop,panel('timeline'),topRatio),mode:'video'},
   Training:{tree:split('x',panel('files'),split('y',split('x',panel('training-data'),panel('stylization'),.65),panel('training-runs'),.7),.22),mode:'video'},
-  Edit:{tree:split('x',panel('files'),split('x',panel('edit-viewer'),split('y',panel('edit-controls'),panel('edit-versions'),.65),.7),.2),mode:'video'},
   '3D': { tree: split('x',panel('files'),split('x',panel('prompts'),panel('stage'),.36),.22), mode:'video',promptMedia:'3d' },
-  Rendering: { tree: split('x',panel('files'),split('x',panel('viewer'),panel('prompts'),.6),.2), mode: 'video' }
  };
  const fallback=presets[custom?.active||'Video']||Object.values(presets)[0];
  let store: Store = { version: 2, active: custom?.active||(document.body.dataset.workflow === 'image' ? 'Image' : 'Video'), layouts: {}, notes: {} };
@@ -66,6 +64,7 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
  for(const value of [...Object.values(store.layouts),...Object.values(store.deletedLayouts||{})])for(const id of ids(value.tree))if(['takes','stash'].includes(id)||id.startsWith('note-')||Object.hasOwn(store.notes,id))value.tree=remove(value.tree,id);
  if(!custom&&!localStorage.getItem('osh-prompt-3d-layout-v1')){store.layouts['3D']=clone(presets['3D']);localStorage.setItem('osh-prompt-3d-layout-v1','1')}
  if(!custom&&!localStorage.getItem('osh-3d-shared-prompt-v1')){store.layouts['3D']=clone(presets['3D']);localStorage.setItem('osh-3d-shared-prompt-v1','1')}
+ if(!custom){delete store.layouts.Edit;delete store.layouts.Rendering;delete store.deletedLayouts?.Edit;delete store.deletedLayouts?.Rendering;if(store.active==='Edit')store.active='Image';if(store.active==='Rendering')store.active='Video';for(const value of [...Object.values(store.layouts),...Object.values(store.deletedLayouts||{})])value.tree=remove(value.tree,'edit-viewer');if(!localStorage.getItem('osh-image-edit-merged-v1')){store.layouts.Image=clone(presets.Image);localStorage.setItem('osh-image-edit-merged-v1','1')}}
  let active = store.active;
  let setup = clone(store.layouts[active] || presets[active] || fallback);
  if(!custom){const replace=(tree:LayoutNode|null):LayoutNode|null=>tree?.kind==='panel'?(tree.id==='overlay-create'?panel('captions'):tree):tree?{...tree,first:replace(tree.first)!,second:replace(tree.second)!}:null;for(const value of [...Object.values(store.layouts),...Object.values(store.deletedLayouts||{})])value.tree=ids(value.tree).includes('captions')?remove(value.tree,'overlay-create'):replace(value.tree);setup.tree=ids(setup.tree).includes('captions')?remove(setup.tree,'overlay-create'):replace(setup.tree)}
@@ -152,9 +151,9 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
  if(custom){for(const item of custom.panels)add(item.id,item.title,item.content)}else{
  const assets = app.querySelector<HTMLElement>('aside.l')!, keys = app.querySelector<HTMLElement>('aside.r')!, viewer = main.querySelector<HTMLElement>('.viewer')!, image = main.querySelector<HTMLElement>('.image-stage')!, composer = main.querySelector<HTMLElement>('.composer')!, properties = document.getElementById('videoAttributes') as HTMLDetailsElement;
  keys.classList.add('image-composer');const imageSettings=keys.querySelector('.frame-properties');if(imageSettings)keys.querySelector('.advanced-prompt-content')!.append(imageSettings);composer.append(keys);const modelSlot=document.getElementById('promptModelSlot')!;for(const bar of [document.getElementById('videoModel')!.closest<HTMLElement>('.modelbar'),keys.querySelector<HTMLElement>('.image-modelbar')])if(bar)modelSlot.append(bar);
- properties.open = true; const viewContent = document.createElement('div'); viewContent.className = 'viewer-content'; viewContent.append(image, viewer);
+ properties.open = true; const viewContent = document.createElement('div'); viewContent.className = 'viewer-content'; viewContent.append(viewer);parking.append(image);
  add('captions','Captions',document.getElementById('studioCaptions')!);add('edit-history','History',document.getElementById('studioEditHistory')!);add('files','Project files',mountProjectFiles());parking.append(document.getElementById('stash')!);
- add('edit-viewer','Edit viewer',document.getElementById('studioEditViewer')!);add('edit-controls','Edit controls',document.getElementById('studioEditControls')!);add('edit-versions','Edit versions',document.getElementById('studioEditVersions')!);
+ assets.append(document.getElementById('studioEditViewer')!);add('edit-controls','Edit controls',document.getElementById('studioEditControls')!);add('edit-versions','Edit versions',document.getElementById('studioEditVersions')!);
  const inspector=document.createElement('div');inspector.className='sequence-inspector';const identity=document.getElementById('videoTrackAttributes')!;identity.hidden=false;identity.className='scene-property-identity';inspector.append(identity);parking.append(inspector);
  const oldStyling=document.getElementById('studioStylization')!;oldStyling.hidden=true;parking.append(oldStyling);
  for(const [id,title,kind] of [['training-data','Training dataset','dataset'],['stylization','Training settings','settings'],['training-runs','Training runs','runs']] as const){const host=document.createElement('div');renderView(host,createElement(TrainingPanel,{panel:kind}));add(id,title,host)}
@@ -188,7 +187,7 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
  let switching = false;
  function select(name: string): boolean {
   if(!custom&&name==='Director')name='Video';
-  if(name==='__edit')name='Edit';
+  if(name==='__edit'||name==='Edit')name='Image';if(name==='Rendering')name='Video';
   if(name==='__new'){picker.value=active;void createWorkspace();return false}
   if(name==='__rename'){picker.value=active;void renameWorkspace();return false}
   if(name==='__recycle'){picker.value=active;deleteWorkspace();return false}

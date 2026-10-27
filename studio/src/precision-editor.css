@@ -10,3 +10,5 @@ body[data-workflow=edit] .app.window-workspace{flex:1;height:auto;min-height:0;o
 .precision-version{display:flex;align-items:center;gap:8px;width:100%;text-align:left;margin-top:6px}.precision-version img{width:64px;height:48px;object-fit:contain}.precision-version span{font-size:11px;overflow-wrap:anywhere}.precision-version[aria-pressed=true]{border-color:#e9c46a}
 
 body[data-workflow=edit] .app.window-workspace>.window-board{flex:1;min-height:0}body[data-workflow=edit] .app.window-workspace>.workspace-toolbar,body[data-workflow=edit] .app.window-workspace>.workspace-context{flex:none}
+
+.precision-canvases .precision-outline{pointer-events:none;opacity:1}.precision-object-select{display:flex;align-items:end;gap:8px;flex-wrap:wrap}.precision-object-select label{flex:1;min-width:120px}.precision-object-select input{width:100%;box-sizing:border-box;background:var(--ui-bg);border:1px solid var(--ui-border);padding:8px;color:var(--ui-text);font:inherit}

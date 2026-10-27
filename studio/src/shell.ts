@@ -248,7 +248,7 @@ function drawMedia() {
 }
 function paintSelectedMedia(cv:HTMLCanvasElement,selected:Media){
  const g=cv.getContext('2d')!;let cancelled=false;
- if(selected.img){loadImg(selected.img).then(im=>{if(cancelled)return;const r=Math.max(cv.width/im.naturalWidth,cv.height/im.naturalHeight);g.drawImage(im,(cv.width-im.naturalWidth*r)/2,(cv.height-im.naturalHeight*r)/2,im.naturalWidth*r,im.naturalHeight*r)}).catch(()=>{if(!cancelled)SC.blank(g)});return()=>{cancelled=true}}
+ if(selected.img){loadImg(selected.img).then(im=>{if(cancelled)return;const r=Math.min(cv.width/im.naturalWidth,cv.height/im.naturalHeight);g.drawImage(im,(cv.width-im.naturalWidth*r)/2,(cv.height-im.naturalHeight*r)/2,im.naturalWidth*r,im.naturalHeight*r)}).catch(()=>{if(!cancelled)SC.blank(g)});return()=>{cancelled=true}}
  if(selected.video){SC.blank(g);const video=document.createElement('video');video.muted=true;video.preload='auto';video.src=selected.video+'#t=0.1';video.onloadeddata=()=>{if(cancelled)return;const scale=Math.min(cv.width/video.videoWidth,cv.height/video.videoHeight);g.fillStyle='#08090b';g.fillRect(0,0,cv.width,cv.height);g.drawImage(video,(cv.width-video.videoWidth*scale)/2,(cv.height-video.videoHeight*scale)/2,video.videoWidth*scale,video.videoHeight*scale);video.removeAttribute('src');video.load()};return()=>{cancelled=true;video.onloadeddata=null;video.removeAttribute('src');video.load()}}
  if(selected.audio){
   const background=()=>{g.fillStyle='#101b18';g.fillRect(0,0,cv.width,cv.height)};background();

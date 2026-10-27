@@ -6,7 +6,7 @@ import {join} from 'node:path';
 import {Resvg} from '@resvg/resvg-js';
 import {createServer} from 'vite';
 const server=await createServer({configFile:false,cacheDir:'node_modules/.vite-precision-tests',optimizeDeps:{noDiscovery:true,include:[]},server:{middlewareMode:true,hmr:false},appType:'custom'});
-const {precisionSources}=await server.ssrLoadModule('/shared/runtime/precision-image.ts');
+const {precisionSources,segmentationSource}=await server.ssrLoadModule('/shared/runtime/precision-image.ts');
 await server.close();
 const png=(width,height,fill)=>new Resvg(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"><rect width="100%" height="100%" fill="${fill}"/></svg>`).render().asPng();
 test('precision edit validates owned sources, matching dimensions and nonempty mask',async()=>{
@@ -18,6 +18,11 @@ test('precision edit validates owned sources, matching dimensions and nonempty m
   await writeFile(join(root,'4444444444444444.png'),png(64,64,'black'));
   const body={image:'/outputs/1111111111111111.png',mask:'/outputs/2222222222222222.png',prompt:'A flower'};
   assert.equal((await precisionSources(root,body)).image.width,64);
+  assert.equal((await segmentationSource(root,{image:body.image,prompt:'cup'})).prompt,'cup');
+  assert.deepEqual((await segmentationSource(root,{image:body.image,point:{x:12.5,y:16.5}})).point,{x:12,y:16});
+  await assert.rejects(segmentationSource(root,{image:body.image,point:{x:64,y:0}}),/inside/);
+  await assert.rejects(segmentationSource(root,{image:body.image,prompt:''}),/Name/);
+  await assert.rejects(segmentationSource(root,{image:'../../private.png',prompt:'cup'}),/API-owned/);
   await assert.rejects(precisionSources(root,{...body,image:'../../private.png'}),/API-owned/);
   await assert.rejects(precisionSources(root,{...body,mask:'/outputs/3333333333333333.png'}),/matching/);
   await assert.rejects(precisionSources(root,{...body,mask:'/outputs/4444444444444444.png'}),/Select an area/);

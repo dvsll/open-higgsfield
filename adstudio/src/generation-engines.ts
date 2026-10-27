@@ -82,7 +82,7 @@ function qwenReady(ready:GenerationReadiness){
  const mem=memoryStatus(ready,Q_MIN);if(!mem.ok)return {ok:false as const,reason:mem.reason};
  return {ok:true as const};
 }
-function kleinCapability(ready:GenerationReadiness):EngineCapability{const k=ready.klein,integrated=k?.mode==='source-integrated';return {id:'klein',label:'FLUX.2 Klein 4B FP8',short:integrated?'Hybrid campaign · rich set + product isolate + harmonize':'Experimental reference-conditioned scene',available:!!k?.available,status:(k?.status||'not-installed') as EngineCapability['status'],reason:k?.reason||'Klein is not installed or has not completed a verified runtime test.',generatesAiPixels:true,preservesOriginalPhotograph:integrated,requiresWeights:true};}
+function kleinCapability(ready:GenerationReadiness):EngineCapability{const k=ready.klein;return {id:'klein',label:'FLUX.2 Klein 4B FP8',short:'Creative Restage · AI product campaign photograph',available:!!k?.available,status:(k?.status||'not-installed') as EngineCapability['status'],reason:k?.reason||'Klein is not installed or has not completed a verified runtime test.',generatesAiPixels:true,preservesOriginalPhotograph:false,requiresWeights:true};}
 export function resolveGenerationEngine(choice:GenerationEngineId,ready:GenerationReadiness):EngineCapability{
  if(choice==='product-safe')return {...PRODUCT_SAFE,available:true,status:'available',reason:'Product-safe design · original photograph'};
  if(choice==='klein'){const k=kleinCapability(ready);if(!k.available)throw Error(k.reason);return k;}

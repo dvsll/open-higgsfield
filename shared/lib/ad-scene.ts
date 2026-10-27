@@ -14,14 +14,22 @@ export function sceneDirection(plan:CreativePlan){
  return {archetype,treatment,concept:c};
 }
 export function adScenePrompt(plan:CreativePlan){
- const {treatment,concept:c}=sceneDirection(plan),i=plan.input,f=i.facts,locks=plan.context.controls;
+ const {treatment,archetype,concept:c}=sceneDirection(plan),i=plan.input,f=i.facts,locks=plan.context.controls;
+ const coastal=/coast|beach|sea|summer|breeze|mineral|turquoise/i.test([i.request,c.idea,c.environment,i.brand.dna.visualStyle].join(' '));
+ const foil=/foil|aluminum|aluminium|disposable|loaf tin|loaf pan|bakeware tray/i.test([f.container,f.description,i.request].join(' '));
+ const foodArt=foil
+  ?'Creative food campaign (AI interpretation): re-photograph the baked goods as an appetizing editorial hero. Prefer removing disposable foil/aluminum trays from the frame when they read as grocery packaging — stage the exact product count directly on walnut or stone with cream linen and warm window side-light raking crumb texture. Keep baked color, chip character and count recognizable. Do not invent competing plated food. This packaging change is Creative Restage, not product-safe.'
+  :'Creative food campaign (AI interpretation): re-photograph the reference product as an appetizing editorial hero. Warm side light should rake across crumb and surface. Prefer walnut or stone, cream linen, and quiet breakfast atmosphere. Keep product count and baked character recognizable. Do not invent competing plated food.';
+ const beautyArt=coastal
+  ?'Creative coastal beauty campaign (AI interpretation): the bottle must physically belong in wet mineral stone beside turquoise water with soft caustics and glass reflections that match the set. Hero scale, deliberate lean or upright pose, refined depth. Keep blank-label packaging blank — never invent logos or claims.'
+  :'Creative beauty campaign (AI interpretation): sculptural staging, soft speculars on glass, intentional fabric or mineral contact, shallow depth. Keep blank labels blank; never invent ingredient claims.';
  return [
-  'Create a finished luxury commercial product photograph using image 1 as the product identity reference. Photograph the product in ONE continuous, physically coherent scene with intentional art direction. Improve light, materials and supporting atmosphere. Do not paste, frame or collage the source photograph. No borders, inset pictures, poster panels or added typography.',
-  `Reference product: ${bounded(f.description)} Visible texture: ${bounded(f.texture,300)} Container/packaging: ${bounded(f.container,300)}. ${f.count?`Keep exactly ${f.count} products.`:'Keep the observed product count.'} Preserve individual shapes, surface markings, proportions, materials, packaging and printed artwork where present. ${bounded(f.arrangement,300)}. No duplicate products, invented ingredients or redesigned labels.`,
-  `Product fidelity request: ${locks.fidelity}. ${locks.arrangement==='exactly'?'Keep individual product positions and spacing recognizably.':'Keep recognizable grouping, order and relative scale.'} Angle permission: ${locks.angle}. Crop permission: ${locks.crop}; keep locked products individually visible. These are model instructions, not a fidelity guarantee.`,
-  `Approved concept: ${bounded(c.idea)}. Owner direction: ${bounded(i.request)}. ${treatment}`,
-  `Setting: ${locks.background==='keep'?'Keep the source setting.':locks.background==='clean'?'Clean distractions; retain the source setting.':`Build a rich, brand-aligned environment. Supporting concept: ${bounded(c.environment)}`}. Light: ${bounded(c.lighting)}. Brand tone: ${bounded(i.brand.dna.tone,200)}. Brand visual character: ${bounded(i.brand.dna.visualStyle,250)}. Palette cues: ${plan.context.grounding?.palette.slice(0,3).join(', ')||'the reference and approved visual direction'}.`,
-  'Art direction: the product is the unmistakable large hero filling the lower two thirds with convincing surface contact, natural contact shadows and coherent reflected light. Leave a calm upper quarter for separately rendered headline lettering. Rich photographic detail. No floating product, no rectangular photo edges, no invented lettering.'
+  'Create ONE finished luxury commercial product photograph from image 1 as identity reference. Continuous physical scene only — never paste, collage, frame, inset, or poster-panel the source. No typography.',
+  `Reference product: ${bounded(f.description)} Visible texture: ${bounded(f.texture,300)} Packaging cue: ${bounded(f.container,300)}. ${f.count?`Keep exactly ${f.count} products.`:'Keep the observed product count.'} ${bounded(f.arrangement,280)}. No duplicate products or redesigned branded artwork.`,
+  `Fidelity: this is Creative Restage, not product-safe compositing. Requested fidelity ${locks.fidelity}; angle ${locks.angle}; crop ${locks.crop}. Labels, packaging and exact geometry may change — compare with the original before publishing.`,
+  archetype==='food-editorial'?foodArt:archetype==='beauty-sensory'?beautyArt:treatment,
+  `Approved concept: ${bounded(c.idea)}. Owner direction: ${bounded(i.request)}. Setting: ${locks.background==='keep'?'Keep the source setting.':`Rich brand-aligned environment — ${bounded(c.environment)}`}. Light: ${bounded(c.lighting)}. Tone: ${bounded(i.brand.dna.tone,180)}. Visual character: ${bounded(i.brand.dna.visualStyle,220)}. Palette: ${plan.context.grounding?.palette.slice(0,3).join(', ')||'source-compatible neutrals'}.`,
+  'Hero product fills the lower two thirds with true surface contact, coherent shadows and reflected light. Calm upper quarter for separately rendered lettering. Photographic realism over stock-empty backgrounds.'
  ].join('\n\n');
 }
 export function campaignDesign(base:StaticDesign,archetype:CampaignArchetype,photoId:string):StaticDesign{

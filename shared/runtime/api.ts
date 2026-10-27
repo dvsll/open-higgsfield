@@ -651,7 +651,7 @@ function middleware(env: Env,setup:RuntimeSetup,rewriter:PromptRewriter,creative
        const zimage={available:reimagine,installed,reason:installed?(zAdmit.ok?'Local Z-Image Turbo graph and memory admission passed.':zAdmit.reason):'Z-Image Turbo is not available on this ComfyUI (weights or graph nodes missing).'};
        let qwen:any;try{qwen=relay?await relay.capability('http://'+req.headers.host):await qwenAvailability(nodes,setup.config?.modelsDir||env.COMFYUI_MODELS_DIR);}catch(error:any){qwen={id:'qwen-fp8',available:false,reason:String(error?.message||error||'Qwen capability check failed')};}
        const qAdmit=admit(8);if(!relay&&qwen?.available&&!qAdmit.ok)qwen={...qwen,available:false,reason:qAdmit.reason};
-       const klein=await campaignAvailability(OUTPUTS,env.ADSTUDIO_KLEIN_MODELS_DIR||setup.config?.modelsDir||env.COMFYUI_MODELS_DIR,nodes,stats,queue,appBusy).catch((e:any)=>({available:false,installed:false,status:'unsupported',reason:String(e.message)}));
+       const klein=await sceneAvailability(OUTPUTS,env.ADSTUDIO_KLEIN_MODELS_DIR||setup.config?.modelsDir||env.COMFYUI_MODELS_DIR,nodes,stats,queue,appBusy).catch((e:any)=>({available:false,installed:false,status:'unsupported',reason:String(e.message)}));
        return send(res,200,{finish:true,reimagine,experimental:true,qwen,zimage,klein,vramFreeBytes:typeof vramFreeBytes==='number'?vramFreeBytes:null,comfyConnected:!!stats,busy});
       }
       if(route==='POST /api/hero/finish')return send(res,200,await finishHero(await readBody(req),OUTPUTS,env));

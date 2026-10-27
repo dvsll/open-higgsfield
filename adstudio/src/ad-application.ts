@@ -11,7 +11,7 @@ import {newProject,type AdProject,type ProductAsset} from './projects.ts';
 import type {HeroTake} from '../../shared/lib/hero-ad.ts';
 import {creativeSnapshot,type CreativePlan} from '../../shared/lib/creative-engine.ts';
 import {browserDownload,type Download} from './download.ts';
-import {adCampaignPrompt,campaignDesign} from '../../shared/lib/ad-scene.ts';
+import {adScenePrompt,campaignDesign} from '../../shared/lib/ad-scene.ts';
 import {resolveGenerationEngine,type GenerationEngineId,type GenerationReadiness} from './generation-engines.ts';
 export type CopyEdit=Partial<Pick<StaticDesign,'headline'|'body'|'cta'|'size'|'concept'|'background'|'accent'|'textColor'>>;
 export function journeyStage(p:AdProject):'product'|'direction'|'result'{const entry=p.creative?.plans.find(e=>e.id===p.creative?.activeId),take=p.hero?.takes.find(t=>t.id===p.hero?.activeId)||p.hero?.takes.at(-1),step=p.creative?.step;if(step==='product'||step==='direction'&&entry||step==='result'&&take)return step;return take&&(!entry||entry.preparedId&&take.settings.prompt===p.hero?.settings.prompt)?'result':entry?'direction':'product';}
@@ -187,18 +187,17 @@ export class AdApplication {
  async cancelGeneration(){const p=this.store.active();if(p.attempt?.status!=='running'||p.attempt.engine!=='klein'||!this.client.cancelBackground)throw Error('No cancellable local background job.');return this.client.cancelBackground(p.attempt.id.replaceAll('-',''),p.id);}
  private async generateScene(planId:string,plan:CreativePlan,requestId:string){
   const started=Date.now(),p=this.store.active(),entry=p.creative?.plans.find(e=>e.id===planId),source=await this.store.asset(plan.input.source.id);
-  if(!entry?.preparedId||!source||!this.client.adCampaign)throw Error('The local reference-scene adapter is unavailable. Product-safe remains available.');
+  if(!entry?.preparedId||!source||!this.client.adScene)throw Error('The local reference-scene adapter is unavailable. Product-safe remains available.');
   await this.checkSourceUse(source.id,plan.input.brand.id,plan.input.productId);
   if(await blobHash(source.original)!==plan.input.source.originalSha256||await blobHash(source.normalized)!==plan.input.source.sha256)throw Error('Restore the exact reviewed original.');
-  const image=await this.client.upload(await this.encode(source.normalized)),scene=await this.client.adCampaign({promptSha256:await blobHash(new Blob([adCampaignPrompt(plan)])),requestId:requestId.replaceAll('-',''),projectId:p.id,planId,preparedId:entry.preparedId,image:image.url,current:(await this.creative.context(p,source.id,plan.input)).input});
-  if((scene.model!=='klein-integrated'&&scene.model!=='klein-harmonized')||scene.sourceSha256!==plan.input.source.sha256)throw Error('The delivered product scene does not match this reviewed source.');
-  if(scene.background){const a=await this.outputAsset(scene.background.url,scene.background.sha256,'Raw generated environment.png',scene.background.width,scene.background.height);scene.background.assetId=a.id;await this.store.projects.save(p,a);}
-  if(scene.cutout){const a=await this.outputAsset(scene.cutout.url,scene.cutout.sha256,'Isolated original product.png',scene.cutout.width,scene.cutout.height);scene.cutout.assetId=a.id;await this.store.projects.save(p,a);}
-  if(scene.preHarmonize){const a=await this.outputAsset(scene.preHarmonize.url,scene.preHarmonize.sha256,'Pre-harmonize fidelity composite.png',scene.width,scene.height);await this.store.projects.save(p,a);}
-  const raw=await this.outputAsset(scene.url,scene.sha256,'Integrated campaign scene.png',scene.width,scene.height);await this.store.projects.save(p,raw);
+  // Creative Restage is the Klein campaign path: ReferenceLatent re-photograph, not cutout compositing.
+  // Product-safe remains the fidelity-preserving layout path. Hybrid cutout campaign stays on /api/hero/campaign for tooling.
+  const image=await this.client.upload(await this.encode(source.normalized)),scene=await this.client.adScene({promptSha256:await blobHash(new Blob([adScenePrompt(plan)])),requestId:requestId.replaceAll('-',''),projectId:p.id,planId,preparedId:entry.preparedId,image:image.url,current:(await this.creative.context(p,source.id,plan.input)).input});
+  if(scene.model!=='klein-scene'||scene.sourceSha256!==plan.input.source.sha256)throw Error('The delivered creative restage does not match this reviewed source.');
+  const raw=await this.outputAsset(scene.url,scene.sha256,'Creative restage scene.png',scene.width,scene.height);await this.store.projects.save(p,raw);
   const design=campaignDesign(plan.composition,scene.archetype,raw.id),settings=structuredClone(p.hero!.settings);
   settings.method='reimagine';settings.imageModel=scene.model;
-  const take:HeroTake={id:crypto.randomUUID(),assetId:raw.id,url:scene.url,created:Date.now(),settings,sourceSha256:plan.input.source.sha256,originalSha256:plan.input.source.originalSha256,sha256:scene.sha256,method:scene.model==='klein-harmonized'?'hybrid-harmonized-campaign':'isolated-original-ai-environment',model:scene.model,scene:{...scene,assetId:raw.id},adDesign:design,seconds:(Date.now()-started)/1000,jobId:scene.jobId,provenanceId:scene.provenanceId,workflowSha256:scene.workflowSha256};
+  const take:HeroTake={id:crypto.randomUUID(),assetId:raw.id,url:scene.url,created:Date.now(),settings,sourceSha256:plan.input.source.sha256,originalSha256:plan.input.source.originalSha256,sha256:scene.sha256,method:'creative-restage',model:scene.model,scene:{...scene,assetId:raw.id,fidelityMode:'creative-restage',warning:scene.warning||'AI creative restage. Compare packaging and labels with the original before publishing.'},adDesign:design,seconds:(Date.now()-started)/1000,jobId:scene.jobId,provenanceId:scene.provenanceId,workflowSha256:scene.workflowSha256};
   p.hero!.takes.push(take);p.hero!.activeId=take.id;p.hero!.approvedId=undefined;p.creative!.step='result';
   p.creative!.adDrafts??={};p.creative!.adDrafts[take.id]={headline:design.headline,body:design.body,cta:design.cta,size:design.size};
   // Persist the real raw result before any deterministic export can fail. Recovery

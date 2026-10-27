@@ -54,15 +54,15 @@ Append dated decisions, render times and requests here. Only the adstudio owner 
 
 ## Where we left off
 
-**2026-10-27 campaign quality worktree (owner rejected prior cutouts):** Branch `feat/adstudio-campaign-quality` in worktree `C:\Users\osiam\open-higgsfield-quality` (port **8303**). Does not touch journey UI worktree or 8301/8302.
+**2026-10-27 creative review → Creative Restage primary:** Worktree `C:\Users\osiam\open-higgsfield-quality`, branch `feat/adstudio-campaign-quality`, port **8303**. Journey/8302 and 8301 untouched.
 
-METHOD: Product-fidelity = BiRefNet isolate → rich EMPTY-landing Klein environment (no plated food/center props) → improved contact composite → Klein **reference harmonize** (`ReferenceLatent`, same distilled FP8). Creative restage remains optional (`OSH_QUALITY_RESTAGE=1`). Harmonize waits for ≥6 GiB reclaimable VRAM after unload. No new model downloads.
+INSPECTION: Hybrid `klein-harmonized` bakery still foil-tray cutout DNA (rejected for creative quality). Beauty hybrid integrated but drifted from coastal.
 
-REAL GPU EVIDENCE: `outputs/campaign-quality-2026-10-27T16-33-25/` — bakery+beauty both delivered `klein-harmonized`. Beauty hybrid is meaningfully closer to luxury still-life (stone/linen integration). Bakery environment fixed (no invented salad plate); tray lighting/foil still hard; harmonize may nudge cookie poses — labeled AI, not fidelity-certified. Prior rejected ads copied beside new ads in that folder. First round `…16-28-08` retained (failed empty-landing / VRAM skip). Visual notes: `VISUAL_ASSESSMENT.md`. Gallery: `comparison.html`.
+METHOD NOW: Klein engine → **Creative Restage** (`/api/hero/scene`, `klein-scene`). Food prompts prefer removing disposable foil trays. Hybrid `/api/hero/campaign` kept for tooling. Product-safe unchanged.
 
-APP PATH: Isolated browser on **8303** beauty case PASS — `outputs/generative-ads-browser-2026-10-27T16-39-13-182Z/` (generate → export, receipts, history). Journey worktree/8302 and generator 8301 untouched. Preview: `node adstudio/scripts/serve-8303-quality.mjs`.
+STRONGEST: Bakery no-tray restage `outputs/creative-restage-2026-10-27T17-09-09/bakery-v2-notray/advertisement.png`. Beauty coastal restage `…/beauty/advertisement.png`. Gallery + review: that folder’s `comparison.html`, `CREATIVE_REVIEW.md`.
 
-LIMITS: Owner creative approval still required. Harmonize can alter packaging/pose and remake set elements. Klein may invent text in pure restage. Glass reflections imperfect. Bakery foil-tray ads still not publishable. Do not auto-merge.
+LIMITS: Restage is not product-safe (packaging may vanish; count can drift). Owner approval still required. Do not auto-merge.
 
 **2026-10-27 COMPLETE - real local source-integrated campaigns / owner review pending:** feat/adstudio-workspace, origin/main4b24838 still reconciled. Default Klein now uses native MIT BiRefNet isolation -> real concept/category/brand-driven Klein environment -> original product silhouette/pixels, container seam repair, uniform placement and contact shadows -> deterministic full photographic campaign text; no framed photo. No Director source edits, schema/origin change or old asset removal. Added one pinned444473596-byte MIT BiRefNet file only (Comfy-Org/BiRefNet35767b2, SHA9ab37426bf4de0567af6b5d21b16151357149139362e6e8992021b8ce356a154), no dependencies/cloud/spend. Separate reference-edit experiment FAILED strict count/geometry/pose review; preserved as research API/evidence, not main UI default. Product-safe/older backgrounds remain functional.
 

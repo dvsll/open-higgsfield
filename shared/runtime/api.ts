@@ -731,10 +731,13 @@ function middleware(env: Env,setup:RuntimeSetup,rewriter:PromptRewriter,creative
         catch(e:any){if(e instanceof ReferenceError)return send(res,e.status,{error:e.message});throw e;}
       }
       if(route==='GET /api/sound/capabilities'){
-        const models=await localModels(env),caps=await capabilities(env);
+        // Must remain usable when ComfyUI is offline — Auto stays gated with an understandable note.
+        const caps=await capabilities(env).catch(()=>({ffmpeg:{available:false},shot:false} as any));
+        let audio:{available:boolean;model?:string}={available:false,model:'Stable Audio Open 1.0'};
+        try{audio=(await localModels(env)).audio;}catch{/* Comfy offline → Stable Audio unavailable */}
         return send(res,200,{
-          stableAudio:models.audio,ffmpeg:caps.ffmpeg,shot:caps.shot,
-          note:soundCapabilitiesNote(!!models.audio?.available),
+          stableAudio:audio,ffmpeg:caps.ffmpeg,shot:!!caps.shot,
+          note:soundCapabilitiesNote(!!audio.available),
           modes:['auto','mute','reference','replace'],
           rights:{videoVsAudio:'Video footage rights do not grant soundtrack rights.'}
         });

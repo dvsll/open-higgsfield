@@ -54,8 +54,12 @@ export async function analyzeMediaAudio(path:string,env:Env):Promise<ReferenceAu
  }catch{warnings.push('Silence detection unavailable; rhythmic cues not measured.');}
  try{
   const {stderr}=await run(tools(env).ffmpeg,['-nostdin','-hide_banner','-i',path,'-af','ebur128=peak=true','-f','null','-'],90000);
-  const i=stderr.match(/I:\s*([-\d.]+)\s*LUFS/);
-  const p=stderr.match(/Peak:\s*([-\d.]+)\s*dBFS/);
+  // ebur128 prints many momentary "I:" lines that start near −70; the Summary block is authoritative.
+  const summary=stderr.split(/Summary:/i).pop()||stderr;
+  const i=[...summary.matchAll(/I:\s*([-\d.]+)\s*LUFS/g)].pop();
+  const p=[...summary.matchAll(/Peak:\s*([-\d.]+)\s*dBFS/g)].pop()
+    ||[...summary.matchAll(/True peak:\s*[\s\S]*?([-\d.]+)\s*dBTP/gi)].pop()
+    ||[...stderr.matchAll(/TPK:\s*([-\d.]+)/g)].pop();
   if(i)loudnessLufs=Number(i[1]);
   if(p)peakDb=Number(p[1]);
  }catch{warnings.push('Loudness (ebur128) not measured on this FFmpeg build.');}
@@ -164,18 +168,56 @@ export async function mixCampaignSound(body:{
   filters.push(`[${input}:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,atrim=0:${dur},asetpts=PTS-STARTPTS,afade=t=in:st=0:d=${fadeIn},afade=t=out:st=${fadeOutStart}:d=${fadeOut},volume=${vol.toFixed(4)},adelay=${delayMs}|${delayMs},apad=whole_dur=${duration}[a${i}]`);
   mixedLabels.push(`[a${i}]`);
  });
- if(mixedLabels.length===1)filters.push(`${mixedLabels[0]}alimiter=limit=0.95[aout]`);
- else filters.push(`${mixedLabels.join('')}amix=inputs=${mixedLabels.length}:duration=first:dropout_transition=0:normalize=0,alimiter=limit=0.95[aout]`);
- args.push('-filter_complex',filters.join(';'),'-map','0:v:0','-map','[aout]','-c:v','copy','-c:a','aac','-b:a','192k','-shortest','-movflags','+faststart',dest);
+ // Mix layers to a temporary stereo bed, measure, then apply conservative gain + true-peak limit.
+ // Empty layers never reach here (mute path above). Near-silence is not boosted into noise.
+ const mixCore=mixedLabels.length===1
+  ?`${mixedLabels[0]}anull[amixed]`
+  :`${mixedLabels.join('')}amix=inputs=${mixedLabels.length}:duration=first:dropout_transition=0:normalize=0[amixed]`;
+ filters.push(mixCore);
+ const preName=randomBytes(8).toString('hex')+'.wav',prePath=join(root,preName);
+ const preArgs=[...args,'-filter_complex',filters.join(';'),'-map','[amixed]','-t',String(duration),'-ac','2','-ar','48000','-c:a','pcm_s16le',prePath];
+ try{await run(ffmpeg,preArgs,180000);}catch(e){await unlink(prePath).catch(()=>{});throw e;}
+ let preI:number|null=null,preTp:number|null=null;
  try{
-  await run(ffmpeg,args,180000);
- }catch(e){await unlink(dest).catch(()=>{});throw e;}
+  const {stderr}=await run(ffmpeg,['-nostdin','-hide_banner','-i',prePath,'-af','ebur128=peak=true','-f','null','-'],90000);
+  const summary=stderr.split(/Summary:/i).pop()||stderr;
+  const i=[...summary.matchAll(/I:\s*([-\d.]+)\s*LUFS/g)].pop();
+  const tp=[...summary.matchAll(/Peak:\s*([-\d.]+)\s*dBFS/g)].pop()
+    ||[...summary.matchAll(/True peak:\s*[\s\S]*?([-\d.]+)\s*dBTP/gi)].pop();
+  if(i)preI=Number(i[1]);
+  if(tp)preTp=Number(tp[1]);
+ }catch{/* measurement best-effort */}
+ const targetI=-16;
+ // Skip boost only for true noise-floor beds (no usable peak). Quiet real beds still get gain toward target.
+ const nearSilent=preI==null||(preI<-60&&(preTp==null||preTp<-50));
+ const gainDb=nearSilent?0:Math.max(-12,Math.min(28,targetI-(preI as number)));
+ let loudnessNote=` Pre-mix I=${preI??'n/a'} LUFS, TP=${preTp??'n/a'}.`;
+ if(nearSilent)loudnessNote+=' Near-silent bed left unboosted (silence is never normalized into noise).';
+ else loudnessNote+=` Applied ${gainDb.toFixed(1)} dB toward I=${targetI} LUFS, then true-peak limit.`;
+ const vol=Math.pow(10,gainDb/20);
+ try{
+  await run(ffmpeg,[
+   '-nostdin','-hide_banner','-loglevel','error','-y',
+   '-i',master,'-i',prePath,
+   '-filter_complex',`[1:a]volume=${vol.toFixed(6)},alimiter=limit=0.89:level=false[aout]`,
+   '-map','0:v:0','-map','[aout]','-c:v','copy','-c:a','aac','-b:a','192k','-ar','48000','-ac','2',
+   '-t',String(duration),'-movflags','+faststart',dest
+  ],180000);
+ }catch(e){await unlink(dest).catch(()=>{});await unlink(prePath).catch(()=>{});throw e;}
+ await unlink(prePath).catch(()=>{});
+ let measured:{integratedLufs?:number|null;truePeakDb?:number|null;preIntegratedLufs?:number|null;gainDb?:number}={preIntegratedLufs:preI,gainDb};
+ try{
+  const info=await analyzeMediaAudio(dest,env);
+  measured={...measured,integratedLufs:info.loudnessLufs,truePeakDb:info.peakDb};
+  loudnessNote+=` Delivered I=${info.loudnessLufs??'n/a'} LUFS, peak=${info.peakDb??'n/a'} dBFS.`;
+ }catch{/* measurement optional */}
  return {
   url:'/outputs/'+name,
   silentMaster:body.silentMaster,
   seconds:duration,
   layers:layers.length,
   hasAudio:true,
-  note:'Mixed with FFmpeg AAC. Silent master unchanged. Levels use alimiter to reduce clipping.'
+  loudness:{targetIntegratedLufs:targetI,targetTruePeakDbTp:-1.5,...measured},
+  note:'Mixed with FFmpeg AAC stereo. Silent master unchanged. Conservative loudness + true-peak limiting; silence is never normalized into noise.'+loudnessNote
  };
 }

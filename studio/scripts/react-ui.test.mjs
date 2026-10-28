@@ -59,7 +59,7 @@ try {
   assert.ok(!html.includes('<img src=x'));
   assert.ok(html.includes('aria-selected="true"'));
   assert.ok(html.includes('title="Add shot"'));
-  const expandedScenes=renderToStaticMarkup(createElement(SequenceTrack,{expanded:true,clips:[{id:'a',name:'First',duration:2,selected:true,generated:false,width:100,height:80,offset:0,bind:()=>{}},{id:'b',name:'Second',duration:3,selected:false,generated:false,width:150,height:80,offset:100,bind:()=>{}}]}));assert.equal((expandedScenes.match(/class="sequence-scene-row"/g)||[]).length,2);assert.match(expandedScenes,/padding-left:100px/);
+  const expandedScenes=renderToStaticMarkup(createElement(SequenceTrack,{expanded:true,clips:[{id:'a',name:'First',duration:2,selected:true,generated:false,width:100,height:80,offset:0,bind:()=>{}},{id:'b',name:'Second',duration:3,selected:false,generated:false,width:150,height:80,offset:100,bind:()=>{}}]}));assert.doesNotMatch(expandedScenes,/sequence-scene-row|padding-left/);assert.equal((expandedScenes.match(/data-timeline-selection-id="shot:/g)||[]).length,2);
   const {TrackAttributes}=await server.ssrLoadModule('/studio/src/react/track-attributes.tsx');const noSelection=renderToStaticMarkup(createElement(TrackAttributes,{kind:'video',options:{selected:-1,offset:0,shots:[]}}));assert.match(noSelection,/Select a video scene/);
   const ruler = renderToStaticMarkup(createElement(Ruler, { duration: 2, pixels: 100, half: true }));
   assert.ok(ruler.includes('left:150px'));

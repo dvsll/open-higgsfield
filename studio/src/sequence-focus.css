@@ -7,13 +7,11 @@
 .tl #audioTrackToggle,.tl #audioTrack{grid-row:4;margin-top:0}
 .tl #videoTrackToggle{align-self:start}
 .window-body .tl #trk{height:80px;min-height:80px;overflow:visible}
-.window-body .tl #trk.expanded-scenes{display:block;height:auto!important;min-height:80px}
-.sequence-scene-row{height:84px;box-sizing:border-box;border-bottom:1px solid #ffffff09;min-width:0}
+.window-body .tl #trk.expanded-scenes{display:flex;height:80px!important;min-height:80px}
 .window-body .tl .clip{height:80px;box-sizing:border-box}
 .window-body .tl .clip .lbl{top:0!important;height:20px;background:#20232a}
 .window-body .tl .clip .strip{position:absolute;left:0;top:20px;height:58px;width:100%}
 .window-body .tl .addclip{height:80px;flex:none}
-.expanded-scenes>.addclip{position:absolute;right:0;bottom:0;height:28px!important;width:28px;margin:0}
 .tl:has(.track-toggle[aria-expanded=true]) .track-toggle:not([aria-expanded=true]),
 .tl:has(.track-toggle[aria-expanded=true]):has(#overlayTrackToggle:not([aria-expanded=true])) #overlayTrack,
 .tl:has(.track-toggle[aria-expanded=true]):has(#videoTrackToggle:not([aria-expanded=true])) #trk,
@@ -36,7 +34,7 @@
 .sequence-inspector p{overflow-wrap:anywhere;line-height:1.5}
 .sequence-inspector .attributes-caption{padding:8px 0;border-top:1px solid var(--ui-border);font-weight:600;color:var(--ui-text)}
 
-.expanded-scenes{position:relative}.expanded-scenes .insert-line{width:100%;height:2px!important;bottom:auto;left:0}.expanded-scenes .insert-line:before{top:0}
+.expanded-scenes{position:relative}
 
 .sequence-inspector .fps-field{display:block}.sequence-inspector .fps-field label{width:100%;box-sizing:border-box}.sequence-inspector .fps-recommendation{margin:4px 8px}.sequence-inspector #videoDuration,.sequence-inspector .video-timing>small{padding:6px 8px}.sequence-inspector .properties-empty{color:var(--ui-muted)}
 

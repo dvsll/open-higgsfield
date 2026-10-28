@@ -4,6 +4,9 @@ Append dated decisions, render times and requests here. Only the studio owner ed
 
 ## Where we left off (update this before switching agents)
 
+**Latest handoff - 2026-10-28, one video lane:** Expanded video now shows all clips side by side in a single80px row, rather than a separate offset row per scene. Removed per-scene row wrappers/CSS and vertical reorder cue logic; insertion uses horizontal time boundaries in both collapsed and expanded modes. Thumbnails, header controls and boundary links retained. Typecheck and updated React regression pass.
+
+
 **Latest handoff - 2026-10-28, readable clip headers and frame-bound join:** React clip title now has its own shrinking/ellipsis span; controls/status share a bounded row with fixed icon dimensions, compact Open icon and progressively hidden decorative content at small widths. Linked sound no longer floats over collapsed headers. Actual adjacent continuation whose START image matches captured frame and whose previous source video matches gets two green bars crossing the shared boundary, as user sketch; accessible join button unlinks grouping while retaining START image. Nonadjacent/stale-source lineage keeps header chain control. Button clicks/double-clicks excluded from clip open/select handler. Typecheck/build and React UI regression pass; no visual browser verification claimed (existing error tab).
 
 

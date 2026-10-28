@@ -10,7 +10,7 @@ import './prompt-media.css';
 
 export function PromptMedia(){
  const root=useRef<HTMLDivElement>(null),[media,setMedia]=useState<'video'|'audio'|'image'|'3d'>('video');
- useEffect(()=>{const change=(event:Event)=>setMedia(['audio','image','3d'].includes((event as CustomEvent).detail)?(event as CustomEvent).detail:'video');addEventListener('osh-prompt-media',change);return()=>removeEventListener('osh-prompt-media',change)},[]);
+ useEffect(()=>{const change=(event:Event)=>setMedia(['audio','image','3d'].includes((event as CustomEvent).detail)?(event as CustomEvent).detail:'video');addEventListener('osh-prompt-media',change);change(new CustomEvent('osh-prompt-media',{detail:document.body.dataset.promptMedia}));return()=>removeEventListener('osh-prompt-media',change)},[]);
  useEffect(()=>{const composer=root.current?.closest<HTMLElement>('.composer');if(composer)composer.dataset.media=media},[media]);
  return <div className="prompt-media" ref={root}><div className="prompt-header"><label className="prompt-media-type">Media<select aria-label="Prompt media type" value={media} onChange={e=>dispatchEvent(new CustomEvent('osh-prompt-media-request',{detail:e.target.value}))}><option value="video">Video</option><option value="audio">Audio</option><option value="image">Image</option><option value="3d">3D</option></select></label><div id="promptModelSlot"/></div><div id="geometryPromptSlot" hidden={media!=='3d'}/><div hidden={media!=='audio'}><AudioComposer/></div></div>;
 }

@@ -15,7 +15,7 @@ import './sequence-transport.css';
 import { mountProjectFiles } from './project-files';
 
 import { panel, split, ids, remove, dock, valid, preview,dockAtSize, type Edge, type LayoutNode } from './window-layout';
-import {workspaceNameError,recycleWorkspace,restoredWorkspaceName,type Setup} from './workspace-setups';
+import {workflowPromptMedia,workspaceNameError,recycleWorkspace,restoredWorkspaceName,type Setup} from './workspace-setups';
 
 type Store = { version: 2; active: string; layouts: Record<string, Setup>; notes: Record<string, { title: string; text: string }>; deletedLayouts?:Record<string,Setup> };
 const KEY = 'osh-window-workspace-v2';
@@ -198,16 +198,18 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
   if(name==='__restore'){picker.value=active;const last=Object.keys(store.deletedLayouts||{}).at(-1);if(last)restoreWorkspace(last);return false}
   if(name==='__bin'){picker.value=active;openRecycleBin();return false}
   if(switching)return false;const next=clone(store.layouts[name]||presets[name]||fallback);
+  if(!custom){next.promptMedia=workflowPromptMedia(name,next);next.mode=next.promptMedia==='image'?'image':'video'}
   if(!custom&&name==='Edit')document.dispatchEvent(new Event('osh-edit-entering'));
   if(!custom)next.tree=remove(next.tree,'properties');
   if(next.tree&&!valid(next.tree,new Set(panels.keys())))next.tree=clone(fallback.tree);
   switching=true;try{workflow(next.mode)}finally{switching=false}
   // A running generation can decline a creation-mode change. Keep its current layout and mode together.
   if(document.body.dataset.workflow!==next.mode){choices();return false}
-  active=name;setup=next;if(!custom)dispatchEvent(new CustomEvent('osh-prompt-media',{detail:next.promptMedia||(name==='Audio'?'audio':next.mode==='image'?'image':'video')}));choices();render();persist();document.dispatchEvent(new CustomEvent('osh-workspace-selected',{detail:{name,mode:setup.mode}}));return true;
+  active=name;setup=next;if(!custom)publishPromptMedia(next.promptMedia!);choices();render();persist();document.dispatchEvent(new CustomEvent('osh-workspace-selected',{detail:{name,mode:setup.mode}}));return true;
  }
  if(!custom)setup.tree=remove(setup.tree,'properties');
- const promptMedia=(media:string)=>{switching=true;try{workflow(media==='image'?'image':'video')}finally{switching=false}if(document.body.dataset.workflow!==(media==='image'?'image':'video'))return;setup.mode=media==='image'?'image':'video';setup.promptMedia=media==='image'?'image':media==='audio'?'audio':media==='3d'?'3d':'video';dispatchEvent(new CustomEvent('osh-prompt-media',{detail:media}));persist()};
+ const publishPromptMedia=(media:string)=>{document.body.dataset.promptMedia=media;dispatchEvent(new CustomEvent('osh-prompt-media',{detail:media}))};
+ const promptMedia=(media:string)=>{switching=true;try{workflow(media==='image'?'image':'video')}finally{switching=false}if(document.body.dataset.workflow!==(media==='image'?'image':'video'))return;setup.mode=media==='image'?'image':'video';setup.promptMedia=media==='image'?'image':media==='audio'?'audio':media==='3d'?'3d':'video';publishPromptMedia(setup.promptMedia);persist()};
  if(!custom)addEventListener('osh-prompt-media-request',((event:CustomEvent)=>promptMedia(event.detail)) as EventListener);
  addEventListener('osh-reveal-window',((event:CustomEvent)=>{if(!custom&&event.detail==='keyframes'){promptMedia('image');openWindow('prompts');return}if(panels.has(event.detail))openWindow(event.detail)}) as EventListener);
  document.addEventListener('osh-workspace-select',((event:CustomEvent)=>{if(presets[event.detail]||!custom&&event.detail==='Director')select(event.detail)}) as EventListener);
@@ -270,5 +272,5 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
  top.querySelectorAll<HTMLButtonElement>('[data-workflow]').forEach(button => button.addEventListener('click', () => select(button.dataset.workflow === 'image' ? 'Image' : 'Video')));
  document.addEventListener('osh-workflow-changed', ((event: CustomEvent) => { if (!switching && setup.mode !== event.detail) select(event.detail === 'image' ? 'Image' : 'Video'); }) as EventListener);
  const observer = new ResizeObserver(refresh); observer.observe(board); for (const element of panels.values()) observer.observe(element);
- addEventListener('resize', refresh); if(!custom)setup.tree=remove(setup.tree,'properties'); if (setup.tree && !valid(setup.tree, new Set(panels.keys()))) setup = clone(fallback); choices(); render(); persist();if(!custom)dispatchEvent(new CustomEvent('osh-prompt-media',{detail:setup.promptMedia||(active==='Audio'?'audio':setup.mode==='image'?'image':'video')}));
+ addEventListener('resize', refresh); if(!custom)setup.tree=remove(setup.tree,'properties'); if (setup.tree && !valid(setup.tree, new Set(panels.keys()))) setup = clone(fallback); if(!custom){setup.promptMedia=workflowPromptMedia(active,setup);setup.mode=setup.promptMedia==='image'?'image':'video';switching=true;try{workflow(setup.mode)}finally{switching=false}publishPromptMedia(setup.promptMedia)}choices(); render(); persist();
 }

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {basicVideoWorkspace,workspaceNameError,recycleWorkspace,restoredWorkspaceName} from '../src/workspace-setups.ts';
+import {workflowPromptMedia,basicVideoWorkspace,workspaceNameError,recycleWorkspace,restoredWorkspaceName} from '../src/workspace-setups.ts';
 import {ids,panel} from '../src/window-layout.ts';
 const base=basicVideoWorkspace();
 assert.equal(base.mode,'video');
@@ -21,3 +21,8 @@ assert.equal(workspaceNameError('Mine',['Video','Mine'],'Mine'),'');
 assert.ok(workspaceNameError('mine',['Video','Mine'],'Mine'));
 assert.equal(workspaceNameError('Fresh',['Video','Mine']),'');
 console.log('PASS: minimal independent video layouts, preset protection, recoverable custom deletion, persistence, restore collisions and safe workspace names.');
+
+for(const [name,media] of Object.entries({Video:'video',Image:'image',Audio:'audio','3D':'3d'}))for(const saved of ['video','image','audio','3d'])assert.equal(workflowPromptMedia(name,{tree:null,mode:saved==='image'?'image':'video',promptMedia:saved}),media);
+assert.equal(workflowPromptMedia('Custom',{tree:null,mode:'video',promptMedia:'audio'}),'audio');
+assert.equal(workflowPromptMedia('Custom',{tree:null,mode:'image'}),'image');
+console.log('PASS: creation workflow media overrides stale saved choices; custom layouts retain their media.');

@@ -19,3 +19,8 @@ export function restoredWorkspaceName(name:string,names:string[]):string{
  let index=2;while(names.some(n=>n.toLowerCase()===`${name} (${index})`.toLowerCase()))index++;
  return `${name} (${index})`;
 }
+
+/** Named creation workflows always enter their matching media; custom layouts retain their choice. */
+export function workflowPromptMedia(name:string,setup:Setup):NonNullable<Setup['promptMedia']>{
+ return ({Video:'video',Image:'image',Audio:'audio','3D':'3d'} as const)[name as 'Video'|'Image'|'Audio'|'3D']||setup.promptMedia||(setup.mode==='image'?'image':'video');
+}

@@ -25,12 +25,12 @@ export async function bootStudio(surface: ReactNode, start: () => Promise<unknow
     logBrowserError(error,'Studio startup');
     console.error('Studio startup failed', error);
     flushSync(() => root.render(
-      <main className="studio-startup-error" role="alert">
+      <div className="studio-startup-error" role="alert"><div className="studio-startup-error-content">
         <h1>Studio couldn’t open</h1>
         <p>Your saved projects are still in this browser.</p>
         <p>{error instanceof Error ? error.message : 'An unexpected error occurred.'}</p>
         <button onClick={() => location.reload()}>Reload Studio</button>
-      </main>,
+      </div></div>,
     ));
     document.body.dataset.studioBoot = 'error';
   } finally {

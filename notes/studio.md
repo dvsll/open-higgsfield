@@ -4,6 +4,9 @@ Append dated decisions, render times and requests here. Only the studio owner ed
 
 ## Where we left off (update this before switching agents)
 
+**Latest handoff - 2026-10-27, startup regression repair:** User screenshot showed startup null-control crash and recovery copy squeezed into a thin workspace column. Previous media-sync change called legacy workflow before dock render attached service panels. Startup now renders connected/parked dock surfaces first, then applies workflow/media and persists. Actual startup-tail regression executes every creation preset and asserts render-before-controller order. Recovery uses fixed viewport div/content instead of globally styled main; contained scroll, readable480px content and wrapping isolate it from Director grid rules. Typecheck/production build and targeted workspace regression pass. No project data cleared, backend/model changes or visual browser acceptance claim.
+
+
 **Latest handoff - 2026-10-27, workflow Prompt media sync:** Selecting Video/Image/Audio/3D now forces matching Prompt media and controller mode, overriding stale saved media on named workflows. Initial page restore does the same; custom workspaces retain saved choice. Prompt subscription reads current body media snapshot after subscribing so initial React effect timing cannot lose the selection event. Manual media switch remains available within a workflow. Typecheck/build and24 Studio scripts pass; matrix regression covers every stale saved type and custom preservation. Browser visual verification remains unavailable from the existing connection-error tab. No backend/model/dependency change.
 
 

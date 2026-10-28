@@ -26,3 +26,15 @@ for(const [name,media] of Object.entries({Video:'video',Image:'image',Audio:'aud
 assert.equal(workflowPromptMedia('Custom',{tree:null,mode:'video',promptMedia:'audio'}),'audio');
 assert.equal(workflowPromptMedia('Custom',{tree:null,mode:'image'}),'image');
 console.log('PASS: creation workflow media overrides stale saved choices; custom layouts retain their media.');
+
+// Run the real dock startup tail: legacy controller callbacks must see connected controls.
+const {readFileSync}=await import('node:fs');
+const dockCode=readFileSync(new URL('../src/workspace-dock.ts',import.meta.url),'utf8');
+const startup=dockCode.slice(dockCode.lastIndexOf(" addEventListener('resize', refresh);"),dockCode.lastIndexOf('}'));
+for(const name of ['Video','Image','Audio','3D']){
+ let connected=false,applied=null,published=null,persisted=false;
+ const ctx={custom:false,setup:{tree:null,mode:'image',promptMedia:'image'},active:name,panels:new Map(),fallback:{},switching:false,addEventListener(){},refresh(){},remove:tree=>tree,valid:()=>true,clone:structuredClone,choices(){},render(){connected=true},workflow:mode=>{assert.ok(connected,'Workflow cannot run while service controls are detached');applied=mode},publishPromptMedia:media=>{published=media},persist(){persisted=true},workflowPromptMedia};
+ Function('ctx','with(ctx){'+startup+'}')(ctx);
+ assert.equal(published,{Video:'video',Image:'image',Audio:'audio','3D':'3d'}[name]);assert.equal(applied,name==='Image'?'image':'video');assert.ok(persisted);
+}
+console.log('PASS: real dock initialization mounts service hosts before applying workflow media.');

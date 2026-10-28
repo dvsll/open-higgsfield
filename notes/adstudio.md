@@ -611,4 +611,5 @@ Studio coordination 2026-10-27: additive protected local GET /api/errors, bounde
 
 2026-10-27 Studio additive segmentation list: /api/image-selection list:true returns capped16 individual mask rows; existing text/point unchanged. No model/dependency additions.
 
-2026-10-27 Studio shared Alpha Gen integration: additive /api/cutout readiness, /api/cutout/workflow export and SDK-native /api/cutout POST; optional gated cutout_ltx25 adapter pack. Existing video/model/selection routes unchanged. Matching LTX2.5 stack+official extension mandatory; no gated download or fake2B fallback. Native alpha transport tested, Alpha Gen inference blocked by missing prerequisites.
+
+2026-10-27 Studio coordination: user requested removal of LTX Alpha Gen cutout integration. Removed additive cutout routes, workflow and optional model pack; existing generation and Meta image segmentation unchanged.

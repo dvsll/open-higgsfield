@@ -1,4 +1,3 @@
-import {VideoCutout} from './video-cutout';
 import { useEffect, useRef } from 'react';
 import type { Media } from '../shell';
 type AppEntry = [string, string, string, ('shot' | 'keyframe' | 'frame')[]];
@@ -82,7 +81,6 @@ export function SelectedMedia({
         <span className="ty">{media.audio&&!media.img&&!media.video?'Audio':{ shot: 'Shot', keyframe: 'Keyframe', frame: 'Frame' }[media.type]}</span>
         <b>{media.label}</b>
       </div>
-      {media.video&&<VideoCutout video={media.video}/>}
       <div className="openin">
         {apps.map(([id, name, , types]) => {
           const available =

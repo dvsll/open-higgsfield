@@ -142,3 +142,20 @@ const animateCtx={$:()=>animateControl,touring:()=>true,onboarding:{entry:'image
  const ctx={generationDraft:null,currentShot:()=>scene,SH:[scene],busy:async(_,job)=>job(),$:()=>({open:true}),shouldRewriteBeforeGeneration:()=>false,localGeneration:{shot:async()=>({url:'/outputs/library.webm',frames:97,duration:4,fps:24})},shotPrompt:s=>s.prompt,start:()=>0,G:2,setPlaying:()=>{},pushHist:(asset,reveal)=>output={asset,reveal},shotId:s=>s.id,touring:()=>false};
  const render=Function('ctx','with(ctx){'+shotCode+';return realShot}')(ctx);await render(0,'Render',true);assert.equal(scene.video,'/outputs/original.webm');assert.equal(ctx.G,2);assert.equal(output.asset.url,'/outputs/library.webm');assert.equal(output.reveal,true);
 }
+
+// Exercise the real dock transition handler and open/close functions without a browser.
+const dockSource=readFileSync(new URL('../src/workspace-dock.ts',import.meta.url),'utf8');
+const {stripTypeScriptTypes}=await import('node:module');
+const transpileModule=source=>({outputText:stripTypeScriptTypes('function fixture(){'+source+'}')+';return fixture();'});
+const layout=await import('../src/window-layout.ts');
+function declaration(name){const begin=dockSource.indexOf(' function '+name+'(');let braces=0,seen=false;for(let i=dockSource.indexOf('{',begin);i<dockSource.length;i++){if(dockSource[i]==='{'){braces++;seen=true}if(dockSource[i]==='}'&&!--braces&&seen)return dockSource.slice(begin,i+1)}throw Error('Missing '+name)}
+const handler=dockSource.slice(dockSource.indexOf(" if(!custom)addEventListener('osh-tour-single-video'"),dockSource.indexOf(' const names=()=>'));
+const replace=dockSource.slice(dockSource.indexOf(' const replacePanel='),dockSource.indexOf(' const persist ='));
+const harness=transpileModule(`let setup={tree:initial},tutorialSlot=null;const custom=false;let renders=0;const render=()=>renders++,persist=()=>{};let listener;const addEventListener=(name,fn)=>listener=fn;${replace}${declaration('openWindow')}${declaration('closeWindow')}${handler};return {mode:detail=>listener({detail}),close:()=>closeWindow('tour-video'),open:()=>openWindow('timeline'),tree:()=>setup.tree,slot:()=>tutorialSlot};`,{}).outputText;
+const initial=layout.split('y',layout.split('x',layout.panel('prompts'),layout.panel('viewer'),.4),layout.panel('timeline'),.75);
+const make=()=>new Function('initial','ids','panel','split','remove','clone','dispatchEvent',harness)(structuredClone(initial),layout.ids,layout.panel,layout.split,layout.remove,structuredClone,()=>{});
+const guided=make();guided.mode('single');assert.deepEqual(layout.ids(guided.tree()),['prompts','viewer','tour-video']);guided.mode('single');guided.close();assert.deepEqual(layout.ids(guided.tree()),['prompts','viewer']);assert.ok(guided.slot());guided.mode('await-timeline');guided.open();assert.deepEqual(guided.tree(),initial);assert.equal(guided.slot(),null);
+const resumed=make();resumed.mode('await-timeline');assert.deepEqual(layout.ids(resumed.tree()),['prompts','viewer']);resumed.open();assert.deepEqual(resumed.tree(),initial);
+const skipped=make();skipped.mode('single');skipped.mode('normal');assert.deepEqual(skipped.tree(),initial);
+assert.ok(dockSource.includes("filter(([id])=>id!=='tour-video')"));
+console.log('PASS: onboarding-only single clip, close/add in original split, resume and skip cleanup.');

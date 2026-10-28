@@ -7,7 +7,7 @@ import './onboarding-guidance.css';
 import { SC } from './scene';
 import {lockTourInteraction} from './onboarding-interaction';
 import { workflowTourStep, canResumeWorkflow, firstVisit, profileKey, readProfile, windowLesson, workflowForSetup, type Experience, type Workflow } from './onboarding-progress';
-export type TourState = { step:string; nextWorkflow?:Workflow; shotId:string; images:string[]; dismissed?:boolean; suspended?:boolean; experience?:Experience; entry?:Workflow; firstVideo?:string|null; afterReview?:'switch-image'|'add-scenes'; guidePrompts?:string[]; videoReviewed?:boolean; suppressAutomatic?:boolean };
+export type TourState = { step:string; nextWorkflow?:Workflow; shotId:string; images:string[]; dismissed?:boolean; suspended?:boolean; experience?:Experience; entry?:Workflow; firstVideo?:string|null; afterReview?:'switch-image'|'add-scenes'; guidePrompts?:string[]; videoReviewed?:boolean; timelineIntroduced?:boolean; suppressAutomatic?:boolean };
 type Options = { get:()=>TourState|null; set:(state:TourState)=>void; save:()=>void; choose:(entry:Workflow)=>void; begin:(entry:Workflow)=>TourState; current:()=>Workflow };
 type Tip = { title:string; text:string; target?:string; secondary?:string; next?:string; diagram?:'add'|'position' };
 const names:Record<Workflow,string>={video:'Video',image:'Image',director:'Director',rendering:'Rendering',edit:'Edit', '3d':'3D'};
@@ -114,6 +114,9 @@ export function mountOnboardingTour(options:Options) {
   }
   const tips:Record<string,Tip>={
    prompt:localStep===0?{title:'Describe your first scene',text:beginner?'Your shot prompt describes what the camera sees. We prepared a tiny copper robot watering a flower. Keep it or make it yours.':pro?'Edit the prepared shot prompt. Motion and audio are optional.':'Use the prepared scene or write your own. Motion and audio have separate prompt boxes.',target:'#shotPromptInput',next:'Next: generate'}:{title:'Bring it to life',text:beginner?'Press the highlighted Generate video button. No keyframes are required. We’ll continue when your video is ready.':'Press Generate video. The walkthrough continues when the video is ready.',target:'#gen'},
+   'close-first-video':{title:'Make room for the sequence',text:'This window holds just your first video. Close First video with its X. Your video stays in the project.',target:'[data-window="tour-video"] .window-close'},
+   'add-timeline':{title:'Add the full timeline',text:document.querySelector('.window-menu[open]')?'Choose Sequence. It will replace First video in the same space.':'Open Windows, then choose Sequence to put the full timeline in that space.',target:document.querySelector('.window-menu[open]')?'.window-menu button[data-window="timeline"]':'.window-menu > summary'},
+   'timeline-intro':{title:'From one video to a sequence',text:'Sequence arranges your scenes in time. Drag the ruler to seek; the rows below hold video, linked sound and overlays. Next, we’ll add image guides to this scene.',target:'[data-window="timeline"] .window-body',next:'Next: image guides'},
    'play-video':{title:'Play your video',text:'Your video is ready. Press Play in the timeline viewer to watch it.',target:'#play'},
    'switch-image':{title:'Try the Image workflow',text:document.getElementById('workspacePickerMenu')?'Choose Image in the highlighted row. Your video stays in this project.':beginner?'Your first video is ready. Now let’s guide its next take with pictures. Open the workspace selector at the top and choose Image. Your video stays in this project.':'Choose Image in the workspace selector to create two guides for this scene. Your video and timeline are preserved.',target:document.getElementById('workspacePickerMenu')?'#workspacePickerMenu [data-workspace-choice="Image"]':'[aria-label="Workspace setup"]'},
    keyframes:localStep===0?{title:state.images.length?'Describe the END frame':'Describe the START frame',text:state.images.length?'Change the prompt to describe how this scene ends. Keep the subject and setting, and change its pose or action.':'Describe how the scene begins. Generate this START image first; next you’ll write a different prompt for END.',target:'#kp',next:state.images.length?'Next: generate END':'Next: generate START'}:{title:state.images.length?'Generate the END frame':'Generate the START frame',text:state.images.length?'Generate your second image from the new END prompt.':'Generate the opening image. Then we’ll guide you back to the prompt for the ending image.',target:'#kgo'},
@@ -133,6 +136,8 @@ export function mountOnboardingTour(options:Options) {
   };return tips[state.step]||tips.prompt;
  }
  function render(){
+  const currentState=options.get();
+  dispatchEvent(new CustomEvent('osh-tour-single-video',{detail:currentState&&!currentState.dismissed&&!currentState.suspended&&currentState.entry==='video'&&['prompt','play-video','watch-video','close-first-video','add-timeline'].includes(currentState.step)?currentState.step==='add-timeline'?'await-timeline':'single':'normal'}));
   workflowChoices();
   const state=options.get();popup.hidden=!state||!!state.dismissed||!!state.suspended||state.step==='watch-video';shade.style.display='none';rings.forEach(r=>r.hidden=true);if(popup.hidden){chooser?.close();interaction.sync();return}
   if(profile.experience)state!.experience=profile.experience;
@@ -147,7 +152,7 @@ export function mountOnboardingTour(options:Options) {
   const current=done?undefined:tip(state!);if(current)targets=state!.step==='add'?[...state!.images.slice(0,2).map((_,index)=>`[data-tour-guide="${index}"]`),'#trk']:[current.target,current.secondary].filter(Boolean) as string[];
   renderView(popup,createElement(TourPopover,{experience:state!.experience!,entry:state!.entry!,done,tip:current,onLater:['switch-image','workflow-switch'].includes(state!.step)?()=>end(true):undefined,onSkip:()=>end(!done),onFinish:()=>end(),onWorkflow:entry=>{state!.nextWorkflow=entry;state!.step='workflow-switch';persist();render()},onNext:()=>{
    if(['prompt','image','keyframes'].includes(state!.step)&&localStep===0){localStep=1;document.querySelector(state!.step==='prompt'?'#gen':'#kgo')?.scrollIntoView({block:'nearest'});render();return}
-   state!.step=state!.step==='render-settings'?'render-takes':state!.step==='edit-settings'?'edit-review':'done';persist();render();
+   state!.step=state!.step==='timeline-intro'?(state!.afterReview||'switch-image'):state!.step==='render-settings'?'render-takes':state!.step==='edit-settings'?'edit-review':'done';persist();render();
   }}));
   interaction.sync();
  }
@@ -164,7 +169,7 @@ export function mountOnboardingTour(options:Options) {
   rings.forEach((ring,i)=>{const b=rects[i];ring.hidden=!b;if(b)Object.assign(ring.style,{left:b.left-3+'px',top:b.top-3+'px',width:b.width+6+'px',height:b.height+6+'px'})});
  }
  document.addEventListener('osh-workspace-selected',((event:CustomEvent<{name:string;mode:string}>)=>{if(switching||chooser?.open)return;if(['Audio','Overlays','Training'].includes(event.detail.name)){pause();render();return}const state=options.get();if(state&&!state.dismissed&&(!state.experience||!state.entry))return;const entry=workflowForSetup(event.detail.name,event.detail.mode);if(state?.step==='workflow-switch'&&state.nextWorkflow===entry){start(entry,true,false);return}const bridge=workflowTourStep(state,entry);if(bridge&&state){state.step=bridge;persist();render();return}if(state?.entry===entry&&!state.dismissed&&!state.suspended)return;if(profile.experience)start(entry,false,false)}) as EventListener);
- const refreshWindows=()=>{if(!chooser?.open)render()};
+ const refreshWindows=()=>{const state=options.get();const visible=new Set([...document.querySelectorAll<HTMLElement>('.window-board .studio-window:not([hidden])')].map(p=>p.dataset.window));if(state?.entry==='video'&&!state.dismissed&&!state.suspended){if(state.step==='close-first-video'&&!visible.has('tour-video')){state.step='add-timeline';persist()}else if(state.step==='add-timeline'&&visible.has('timeline')){state.timelineIntroduced=true;state.step='timeline-intro';persist();dispatchEvent(new Event('osh-tour-keyframe-view'))}}if(!chooser?.open)render()};
  document.addEventListener('osh-workspace-picker-changed',refreshWindows);
  document.addEventListener('osh-window-layout-changed',refreshWindows);
  document.addEventListener('toggle',event=>{if((event.target as HTMLElement)?.matches('.window-menu'))refreshWindows()},true);

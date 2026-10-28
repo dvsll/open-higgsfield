@@ -1,7 +1,6 @@
 {
   "_note": "Model packs, paths relative to a ComfyUI models/ folder. Each capability lists packs best-first; the installer picks the best one that fits the GPU and reuses anything already on disk. `fast` packs are small development models. `alternates` are other filenames that work the same way in our workflow. Sizes/licenses checked against Hugging Face on 2026-10-26.",
   "packs": [
-    {"id":"cutout_ltx25","capability":"cutout","tier":"best","label":"Video cutout · LTX2.5 Alpha Gen","minVramGB":32,"gated":true,"note":"Requires matching LTX2.5 video pack and ComfyUI-LTXVideo nodes. Accept model access at https://huggingface.co/Lightricks/LTX-2.5-22b-IC-LoRA-Alpha-Gen before downloading."},
     {"id":"selection_sam31","capability":"segmentation","tier":"best","label":"Selection · SAM3.1","minVramGB":6},
     { "id": "geometry_hunyuan_mini", "capability": "geometry", "tier": "fast", "label": "3D · Hunyuan mini geometry + training encoder", "minVramGB": 8, "note": "Open-weight geometry model under Tencent Hunyuan Community License; upstream territorial/use restrictions apply. Geometry only; no material training." },
     { "id": "video_ltx25", "capability": "video", "tier": "best", "label": "Video · LTX-2.5 22B (best)", "minVramGB": 32, "gated": true,
@@ -14,7 +13,6 @@
     { "id": "audio_stable", "capability": "audio", "tier": "best", "label": "Audio · Stable Audio Open", "minVramGB": 6 }
   ],
   "models": [
-    {"file":"loras/ltx-2.5-22b-ic-lora-alpha-gen-0.9.safetensors","size_gb":1.31,"used_by":"cutout_ltx25","license":"LTX-2.x Community License","gated":true,"sha256":"d9e143f979e0756f0c83d772e6a8890f4c6b933db1f7d93fc06e25c179f3fd36","url":"https://huggingface.co/Lightricks/LTX-2.5-22b-IC-LoRA-Alpha-Gen/resolve/main/ltx-2.5-22b-ic-lora-alpha-gen-0.9.safetensors"},
     {"file":"checkpoints/sam3.1_multiplex_fp16.safetensors","size_gb":1.75,"used_by":"selection_sam31","license":"SAM License","sha256":"9ba99c92703c2e8b4f47de2d34a539bb8e18923049e238b780d70dbe6368eb03","url":"https://huggingface.co/Comfy-Org/sam3.1/resolve/main/checkpoints/sam3.1_multiplex_fp16.safetensors"},
     { "file": "checkpoints/hunyuan3d-dit-v2-mini.safetensors", "size_gb": 3.82, "used_by": "geometry_hunyuan_mini", "license": "Tencent Hunyuan Community License", "sha256": "3cc66f3bea33e4062b7dbc875ffe1d70c4888914aec3e91b60f94e9bd01b522b", "url": "https://huggingface.co/tencent/Hunyuan3D-2mini/resolve/f90a0f7df7d5e6f71109cf333f6a95a0ae3194a6/hunyuan3d-dit-v2-mini/model.fp16.safetensors" },
     { "file": "vae/hunyuan3d-vae-v2-mini-withencoder.ckpt", "size_gb": 0.66, "used_by": "geometry_hunyuan_mini", "license": "Tencent Hunyuan Community License", "sha256": "d1895606c20a05d6c6282cc8c142d30cb721864218d302cf4faa9e45096306ad", "url": "https://huggingface.co/tencent/Hunyuan3D-2mini/resolve/f90a0f7df7d5e6f71109cf333f6a95a0ae3194a6/hunyuan3d-vae-v2-mini-withencoder/model.fp16.ckpt" },

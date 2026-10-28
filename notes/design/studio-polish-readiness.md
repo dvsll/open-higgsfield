@@ -23,7 +23,3 @@ Prompt-to-OBJ generation is now proven with a real stool using installed Z-Image
 
 ### 2026-10-27: blockout acceptance correction
 The gray-chair and horror-corridor videos do not establish faithful blockout transfer. Current3-frame RGB handoff is sparse image guidance only. Structure-preserving depth/motion conditioning and primitive scene blocking are still missing; see [correction and acceptance case](blockout-previz-correction.md). Do not present visual restyling as successful camera/layout transfer.
-
-
-### 2026-10-27: LTX Alpha Gen support
-Selected videos expose a shared popup with readiness, importable native ComfyUI workflow and cutout action. Backend graph supports LTX2.5 Alpha Gen grayscale matte and native alpha compositing from source RGB, trimmed back to original framing/timing, with Project files registration. Local machine lacks matching LTX2.5 stack, gated adapter and two official extension nodes: no Alpha Gen inference or matting-quality acceptance claimed. CPU SDK-native video/alpha SaveWEBM transport and source preparation were verified. Gated HF access needs user acceptance; no account/license flow automated.

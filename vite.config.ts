@@ -3,7 +3,7 @@ import { defineConfig, loadEnv } from "vite";
 import { comfyApi } from "./shared/runtime/api.ts";
 import {cleanStudioUrls} from './studio/clean-urls.ts';
 
-// One Vite server for the whole repo: studio + adstudio, with the generation API mounted.
+// Studio development server with the local generation API mounted.
 // Settings come from .env (see .env.example). Defaults are local-only.
 export default defineConfig(({ mode }) => {
   const env = { ...loadEnv(mode, process.cwd(), ""), ...process.env } as Record<string, string | undefined>;
@@ -21,7 +21,7 @@ export default defineConfig(({ mode }) => {
       name: 'studio-controller-reload',
       // Controllers own native media/pointer services for a page lifetime. Never hot-mount a second copy.
       handleHotUpdate({ file, server }) {
-        if (/[/\\](studio|adstudio)[/\\]src[/\\].*\.(ts|tsx)$/.test(file)) {
+        if (/[/\\]studio[/\\]src[/\\].*\.(ts|tsx)$/.test(file)) {
           server.ws.send({ type: 'full-reload' });
           return [];
         }
@@ -39,8 +39,6 @@ export default defineConfig(({ mode }) => {
           admin: "studio/admin.html",
           edit: "studio/edit.html",
           designLab: "studio/design-lab.html",
-          adstudio: "adstudio/index.html",
-          adstudioTools: "adstudio/tools.html",
         },
       },
     },

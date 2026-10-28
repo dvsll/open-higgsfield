@@ -1,6 +1,6 @@
 # Categories we're competing for + rules we must follow
 
-**Both projects (studio/ and adstudio/) target the same three categories:**
+**Studio targets these three categories:**
 
 | Category | Prize | What it takes |
 |---|---|---|

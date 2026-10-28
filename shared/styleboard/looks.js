@@ -1,4 +1,4 @@
-// Shared style board: the looks both projects can pick from (studio mood board, adstudio brand looks).
+// Reusable looks for the Studio mood board.
 // Each look: id, prompt (added to generation prompts), name (n), sky gradient, tint, optional building palette (pal), and swatches (sw) for the UI.
 // Needs shared/lib/kit.js loaded first (uses K.LOOKS palettes).
 const STYLEBOARD = {

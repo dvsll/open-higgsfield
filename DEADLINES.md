@@ -3,24 +3,23 @@
 **Hard deadline: Thu Oct 30, 9:00am PT.** Treat **Wed Oct 29** as the real deadline.
 Each date is a sanity check. Missing one means cutting scope that day, not making it up later.
 
-Both projects hit every checkpoint: **studio/** (cinema studio) and **adstudio/** (ad studio).
+These checkpoints apply to **studio/**.
 
 | Date | Checkpoint | Done when |
 |---|---|---|
-| **Tue Oct 21** | Repo up | Private repo pushed, partner invited. Both people have filled in the [signup form](https://form.typeform.com/to/Ayn9Cwfj) (free credits for the first 200). |
-| **Wed Oct 22** | Concepts locked + rules asked | Each person has one sentence describing their app and its **innovation angle**. Every model either of you plans to use is checked against RULES.md (open weights + license). Asked in Comfy Discord: *can two people on one team each submit their own entry?* (the form says "This is my only submission"). GPU decided: Comfy API deployment or Runpod. |
-| **Thu Oct 23** | First real render | One real video out of ComfyUI from a workflow in `shared/workflows/`, run by `shared/scripts/` (comfy-sdk). Render time written in your notes file. **If neither of you has a real LTX render by end of day: rent a bigger GPU or cut resolution/length. Don't switch to closed APIs: that loses Open Weights Only and the LTX bonus.** |
-| **Fri Oct 24** | Walking skeleton | One button in each app produces one real video end to end. Ugly is fine. |
+| **Tue Oct 21** | Repo up | Studio repo pushed. Complete the [signup form](https://form.typeform.com/to/Ayn9Cwfj) (free credits for the first 200). |
+| **Wed Oct 22** | Concepts locked + rules asked | Studio has one sentence describing their app and its **innovation angle**. Every model Studio plans to use is checked against RULES.md (open weights + license). GPU decided: Comfy API deployment or Runpod. |
+| **Thu Oct 23** | First real render | One real video out of ComfyUI from a workflow in `shared/workflows/`, run by `shared/scripts/` (comfy-sdk). Render time written in your notes file. **If Studio has no real LTX render by end of day: rent a bigger GPU or cut resolution/length. Don't switch to closed APIs: that loses Open Weights Only and the LTX bonus.** |
+| **Fri Oct 24** | Walking skeleton | One button in Studio produces one real video end to end. Ugly is fine. |
 | **Sat–Sun Oct 25–26** | Core features | The P0 list in `PLAN.md` is done. **Sun night: feature freeze.** Nothing new after this, only fixes. |
-| **Mon Oct 27** | Examples + docs | 3–5 example outputs per app in `examples/`. README has local run steps that work. LICENSE present. |
-| **Tue Oct 28** | Split + clean-machine test | Split into two repos (see README), each set public with a license. Fresh clone → follow README → it runs. Record the demo video (≤ 2 min: the build in action + how it was made). Optional: SF build night. |
-| **Wed Oct 29** | **Submit** | Post the demo with **#OpenSourceHiggsfield** (the form requires the post link). Each person submits the [form](https://form.typeform.com/to/V1dSQrkS) with: public repo URL, video, post link, categories. Optional: LA build night. |
+| **Mon Oct 27** | Examples + docs | 3–5 example outputs for Studio in `examples/`. README has local run steps that work. LICENSE present. |
+| **Tue Oct 28** | Split + clean-machine test | Studio repository public with a license. Fresh clone → follow README → it runs. Record the demo video (≤ 2 min: the build in action + how it was made). Optional: SF build night. |
+| **Wed Oct 29** | **Submit** | Post the demo with **#OpenSourceHiggsfield** (the form requires the post link). Submit the [form](https://form.typeform.com/to/V1dSQrkS) with: public repo URL, video, post link, categories. Optional: LA build night. |
 | Thu Oct 30, 9am PT | Hard deadline | Should already be done. |
 
 ## Daily sanity check (every evening)
 - Does `main` run from a fresh clone?
 - Did today's checkpoint happen? If not, what gets cut tomorrow?
-- Is anything pending on the other person? Write it at the bottom of their `notes/*.md` file.
 
 ## Submission checklist (per project)
 - [ ] Public GitHub repo with an open-source license

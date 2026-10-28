@@ -3,7 +3,7 @@
 Plans change. `DEADLINES.md` wins whenever the two disagree. Work top-down: finish P0 before touching P1.
 Facts about rules and prizes come from `CLAUDE.md` (sourced, checked 2026-10-19). Anything marked *verify* is not confirmed.
 
-## Prize targets (both projects)
+## Prize targets
 **Open Weights Only** (fully open source) · **LTX VFX bonus** · **Most Innovative**. Best Overall is automatic.
 Rules and what each category requires: **[RULES.md](RULES.md)**. In short: LTX-2.5 is the core model, everything open, generation via the Comfy SDK, and the demo explains why it's innovative.
 
@@ -27,27 +27,5 @@ The demo already has the UX: the Director (mood board → keyframes → sequence
 
 **Demo story (≤ 2 min, must say why it's innovative: one shared element/media layer across workflows, keyframe-directed LTX):** mood board → write 3 keyframes → generate shots → fix one keyframe in Edit Anything → play the film.
 
-## adstudio/: ad studio (Higgsfield Marketing Studio, open)
-Innovation angle for the demo: *pick it by Oct 22* (e.g. the shared style board as brand kit + one-click reframes via LTX In-Outpainting).
-The starter is the Ad Studio mockup: product photo + pitch + vibe → ads in 16:9, 9:16 and 1:1.
-
-**P0: must ship**
-1. **Product photo → video** with **LTX-2.5** (image-to-video / Ingredients IC-LoRA). LTX must be the core model for the LTX VFX bonus.
-2. **Three aspect ratios** from one generation: reframe/outpaint (LTX In-Outpainting) or generate per ratio.
-3. **Tagline overlay + export** of all three (ffmpeg).
-
-**P1: polish**
-4. Audio: a music track you own (no closed music APIs).
-5. Brand look from the **shared style board**.
-6. Vibe presets (Lifestyle / Studio / UGC) that change the prompt and camera.
-
-**P2**
-7. Batch: several products → ad set.
-
-**Demo story:** drop a product photo → 15s later, three ready-to-post ads.
-
-## Shared work (`shared/`)
-- `workflows/`: ComfyUI API-format JSON + `CONTRACT.md`, which lists input/output node IDs per workflow. Whoever gets a model running first writes it; the other reuses it.
-- `scripts/`: one comfy-sdk runner, `run.py <workflow> --in key=value ... --out dir`.
-- `styleboard/`: shared looks (already used by studio's mood board).
-- `lib/`: the placeholder renderer for mockups. Delete it from each app once real outputs exist.
+## Supporting libraries (`shared/`)
+Local Comfy runtime, API workflows and contracts, reusable styleboard and libraries used by Studio.

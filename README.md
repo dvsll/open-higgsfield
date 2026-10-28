@@ -1,6 +1,6 @@
 # Open Source Higgsfield
 
-Open-model creative apps (Studio and Ad Studio) for Comfy Org's Open Source Higgsfield competition.
+Open-model cinema Studio for Comfy Org's Open Source Higgsfield competition.
 
 ## Start
 

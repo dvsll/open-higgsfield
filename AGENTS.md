@@ -1,24 +1,22 @@
 # AGENTS.md: instructions for any coding agent (Codex/ChatGPT, Claude Code, …)
 
-This repo is worked on by two people, each switching between agents. **Read this file, then `notes/studio.md` → "Where we left off", before doing anything.**
+This repository contains the standalone Studio application. **Read this file, then `notes/studio.md` → "Where we left off", before doing anything.**
 `CLAUDE.md` is the full brief (rules, sources, prizes). This file is the short version, and it applies to every agent.
 
 ## What this is
-Two entries for Comfy Org's **Open Source Higgsfield** competition. **Hard deadline: Thu Oct 30, 9:00am PT.** Treat Wed Oct 29 as the real one.
+Studio entry for Comfy Org's **Open Source Higgsfield** competition. **Hard deadline: Thu Oct 30, 9:00am PT.** Treat Wed Oct 29 as the real one.
 - `studio/`: **dvs's** cinema studio (Director + Edit Anything). The person driving you is usually dvs → work here.
-- `adstudio/`: the partner's ad studio. **Don't edit it** unless asked.
-- `shared/`: used by both: `runtime/` (local server), `workflows/` (ComfyUI API JSON + `CONTRACT.md`), `styleboard/`, `lib/`.
+- `shared/`: Studio libraries: `runtime/` (local server), `workflows/` (ComfyUI API JSON + `CONTRACT.md`), `styleboard/`, `lib/`.
 
 ## Rules (non-negotiable, see RULES.md)
 - Categories: **Open Weights Only · LTX VFX bonus · Most Innovative**.
 - Generation goes through the **Comfy SDK** (`comfy-sdk`) → `comfy-api-proxy` → ComfyUI. No closed APIs, no partner/API nodes, **open-weights models only**, LTX as the core video model.
 - Before adding any model or dependency: write its name, license and source link in your notes file.
-- Projects load files only from their own folder and `../shared/` (keeps the later repo split easy).
-- Repo split: each repo keeps its app folder plus `shared/`, `start.cmd`, `start.command`, `package.json`, `package-lock.json`, `vite.config.ts`, `tsconfig.json`, `index.html`, `README.md`, `LICENSE`. The installer (`shared/runtime/install.ts`) and `models.json` are shared. In the Ad Studio repo, change `npm start`'s `--open` path to `/adstudio/` and drop the `studio/` entries from `vite.config.ts`.
+- Projects load files only from their own folder and `../shared/` (keeps application boundaries clear).
 - `DEADLINES.md` beats `PLAN.md` whenever the two conflict.
 
 ## Working conventions
-- **Shared branch decision (user, 2026-10-23): both owners work on `main` now.** Ad Studio's workspace branch through `58dd62a` was merged into main in `656bab2`. Partner agents: preserve any uncommitted/new branch work, fetch origin, switch to main and integrate any remaining work without resetting or discarding it. Continue committing and pushing on main; do not keep developing on the old Ad Studio branch. Pull/reconcile remote main before pushing; never force-push. Coordinate shared runtime edits in both notes files. Ad Studio keeps its current UI until its owner starts the React migration described in `adstudio/REACT_MIGRATION.md`.
+- Work on `main`. Fetch/reconcile origin before pushing; never force-push. Ad Studio has moved to its own repository; cross-project coordination and partner-sync hooks are no longer used.
 - **Commit and push on your own** after each working change, using **Conventional Commits**: `feat(studio): …`, `fix(studio): …`, `style:`, `docs:`, `chore:`. Don't ask the user first; they don't want to think about commits.
 - Before ending a session (or when the user says they're switching agents), **update `notes/studio.md` → "Where we left off"** (state, what's running, next steps), then commit and push.
 - Keep the UI style: dark, Inter, **no rounded corners** (for now), tokens in each page's `:root`.

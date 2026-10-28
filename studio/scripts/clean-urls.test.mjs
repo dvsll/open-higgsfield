@@ -15,8 +15,8 @@ for(const production of [false,true]){
   }
   const head=await fetch(base+'/studio/director',{method:'HEAD'});assert.equal(head.status,200);
   assert.equal((await fetch(base+'/studio/not-a-page')).status,404);
-  assert.equal((await fetch(base+'/adstudio/')).status,200);
+  assert.equal((await fetch(base+'/adstudio/')).status,404);
  }finally{if(production)await new Promise(resolve=>server.httpServer.close(resolve));else await server.close()}
 }
-console.log('PASS clean Studio routes in dev and built preview, legacy redirects/query preservation, HEAD, unknown404 and Ad Studio isolation.');
+console.log('PASS clean Studio routes in dev and built preview, legacy redirects/query preservation, HEAD, unknown404 and removed application route404.');
 assert.deepEqual(studioRoute('/studio/admin'),{rewrite:'/studio/admin.html'});assert.deepEqual(studioRoute('/studio/admin.html'),{redirect:'/studio/admin'});

@@ -67,7 +67,7 @@ function Clip({ item, index }: { item: ClipItem; index: number }) {
         {!item.opened && (
           <span className="act">
             <button className="tw" title="Open this shot" aria-label="Open this shot">
-              <span className="clip-open-text">Open</span><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" aria-hidden="true"><path d="m6 3 5 5-5 5"/></svg>
+              <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" aria-hidden="true"><path d="m6 3 5 5-5 5"/></svg>
             </button>
             <button data-a="del" title="Delete (goes to trash)" aria-label="Delete shot">
               <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" aria-hidden="true"><path d="m4 4 8 8m0-8-8 8"/></svg>

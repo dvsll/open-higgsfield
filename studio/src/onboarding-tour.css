@@ -2,3 +2,5 @@
 .tour-choice-grid[data-kind=workflow]{grid-template-columns:repeat(2,minmax(0,1fr))}.tour-choice .tour-back{margin-bottom:12px;background:none;padding:4px 8px;font-size:11px}@media(max-width:440px){.tour-choice-grid[data-kind=workflow]{grid-template-columns:1fr}.tour-choice{padding:16px}.tour-choice-grid button{min-height:110px}}
 
 .tour-choice{position:relative}.tour-choice h2{padding-right:28px}.tour-choice-close{position:absolute;right:14px;top:14px}.tour-choice .tour-close,.tour-popover .tour-close{display:grid;place-items:center;width:28px;height:28px;padding:5px;background:none}.tour-close svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.5}.project-file[data-tour-guide]{outline:2px solid #e8c36f;outline-offset:-2px;background:#e8c36f12}.project-file[data-tour-guide] .file-preview{outline:2px solid #e8c36f;outline-offset:-2px}
+
+.tour-popover .tour-popover-top{display:grid;grid-template-columns:minmax(0,1fr) 28px;align-items:start;gap:12px}.tour-popover-top>span{overflow-wrap:anywhere}.tour-popover .tour-close{flex:none}

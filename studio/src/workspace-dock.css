@@ -182,3 +182,5 @@ body.studio-single-bar .workspace-toolbar{background:#0c0d10;min-height:38px;pad
 .clip[data-compact=true] .lbl>i,.clip[data-no-badges=true] .clip-badges{display:none}
 .window-body .tl #trk .clip .clip-boundary-link{position:absolute;left:-14px;top:50%;transform:translateY(-50%);z-index:7;display:flex;align-items:center;justify-content:center;box-sizing:border-box;width:24px;min-width:24px;height:24px;padding:0;border:0;background:transparent;color:#49c77c;cursor:pointer}
 .clip-boundary-link svg{display:block;flex:none;pointer-events:none}.clip-boundary-link:hover{color:#8ae9ad!important}.clip-boundary-link:focus-visible{outline:1px solid #8ae9ad;outline-offset:1px}
+
+.window-body .tl .clip .lbl .act button{width:20px;min-width:20px;padding:0;border-radius:0}.window-body .tl #trk .clip .lbl{max-width:100%;overflow:hidden}

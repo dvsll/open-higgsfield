@@ -1,3 +1,4 @@
+import {AudioTimeline} from './react/audio-timeline';
 import {SpeechWindow} from './react/speech';
 import {OnboardingVideo} from './react/onboarding-video';
 import {TrainingPanel} from './react/training-workspace';
@@ -36,7 +37,7 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
  const presets: Record<string, Setup> = custom?.presets||{
   Video: { tree: split('y', videoTop, panel('timeline'), topRatio), mode: 'video' },
   Image: { tree: split('x',split('y',panel('files'),panel('edit-versions'),.7),split('x',panel('assets'),split('y',panel('prompts'),panel('edit-controls'),.6),.62),.22), mode: 'image' },
-  Audio:{tree:split('y',split('x',panel('files'),split('x',panel('prompts'),panel('speech'),.5),.24),panel('timeline'),.8),mode:'video'},
+  Audio:{tree:split('y',split('x',panel('files'),split('x',panel('prompts'),panel('speech'),.5),.24),panel('audio-timeline'),.68),mode:'video'},
   Overlays:{tree:split('y',overlayTop,panel('timeline'),topRatio),mode:'video'},
   Training:{tree:split('x',panel('files'),split('y',split('x',panel('training-data'),panel('stylization'),.65),panel('training-runs'),.7),.22),mode:'video'},
   '3D': { tree: split('x',panel('files'),split('x',panel('prompts'),panel('stage'),.36),.22), mode:'video',promptMedia:'3d' },
@@ -67,7 +68,7 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
  if(!custom&&!localStorage.getItem('osh-prompt-3d-layout-v1')){store.layouts['3D']=clone(presets['3D']);localStorage.setItem('osh-prompt-3d-layout-v1','1')}
  if(!custom&&!localStorage.getItem('osh-3d-shared-prompt-v1')){store.layouts['3D']=clone(presets['3D']);localStorage.setItem('osh-3d-shared-prompt-v1','1')}
  if(!custom){delete store.layouts.Edit;delete store.layouts.Rendering;delete store.deletedLayouts?.Edit;delete store.deletedLayouts?.Rendering;if(store.active==='Edit')store.active='Image';if(store.active==='Rendering')store.active='Video';for(const value of [...Object.values(store.layouts),...Object.values(store.deletedLayouts||{})])value.tree=remove(value.tree,'edit-viewer');if(!localStorage.getItem('osh-image-edit-merged-v1')){store.layouts.Image=clone(presets.Image);localStorage.setItem('osh-image-edit-merged-v1','1')}}
- if(!custom&&!localStorage.getItem('osh-audio-speech-layout-v2')){store.layouts.Audio=clone(presets.Audio);localStorage.setItem('osh-audio-speech-layout-v2','1')}
+ if(!custom&&!localStorage.getItem('osh-audio-speech-layout-v4')){store.layouts.Audio=clone(presets.Audio);localStorage.setItem('osh-audio-speech-layout-v4','1')}
  let active = store.active;
  let setup = clone(store.layouts[active] || presets[active] || fallback);
  if(!custom){const replace=(tree:LayoutNode|null):LayoutNode|null=>tree?.kind==='panel'?(tree.id==='overlay-create'?panel('captions'):tree):tree?{...tree,first:replace(tree.first)!,second:replace(tree.second)!}:null;for(const value of [...Object.values(store.layouts),...Object.values(store.deletedLayouts||{})])value.tree=ids(value.tree).includes('captions')?remove(value.tree,'overlay-create'):replace(value.tree);setup.tree=ids(setup.tree).includes('captions')?remove(setup.tree,'overlay-create'):replace(setup.tree)}
@@ -81,7 +82,7 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
  const toolbar = document.createElement('nav'); toolbar.className = 'workspace-toolbar'; toolbar.setAttribute('aria-label', 'Workspace layout');
  renderView(toolbar,createElement(WorkspaceToolbar,{studio:!custom}));
  const picker=toolbar.querySelector('select')!,windows=toolbar.querySelector('details')!,menu=windows.querySelector('div')!;
- function renderMenu(){renderView(menu,createElement(WindowsMenu,{panels:[...registrations].filter(([id])=>id!=='tour-video').map(([id,p])=>({id,title:p.title})),visible:ids(setup.tree),onToggle:id=>{ids(setup.tree).includes(id)?closeWindow(id):openWindow(id);windows.open=false}}))}
+ function renderMenu(){renderView(menu,createElement(WindowsMenu,{panels:[...registrations].map(([id,p])=>({id,title:p.title})),visible:ids(setup.tree),onToggle:id=>{ids(setup.tree).includes(id)?closeWindow(id):openWindow(id);windows.open=false}}))}
  const board = document.createElement('div'); board.className = 'window-board';
  const layout=document.createElement('div');layout.className='dock-layout';board.append(layout);
  const parking = document.createElement('div'); parking.hidden = true;
@@ -90,9 +91,9 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
  const guides = document.createElement('div'); guides.className = 'dock-guides';
  for (const [edge, label] of [['top', 'Above'], ['left', 'Left'], ['right', 'Right'], ['bottom', 'Below']] as const) { const item = document.createElement('span'); item.dataset.edge = edge; item.textContent = label; guides.append(item); }
  const label = document.createElement('div'); label.className = 'dock-preview-label'; overlay.append(shade, guides, label);
- let tutorialSlot:LayoutNode|null=null;
+ let tutorialSlot:LayoutNode|null=null;let tutorialActive=false;
  const replacePanel=(tree:LayoutNode|null,from:string,to:string):LayoutNode|null=>!tree?null:tree.kind==='panel'?(tree.id===from?panel(to):tree):{...tree,first:replacePanel(tree.first,from,to)!,second:replacePanel(tree.second,from,to)!};
- const persist = () => { store.active = active; store.layouts[active] = {...clone(setup),tree:replacePanel(tutorialSlot||setup.tree,'tour-video','timeline')}; try { localStorage.setItem(storageKey, JSON.stringify(store)); } catch {} };
+ const persist = () => { store.active = active; store.layouts[active] = {...clone(setup),tree:tutorialActive?replacePanel(tutorialSlot||setup.tree,'tour-video','timeline'):clone(setup.tree)}; try { localStorage.setItem(storageKey, JSON.stringify(store)); } catch {} };
  let pending = false;
  const refresh = () => { if (pending) return; pending = true; requestAnimationFrame(() => { pending = false; resize(); }); };
  function render(): void {
@@ -104,8 +105,8 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
   renderView(layout,createElement(DockTree,{node:setup.tree,panels,parking,onRatio:persist}));
   board.append(overlay); renderMenu();refresh();document.dispatchEvent(new Event('osh-window-layout-changed'));
  }
- function openWindow(id: string): void { if(!custom&&id==='properties'&&document.getElementById('videoTrackToggle')?.getAttribute('aria-expanded')!=='true'){dispatchEvent(new Event('osh-expand-video'));return}if(id==='tour-video')return;if(id==='timeline'&&tutorialSlot){setup.tree=replacePanel(tutorialSlot,'tour-video','timeline');tutorialSlot=null;render();persist();return}if (ids(setup.tree).includes(id)) return; setup.tree = setup.tree ? split('x', setup.tree, panel(id), .7) : panel(id); render(); persist(); }
- function closeWindow(id: string): void {if(!ids(setup.tree).includes(id))return;if(id==='tour-video')tutorialSlot=clone(setup.tree);setup.tree = remove(setup.tree, id); render(); persist();if(!custom&&id==='properties')dispatchEvent(new Event('osh-collapse-video')); }
+ function openWindow(id: string): void { if(!custom&&id==='properties'&&document.getElementById('videoTrackToggle')?.getAttribute('aria-expanded')!=='true'){dispatchEvent(new Event('osh-expand-video'));return}if(id==='timeline'&&tutorialSlot){setup.tree=replacePanel(tutorialSlot,'tour-video','timeline');tutorialSlot=null;render();persist();return}if (ids(setup.tree).includes(id)) return; setup.tree = setup.tree ? split('x', setup.tree, panel(id), .7) : panel(id); render(); persist(); }
+ function closeWindow(id: string): void {if(!ids(setup.tree).includes(id))return;if(id==='tour-video'&&tutorialActive)tutorialSlot=clone(setup.tree);setup.tree = remove(setup.tree, id); render(); persist();if(!custom&&id==='properties')dispatchEvent(new Event('osh-collapse-video')); }
  let cancelDrag: (()=>void)|null=null;
  function startDrag(id: string, event: PointerEvent): void {
   if (event.button !== 0) return; event.preventDefault();cancelDrag?.();
@@ -163,7 +164,8 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
  const inspector=document.createElement('div');inspector.className='sequence-inspector';const identity=document.getElementById('videoTrackAttributes')!;identity.hidden=false;identity.className='scene-property-identity';inspector.append(identity);parking.append(inspector);
  const oldStyling=document.getElementById('studioStylization')!;oldStyling.hidden=true;parking.append(oldStyling);
  for(const [id,title,kind] of [['training-data','Training dataset','dataset'],['stylization','Training settings','settings'],['training-runs','Training runs','runs']] as const){const host=document.createElement('div');renderView(host,createElement(TrainingPanel,{panel:kind}));add(id,title,host)}
- const tutorialHost=document.createElement('div');renderView(tutorialHost,createElement(OnboardingVideo));add('tour-video','First video',tutorialHost);
+ const tutorialHost=document.createElement('div');renderView(tutorialHost,createElement(OnboardingVideo));add('tour-video','Video timeline',tutorialHost);
+ const audioHost=document.createElement('div');audioHost.className='audio-timeline-host';renderView(audioHost,createElement(AudioTimeline));add('audio-timeline','Audio timeline',audioHost);
  add('elements', 'Elements', document.getElementById('studioElements')!); add('assets', 'Selected media', assets); add('viewer', 'Timeline viewer', viewContent); add('prompts', 'Prompt', composer); add('timeline', 'Sequence', main.querySelector<HTMLElement>('.tlw')!); parking.append(main.querySelector<HTMLElement>('.hist')!);
  const sequenceBar = panels.get('timeline')!.querySelector('.window-titlebar')!;
  const sequenceTransport=document.createElement('div');sequenceTransport.className='sequence-transport';sequenceTransport.setAttribute('role','group');sequenceTransport.setAttribute('aria-label','Sequence playback position');
@@ -218,9 +220,9 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
  document.addEventListener('osh-workspace-select',((event:CustomEvent)=>{if(presets[event.detail]||!custom&&event.detail==='Director')select(event.detail)}) as EventListener);
  if(!custom)addEventListener('osh-tour-single-video',((event:CustomEvent<'single'|'await-timeline'|'normal'>)=>{
   const visible=ids(setup.tree).includes('tour-video');
-  if(event.detail==='await-timeline'){if(tutorialSlot)return;tutorialSlot=ids(setup.tree).includes('timeline')?replacePanel(setup.tree,'timeline','tour-video'):setup.tree?split('y',setup.tree,panel('tour-video'),.78):panel('tour-video');setup.tree=remove(tutorialSlot,'tour-video');render();persist()}
-  else if(event.detail==='single'){if(visible||tutorialSlot)return;setup.tree=ids(setup.tree).includes('timeline')?replacePanel(setup.tree,'timeline','tour-video'):setup.tree?split('y',setup.tree,panel('tour-video'),.78):panel('tour-video');render();persist()}
-  else if(visible||tutorialSlot){setup.tree=replacePanel(tutorialSlot||setup.tree,'tour-video','timeline');tutorialSlot=null;render();persist()}
+  if(event.detail==='await-timeline'){tutorialActive=true;if(tutorialSlot)return;tutorialSlot=ids(setup.tree).includes('timeline')?replacePanel(setup.tree,'timeline','tour-video'):setup.tree?split('y',setup.tree,panel('tour-video'),.78):panel('tour-video');setup.tree=remove(tutorialSlot,'tour-video');render();persist()}
+  else if(event.detail==='single'){tutorialActive=true;if(visible||tutorialSlot)return;setup.tree=ids(setup.tree).includes('timeline')?replacePanel(setup.tree,'timeline','tour-video'):setup.tree?split('y',setup.tree,panel('tour-video'),.78):panel('tour-video');render();persist()}
+  else if(tutorialActive){tutorialActive=false;if(!visible&&!tutorialSlot)return;setup.tree=replacePanel(tutorialSlot||setup.tree,'tour-video','timeline');tutorialSlot=null;render();persist()}
  }) as EventListener);
  const names=()=>[...new Set([...Object.keys(presets),...Object.keys(store.layouts)])];
  async function createWorkspace(){

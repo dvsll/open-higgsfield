@@ -30,6 +30,8 @@ try {
   const {FileDropOverlay}=await server.ssrLoadModule('/studio/src/react/file-drop.tsx');
   const dropOverlay=renderToStaticMarkup(createElement(FileDropOverlay,{active:true,busy:false,message:'',errors:[],onDismiss:()=>{},onFiles:()=>{}}));assert.match(dropOverlay,/Add to project files/);assert.match(dropOverlay,/type="file"/);assert.doesNotMatch(dropOverlay,/<dialog/);
   const {LayerLane,LayerEditor}=await server.ssrLoadModule('/studio/src/react/sequence-layers.tsx');
+  const audioOnly=renderToStaticMarkup(createElement(LayerLane,{group:'audio',items:[{id:'one',name:'One',kind:'sfx',start:0,duration:2},{id:'two',name:'Two',kind:'sfx',start:2,duration:2}],pixels:100,origin:0,expanded:true,pack:true,onAdd:()=>{},onEdit:()=>{}}));assert.match(audioOnly,/height:84px/);assert.doesNotMatch(audioOnly,/top:84px/);const audioRows=renderToStaticMarkup(createElement(LayerLane,{group:'audio',items:[{id:'one',name:'One',kind:'sfx',start:0,duration:2},{id:'two',name:'Two',kind:'sfx',start:1,duration:2}],pixels:100,origin:0,expanded:true,pack:true,onAdd:()=>{},onEdit:()=>{}}));assert.match(audioRows,/data-row-count="2"/);assert.equal((audioRows.match(/class="timeline-row-guide"/g)||[]).length,2);
+
   for(const group of ['audio','overlays']){
    const lane=renderToStaticMarkup(createElement(LayerLane,{group,items:[],pixels:100,origin:0,onAdd:()=>{},onEdit:()=>{}}));
    assert.match(lane,group==='audio'?/No audio/:/No overlays/);assert.doesNotMatch(lane,/<dialog/);

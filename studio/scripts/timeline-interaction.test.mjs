@@ -47,3 +47,11 @@ const previousDocument=globalThis.document;
 globalThis.document={createElement:tag=>tag==='video'?(decoded=new DecodedVideo()):{getContext:()=>({drawImage:video=>{drawnAt=video.currentTime}}),toDataURL:()=> 'data:image/png;base64,end'}};
 try{const captured=await captureVideoEnd('/outputs/0123456789abcdef.webm');assert.equal(captured.duration,4);assert.equal(captured.image,'data:image/png;base64,end');assert.ok(drawnAt>3.998&&drawnAt<4);assert.equal(decoded.src,'');await assert.rejects(()=>captureVideoEnd('https://example.com/video.mp4'),/project video/)}finally{if(previousDocument===undefined)delete globalThis.document;else globalThis.document=previousDocument}
 console.log('PASS: final decoded frame seeking, original geometry, owned-source validation and media cleanup.');
+
+const {draggedClipStart}=await import('../src/timeline-interaction.ts');
+assert.equal(draggedClipStart(0,199,100,2,[{start:0,duration:2}]),2);
+assert.equal(draggedClipStart(0,199,100,2,[{start:0,duration:2}],false),1.99);
+assert.equal(draggedClipStart(4,-301,100,1,[{start:0,duration:2}]),1);
+assert.equal(draggedClipStart(1,-500,100,2,[]),0);
+assert.equal(draggedClipStart(599,500,100,1,[],false),600);
+console.log('PASS: draggable clip placement snaps either edge, preserves free placement with Alt and clamps bounds.');

@@ -70,9 +70,9 @@ let onboarding=SC.get('osh-onboarding');
 
 const touring=()=>onboarding&&!onboarding.dismissed&&!onboarding.suspended&&onboarding.step!=='done'&&['video','image','director'].includes(onboarding.entry||'video');
 function advanceTour(step){if(!onboarding||onboarding.dismissed)return;onboarding.step=step;SC.set('osh-onboarding',onboarding);renderTour()}
-function publishTourClip(){const s=SH.find(shot=>shot.id===onboarding?.shotId)||currentShot();dispatchEvent(new CustomEvent('osh-tour-clip',{detail:{label:s.n,duration:s.d,time:Math.max(0,G-start(Math.max(0,SH.indexOf(s)))),video:s.video}}))}
+function publishTourClip(){const s=(touring()?SH.find(shot=>shot.id===onboarding?.shotId):null)||currentShot();dispatchEvent(new CustomEvent('osh-tour-clip',{detail:{label:s.n,duration:s.d,time:Math.max(0,G-start(Math.max(0,SH.indexOf(s)))),video:s.video}}))}
 addEventListener('osh-tour-clip-request',publishTourClip);
-addEventListener('osh-tour-clip-seek',event=>{if(!touring())return;const i=SH.findIndex(s=>s.id===onboarding.shotId);if(i<0)return;cur=i;open=i;clipSelected=true;G=start(i)+Math.max(0,Math.min(SH[i].d,event.detail));setPlaying(false);head()});
+addEventListener('osh-tour-clip-seek',event=>{const i=touring()?SH.findIndex(s=>s.id===onboarding.shotId):cur;if(i<0)return;cur=i;open=i;clipSelected=true;G=start(i)+Math.max(0,Math.min(SH[i].d,event.detail));setPlaying(false);head()});
 function renderTour(){onboardingUI?.render()}
 let STASH=saved?.STASH||[],TRASH=saved?.TRASH||[],HISTORY=saved?.HISTORY||[];const workshop=SC.get('osh-workspace')||{};
 let keyframeBatch=[1,2,4].includes(workshop.keyframeCount)?workshop.keyframeCount:4;
@@ -87,7 +87,7 @@ storedShots.forEach(s=>{shotId(s);s.keys.forEach(k=>{if(!k.anchor&&k.t===0)k.anc
 // Old history only stored a sequence index. Match the current video first;
 // unresolved entries stay unavailable rather than risking another shot's take.
 HISTORY.forEach(h=>{if(h.kind==='shot'&&!h.shotId){const s=storedShots.find(s=>s.video===h.url);if(s)h.shotId=shotId(s)}});
-function save(){SC.set('osh-director',{SH,cur,G,STASH,TRASH,HISTORY,LAYERS,sceneDraft});editHistory?.record()}
+function save(){SC.set('osh-director',{SH,cur,G,STASH,TRASH,HISTORY,LAYERS,sceneDraft});editHistory?.record();dispatchEvent(new Event('osh-audio-timeline-updated'))}
 // Generation history: every keyframe/shot the GPU made, newest first. Click to reuse.
 function pushHist(e,reveal=true){HISTORY.unshift({...e,at:Date.now()});HISTORY=HISTORY.slice(0,80);histUI();save();if(reveal)revealGeneratedFile(e.url);else dispatchEvent(new Event('osh-project-media'))}
 function ago(t){const m=Math.round((Date.now()-t)/60000);return m<1?'just now':m<60?m+' min ago':Math.round(m/60)+' h ago'}
@@ -266,7 +266,7 @@ $('#motion').oninput=e=>{currentShot().m=e.target.value;head();save()};
 $('#shotPromptInput').oninput=e=>{currentShot().prompt=e.target.value;head();save()};
 // Starts paused. Play runs to the end (of the sequence, or of the opened shot) and stops; pressing play at the end restarts.
 const span=()=>clipSelected&&selectedTrack==="audio"&&currentShot().audioLinked===false?[currentShot().audioStart??start(cur),(currentShot().audioStart??start(cur))+(currentShot().audioDuration||currentShot().d)]:clipSelected?[start(cur),start(cur)+currentShot().d]:open!=null?[start(open),start(open)+SH[open].d]:[0,tot()];
-function setPlaying(v){playing=v&&tot()>0;v=playing;renderView($('#play'),h(Glyph,{path:v?'M8 5v14M16 5v14':'M8 5l11 7-11 7z'}));$('#play').setAttribute('aria-label',v?'Pause':'Play');$('#play').setAttribute('aria-pressed',String(v))}
+function setPlaying(v){playing=v&&tot()>0;v=playing;if(v)dispatchEvent(new Event('osh-sequence-playing'));renderView($('#play'),h(Glyph,{path:v?'M8 5v14M16 5v14':'M8 5l11 7-11 7z'}));$('#play').setAttribute('aria-label',v?'Pause':'Play');$('#play').setAttribute('aria-pressed',String(v))}
 function reviewPausedFirstVideo(){const video=$('#vid');if(!touring()||onboarding.step!=='watch-video'||video.readyState<2||video.seeking||video.currentTime<=0)return;const s=SH.find(shot=>shot.id===onboarding.shotId);if(!s||s.video!==onboarding.firstVideo||!video.src.endsWith(s.video))return;onboarding.videoReviewed=true;advanceTour(onboarding.entry==='video'&&!onboarding.timelineIntroduced?'close-first-video':onboarding.afterReview||'switch-image')}
 $('#play').onclick=()=>{const pausing=playing;if(!playing){const[a,b]=span();if(G>=b-.06||G<a)G=a}setPlaying(!playing);if(playing&&touring()&&onboarding.step==='play-video')advanceTour('watch-video');if(pausing)reviewPausedFirstVideo()};setPlaying(false);
 // ---------- generate video from keyframes ----------
@@ -331,7 +331,7 @@ K.loop(t=>{const now=performance.now(),dt=(now-last)/1000;last=now;if(playing){c
  const vid=$('#vid');if(document.body.dataset.viewerBound!=='false'&&s.r&&s.video){if(!vid.src.endsWith(s.video)){vid.src=s.video;vid.currentTime=lt}vid.style.display='block';
   if(playing){if(vid.paused)vid.play().catch(()=>{});if(Math.abs(vid.currentTime-lt)>.35)vid.currentTime=lt}else{vid.pause();if(Math.abs(vid.currentTime-lt)>.001)vid.currentTime=lt}}
  else{if(vid.style.display!=='none'){vid.pause();vid.style.display='none'}}
- if(touring()&&onboarding.entry==='video'&&playing&&now-lastTourClipUpdate>100){lastTourClipUpdate=now;publishTourClip()}
+ if(playing&&now-lastTourClipUpdate>100){lastTourClipUpdate=now;publishTourClip()}
  frameCaptureState();
  if(touring()&&onboarding.step==='watch-video'&&s.id===onboarding.shotId&&s.video===onboarding.firstVideo&&vid.readyState>=2&&!vid.seeking&&vid.src.endsWith(s.video)&&Number.isFinite(vid.duration)&&vid.currentTime>=vid.duration-.15){onboarding.videoReviewed=true;advanceTour(onboarding.entry==='video'&&!onboarding.timelineIntroduced?'close-first-video':onboarding.afterReview||'switch-image')};
  for(const [index,shot] of SH.entries()){const id=shotId(shot),begin=shot.audioLinked===false?shot.audioStart??start(index):start(index),duration=shot.audioLinked===false?shot.audioDuration||shot.d:shot.d,local=G-begin;let player=audioPlayers.get(id);if(!player&&shot.audio){player=new Audio();player.preload='auto';audioPlayers.set(id,player)}if(!player)continue;if(playing&&workspaceMode==='video'&&shot.audio&&!shot.audioMuted&&local>=0&&local<duration){if(!player.src.endsWith(shot.audio)){player.src=shot.audio;player.currentTime=local}if(Math.abs(player.currentTime-local)>.2)player.currentTime=local;if(player.paused)player.play().catch(()=>{})}else player.pause()}for(const[id,player]of audioPlayers)if(!SH.some(shot=>shot.id===id)){player.pause();audioPlayers.delete(id)}
@@ -483,3 +483,8 @@ import './projects.css';
 mountSequenceScroll();
 
 addEventListener('osh-attach-prompt-reference',async event=>{const file=event.detail;if(file?.kind!=='image'||!/^\/outputs\/[a-f0-9]{16}\.(png|jpe?g|webp)$/.test(file.url))return;try{await chooseGuideModel();const i=SH.length?cur:ensureScene();addKey(i,0,{img:file.url,u:.5,spec:SH[i].spec},'drop');toast('Start reference attached.')}catch(error){toast(error.message)}});
+
+addEventListener('osh-audio-timeline-save',event=>{const layer=event.detail;if(layer?.id?.startsWith('legacy:')){const shot=SH.find(s=>s.id===layer.id.slice(7));if(!shot)return;shot.audio=layer.url;shot.audioStart=layer.start;shot.audioDuration=layer.duration;shot.audioMuted=layer.muted}else{const next=validLayers({overlays:LAYERS.overlays,audio:[...LAYERS.audio.filter(item=>item.id!==layer.id),layer]});if(!next.audio.some(item=>item.id===layer.id))return;LAYERS=next}timeline();head();save()});
+addEventListener('osh-audio-timeline-remove',event=>{const id=event.detail;if(typeof id!=='string')return;if(id.startsWith('legacy:')){const shot=SH.find(s=>s.id===id.slice(7));if(shot&&shot.audioLinked===false)delete shot.audio}else LAYERS={...LAYERS,audio:LAYERS.audio.filter(item=>item.id!==id)};timeline();head();save()});
+
+addEventListener('osh-stop-sequence',()=>setPlaying(false));

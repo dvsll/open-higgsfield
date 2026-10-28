@@ -1,3 +1,4 @@
+import {alphaReadiness,alphaGraph,prepareAlphaSource,preserveCutoutAudio} from './alpha-gen.ts';
 import {ErrorJournal} from './error-log.ts';
 import {geometryGraph,geometryBase,trainingObj} from '../lib/geometry.ts';
 import {trainingInput,trainingGraph,trainingRuns,saveTrainingRun,trainingBase,videoTrainingBase,geometryTrainingBase,trainingKind,type TrainingRun} from './training.ts';
@@ -722,6 +723,14 @@ function middleware(env: Env,setup:RuntimeSetup,rewriter:PromptRewriter,creative
         if(!output)throw new HttpError(502,'The caption workflow returned no transcript.');
         const result=JSON.parse(Buffer.from(await output.toBytes()).toString('utf8'));
         const segments=captionSegments(result.segments),name=segments.length?outputName('srt'):null;if(name)await writeFile(join(OUTPUTS,name),captionSrt(segments),'utf8');return {model,language:typeof result.language==='string'?result.language:null,duration:result.duration,seconds:(Date.now()-started)/1000,segments,srt:name?'/outputs/'+name:null};
+      }));
+      if(route==='GET /api/cutout/workflow')return send(res,200,await loadGraph('cutout_ltx25'));
+      if(route==='GET /api/cutout')return send(res,200,alphaReadiness(await comfyJson(env,'/object_info'),await loadGraph('cutout_ltx25')));
+      if(route==='POST /api/cutout')return send(res,200,await tracked(async body=>{
+        const base=await loadGraph('cutout_ltx25'),ready=alphaReadiness(await comfyJson(env,'/object_info'),base);
+        if(!ready.available)throw new HttpError(503,'Alpha Gen setup is incomplete. Install the matching LTX2.5 weights, Alpha Gen adapter and ComfyUI-LTXVideo nodes.');
+        let source;try{source=await prepareAlphaSource(OUTPUTS,body.video,env)}catch(error:any){throw new HttpError(error.status||400,error.message)}
+        try{const graph=alphaGraph(base,source,ready.models);await ensureProxy(env);const c=client(env),wf=c.workflows.fromJson(graph);wf.setInput('5','file',c.assets.fromFile(source.prepared));const started=Date.now(),job=await serialize(()=>runWf(c,wf,body._requestId));const raw=await save(job,'28','webm'),cutout=await preserveCutoutAudio(OUTPUTS,raw,source,env);return {cutout,matte:await save(job,'22','webm'),duration:source.duration,width:source.width,height:source.height,fps:source.fps,frames:source.frames,seconds:(Date.now()-started)/1000,model:'LTX2.5 Alpha Gen'}}finally{await unlink(source.prepared).catch(()=>{})}
       }));
       if(route==='GET /api/image-selection'){
         const nodes=await comfyJson(env,'/object_info'),choices=nodes.CheckpointLoaderSimple?.input?.required?.ckpt_name?.[0]||[];

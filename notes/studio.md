@@ -4,6 +4,9 @@ Append dated decisions, render times and requests here. Only the studio owner ed
 
 ## Where we left off (update this before switching agents)
 
+**Latest handoff - 2026-10-27, retired stash action:** Removed Move to stash button from React timeline clips and its controller binding so missing controls cannot crash clip mounting. Open/delete retained; existing saved stash data untouched. Typecheck and React UI regression pass.
+
+
 **Latest handoff - 2026-10-27, startup regression repair:** User screenshot showed startup null-control crash and recovery copy squeezed into a thin workspace column. Previous media-sync change called legacy workflow before dock render attached service panels. Startup now renders connected/parked dock surfaces first, then applies workflow/media and persists. Actual startup-tail regression executes every creation preset and asserts render-before-controller order. Recovery uses fixed viewport div/content instead of globally styled main; contained scroll, readable480px content and wrapping isolate it from Director grid rules. Typecheck/production build and targeted workspace regression pass. No project data cleared, backend/model changes or visual browser acceptance claim.
 
 

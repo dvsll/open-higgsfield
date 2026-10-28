@@ -165,7 +165,6 @@ function timeline(){const body=$('#tl').closest('.window-body');if(body)$('#tl')
   renderView(trk,h(SequenceTrack,{expanded:expandedVideo,clips:SH.map((s,i)=>({id:shotId(s),name:s.n,duration:s.d,generated:s.r,continuation:s.continuation&&SH.some(parent=>parent.id===s.continuation.shotId)?SH.find(parent=>parent.id===s.continuation.shotId).n:undefined,onUnlink:()=>{delete s.continuation;timeline();head();save()},hasAudio:!!s.audio&&s.audioLinked!==false,selected:i===cur&&clipSelected,width:s.d*pxs-3,offset:start(i)*pxs,height:80,bind:c=>{
    strip(c,s);
    c.querySelector('.tw').onclick=ev=>{ev.stopPropagation();openShot(i)};
-   c.querySelector('[data-a=stash]').onclick=ev=>{ev.stopPropagation();removeShot(i,'stash')};
    c.querySelector('[data-a=del]').onclick=ev=>{ev.stopPropagation();removeShot(i,'trash')};
    shotPointerDrag(c,'seq',i);
    c.onclick=ev=>{if(performance.now()<suppressClipClickUntil||ev.target.closest('.grip,.tw,.act'))return;selectClip(i)};

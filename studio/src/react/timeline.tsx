@@ -63,9 +63,6 @@ function Clip({ item, index }: { item: ClipItem; index: number }) {
             <button className="tw" title="Open this shot">
               Open ▸
             </button>
-            <button data-a="stash" title="Move to stash">
-              ⇣
-            </button>
             <button data-a="del" title="Delete (goes to trash)">
               ✕
             </button>

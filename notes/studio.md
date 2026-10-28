@@ -4,6 +4,9 @@ Studio technical decisions, licenses, local setup and handoff state.
 
 ## Where we left off (update this before switching agents)
 
+**Latest handoff - 2026-10-28, viewer video guide action:** Replaced retired Edit video action with Use video as guide. Sends current viewer shot URL/label directly to existing video-guide preparation (three timed reference images/new guided scene), independent of unrelated library selection. Existing Advanced selected-video action unchanged; shared preparation busy guard retained. Typecheck and React UI check pass; no inference run.
+
+
 **Latest handoff - 2026-10-28, clip hover actions:** Arrow and Delete X hidden until clip hover; keyboard focus-within also reveals controls for access. Visibility keeps reserved header space so labels do not shift or overlap. CSS-only, diff check passes.
 
 

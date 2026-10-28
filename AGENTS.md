@@ -1,6 +1,6 @@
 # AGENTS.md: instructions for any coding agent (Codex/ChatGPT, Claude Code, …)
 
-This repository contains the standalone Studio application. **Read this file, then `notes/studio.md` → "Where we left off", before doing anything.**
+This repository contains the standalone Studio application. **Read this file first. If local `notes/studio.md` exists, read its "Where we left off" section next. Notes are personal, gitignored and may be absent on a fresh clone.**
 `CLAUDE.md` is the full brief (rules, sources, prizes). This file is the short version, and it applies to every agent.
 
 ## What this is
@@ -18,14 +18,14 @@ Studio entry for Comfy Org's **Open Source Higgsfield** competition. **Hard dead
 ## Working conventions
 - Work on `main`. Fetch/reconcile origin before pushing; never force-push. Ad Studio has moved to its own repository; cross-project coordination and partner-sync hooks are no longer used.
 - **Commit and push on your own** after each working change, using **Conventional Commits**: `feat(studio): …`, `fix(studio): …`, `style:`, `docs:`, `chore:`. Don't ask the user first; they don't want to think about commits.
-- Before ending a session (or when the user says they're switching agents), **update `notes/studio.md` → "Where we left off"** (state, what's running, next steps), then commit and push.
+- Before ending a session, update local `notes/studio.md` → "Where we left off" when available. Keep notes untracked; commit and push application changes only.
 - Keep the UI style: dark, Inter, **no rounded corners** (for now), tokens in each page's `:root`.
 - Convivial design is central to Studio: support user agency, understandable tools, reversible actions and learning at the user's pace. Prefer calm, informative empty states over coercive calls to action.
 - New ordinary Studio modals use `studio/src/react/popup.tsx` and its shared styles: native dialog focus/escape behavior, visible X, backdrop dismissal only when both pointer down/up are outside, contained scrolling and a shared title/action grid. Do not introduce another text Close button or independently styled popup shell. Guided tutorial overlays retain their focus-specific behavior.
 - Follow Swiss / International Typographic Style principles for Studio UI: precise shared grids, consistent spacing, clear typography and hierarchy, restrained color, and functional visual cues. Keep related media lanes adjacent; put track controls in a gutter rather than adding spacer rows. Editable numbers use consistent boxed drag-or-type controls. Prefer alignment and proportion over extra borders, panels, or decoration. This is the user's ongoing design preference.
 - Use After Effects as the interaction reference for the editing workspace. Expandable properties must look interactive at rest: visible disclosure arrow, explicit property label, bounded hit target, hover/focus and expanded states. Never rely on tiny arrows or hover-only discovery. Keep the app frame bound to the viewport and scrolling contained to the intended panel; verify panel-end scrolling and expanded timelines visually before shipping layout changes.
-- Studio is in the polishing phase: explicitly report remaining preview/mockup/unconnected features when relevant, and never present a prepared UI or downloaded model as a working backend. Current audit: `notes/design/studio-polish-readiness.md`.
-- For Studio design changes, consult `notes/design/higgsfield-cinema-studio-design.md`: researched references, prioritized adaptations, interaction contracts and original UI copy. Proposed features in that document are not claims of existing implementation.
+- Studio is in the polishing phase: explicitly report remaining preview/mockup/unconnected features when relevant, and never present a prepared UI or downloaded model as a working backend. Local audit, when available: `notes/design/studio-polish-readiness.md`.
+- For Studio design changes, consult local `notes/design/higgsfield-cinema-studio-design.md` when available: researched references, prioritized adaptations, interaction contracts and original UI copy. Proposed features in that document are not claims of existing implementation.
 - Studio UI lives in strictly typed React components under `studio/src/react/*.tsx`. Director/Edit HTML files hold page styles and the React mount point. Existing `studio/src/*.ts` modules own project storage, canvas/media/pointer services and Comfy SDK orchestration; the Director controller still has inherited unchecked types. Build new UI in React, not string templates or DOM factories. `react/render.tsx` gives each service host one React root; closed dock panels must stay connected in hidden parking (`panel-lifecycle.ts`). Native controller lifetimes currently require full-page reloads for Studio TS/TSX development edits; CSS still updates live.
 - Prefer small targeted edits over rewrites. The Director is one big file; read the relevant part first.
 

@@ -48,3 +48,6 @@ desktop.ini
 .idea/
 .vscode/
 .runtime/
+
+# Personal design, research and handoff notes stay local.
+/notes/

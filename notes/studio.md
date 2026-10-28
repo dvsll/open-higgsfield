@@ -4,6 +4,9 @@ Studio technical decisions, licenses, local setup and handoff state.
 
 ## Where we left off (update this before switching agents)
 
+**Latest handoff - 2026-10-28, toolbar walkthrough highlight:** Fixed actual layering cause: toolbar z-index1001 covered tour target outlines at89. Target outlines now1003, above toolbar and menus, pointer-events remain none. Windows button and subsequent Sequence menu-item highlight both use existing tracking rectangles. Typecheck passes.
+
+
 **Latest handoff - 2026-10-28, workflow category icons:** Workflow chooser now has aligned gold outline icons for Image, Video, 3D and Audio. Shared React SVG sizing and heading alignment; disabled Audio retains its coming-soon state. Typecheck and React UI check pass.
 
 

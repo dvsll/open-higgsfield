@@ -2,3 +2,6 @@
 .tour-target{box-shadow:none}
 .tour-shade{position:fixed;inset:0;width:100%;height:100%;z-index:88;pointer-events:none;fill:rgb(0 0 0 / 68%)}
 .tour-popover{box-shadow:0 8px 32px #000b}
+
+/* Toolbar menus sit above the app; walkthrough outlines must clear that layer. */
+.tour-target{z-index:1003}

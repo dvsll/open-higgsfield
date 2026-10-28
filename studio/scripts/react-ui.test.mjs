@@ -91,9 +91,11 @@ try {
   assert.ok(invitation.includes('I’ll try it later'));
   assert.ok(!tour.includes('I’ll try it later'));
   const choices = renderToStaticMarkup(
-    createElement(TourChoice, { onChoose: () => {}, onBack: () => {}, onSkip: () => {} }),
+    createElement(TourChoice, { onChoose: () => {}, onSkip: () => {} }),
   );
-  assert.equal((choices.match(/viewBox="0 0 16 16"/g) || []).length, 6);
+  assert.match(choices,/What would you like to create/);
+  assert.ok(!choices.includes('How familiar')&&!choices.includes('Experience level'));
+  assert.match(choices,/data-kind="workflow"/);
   const { ModelInfo,ModelChooser,ModelCapabilities } = await server.ssrLoadModule('/studio/src/react/models.tsx');
   const groupInfo={timing:'Est: ~20s',help:{title:'Estimate',text:'GPU'},badges:[]};
   const grouped=renderToStaticMarkup(createElement(ModelChooser,{groups:[{kind:'video',label:'Video',selected:'v',rows:[{id:'v',label:'Local video',description:'Video model',info:groupInfo}]},{kind:'keyframe',label:'Image',selected:'i',rows:[{id:'i',label:'Local image',description:'Image model',info:groupInfo}]}],research:[],attach:()=>{},onChoose:()=>{},onClose:()=>{}}));
@@ -159,7 +161,7 @@ try {
   const noHistory=renderToStaticMarkup(createElement(PromptHistory,{title:'Prompt history',revisions:[],initialText:'Unsaved draft',onClose:()=>{},onRestore:()=>{}}));
   assert.match(noHistory,/No saved edits/);assert.match(noHistory,/Unsaved draft/);assert.match(noHistory,/disabled=""/);
   console.log(
-    'PASS: React timeline escaping/selection, frame ruler, tutorial action gating/experience icons, model capabilities and history tree semantics.',
+    'PASS: React timeline escaping/selection, frame ruler, tutorial action gating/workflow-first choices, model capabilities and history tree semantics.',
   );
   const {cameraPose}=await server.ssrLoadModule('/studio/src/camera-path.ts');const {Vector3}=await import('three');
   const origin=new Vector3(),cameraStart=new Vector3(3,2,3),orbit={kind:'orbit',direction:1,duration:4,amount:1};

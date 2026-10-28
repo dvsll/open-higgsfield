@@ -17,65 +17,14 @@ const descriptions: Record<Workflow, string> = {
   edit: 'Trim, retime and resize a take.',
   '3d': 'Generate mesh geometry from an image.',
 };
-export function TourChoice({
-  experience,
-  onChoose,
-  onBack,
-  onSkip,
-}: {
-  experience?: Experience;
-  onChoose: (key: string) => void;
-  onBack: () => void;
-  onSkip: () => void;
-}) {
-  const entries = experience
-    ? [
-        ['image', 'Image', 'Workshop one image, then bring it into motion.'],
-        ['video', 'Video', 'Prompt a video, then direct it with keyframes.'],
-        ['3d', '3D', 'Generate and inspect a 3D mesh.'],
-        ['audio', 'Audio walkthrough · coming soon', 'The Audio workspace is available from the workspace selector.'],
-      ]
-    : [
-        ['beginner', 'ComfyUI beginner', 'Explain the tools and guide me step by step.'],
-        ['seasoned', 'Seasoned', 'Show the Studio workflow with a little guidance.'],
-        ['professional', 'Professional', 'Keep it brief. Show the essential controls.'],
-      ];
-  return (
-    <>
-      <CloseButton className="tour-close tour-choice-close" label="Skip walkthrough" onClick={onSkip}/>
-      <h2>{experience ? 'What would you like to create?' : 'How familiar are you with ComfyUI?'}</h2>
-      <p>
-        {experience
-          ? 'Choose a starting workspace. Other workflows have their own walkthroughs.'
-          : 'Choose once. We’ll use this level across your workflow walkthroughs.'}
-      </p>
-      {experience && (
-        <button className="tour-back" onClick={onBack}>
-          ← Experience level
-        </button>
-      )}
-      <div className="tour-choice-grid" data-kind={experience ? 'workflow' : 'experience'}>
-        {entries.map(([key, label, description], index) => (
-          <button key={key} type="button" disabled={key === 'audio'} onClick={() => onChoose(key)}>
-            {!experience && (
-              <span className="tour-level-icons" aria-hidden="true">
-                {Array.from({ length: index + 1 }, (_, n) => (
-                  <svg key={n} viewBox="0 0 16 16">
-                    <path d="M4 2 13 8 4 14Z" />
-                  </svg>
-                ))}
-              </span>
-            )}
-            <strong>{label}</strong>
-            <span>{description}</span>
-          </button>
-        ))}
-      </div>
-      <button className="tour-skip" onClick={onSkip}>
-        Skip walkthrough
-      </button>
-    </>
-  );
+export function TourChoice({onChoose,onSkip}:{onChoose:(key:Workflow)=>void;onSkip:()=>void}) {
+ const entries:[Workflow|'audio',string,string][]=[
+  ['image','Image','Workshop one image, then bring it into motion.'],
+  ['video','Video','Prompt a video, then direct it with keyframes.'],
+  ['3d','3D','Generate and inspect a 3D mesh.'],
+  ['audio','Audio walkthrough · coming soon','The Audio workspace is available from the workspace selector.'],
+ ];
+ return <><CloseButton className="tour-close tour-choice-close" label="Skip walkthrough" onClick={onSkip}/><h2>What would you like to create?</h2><p>Choose a starting workspace. Other workflows have their own walkthroughs.</p><div className="tour-choice-grid" data-kind="workflow">{entries.map(([key,label,description])=><button key={key} type="button" disabled={key==='audio'} onClick={()=>{if(key!=='audio')onChoose(key)}}><strong>{label}</strong><span>{description}</span></button>)}</div><button className="tour-skip" onClick={onSkip}>Skip walkthrough</button></>;
 }
 function DragDiagram({ kind }: { kind: 'add' | 'position' }) {
   return (
@@ -123,7 +72,7 @@ export function TourPopover({
     <>
       <div className="tour-popover-top">
         <span>
-          {experience} · {workflowNames[entry]} walkthrough
+          {workflowNames[entry]} walkthrough
         </span>
         <CloseButton className="tour-close" label={done?'Close walkthrough':'Skip walkthrough'} onClick={onSkip}/>
       </div>
@@ -131,8 +80,7 @@ export function TourPopover({
         <>
           <h2>Try another workflow</h2>
           <p>
-            Your {workflowNames[entry]} walkthrough is complete. Explore another workflow with the same{' '}
-            {experience} guidance. Choose one below and we’ll guide you to it in the workspace selector.
+            Your {workflowNames[entry]} walkthrough is complete. Explore another workflow. Choose one below and we’ll guide you to it in the workspace selector.
           </p>
           <div className="tour-workflow-teasers">
             {(['image', 'video', '3d'] as Workflow[])

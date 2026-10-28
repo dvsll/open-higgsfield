@@ -4,6 +4,9 @@ Studio technical decisions, licenses, local setup and handoff state.
 
 ## Where we left off (update this before switching agents)
 
+**Latest handoff - 2026-10-28, workflow-first onboarding:** Shelved experience question. TourChoice now always shows workflow choices, no level icons/back step. Choosing a workflow starts immediately using existing standard seasoned guidance internally for profile/progress compatibility. Removed experience badges/completion copy; old profile types/history retained for resume compatibility. Browser Try onboarding opens workflow dialog directly, Image selection enters Image walkthrough immediately. New test onboarding project created; original project preserved. Screenshot outputs/workflow-first-onboarding.png. Typecheck and26 Studio checks pass.
+
+
 **Latest handoff - 2026-10-28, standalone Studio repository:** Ad Studio owner moved to a separate repository. Removed adstudio/ application, its build inputs, TypeScript paths and npm test commands; removed notes/adstudio.md, notes/cross-project-handoff.md, partner request/coordination sections and .claude/settings.json automatic partner-sync hooks. Rewrote agent brief/scope, home redirects to Studio, cleaned root planning/docs. Retained shared runtime/workflows/libraries as specified by the split, Studio technical/license/machine notes, project outputs, installed models and existing local worktrees. No migration/deletion of browser projects. Typecheck,26 Studio checks,production build and dev/preview clean-route checks pass; removed Ad Studio route404.
 
 

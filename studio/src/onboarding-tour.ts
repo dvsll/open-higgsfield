@@ -86,12 +86,11 @@ export function mountOnboardingTour(options:Options) {
  }
  function selection(){
   if(chooser?.open)return;const state=options.get();if(!state)return;
-  chooser=document.createElement('dialog');chooser.className='tour-choice';chooser.setAttribute('aria-label','Personalize your Studio walkthrough');
+  chooser=document.createElement('dialog');chooser.className='tour-choice';chooser.setAttribute('aria-label','Choose your Studio workflow');
   const currentDialog=chooser;
-  renderView(chooser,createElement(TourChoice,{experience:state.experience,onChoose:key=>{
-   if(!state.experience){state.experience=key as Experience;profile.experience=state.experience;saveProfile();persist();chooser?.close();selection()}
-   else{profile.experience=state.experience;saveProfile();chooser?.close();start(key as Workflow,true)}
-  },onBack:()=>{state.experience=undefined;persist();chooser?.close();selection()},onSkip:()=>end(true)}));
+  renderView(chooser,createElement(TourChoice,{onChoose:key=>{
+   state.experience='seasoned';profile.experience='seasoned';saveProfile();chooser?.close();start(key,true);
+  },onSkip:()=>end(true)}));
   chooser.addEventListener('cancel',e=>{e.preventDefault();end(true)});
   chooser.addEventListener('close',()=>{unmountView(currentDialog);currentDialog.remove();if(chooser===currentDialog)chooser=null});document.body.append(chooser);chooser.showModal();
  }

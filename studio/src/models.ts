@@ -8,6 +8,7 @@ import { frameSize, mountFrameSizes, videoTiming } from './frame-size';
 import type { ModelChoice } from '../../shared/runtime/model-catalog';
 import { SHELL } from './shell';
 import { attachElementMentions } from './element-mentions';
+import {blockoutBase} from '../../shared/lib/blockout';
 import { expandMentions } from './mention-matching';
 
 type Kind = 'keyframe' | 'video';
@@ -117,8 +118,9 @@ export const localGeneration = {
     const id = model('keyframe'); const result = await OSH.keyframe(expandMentions(prompt, SHELL.ELEMENTS), seed, {...frameSize('keyframe'),textDevice:modelDevice(id)}, id);
     catalog=await OSH.models().catch(()=>catalog);renderDetails();return result;
   },
-  async shot(keys: ShotKey[], prompt: string, duration: number, seed = 1,timing:{frames:number;fps:number;width?:number;height?:number}=videoTiming()) {
-    const id = model('video'); const result = await OSH.shot(keys, expandMentions(prompt, SHELL.ELEMENTS), duration, seed, {...frameSize('video'),...timing,model:id,textDevice:modelDevice(id)});
+  async shot(keys: ShotKey[], prompt: string, duration: number, seed = 1,timing:{frames:number;fps:number;width?:number;height?:number;depth?:string[];depthStrength?:number}=videoTiming()) {
+    if(timing.depth){await refreshModels();if(!catalog?.video.some(entry=>entry.id===blockoutBase))throw Error('The blockout depth model is not installed yet.');chooseEntry('video',blockoutBase)}
+    const id = model('video'); const result = await OSH.shot(keys, expandMentions(prompt, SHELL.ELEMENTS), duration, seed, {...frameSize('video'),...timing,...(timing.depth?{width:512,height:320}:{}),model:id,textDevice:modelDevice(id)});
     catalog=await OSH.models().catch(()=>catalog);renderDetails();return result;
   },
 };
@@ -209,4 +211,4 @@ export function mountModels(): void {
 addEventListener('osh-audio-prompt',()=>renderDetails());
 addEventListener('osh-reconnected',()=>{if(document.getElementById('refreshModels'))void refreshModels()});
 /** Pick an installed multi-keyframe workflow before sending a captured camera path to Director. */
-export async function chooseGuideModel(){await refreshModels();const choices=catalog?.video.filter(entry=>entry.capabilities.some(capability=>capability.name==='Keyframe-guided video'&&capability.status==='ready'))||[],entry=choices.find(entry=>entry.id===select('video').value)||choices[0];if(!entry)throw Error('Connect a compatible keyframe-guided video model.');chooseEntry('video',entry.id)}
+export async function chooseGuideModel(depth=false){await refreshModels();const choices=catalog?.video.filter(entry=>entry.capabilities.some(capability=>capability.name==='Keyframe-guided video'&&capability.status==='ready'))||[],entry=depth?choices.find(entry=>entry.id===blockoutBase):choices.find(entry=>entry.id===select('video').value)||choices[0];if(!entry)throw Error('Connect a compatible keyframe-guided video model.');chooseEntry('video',entry.id)}

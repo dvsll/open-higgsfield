@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import * as THREE from 'three';
+import {blockoutGraph,blockoutReady,blockoutBase,blockoutAdapter} from '../../shared/lib/blockout.ts';
+import {normalizeDepthFrames} from '../src/depth-values.ts';
+import {surfaceUV} from '../src/mesh-material.ts';
+const graph=blockoutGraph(512,320,49);
+assert.equal(Object.values(graph).filter(n=>n.class_type==='LoadImage').length,49);
+assert.equal(Object.values(graph).filter(n=>n.class_type==='ImageBatch').length,48);
+assert.equal(graph['1'].inputs.ckpt_name,blockoutBase);
+assert.equal(graph['9'].inputs.lora_name,blockoutAdapter);
+assert.deepEqual(graph['8'].inputs.image,['depthBatch48',0]);
+for(const node of Object.values(graph))for(const value of Object.values(node.inputs))if(Array.isArray(value)&&typeof value[0]==='string')assert.ok(graph[value[0]],'Every guide batch link resolves');
+const nodes=Object.fromEntries(Object.values(graph).map(node=>[node.class_type,{}]));nodes.CLIPLoader={input:{required:{clip_name:[['t5xxl_fp8_e4m3fn_scaled.safetensors']]}}};nodes.CheckpointLoaderSimple={input:{required:{ckpt_name:[[blockoutBase]]}}};nodes.LoraLoaderModelOnly={input:{required:{lora_name:[[blockoutAdapter]]}}};assert.ok(blockoutReady(nodes));nodes.CheckpointLoaderSimple.input.required.ckpt_name=[['ltxv-2b-0.9.8-distilled.safetensors']];assert.ok(!blockoutReady(nodes),'Never apply 13B control to 2B');
+const pixel=value=>[value,value,value,255],frames=[{data:new Uint8ClampedArray([...pixel(0),...pixel(40)])},{data:new Uint8ClampedArray([...pixel(80),...pixel(60)])}];normalizeDepthFrames(frames);assert.equal(frames[0].data[0],0);assert.equal(frames[0].data[4],1);assert.equal(frames[1].data[0],255);assert.equal(frames[1].data[4],128);
+const mesh=new THREE.BoxGeometry(2,3,4),before=mesh.toNonIndexed(),projected=surfaceUV(mesh);assert.deepEqual([...projected.getAttribute('position').array],[...before.getAttribute('position').array]);assert.equal(projected.getAttribute('uv').count,projected.getAttribute('position').count);assert.ok([...projected.getAttribute('uv').array].every(n=>n>=0&&n<=1));mesh.dispose();before.dispose();projected.dispose();
+console.log('PASS: dense frame graph, base compatibility, stable depth contrast and shape-preserving texture UVs.');

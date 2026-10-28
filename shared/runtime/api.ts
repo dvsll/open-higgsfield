@@ -1,4 +1,5 @@
 import {ErrorJournal} from './error-log.ts';
+import {blockoutGraph,blockoutReady,blockoutBase} from '../lib/blockout.ts';
 import {geometryGraph,geometryBase,trainingObj} from '../lib/geometry.ts';
 import {trainingInput,trainingGraph,trainingRuns,saveTrainingRun,trainingBase,videoTrainingBase,geometryTrainingBase,trainingKind,type TrainingRun} from './training.ts';
 import {searchInput,searchResults} from './semantic-search.ts';
@@ -40,6 +41,7 @@ const imageRecipes:Recipe[]=[
   {choice:imageModel,graph:'keyframe_zimage',needs:[['1','UNETLoader','unet_name',['z_image_turbo_bf16.safetensors']],['2','CLIPLoader','clip_name',['qwen_3_4b_fp8_mixed.safetensors','qwen_3_4b.safetensors']],['3','VAELoader','vae_name',['ae.safetensors']]]},
 ];
 const videoRecipes:Recipe[]=[
+  {choice:{...ltxv13bModel,id:blockoutBase,label:'LTX-Video 13B · depth base',description:'0.9.7 dev · 30 steps · matching depth adapter used for blockouts',generation:{steps:30,stepNote:'Development checkpoint; 30 steps and CFG 3.'}},graph:'shot_ltxv',needs:[['1','CheckpointLoaderSimple','ckpt_name',[blockoutBase]],['2','CLIPLoader','clip_name',['t5xxl_fp8_e4m3fn_scaled.safetensors']]],settings:{'13':{steps:30},'14':{cfg:3}}},
   {choice:ltx25Model,graph:'shot_ltx25',needs:[['1','UNETLoader','unet_name',['ltx-2.5-22b-distilled-transformer-bf16.safetensors','ltx-2.5-22b-distilled-transformer-comfy-int8-convrot.safetensors','ltx-2.5-22b-distilled-transformer-nvfp4.safetensors']],['2','CLIPLoader','clip_name',['gemma4-12b-with-proj-ltx-2.5-bf16.safetensors','gemma4-12b-with-proj-ltx-2.5-comfy-int8-convrot.safetensors']],['10','VAELoader','vae_name',['ltx-2.5-audio-vae-bf16.safetensors']],['21','VAELoader','vae_name',['ltx-2.5-video-vae-bf16.safetensors']],['20','LatentUpscaleModelLoader','model_name',['ltx-2.5-latent-spatial-upscaler-x2-bf16-1.0.safetensors']]]},
   {choice:ltxv13bModel,graph:'shot_ltxv',needs:[['1','CheckpointLoaderSimple','ckpt_name',['ltxv-13b-0.9.8-distilled-fp8.safetensors','ltxv-13b-0.9.8-distilled.safetensors']],['2','CLIPLoader','clip_name',['t5xxl_fp8_e4m3fn_scaled.safetensors']]]},
   {choice:videoModel,graph:'shot_ltxv',needs:[['1','CheckpointLoaderSimple','ckpt_name',['ltxv-2b-0.9.8-distilled.safetensors']],['2','CLIPLoader','clip_name',['t5xxl_fp8_e4m3fn_scaled.safetensors']]]},
@@ -322,8 +324,21 @@ function shotGraph(g: Record<string, any>, nKeys: number): Record<string, any> {
   return g;
 }
 
+async function blockoutShot(body:any,env:Env){
+ const depth=body.depth,frames=num(body.frames,9,121,49),fps=num(body.fps,1,30,24);
+ if(!Number.isInteger(frames)||(frames-1)%8||!Array.isArray(depth)||depth.length!==frames||depth.some((url:unknown)=>typeof url!=='string'||!/^\/outputs\/[a-f0-9]{16}\.png$/.test(url)))throw new HttpError(400,'Blockout requires one owned depth PNG for each frame (8n+1, up to 121).');
+ if(!blockoutReady(await comfyJson(env,'/object_info')))throw new HttpError(503,'Install the Blockout LTX 13B depth model pack. Ordinary 2B video models cannot use depth control.');
+ const width=dimension(body.width,768,512,32),height=dimension(body.height,512,320,32);if(width*height>512*512)throw new HttpError(400,'Blockout preview must be at most 262144 pixels.');
+ const graph=blockoutGraph(width,height,frames,fps,Math.floor(num(body.seed,0,2**32,7)),num(body.depthStrength,0,1,1));graph['3'].inputs.text=str(body.prompt,2000,'prompt');
+ const appearance=body.keys||[];if(!Array.isArray(appearance)||appearance.length>1||appearance.some((key:any)=>!key||typeof key.image!=='string'||!/^\/outputs\/[a-f0-9]{16}\.png$/.test(key.image)))throw new HttpError(400,'Blockout accepts one optional appearance start frame.');
+ if(appearance.length){graph['appearance']={class_type:'LoadImage',inputs:{image:''}};graph['appearanceScale']={class_type:'ImageScale',inputs:{image:['appearance',0],upscale_method:'lanczos',width,height,crop:'center'}};graph['appearanceGuide']={class_type:'LTXVAddGuide',inputs:{positive:['8',0],negative:['8',1],vae:['1',2],latent:['8',2],image:['appearanceScale',0],frame_idx:0,strength:.7}};graph['11'].inputs.positive=['appearanceGuide',0];graph['11'].inputs.negative=['appearanceGuide',1];graph['13'].inputs.latent=graph['14'].inputs.latent_image=['appearanceGuide',2]}
+ const c=client(env);await ensureProxy(env);const wf=c.workflows.fromJson(graph);depth.forEach((url:string,i:number)=>wf.setInput('depth'+i,'image',c.assets.fromFile(outputPath(url))));if(appearance.length)wf.setInput('appearance','image',c.assets.fromFile(outputPath(appearance[0].image)));
+ const t=Date.now(),{job}=await timedRun(c,wf,env,'ltxv-13b-0.9.7-dev-fp8.safetensors',width,height,frames,body._requestId);
+ return {url:await save(job,'17','webm'),seconds:(Date.now()-t)/1000,frames,fps,duration:frames/fps};
+}
 /** Keyframes (images at times) + motion prompt -> video. shared/workflows/shot_ltxv.json (LTX-Video). */
 async function shot(body: any, env: Env) {
+  if(body.depth)return blockoutShot(body,env);
   const textDevice=promptDevice(body.textDevice);
   if (body.keys === undefined) body.keys = [];
   if (!Array.isArray(body.keys) || body.keys.length > 8) throw new HttpError(400, "keys: 0–8 keyframes");
@@ -660,7 +675,11 @@ function middleware(env: Env,setup:RuntimeSetup,rewriter:PromptRewriter,creative
       if(route==='POST /api/media')return send(res,200,await importMedia(req,OUTPUTS,env));
       if(route==='POST /api/compose-ad')return send(res,200,await composeAd(await readBody(req),OUTPUTS,env));
       if (route === 'GET /api/capabilities') return send(res,200,await capabilities(env));
-      if (route === "GET /api/models") return send(res, 200, await localModels(env));
+        if (route === "GET /api/models") return send(res, 200, await localModels(env));
+        if(route==='GET /api/blockout')return send(res,200,{available:!!blockoutReady(await comfyJson(env,'/object_info'))});
+        if(route==='POST /api/geometry-material'){
+         const body=await readBody(req,48*1024*1024);if(typeof body.glb!=='string'||!/^[A-Za-z0-9+/]+=*$/.test(body.glb))throw new HttpError(400,'Invalid mesh data.');const bytes=Buffer.from(body.glb,'base64');if(bytes.length<28||bytes.length>32*1024*1024||bytes.toString('ascii',0,4)!=='glTF'||bytes.readUInt32LE(4)!==2||bytes.readUInt32LE(8)!==bytes.length||bytes.readUInt32LE(16)!==0x4e4f534a)throw new HttpError(400,'Choose a self-contained GLB under 32 MB.');let json;try{json=JSON.parse(bytes.toString('utf8',20,20+bytes.readUInt32LE(12)))}catch{throw new HttpError(400,'Invalid GLB metadata.')}if(!json.meshes?.length||JSON.stringify(json).match(/"uri"\s*:\s*"(?!data:)/))throw new HttpError(400,'Mesh resources must be embedded.');const name=outputName('glb');await writeFile(join(OUTPUTS,name),bytes);return send(res,200,{url:'/outputs/'+name});
+        }
       if(route==='POST /api/training-mesh'){
        const body=await readBody(req,6*1024*1024);let obj;try{obj=trainingObj(body?.obj)}catch(error:any){throw new HttpError(400,error.message)}const name=outputName('obj');await writeFile(join(OUTPUTS,name),obj);return send(res,200,{url:'/outputs/'+name});
       }

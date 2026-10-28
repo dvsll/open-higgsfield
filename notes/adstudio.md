@@ -616,3 +616,5 @@ Studio coordination 2026-10-27: additive protected local GET /api/errors, bounde
 
 
 2026-10-28 Studio shared coordination: additive GET/POST /api/speech uses repo-owned local Kokoro ComfyUI node plus native SaveAudio through SDK/proxy. Optional speech pack and explicit setup-speech.py added; Kokoro Apache2, kokoro-onnx MIT, phonemizer/espeak GPL3 noted in studio notes before install. /api/captions optional format=text returns prose and no SRT; defaults preserved. No adstudio app edits.
+
+2026-10-28 Studio shared runtime: added optional /api/shot dense depth branch requiring exact LTX13B0.9.7dev + depthICLoRA, GET /api/blockout readiness, bounded self-contained /api/geometry-material GLB saver, optional blockout_ltxv_depth manifest pack. Ordinary shot/image/audio paths unchanged. Details in shared/workflows/CONTRACT.md and notes/studio.md. No Ad Studio app edits.

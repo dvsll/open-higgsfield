@@ -25,3 +25,7 @@ Current implementation exports real 3D video, but the LTX2B handoff only uses th
 [LTX IC-LoRA documentation](https://docs.ltx.io/open-source-model/usage-guides/ic-lo-ra) distinguishes frame-level structural control from ordinary style adapters. [Official LTX-Video repository](https://github.com/Lightricks/LTX-Video) documents depth-control models. A compatible base model, adapter, graph and resource budget must be verified, with model license/source recorded before adding anything. This note does not select or install a new model.
 
 Local audit: existing API video catalog exposes LTX2B and its trained child. Native Comfy object_info has LTXVAddGuide/GetICLoRAParameters but did not list LTX Add Video IC-LoRA Guide/loader nodes. Node-name presence alone would not prove weights or a working workflow. Dense depth/motion control remains unimplemented and unvalidated.
+
+
+## Implementation status - 2026-10-28
+Dense camera-sampled depth PNG sequences and matching native LTX13B0.9.7dev/depthICLoRA graph are now connected through the existing Comfy SDK queue. Depth guide is independently removable in video Advanced. Ordinary 2B cannot substitute. Base model download is in progress; no inference result or5-frame structure acceptance exists yet. The earlier sparse-RGB failures above remain historical evidence, not a claim against the new graph. Object surfaces now support Z-Image generated box-projected basecolor and embedded GLB, not multiview PBR reconstruction.

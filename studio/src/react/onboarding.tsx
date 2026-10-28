@@ -110,7 +110,7 @@ export function TourPopover({
             <p>{tip.text}</p>
             {onLater&&<button className="tour-secondary" onClick={onLater}>I’ll try it later</button>}
             {tip.diagram && <DragDiagram kind={tip.diagram} />}{' '}
-            {onTimelineChoice ? <div className="tour-next-choices"><button onClick={()=>onTimelineChoice("image")}>Generate keyframes</button><button onClick={()=>onTimelineChoice("scene")}>Learn to chain videos</button><button className="tour-secondary" onClick={()=>onTimelineChoice("ignore")}>Keep creating</button></div> : tip.next ? (
+            {onTimelineChoice ? <div className="tour-next-choices"><button onClick={()=>onTimelineChoice("image")}>Create start and end images</button><button onClick={()=>onTimelineChoice("scene")}>Learn to join videos</button><button className="tour-secondary" onClick={()=>onTimelineChoice("ignore")}>Keep creating</button></div> : tip.next ? (
               <button className="tour-primary" onClick={onNext}>
                 {tip.next}
               </button>

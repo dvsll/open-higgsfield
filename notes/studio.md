@@ -4,6 +4,9 @@ Studio technical decisions, licenses, local setup and handoff state.
 
 ## Where we left off (update this before switching agents)
 
+**Latest handoff - 2026-10-28, plain-language tutorial choices:** Replaced unexplained keyframes with Create start and end images, explaining that images guide how the video starts and ends. Chain videos becomes Join videos. Existing actions retained; React UI check passes.
+
+
 **Latest handoff - 2026-10-28, concise timeline invitation:** Timeline introduction now says Generate keyframes, learn to chain videos, or keep creating on your own. Three action labels match those outcomes; existing image-guide, add-scene and dismiss paths retained. React UI regression passes.
 
 

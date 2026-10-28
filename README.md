@@ -2,13 +2,12 @@
 
 Open-model cinema Studio for Comfy Org's Open Source Higgsfield competition.
 
-## Start
+## Quick Start:
 
-Download this project, then double-click **start**:
+Download this project, then run corresponding command file:
 
-- **Windows:** `start.cmd`
-- **Mac:** `start.command`
-- **Linux:** run `./start.command`
+- **Windows** : `start.cmd`
+- **Mac:** or **Linux** : `start.command`
 
 The first time, a short setup asks a few yes/no questions. It does the rest itself:
 

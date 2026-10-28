@@ -385,3 +385,5 @@ Caption SRT library (2026-10-27): Successful POST /api/captions adds srt (API-ow
 
 
 Image object selection (2026-10-27): GET /api/image-selection reports native SAM3 node and exact local SAM3.1 checkpoint availability. POST accepts API-owned PNG image (at most768px per side) plus either bounded noun phrase prompt120chars or point{x,y} within source dimensions. Native CheckpointLoaderSimple/CLIPTextEncode/SAM3_Detect/MaskToImage/SaveImage graph through SDK/proxy, serialized existing queue, returns {mask,width,height,model}. Text selects matching object silhouette; point uses SAM decoder without text. Black mask means no match. No inference downloads or external image transfer. Optional selection_sam31 model pack in shared manifest, SAM License, Comfy-Org official repack; existing image/video generations unchanged.
+
+Image segment list (2026-10-27): POST /api/image-selection additionally accepts list:true without prompt. Fixed internal object:16 conditioning and individual_masks=true return at most16 {id,label,mask} rows in segments. Numbered labels reflect proposals, not semantic classification. Existing text/point response unchanged.

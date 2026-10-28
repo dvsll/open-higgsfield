@@ -731,10 +731,10 @@ function middleware(env: Env,setup:RuntimeSetup,rewriter:PromptRewriter,creative
         let source;try{source=await segmentationSource(OUTPUTS,body)}catch(error:any){throw new HttpError(error.status||400,error.message)}
         const nodes=await comfyJson(env,'/object_info'),choices=nodes.CheckpointLoaderSimple?.input?.required?.ckpt_name?.[0]||[];
         if(!nodes.SAM3_Detect||!choices.includes('sam3.1_multiplex_fp16.safetensors'))throw new HttpError(503,'Install the SAM3.1 selection pack in Admin / local setup.');
-        const graph=await loadGraph('segment_sam3');
+        const graph=await loadGraph('segment_sam3');if(source.list)graph['4'].inputs.individual_masks=true;
         if(source.point){delete graph['3'];delete graph['4'].inputs.conditioning;graph['4'].inputs.positive_coords=JSON.stringify([source.point])}else graph['3'].inputs.text=source.prompt;
         await ensureProxy(env);const c=client(env),wf=c.workflows.fromJson(graph);wf.setInput('2','image',c.assets.fromFile(source.image.path));
-        const job=await serialize(()=>runWf(c,wf,body._requestId));return {mask:await save(job,'6','png'),width:source.image.width,height:source.image.height,model:'SAM3.1'};
+        const job=await serialize(()=>runWf(c,wf,body._requestId));if(source.list){const segments=[];for(const [index,out] of job.getOutputs('6').slice(0,16).entries()){const name=outputName('png');await out.toFile(join(OUTPUTS,name));segments.push({id:name,label:`Element ${index+1}`,mask:'/outputs/'+name})}return {segments,width:source.image.width,height:source.image.height,model:'SAM3.1'}}return {mask:await save(job,'6','png'),width:source.image.width,height:source.image.height,model:'SAM3.1'};
       }));
       if (route === 'GET /api/precision-image') {
         const catalog = await localModels(env), nodes = await comfyJson(env, '/object_info'), graph = await loadGraph('precision_zimage');

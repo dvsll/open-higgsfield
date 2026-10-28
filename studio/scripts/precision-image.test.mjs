@@ -19,6 +19,8 @@ test('precision edit validates owned sources, matching dimensions and nonempty m
   const body={image:'/outputs/1111111111111111.png',mask:'/outputs/2222222222222222.png',prompt:'A flower'};
   assert.equal((await precisionSources(root,body)).image.width,64);
   assert.equal((await segmentationSource(root,{image:body.image,prompt:'cup'})).prompt,'cup');
+  assert.equal((await segmentationSource(root,{image:body.image,list:true})).prompt,'object:16');
+  await assert.rejects(segmentationSource(root,{image:body.image,list:'yes'}),/Invalid/);
   assert.deepEqual((await segmentationSource(root,{image:body.image,point:{x:12.5,y:16.5}})).point,{x:12,y:16});
   await assert.rejects(segmentationSource(root,{image:body.image,point:{x:64,y:0}}),/inside/);
   await assert.rejects(segmentationSource(root,{image:body.image,prompt:''}),/Name/);

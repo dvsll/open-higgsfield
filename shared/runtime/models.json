@@ -1,6 +1,7 @@
 {
   "_note": "Model packs, paths relative to a ComfyUI models/ folder. Each capability lists packs best-first; the installer picks the best one that fits the GPU and reuses anything already on disk. `fast` packs are small development models. `alternates` are other filenames that work the same way in our workflow. Sizes/licenses checked against Hugging Face on 2026-10-26.",
   "packs": [
+    {"id":"geometry_trellis2","capability":"geometry","tier":"balanced","label":"3D \u00b7 TRELLIS.2 shape + PBR texture","minVramGB":12,"note":"Native ComfyUI TRELLIS.2 nodes required. Geometry and material share one image reference; DINOv3 encoder component terms apply."},
     {"id":"blockout_ltxv_depth","capability":"blockout","tier":"balanced","label":"Blockout \u00b7 LTX 13B depth","minVramGB":12,"note":"13B depth control with CPU offloading; separate from ordinary video models."},
     {"id":"speech_kokoro","capability":"speech","tier":"fast","label":"Speech · Kokoro 82M","minVramGB":0,"note":"Requires setup-speech.py and restart for the local ComfyUI speech node."},
     {"id":"selection_sam31","capability":"segmentation","tier":"best","label":"Selection · SAM3.1","minVramGB":6},
@@ -15,6 +16,11 @@
     { "id": "audio_stable", "capability": "audio", "tier": "best", "label": "Audio · Stable Audio Open", "minVramGB": 6 }
   ],
   "models": [
+    {"file":"diffusion_models/trellis_2_int8_convrot.safetensors","size_gb":5.253,"used_by":"geometry_trellis2","license":"MIT","url":"https://huggingface.co/Comfy-Org/TRELLIS.2/resolve/main/diffusion_models/trellis_2_int8_convrot.safetensors"},
+    {"file":"vae/trellis_2_shape_vae_bf16.safetensors","size_gb":1.096,"used_by":"geometry_trellis2","license":"MIT","url":"https://huggingface.co/Comfy-Org/Pixal3D/resolve/main/vae/trellis_2_shape_vae_bf16.safetensors"},
+    {"file":"vae/trellis_2_texture_vae_bf16.safetensors","size_gb":0.948,"used_by":"geometry_trellis2","license":"MIT","url":"https://huggingface.co/Comfy-Org/Pixal3D/resolve/main/vae/trellis_2_texture_vae_bf16.safetensors"},
+    {"file":"clip_vision/dino_v3_L_naf_fp32.safetensors","size_gb":1.215,"used_by":"geometry_trellis2","license":"Meta DINOv3 License; MIT repack/NAF components","url":"https://huggingface.co/Comfy-Org/Pixal3D/resolve/main/clip_vision/dino_v3_L_naf_fp32.safetensors"},
+    {"file":"background_removal/birefnet.safetensors","size_gb":0.444,"used_by":"geometry_trellis2","license":"MIT","url":"https://huggingface.co/Comfy-Org/BiRefNet/resolve/main/background_removal/birefnet.safetensors"},
     {"file":"checkpoints/ltxv-13b-0.9.7-dev-fp8.safetensors","size_gb":15.7,"used_by":"blockout_ltxv_depth","license":"LTX-Video Open Weights License 0.X","url":"https://huggingface.co/Lightricks/LTX-Video/resolve/main/ltxv-13b-0.9.7-dev-fp8.safetensors"},
     {"file":"loras/ltxv-097-ic-lora-depth-control-comfyui.safetensors","size_gb":0.082,"used_by":"blockout_ltxv_depth","license":"LTX-Video Open Weights License 0.X","url":"https://huggingface.co/Lightricks/LTX-Video-ICLoRA-depth-13b-0.9.7/resolve/main/ltxv-097-ic-lora-depth-control-comfyui.safetensors"},
     {"file":"text_encoders/t5xxl_fp8_e4m3fn_scaled.safetensors","size_gb":5.16,"used_by":"blockout_ltxv_depth","license":"Apache-2.0","url":"https://huggingface.co/comfyanonymous/flux_text_encoders/resolve/main/t5xxl_fp8_e4m3fn_scaled.safetensors"},

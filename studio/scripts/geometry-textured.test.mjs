@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import {texturedGeometryGraph,texturedGeometryReady,texturedGeometryBase} from '../../shared/lib/geometry-textured.ts';
+const full=texturedGeometryGraph(43,20);
+assert.deepEqual(full['20'].inputs.shape_latent,['18',0],'Texture generation must use the sampled shape latent');
+assert.deepEqual(full['22'].inputs.shape_subdivides,['19',1]);
+assert.deepEqual(full['25'].inputs.mesh,full['26'].inputs.mesh,'Bake and material must share the exact UV mesh');
+assert.equal(full['25'].inputs.texture_size,2048);
+assert.equal(full['24'].inputs.padding,4);
+const shape=texturedGeometryGraph(43,20,false);
+assert.equal(shape['21'],undefined,'Shape-only must not run texture sampling');
+assert.deepEqual(shape['9'].inputs.mesh,['23',0]);
+for(const graph of [full,shape])for(const node of Object.values(graph))for(const value of Object.values(node.inputs))if(Array.isArray(value)&&typeof value[0]==='string')assert.ok(graph[value[0]],'Every stage input resolves');
+const nodes=Object.fromEntries(Object.values(full).map(node=>[node.class_type,{}]));
+const file=(node,input,name,modern=false)=>{nodes[node].input??={required:{}};nodes[node].input.required[input]=modern?['COMBO',{options:[name]}]:[[name]]};
+file('UNETLoader','unet_name',texturedGeometryBase);file('CLIPVisionLoader','clip_name','dino_v3_L_naf_fp32.safetensors');file('VAELoader','vae_name','trellis_2_shape_vae_bf16.safetensors');nodes.VAELoader.input.required.vae_name[0].push('trellis_2_texture_vae_bf16.safetensors');file('LoadBackgroundRemovalModel','bg_removal_name','birefnet.safetensors',true);
+assert.ok(texturedGeometryReady(nodes));nodes.CLIPVisionLoader.input.required.clip_name=[[]];assert.ok(!texturedGeometryReady(nodes),'Do not show a ready model without its image encoder');
+console.log('PASS: shared shape/texture conditioning, consistent UV mesh, texture bypass and native inventory readiness.');

@@ -4,6 +4,9 @@ Studio technical decisions, licenses, local setup and handoff state.
 
 ## Where we left off (update this before switching agents)
 
+**Latest handoff - 2026-10-28, dim walkthrough toolbar:** Raised existing SVG spotlight shade above toolbar/menu layers, outlines above shade and popover above both. Same target-shaped cutouts preserve clear highlighted controls; pointer-events:none preserves interactions. Rest of toolbar now dims with workspace. CSS-only change, diff check passed.
+
+
 **Latest handoff - 2026-10-28, toolbar walkthrough highlight:** Fixed actual layering cause: toolbar z-index1001 covered tour target outlines at89. Target outlines now1003, above toolbar and menus, pointer-events remain none. Windows button and subsequent Sequence menu-item highlight both use existing tracking rectangles. Typecheck passes.
 
 

@@ -1,4 +1,5 @@
 // @ts-nocheck -- existing canvas/media controller; React views are strictly typed.
+import {requireGenerationPrompt} from './fun-unlocks';
 import {linkedClipIds,moveLinkedClips} from './video-continuation';
 import {videoGuide} from './video-guide';
 import {savedSceneVideo} from './scene-video';
@@ -293,7 +294,7 @@ async function busy(msg,job){const ov=$('#ov');generationBusy=true;ov.style.disp
  try{return await job()}finally{clearInterval(tick);generationBusy=false;generationActivity=null;ov.style.display='none'}}
 
 let generationDraft=null;
-async function realShot(i,label,libraryOnly=false){const s=libraryOnly?JSON.parse(JSON.stringify(currentShot())):SH[i];if(libraryOnly)generationDraft=s;let step='';
+async function realShot(i,label,libraryOnly=false){const s=libraryOnly?JSON.parse(JSON.stringify(currentShot())):SH[i];requireGenerationPrompt([s.prompt,s.m,$('#promptAdvanced').open?s.visualPrompt:''].filter(Boolean).join(' '));if(libraryOnly)generationDraft=s;let step='';
  const reviewed=$('#promptAdvanced').open;
  return busy(()=>`${label}${step}`,async()=>{
   if(shouldRewriteBeforeGeneration(reviewed,s)){step=' · preparing prompt';await promptAssistant.prepare(s);if(!libraryOnly&&!SH.includes(s))throw new Error('The scene changed while preparing its prompt.');if(s.prompt?.trim()&&s.rewriteSource!==s.prompt.trim())throw new Error('Your prompt changed while preparing details. Press Generate again to use the latest version.');}
@@ -302,6 +303,7 @@ async function fake(msgs,ms){const ov=$('#ov');ov.style.display='flex';const t0=
 const promptAssistant=mountPromptAssistant(()=>currentShot(),()=>{head();save()},shot=>SH.includes(shot)||shot===sceneDraft||shot===generationDraft);
 function focusPromptField(id){if(id!=='shotPromptInput')dispatchEvent(new Event('osh-open-prompt-advanced'));$('#'+id)?.scrollIntoView({block:'nearest'});$('#'+id)?.focus()}
 $('#gen').onclick=async()=>{if($('#ov').style.display==='flex'||$('#kgo').disabled)return;const s=currentShot();
+ try{requireGenerationPrompt([s.prompt,s.m,$('#promptAdvanced').open?s.visualPrompt:''].filter(Boolean).join(' '))}catch(e){toast(e.message);focusPromptField('shotPromptInput');return}
  if(!$('#videoFrames').reportValidity()||!$('#videoFPS').reportValidity())return;
  if(OSH.online){try{const libraryOnly=!touring()&&!clipSelected&&!selKey;if(!libraryOnly)ensureScene();const r=await realShot(cur,`Generating shot ${cur+1}`,libraryOnly);timeline();head();toast(libraryOnly?'Video ready in Project files':r.audioError?`Video ready; audio failed: ${r.audioError}`:`Shot ${cur+1} generated${s.audio?" with audio":""}`)}catch(e){toast('Generation failed: '+e.message)}return}
  toast('Start ComfyUI on port 8188, then refresh local models')};
@@ -314,7 +316,7 @@ renderView($('#frm'),h(Chips,{items:FR.map(([key,name])=>({key,name,selected:key
 $('#frm').onclick=e=>{const c=e.target.closest('.chip');if(!c)return;frm=c.dataset.k;$$('#frm .chip').forEach(x=>x.classList.toggle('on',x===c))};
 function specFromUI(){const p=$('#kp').value.toLowerCase();
  return SP({mia:false,bolt:false,scene:'',scale:FR.find(f=>f[0]===frm)[2],night:/night|dark|midnight/.test(p),dawn:/dawn|first light|morning|sunrise/.test(p),eyes:false,carry:/carr|holds|holding/.test(p)})}
-$('#kgo').onclick=async()=>{const replaceKey=selKey,replaceImage=imageDraft.url;const base=touring()?SP({mia:false,bolt:false,scene:''}):specFromUI();$('#kgo').disabled=true;$('#kgo').textContent='Generating…';
+$('#kgo').onclick=async()=>{try{requireGenerationPrompt($('#kp').value)}catch(e){toast(e.message);$('#kp').focus();return}const replaceKey=selKey,replaceImage=imageDraft.url;const base=touring()?SP({mia:false,bolt:false,scene:''}):specFromUI();$('#kgo').disabled=true;$('#kgo').textContent='Generating…';
  if(OSH.online){const p=$('#kp').value;if(touring()&&onboarding.step==='keyframes'&&onboarding.images.length===1&&onboarding.guidePrompts?.[0]===p.trim()){$('#kgo').disabled=false;toast('Describe a different END frame before generating.');$('#kp').focus();return}const prompt=workspaceMode==='image'||touring()?p:keyPrompt(base,p),batch=Array.from({length:workspaceMode==='image'?1:keyframeBatch}).map(()=>({spec:base,u:.5,p,pending:true}));results=batch.concat(results).slice(0,12);res();
   try{for(const [j,v] of batch.entries()){const r=await localGeneration.keyframe(prompt,Math.floor(Math.random()*1e6));v.img=r.url;v.pending=false;if(touring()&&['keyframes','add'].includes(onboarding.step)){onboarding.images.push(r.url);onboarding.guidePrompts=[...(onboarding.guidePrompts||[]),p.trim()];SC.set('osh-onboarding',onboarding);if(new Set(onboarding.images).size>=2)advanceTour('return-video');else renderTour()}if(replaceKey&&SH.some(shot=>shot.keys.includes(replaceKey))){replaceKey.img=r.url;for(const shot of SH)if(shot.keys.includes(replaceKey))shot.r=false;timeline();head()}else if(workspaceMode==='image'&&(touring()||replaceImage&&imageDraft.url===replaceImage&&!librarySelection)){imageDraft={prompt:p,url:r.url,spec:base};saveWorkshop();syncWorkspace()}pushHist({kind:'keyframe',url:r.url,label:p},!replaceKey&&(!replaceImage||!!librarySelection));if(touring()&&onboarding.step==='image'){onboarding.images=[r.url];advanceTour('image-review')};$('#kgo').textContent=`Image ${j+1}/${batch.length} ready`;res()}}
   catch(e){toast('Keyframe generation failed: '+e.message);results=results.filter(v=>!v.pending);res()}

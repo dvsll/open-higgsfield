@@ -4,6 +4,9 @@ Studio technical decisions, licenses, local setup and handoff state.
 
 ## Where we left off (update this before switching agents)
 
+**Latest handoff - 2026-10-28, empty prompt unlock:** Image/video generation rejects whitespace-only prompts before placeholders, scene creation or GPU calls; shared realShot guard covers batch too. Explicit Advanced visual/motion text counts as a prompt, automatic style defaults do not. Admin Advanced > Fun unlocks checkbox Allow generation without a prompt is browser-wide localStorage, off by default, reversible; read at generation time. Other media retain existing required prompts. Typecheck/build pass;27-check suite initially exposed missing helper injection in extraction harness, fixed with actual helper and added default/enable/disable and no-generation blank-image tests. No inference run.
+
+
 **Latest handoff - 2026-10-28, last-clip actions:** Sequence time scale now reserves32px for the absolute28px Add shot control plus4px gap. Previously clips used full track width so Add covered last clip Delete. Shared pixels-per-second keeps ruler/layers aligned; opened shot view unchanged. Typecheck and React UI check pass.
 
 

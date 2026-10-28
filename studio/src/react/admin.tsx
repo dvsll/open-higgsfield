@@ -1,3 +1,4 @@
+import {emptyPromptsUnlocked,setEmptyPromptsUnlocked} from '../fun-unlocks';
 import {Popup} from './popup';
 import {AdminModels,type ModelSetup} from './admin-models';
 import {logBrowserError} from '../error-log';
@@ -8,6 +9,7 @@ type Runtime=ModelSetup&{connected:boolean;canStart?:boolean;launchDirectory?:st
 export function AdminButton(){return <button className="toolbar-admin" onClick={()=>{location.href='/studio/admin'}}>Admin</button>}
 export function AdminPage(){
  const [logsOpen,setLogsOpen]=useState(false);
+ const [emptyPrompts,setEmptyPrompts]=useState(emptyPromptsUnlocked);
  const [runtime,setRuntime]=useState<Runtime|null>(null),[error,setError]=useState('');
  const [address,setAddress]=useState(''),[connecting,setConnecting]=useState(false),[notice,setNotice]=useState('');
  const initialized=useRef(false);useEffect(()=>{if(runtime&&!initialized.current){initialized.current=true;setAddress(runtime.url)}},[runtime]);
@@ -34,6 +36,7 @@ export function AdminPage(){
   {error&&<p role="status">{error}</p>}
   <div className="popup-actions">{url&&<a href={url} target="_blank" rel="noopener noreferrer">Open ComfyUI ↗</a>}<button onClick={()=>dispatchEvent(new Event('osh-open-runtime-setup'))}>Local setup</button></div>
  <AdminModels setup={runtime}/>
+ <details className="admin-section"><summary>Advanced</summary><h3>Fun unlocks</h3><label><input type="checkbox" checked={emptyPrompts} onChange={event=>{setEmptyPromptsUnlocked(event.target.checked);setEmptyPrompts(event.target.checked)}}/> Allow generation without a prompt</label><p>Let the model improvise when the image or video prompt is empty. Off by default.</p></details>
  <section className="admin-section"><div className="admin-section-title"><div><h2>Diagnostics</h2><p>Runtime and browser errors</p></div><button onClick={()=>setLogsOpen(true)}>Open error logs</button></div></section>
  {logsOpen&&<Popup title="Error logs" onClose={()=>setLogsOpen(false)} className="admin-logs-popup"><ErrorLogs/></Popup>}
  </main></div>;

@@ -1,3 +1,4 @@
+import {requireGenerationPrompt,setEmptyPromptsUnlocked} from '../src/fun-unlocks.ts';
 import {guideDropPosition} from '../src/guide-drop.ts';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -79,12 +80,21 @@ context.SC={get:()=>[{url:'/outputs/1111111111111111.png',kind:'image'}]};contex
 api.dropTarget(el,0);el.ondrop({preventDefault(){},clientX:110,dataTransfer:{getData:()=>'/outputs/1111111111111111.png'}});assert.equal(shot.keys.length,1);assert.equal(shot.keys[0].img,'/outputs/1111111111111111.png');
 el.ondrop({preventDefault(){},clientX:210,dataTransfer:{getData:()=>'/outputs/2222222222222222.png'}});assert.equal(shot.keys.length,1);
 
+// The optional browser-wide unlock is explicit and reversible.
+const previousStorage=Object.getOwnPropertyDescriptor(globalThis,'localStorage');
+const unlockStore=new Map();Object.defineProperty(globalThis,'localStorage',{configurable:true,value:{getItem:key=>unlockStore.get(key)||null,setItem:(key,value)=>unlockStore.set(key,value)}});
+assert.throws(()=>requireGenerationPrompt('  '),/Write a prompt first/);
+setEmptyPromptsUnlocked(true);assert.doesNotThrow(()=>requireGenerationPrompt(''));
+setEmptyPromptsUnlocked(false);assert.throws(()=>requireGenerationPrompt(''),/Write a prompt first/);
+if(previousStorage)Object.defineProperty(globalThis,'localStorage',previousStorage);else delete globalThis.localStorage;
+
 // Run the real image-generation controller against a deterministic CPU stub.
 const imageCode=source.slice(source.indexOf("$('#kgo').onclick=async()=>"),source.indexOf('\nfunction res()'));
 const button={disabled:false,textContent:''},promptInput={value:'Prepared START guide prompt',focus(){}};
 let generated=0,guideRenders=0;
-const imageContext={selKey:null,librarySelection:null,SH:[],$:selector=>selector==='#kgo'?button:promptInput,SP:value=>value,touring:()=>true,specFromUI:()=>({}),OSH:{online:true},workspaceMode:'image',keyframeBatch:4,results:[],imageDraft:{},onboarding:{entry:'video',step:'keyframes',images:[]},localGeneration:{keyframe:async()=>({url:'/outputs/'+String(++generated).repeat(16)+'.png'})},res:()=>{},SC:{set:()=>{}},advanceTour:step=>{imageContext.onboarding.step=step},renderTour:()=>guideRenders++,saveWorkshop:()=>{},syncWorkspace:()=>{},pushHist:()=>{},toast:()=>{}};
+const imageContext={requireGenerationPrompt,selKey:null,librarySelection:null,SH:[],$:selector=>selector==='#kgo'?button:promptInput,SP:value=>value,touring:()=>true,specFromUI:()=>({}),OSH:{online:true},workspaceMode:'image',keyframeBatch:4,results:[],imageDraft:{},onboarding:{entry:'video',step:'keyframes',images:[]},localGeneration:{keyframe:async()=>({url:'/outputs/'+String(++generated).repeat(16)+'.png'})},res:()=>{},SC:{set:()=>{}},advanceTour:step=>{imageContext.onboarding.step=step},renderTour:()=>guideRenders++,saveWorkshop:()=>{},syncWorkspace:()=>{},pushHist:()=>{},toast:()=>{}};
 const generateGuide=Function('ctx','with(ctx){'+imageCode+";return $('#kgo').onclick}")(imageContext);
+promptInput.value='   ';await generateGuide();assert.equal(generated,0,'Blank prompt never reaches generation');promptInput.value='Prepared START guide prompt';
 await generateGuide();assert.equal(imageContext.onboarding.step,'keyframes');assert.equal(guideRenders,1);assert.equal(button.disabled,false);
 await generateGuide();assert.equal(generated,1,'A repeated START prompt cannot silently create END');promptInput.value='Distinct END guide prompt';await generateGuide();assert.deepEqual(imageContext.onboarding.guidePrompts,['Prepared START guide prompt','Distinct END guide prompt']);assert.equal(imageContext.onboarding.step,'return-video');assert.equal(imageContext.onboarding.images.length,2);assert.equal(imageContext.imageDraft.url,'/outputs/2222222222222222.png');
 imageContext.onboarding={entry:'image',step:'image',images:[]};await generateGuide();assert.equal(imageContext.onboarding.step,'image-review');
@@ -116,7 +126,7 @@ const rendered={prompt:'old',r:true,video:'/outputs/clip.webm'};const promptCont
 const shotCode=source.slice(source.indexOf('async function realShot('),source.indexOf('\nasync function fake('));
 for(const stage of ['regenerate','image-video','watch-video','play-video']){
  const scene={id:'review-scene',n:'Scene',d:4,prompt:'new',r:false,keys:[{img:'start',anchor:'start',t:0},{img:'end',anchor:'end',t:4}],audioLinked:false};
- const ctx={generationDraft:null,SH:[scene],busy:async(_,job)=>job(),$:()=>({open:true}),shouldRewriteBeforeGeneration:()=>false,localGeneration:{shot:async()=>({url:'/outputs/new.webm',frames:97,duration:4,fps:24})},shotPrompt:()=>scene.prompt,start:()=>0,G:3.99,setPlaying:()=>{},pushHist:()=>{},shotId:s=>s.id,touring:()=>true,onboarding:{shotId:scene.id,step:stage,afterReview:'add-scenes'},advanceTour:step=>ctx.onboarding.step=step};
+ const ctx={requireGenerationPrompt,generationDraft:null,SH:[scene],busy:async(_,job)=>job(),$:()=>({open:true}),shouldRewriteBeforeGeneration:()=>false,localGeneration:{shot:async()=>({url:'/outputs/new.webm',frames:97,duration:4,fps:24})},shotPrompt:()=>scene.prompt,start:()=>0,G:3.99,setPlaying:()=>{},pushHist:()=>{},shotId:s=>s.id,touring:()=>true,onboarding:{shotId:scene.id,step:stage,afterReview:'add-scenes'},advanceTour:step=>ctx.onboarding.step=step};
  const render=Function('ctx','with(ctx){'+shotCode+';return realShot}')(ctx);await render(0,'Render');assert.equal(ctx.onboarding.step,'play-video');assert.equal(ctx.onboarding.firstVideo,'/outputs/new.webm');assert.equal(ctx.onboarding.videoReviewed,false);assert.equal(ctx.G,0);assert.equal(ctx.onboarding.afterReview,'add-scenes');
 }
 
@@ -139,7 +149,7 @@ const animateCtx={$:()=>animateControl,touring:()=>true,onboarding:{entry:'image
 // Untargeted generation saves an asset without replacing the current timeline shot.
 {
  const scene={id:'existing',n:'Existing',d:4,prompt:'new',video:'/outputs/original.webm',r:true,keys:[],audioLinked:false};let output;
- const ctx={generationDraft:null,currentShot:()=>scene,SH:[scene],busy:async(_,job)=>job(),$:()=>({open:true}),shouldRewriteBeforeGeneration:()=>false,localGeneration:{shot:async()=>({url:'/outputs/library.webm',frames:97,duration:4,fps:24})},shotPrompt:s=>s.prompt,start:()=>0,G:2,setPlaying:()=>{},pushHist:(asset,reveal)=>output={asset,reveal},shotId:s=>s.id,touring:()=>false};
+ const ctx={requireGenerationPrompt,generationDraft:null,currentShot:()=>scene,SH:[scene],busy:async(_,job)=>job(),$:()=>({open:true}),shouldRewriteBeforeGeneration:()=>false,localGeneration:{shot:async()=>({url:'/outputs/library.webm',frames:97,duration:4,fps:24})},shotPrompt:s=>s.prompt,start:()=>0,G:2,setPlaying:()=>{},pushHist:(asset,reveal)=>output={asset,reveal},shotId:s=>s.id,touring:()=>false};
  const render=Function('ctx','with(ctx){'+shotCode+';return realShot}')(ctx);await render(0,'Render',true);assert.equal(scene.video,'/outputs/original.webm');assert.equal(ctx.G,2);assert.equal(output.asset.url,'/outputs/library.webm');assert.equal(output.reveal,true);
 }
 

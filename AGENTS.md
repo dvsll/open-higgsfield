@@ -6,14 +6,14 @@ This repository contains the standalone Studio application. **Read this file fir
 ## What this is
 Studio entry for Comfy Org's **Open Source Higgsfield** competition. **Hard deadline: Thu Oct 30, 9:00am PT.** Treat Wed Oct 29 as the real one.
 - `studio/`: **dvs's** cinema studio (Director + Edit Anything). The person driving you is usually dvs → work here.
-- `shared/`: Studio libraries: `runtime/` (local server), `workflows/` (ComfyUI API JSON + `CONTRACT.md`), `styleboard/`, `lib/`.
+- `shared/`: Studio libraries: `runtime/` (local server), `workflows/` (ComfyUI API JSON), `styleboard/`, `lib/`.
 
 ## Rules (non-negotiable, see RULES.md)
 - Categories: **Open Weights Only · LTX VFX bonus · Most Innovative**.
 - Generation goes through the **Comfy SDK** (`comfy-sdk`) → `comfy-api-proxy` → ComfyUI. No closed APIs, no partner/API nodes, **open-weights models only**, LTX as the core video model.
 - Before adding any model or dependency: write its name, license and source link in your notes file.
 - Projects load files only from their own folder and `../shared/` (keeps application boundaries clear).
-- `DEADLINES.md` beats `PLAN.md` whenever the two conflict.
+- `DEADLINES.md` beats local `PLAN.md` whenever the latter is available and conflicts.
 
 ## Working conventions
 - Work on `main`. Fetch/reconcile origin before pushing; never force-push. Ad Studio has moved to its own repository; cross-project coordination and partner-sync hooks are no longer used.

@@ -51,3 +51,7 @@ desktop.ini
 
 # Personal design, research and handoff notes stay local.
 /notes/
+
+# Local planning and implementation reference documents.
+/PLAN.md
+/shared/workflows/CONTRACT.md

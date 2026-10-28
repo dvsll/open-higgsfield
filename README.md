@@ -26,7 +26,7 @@ After that, double-clicking **start** opens the app in your browser. Close the w
 
 ## For developers
 
-See [`AGENTS.md`](AGENTS.md), [`shared/workflows/CONTRACT.md`](shared/workflows/CONTRACT.md), [`RULES.md`](RULES.md), [`PLAN.md`](PLAN.md) and [`DEADLINES.md`](DEADLINES.md). The installer is `shared/runtime/install.ts`, and the model list is `shared/runtime/models.json`.
+See [`AGENTS.md`](AGENTS.md), [`RULES.md`](RULES.md), [`DEADLINES.md`](DEADLINES.md). The installer is `shared/runtime/install.ts`, and the model list is `shared/runtime/models.json`.
 
 ## License
 

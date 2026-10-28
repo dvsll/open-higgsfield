@@ -91,7 +91,7 @@ try {
   assert.ok(invitation.includes('I’ll try it later'));
   assert.ok(!tour.includes('I’ll try it later'));
   const timelineChoices=renderToStaticMarkup(createElement(TourPopover,{experience:'seasoned',entry:'video',done:false,tip:{title:'Sequence',text:'Choose next'},onTimelineChoice:()=>{},onSkip:()=>{},onNext:()=>{},onWorkflow:()=>{},onFinish:()=>{}}));
-  for(const label of ['Go to image generation','Generate another scene','Ignore'])assert.ok(timelineChoices.includes(label));
+  for(const label of ['Generate keyframes','Learn to chain videos','Keep creating'])assert.ok(timelineChoices.includes(label));
   assert.ok(!timelineChoices.includes('Use the highlighted control'));
   const choices = renderToStaticMarkup(
     createElement(TourChoice, { onChoose: () => {}, onSkip: () => {} }),

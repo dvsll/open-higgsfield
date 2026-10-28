@@ -4,6 +4,9 @@ Studio technical decisions, licenses, local setup and handoff state.
 
 ## Where we left off (update this before switching agents)
 
+**Latest handoff - 2026-10-28, concise timeline invitation:** Timeline introduction now says Generate keyframes, learn to chain videos, or keep creating on your own. Three action labels match those outcomes; existing image-guide, add-scene and dismiss paths retained. React UI regression passes.
+
+
 **Latest handoff - 2026-10-28, tutorial attention pulse:** Background clicks now pulse the highlighted control outline with two gold halo cycles, rather than outlining its entire dock window. Clicks inside the control or tutorial stay quiet; repeated outside clicks restart the pulse. Reduced motion uses one stationary fading highlight. Existing blocked-click handler retained. Typecheck passes.
 
 

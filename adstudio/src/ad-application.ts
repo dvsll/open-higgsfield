@@ -17,6 +17,7 @@ import {buildCreativeIntelligence} from '../../shared/lib/creative-intelligence.
 import {planFromReference,planOriginalCampaign,motionPromptForShot,shotRenderDuration,type ReferenceAnalysis,type CampaignShotPlan} from '../../shared/lib/reference-video.ts';
 import {planCampaignSound,soundCapabilitiesNote,type AudioRights,type CampaignSoundState,type SoundLayerAsset,type SoundMode} from '../../shared/lib/sound-director.ts';
 import {prepareReference} from './reference.ts';
+import {campaignFilmEndCard} from './campaign-film-art.ts';
 import {defaults,type Take} from './projects.ts';
 import {resolveGenerationEngine,type GenerationEngineId,type GenerationReadiness} from './generation-engines.ts';
 import type {InspirationRecord} from './creative-service.ts';
@@ -293,14 +294,13 @@ export class AdApplication {
   const intel=shotPlan.intelligence||buildCreativeIntelligence(plan,shotPlan.creativeHook);
   const clips:{source:string;purpose:string;prompt:string;duration:number;seconds:number}[]=[];
   const prompts:string[]=[];
+  // Always seed from the approved campaign photograph — never the raw original as an opening plate.
   for(const brief of shotPlan.shots){
    this.store.notify(`Generating shot ${brief.index+1}/${shotPlan.shots.length} (${brief.purpose})…`);
-   const useSource=brief.startKeyframeStrategy==='source-still'||brief.startKeyframeStrategy==='generated-open';
-   const still=useSource?source:hero;
-   const fitted=await prepareReference(await this.encode(still.original),campaignVideoSize.width,campaignVideoSize.height,'fit');
+   const fitted=await prepareReference(await this.encode(hero.original),campaignVideoSize.width,campaignVideoSize.height,'crop');
    const uploaded=await this.client.upload(fitted);
    const duration=shotRenderDuration(brief);
-   const prompt=motionPromptForShot(brief,plan.input.facts.description,intel);
+   const prompt=motionPromptForShot({...brief,startKeyframeStrategy:'hero-still'},plan.input.facts.description,intel);
    prompts.push(prompt);
    let shot:Awaited<ReturnType<NonNullable<AppClient['shot']>>>|undefined;let lastErr:Error|undefined;
    for(let attempt=0;attempt<2;attempt++){
@@ -317,31 +317,45 @@ export class AdApplication {
   this.store.notify(`Assembling ${clips.length}-shot commercial…`);
   if(!clips.length)throw Error('No shots were generated.');
   let mp4=clips[0].source,assembleNote='single-shot';
-  const closing=/^\/outputs\/[a-f0-9]{16}\.png$/.test(take.url)?take.url:undefined;
+  let closing:string|undefined;
+  if(shotPlan.editing.endingCta||shotPlan.editing.brandOverlay){
+   try{
+    const endCard=campaignFilmEndCard({
+     brand:plan.input.brand.dna.name||shotPlan.brandName,
+     headline:take.adDesign?.headline||plan.composition.headline||shotPlan.shots.at(-1)?.textOverlay?.text||'',
+     cta:take.adDesign?.cta||plan.composition.cta||undefined,
+     silent:true
+    },720,1280);
+    closing=(await this.client.upload(endCard)).url;
+   }catch{
+    closing=/^\/outputs\/[a-f0-9]{16}\.png$/.test(take.url)?take.url:undefined;
+   }
+  }
   try{
    const assembled=await fetch('/api/reference/assemble',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
     shots:clips.map(c=>({source:c.source})),
     transition:shotPlan.editing.transition,
     width:720,
-    closing:shotPlan.editing.endingCta?closing:undefined,
-    ctaSeconds:shotPlan.editing.endingCta&&closing?1.4:0
+    closing:closing&&/^\/outputs\/[a-f0-9]{16}\.png$/.test(closing)?closing:undefined,
+    ctaSeconds:closing?1.5:0
    }),signal:AbortSignal.timeout(180000)});
    const body=await assembled.json();
    if(!assembled.ok)throw Error(body.error||'Assemble failed');
-   mp4=body.url;assembleNote=body.note||shotPlan.editing.transition;
+   mp4=body.url;assembleNote=(body.note||shotPlan.editing.transition)+'; silent · brand end card';
   }catch(e){
    try{mp4=(await this.client.exportVideo(clips.at(-1)!.source)).url;}catch{mp4=clips.at(-1)!.source;}
    assembleNote='assemble-fallback: '+(e as Error).message;
   }
-  const exports:Take['exports']=/\.mp4$/.test(mp4)?[{id:crypto.randomUUID(),url:mp4,tagline:take.adDesign?.headline||'',created:Date.now()}]:[];
+  const tagline=(take.adDesign?.headline||plan.composition.headline||'Campaign film')+' · silent';
+  const exports:Take['exports']=/\.mp4$/.test(mp4)?[{id:crypto.randomUUID(),url:mp4,tagline,created:Date.now()}]:[];
   if(!exports.length){
-   try{const exported=await this.client.exportVideo(clips[0].source);exports.push({id:crypto.randomUUID(),url:exported.url,tagline:take.adDesign?.headline||'',created:Date.now()});if(!/\.mp4$/.test(mp4))mp4=exported.url;}catch{/* */}
+   try{const exported=await this.client.exportVideo(clips[0].source);exports.push({id:crypto.randomUUID(),url:exported.url,tagline,created:Date.now()});if(!/\.mp4$/.test(mp4))mp4=exported.url;}catch{/* */}
   }
-  const totalSec=clips.reduce((a,c)=>a+c.seconds,0);
+  const totalSec=clips.reduce((a,c)=>a+c.seconds,0)+(closing?1.5:0);
   const playable=/\.mp4$/.test(mp4)?mp4:clips[0].source;
-  const video:Take={id:crypto.randomUUID(),created:Date.now(),assetId:take.assetId,source:playable,kind:'generation',mode:'creative',ratio:'9:16',settings:{...defaults(),mode:'creative',ratios:['9:16'],duration:shotPlan.shots.reduce((a,s)=>a+shotRenderDuration(s),0),seed:seed0,pitch:prompts.join('\n---\n').slice(0,1500),tagline:take.adDesign?.headline||'',model:campaignVideoSize.model,template:`${templatePrefix}:${take.id}:${shotPlan.id}:x${clips.length}`},prompt:prompts.join('\n---\n').slice(0,2000),frames:Math.max(1,clips.length*49),fps:24,width:campaignVideoSize.width,height:campaignVideoSize.height,seconds:totalSec,exports:exports.length?exports:[{id:crypto.randomUUID(),url:playable,tagline:take.adDesign?.headline||'',created:Date.now()}]};
+  const video:Take={id:crypto.randomUUID(),created:Date.now(),assetId:take.assetId,source:playable,kind:'generation',mode:'creative',ratio:'9:16',settings:{...defaults(),mode:'creative',ratios:['9:16'],duration:shotPlan.shots.reduce((a,s)=>a+shotRenderDuration(s),0),seed:seed0,pitch:prompts.join('\n---\n').slice(0,1500),tagline,model:campaignVideoSize.model,template:`${templatePrefix}:${take.id}:${shotPlan.id}:x${clips.length}:silent`},prompt:prompts.join('\n---\n').slice(0,2000),frames:Math.max(1,clips.length*49),fps:24,width:campaignVideoSize.width,height:campaignVideoSize.height,seconds:totalSec,exports:exports.length?exports:[{id:crypto.randomUUID(),url:playable,tagline,created:Date.now()}]};
   p.takes.push(video);
-  return {video,mp4:playable,shotPlan,clips,assembleNote,prompts,warning:`${clips.length}-shot commercial (${shotPlan.creativeHook}). ${assembleNote} Product replacement of reference footage is unavailable.`};
+  return {video,mp4:playable,shotPlan,clips,assembleNote,prompts,warning:`${clips.length}-shot silent commercial (${shotPlan.creativeHook}). ${assembleNote} All beats seed from the approved campaign still. Compare product identity — LTX can drift. Fidelity: ${intel.fidelity}.`};
  }
  /** Reference-inspired multi-shot commercial from analyzed inspiration + brand stills. */
  async generateInspiredCommercial(takeId:string){

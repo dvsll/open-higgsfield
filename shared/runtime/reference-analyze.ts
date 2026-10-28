@@ -229,7 +229,8 @@ export async function assembleCommercial(body:any,root:string,env:Env){
   const closeIdx=closing&&cta?idx++:-1;
   if(closing&&cta)args.push('-loop','1','-framerate',String(fps),'-t',String(cta),'-i',closing);
   const filters:string[]=[];
-  const norm=`scale=${width}:${height}:force_original_aspect_ratio=decrease:force_divisible_by=2:flags=lanczos,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:color=0x141519,setsar=1,fps=${fps},format=yuv420p,settb=AVTB`;
+  // Cover/crop to the campaign ratio — never letterbox with black bars or stretch.
+  const norm=`scale=${width}:${height}:force_original_aspect_ratio=increase:force_divisible_by=2:flags=lanczos,crop=${width}:${height},setsar=1,fps=${fps},format=yuv420p,settb=AVTB`;
   paths.forEach((_,i)=>filters.push(`[${i}:v]${norm}[v${i}]`));
   if(blackIdx>=0)filters.push(`[${blackIdx}:v]${norm}[vblack]`);
   if(closeIdx>=0)filters.push(`[${closeIdx}:v]${norm},fade=t=in:st=0:d=0.25[vend]`);

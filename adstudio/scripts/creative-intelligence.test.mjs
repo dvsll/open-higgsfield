@@ -69,11 +69,18 @@ const shotPlan=planFromReference(food,analysis);
 assert.equal(shotPlan.version,1);
 assert.ok(shotPlan.shots.length>=2&&shotPlan.shots.length<=3);
 assert.equal(shotPlan.rights,'inspiration-only');
-assert.match(shotPlan.note,/never be exported/i);
+assert.match(shotPlan.note,/never be exported|approved campaign still/i);
 assert.ok(shotPlan.shots.every(s=>!/No Crumbs|reference frames copied/i.test(s.sceneBrief)));
 assert.ok(shotPlan.shots[0].sceneBrief.includes('Acme')||shotPlan.brandName==='Acme');
+assert.ok(shotPlan.shots.every(s=>s.startKeyframeStrategy==='hero-still'),'all beats seed from approved campaign still');
+assert.equal(shotPlan.shots.at(-1)?.purpose,'payoff');
+assert.equal(shotPlan.editing.endingCta,true);
+assert.ok(shotPlan.fidelityRequirements.some(r=>/fidelity|Motion may soften/i.test(r)));
 
 assert.equal(shotPlan.shots.length,2);
 assert.ok(shotPlan.editing.transition);
+assert.equal(original.shots.length,2);
+assert.ok(original.shots.every(s=>s.startKeyframeStrategy==='hero-still'));
+assert.equal(original.shots.at(-1)?.purpose,'payoff');
 
 console.log('creative-intelligence.test PASS',{foodHook:foodIntel.creativeHook,beautyHook:beautyIntel.creativeHook,lotionLane:lotionIntel.sensoryLane,shotCount:shotPlan.shots.length,originalShots:original.shots.length});

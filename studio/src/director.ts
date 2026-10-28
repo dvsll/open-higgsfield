@@ -321,7 +321,7 @@ $('#kgo').onclick=async()=>{const replaceKey=selKey,replaceImage=imageDraft.url;
   $('#kgo').disabled=false;$('#kgo').textContent=workspaceMode==='image'?'Generate image':'Generate '+keyframeBatch+' keyframe'+(keyframeBatch===1?'':'s');return}$('#kgo').disabled=false;$('#kgo').textContent=workspaceMode==='image'?'Generate image':'Generate '+keyframeBatch+' keyframe'+(keyframeBatch===1?'':'s');toast('Start ComfyUI on port 8188, then refresh local models');return};
 function res(){renderView($('#res'),h(Results,{items:results,bind:(d,index)=>{const v=results[index];drawKey(d.firstChild.getContext('2d'),v,2,0);d.ondragstart=e=>{dragV=v;e.dataTransfer.setData('text/plain','keyframe');e.dataTransfer.effectAllowed='copy'};d.ondragend=()=>dragV=null;d.onclick=()=>{if(workspaceMode==='image'){imageDraft={...imageDraft,url:v.img};saveWorkshop();syncWorkspace();return}const[i,lt]=keyTarget();addKey(i,lt,v)}}}))}
 
-function toast(t){const d=document.createElement('div');d.className='toast';d.textContent=t;document.body.append(d);setTimeout(()=>d.style.opacity=0,1700);setTimeout(()=>d.remove(),2100)}
+function toast(t,duration=1700){const d=document.createElement('div');d.className='toast';d.textContent=t;document.body.append(d);setTimeout(()=>d.style.opacity=0,duration);setTimeout(()=>d.remove(),duration+400)}
 // ---------- loop: one playhead across the whole sequence ----------
 const audioPlayers=new Map();
 let lastTourClipUpdate=0;
@@ -471,6 +471,7 @@ mountWorkspaceDock(()=>{timeline();head()},setWorkflow);
 if(inEditWorkspace())embeddedEdit.open();
 if(onboarding?.entry==='image'&&!onboarding.images?.length&&imageDraft.url){onboarding.images=[imageDraft.url];SC.set('osh-onboarding',onboarding)}
 onboardingUI=mountOnboardingTour({
+ onKeepCreating:()=>toast('You can try other workflows anytime from the workflow dropdown at the top.',5500),
  get:()=>onboarding,set:state=>{onboarding=state},save:()=>{if(onboarding)SC.set('osh-onboarding',onboarding)},
  current:()=>workflowForSetup(document.querySelector('[aria-label="Workspace setup"]')?.value||'Video',workspaceMode),
  begin:entry=>({step:entry==='image'?(imageDraft.url?'image-review':'image'):entry==='director'?(results.filter(r=>r.img).length>=2?'return-video':'switch-image'):entry==='3d'?'3d':entry==='rendering'?'render-settings':entry==='edit'?'edit-settings':currentShot().r?'switch-image':'prompt',shotId:shotId(currentShot()),images:results.filter(r=>r.img).map(r=>r.img),dismissed:false,entry}),

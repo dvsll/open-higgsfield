@@ -4,6 +4,9 @@ Studio technical decisions, licenses, local setup and handoff state.
 
 ## Where we left off (update this before switching agents)
 
+**Latest handoff - 2026-10-28, keep-creating reminder:** Choosing Keep creating after timeline intro dismisses walkthrough and uses existing quiet toast to remind users they can try other workflows from top workflow dropdown. Reminder lasts5.5s; other toast timings unchanged. Typecheck and React UI check pass.
+
+
 **Latest handoff - 2026-10-28, plain-language tutorial choices:** Replaced unexplained keyframes with Create start and end images, explaining that images guide how the video starts and ends. Chain videos becomes Join videos. Existing actions retained; React UI check passes.
 
 

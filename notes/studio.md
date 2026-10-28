@@ -4,6 +4,9 @@ Append dated decisions, render times and requests here. Only the studio owner ed
 
 ## Where we left off (update this before switching agents)
 
+**Latest handoff - 2026-10-28, readable clip headers and frame-bound join:** React clip title now has its own shrinking/ellipsis span; controls/status share a bounded row with fixed icon dimensions, compact Open icon and progressively hidden decorative content at small widths. Linked sound no longer floats over collapsed headers. Actual adjacent continuation whose START image matches captured frame and whose previous source video matches gets two green bars crossing the shared boundary, as user sketch; accessible join button unlinks grouping while retaining START image. Nonadjacent/stale-source lineage keeps header chain control. Button clicks/double-clicks excluded from clip open/select handler. Typecheck/build and React UI regression pass; no visual browser verification claimed (existing error tab).
+
+
 **Latest handoff - 2026-10-27, retired stash action:** Removed Move to stash button from React timeline clips and its controller binding so missing controls cannot crash clip mounting. Open/delete retained; existing saved stash data untouched. Typecheck and React UI regression pass.
 
 

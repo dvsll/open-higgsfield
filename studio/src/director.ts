@@ -162,14 +162,14 @@ function timeline(){const body=$('#tl').closest('.window-body');if(body)$('#tl')
   const T=Math.max(tot(),SH.length?0:10);pxs=Math.max(1,W0/T);$('#tot').textContent=`${SH.length} shots · ${+T.toFixed(3)}s`;renderView($('#crumb'),h(Crumb));
   $('#hintT').textContent='click to select · double-click to open · drag to reorder · scrub the ruler';
   renderView($('#ruler'),h(Ruler,{duration:T,pixels:pxs}));
-  renderView(trk,h(SequenceTrack,{expanded:expandedVideo,clips:SH.map((s,i)=>({id:shotId(s),name:s.n,duration:s.d,generated:s.r,continuation:s.continuation&&SH.some(parent=>parent.id===s.continuation.shotId)?SH.find(parent=>parent.id===s.continuation.shotId).n:undefined,onUnlink:()=>{delete s.continuation;timeline();head();save()},hasAudio:!!s.audio&&s.audioLinked!==false,selected:i===cur&&clipSelected,width:s.d*pxs-3,offset:start(i)*pxs,height:80,bind:c=>{
+  renderView(trk,h(SequenceTrack,{expanded:expandedVideo,clips:SH.map((s,i)=>({id:shotId(s),name:s.n,duration:s.d,generated:s.r,boundStart:!!s.continuation&&SH[i-1]?.id===s.continuation.shotId&&SH[i-1]?.video===s.continuation.video&&s.keys.some(k=>k.anchor==='start'&&k.img===s.continuation.frame),continuation:s.continuation&&SH.some(parent=>parent.id===s.continuation.shotId)?SH.find(parent=>parent.id===s.continuation.shotId).n:undefined,onUnlink:()=>{delete s.continuation;timeline();head();save()},hasAudio:!!s.audio&&s.audioLinked!==false,selected:i===cur&&clipSelected,width:s.d*pxs-3,offset:start(i)*pxs,height:80,bind:c=>{
    strip(c,s);
    c.querySelector('.tw').onclick=ev=>{ev.stopPropagation();openShot(i)};
    c.querySelector('[data-a=del]').onclick=ev=>{ev.stopPropagation();removeShot(i,'trash')};
    shotPointerDrag(c,'seq',i);
-   c.onclick=ev=>{if(performance.now()<suppressClipClickUntil||ev.target.closest('.grip,.tw,.act'))return;selectClip(i)};
+   c.onclick=ev=>{if(performance.now()<suppressClipClickUntil||ev.target.closest('button,.grip,.act'))return;selectClip(i)};
    c.onkeydown=ev=>{if(ev.target!==c)return;if(ev.key==='Enter'){ev.preventDefault();openShot(i)}else if(ev.key==='ArrowLeft'||ev.key==='ArrowRight'){ev.preventDefault();selectClip(Math.max(0,Math.min(SH.length-1,i+(ev.key==='ArrowLeft'?-1:1))));$$('#trk .clip')[cur].focus()}};
-   c.ondblclick=ev=>{if(ev.target.closest('.grip,.tw,.act'))return;openShot(i)};
+   c.ondblclick=ev=>{if(ev.target.closest('button,.grip,.act'))return;openShot(i)};
    trim(c,s);dropTarget(c,i);
   }})),onAdd:()=>{if(!SH.length){ensureScene();openShot(0);return}SH.push({n:'New',d:3,spec:SP({scene:currentShot().spec.scene}),m:'',r:false,keys:[]});openShot(SH.length-1);toast('Write a prompt and generate, or add optional keyframes')}}));
   trk.ondragover=ev=>{if(!dragShot)return;ev.preventDefault();ev.dataTransfer.dropEffect='move';insertionCue(ev.clientX,ev.clientY)};
@@ -190,7 +190,7 @@ function timeline(){const body=$('#tl').closest('.window-body');if(body)$('#tl')
    e.onpointermove=m=>{if(Math.abs(m.clientX-xs)<3&&!mv)return;mv=true;const raw=t0+(m.clientX-xs)/pxs,edge=Math.min(.15,18/pxs);k.anchor=raw<=edge?'start':raw>=s.d-edge?'end':undefined;k.t=k.anchor==='start'?0:k.anchor==='end'?s.d:Math.round(Math.min(s.d,Math.max(0,raw))*(s.fps||24))/(s.fps||24);position()};
    e.onpointerup=()=>{draggingKey=false;e.onpointermove=null;if(mv){if(k.anchor)for(const other of s.keys)if(other!==k&&other.anchor===k.anchor){delete other.anchor;other.t=k.anchor==='start'?Math.min(.2,s.d/2):Math.max(0,s.d-.2)}s.r=false;timeline()}head();save();if(mv)checkTourPlacement()};e.onpointercancel=()=>{draggingKey=false;e.onpointermove=null;timeline();head();save()}};
  }}});
- renderView(trk,h(SequenceTrack,{clips:[{id:shotId(s),name:s.n,duration:s.d,generated:s.r,continuation:s.continuation&&SH.some(parent=>parent.id===s.continuation.shotId)?SH.find(parent=>parent.id===s.continuation.shotId).n:undefined,onUnlink:()=>{delete s.continuation;timeline();head();save()},hasAudio:!!s.audio&&s.audioLinked!==false,selected:clipSelected,width:w,height:96,opened:true,keys,bind:c=>{
+ renderView(trk,h(SequenceTrack,{clips:[{id:shotId(s),name:s.n,duration:s.d,generated:s.r,boundStart:!!s.continuation&&SH[i-1]?.id===s.continuation.shotId&&SH[i-1]?.video===s.continuation.video&&s.keys.some(k=>k.anchor==='start'&&k.img===s.continuation.frame),continuation:s.continuation&&SH.some(parent=>parent.id===s.continuation.shotId)?SH.find(parent=>parent.id===s.continuation.shotId).n:undefined,onUnlink:()=>{delete s.continuation;timeline();head();save()},hasAudio:!!s.audio&&s.audioLinked!==false,selected:clipSelected,width:w,height:96,opened:true,keys,bind:c=>{
   strip(c,s);c.querySelector('.tw').onclick=ev=>{ev.stopPropagation();closeShot()};
   c.onclick=ev=>{if(ev.target.closest('.k,.grip,.tw'))return;selKey=null;$$('.k').forEach(k=>k.classList.remove('on'));head()};
   c.ondblclick=ev=>{if(ev.target.closest('.k,.grip,.tw'))return;closeShot()};trim(c,s);dropTarget(c,i);

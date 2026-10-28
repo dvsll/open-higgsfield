@@ -107,6 +107,7 @@ export function DirectorSurface() {
               <button id="editViewer" className="edit-video">
                 Edit video ↗
               </button>
+              <button id="continueVideo" disabled>Continue from end frame</button>
               <button id="captureKeyframe" title="Save the displayed video frame as a keyframe" disabled>
                 Make keyframe
               </button>

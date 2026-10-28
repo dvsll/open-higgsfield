@@ -1,4 +1,5 @@
 // @ts-nocheck -- existing canvas/media controller; React views are strictly typed.
+import {linkedClipIds,moveLinkedClips} from './video-continuation';
 import {videoGuide} from './video-guide';
 import {savedSceneVideo} from './scene-video';
 import {revealGeneratedFile} from './generated-file';
@@ -29,7 +30,7 @@ import {renderView} from './react/render';
 import {Takes,Stash,Trash,Results} from './react/media-lists';
 import {SequenceTrack,Ruler} from './react/timeline';
 import { videoFrames, paintFilmstrip } from './video-frames';
-import {captureViewerFrame,keyframeAtFrame} from './frame-keyframe';
+import {captureViewerFrame,keyframeAtFrame,captureVideoEnd} from './frame-keyframe';
 import {mountPromptAssistant,shouldRewriteBeforeGeneration} from './prompt-assistant';
 import {mountSequenceLayers,validLayers} from './sequence-layers';
 import {independentSoundtracks} from './sequence-layer-state';
@@ -64,6 +65,7 @@ let expandedVideo=false,expandedAudio=false;
 function focusTrack(kind){const id=({overlays:'overlayTrackToggle',video:'videoTrackToggle',audio:'audioTrackToggle'})[kind];if(!id)return;const button=$('#'+id),expanded=button.getAttribute('aria-expanded')!=='true';button.setAttribute('aria-expanded',String(expanded));button.title=(expanded?'Collapse ':'Expand ')+kind+' track';if(kind==='video'){if(SH.length!==1)open=null;expandedVideo=expanded;if(expandedVideo){clipSelected=SH.length>0;selectedTrack='video'}}if(kind==='audio')expandedAudio=expanded;timeline();head();dispatchEvent(new CustomEvent('osh-sequence-inspector',{detail:expandedVideo}))}
 addEventListener('osh-expand-video',()=>{if(!expandedVideo)focusTrack('video')});
 addEventListener('osh-collapse-video',()=>{if(expandedVideo)focusTrack('video')});let LAYERS=validLayers(saved?.LAYERS);let sequenceLayers;
+var continuingVideo=false;
 let onboarding=SC.get('osh-onboarding');
 
 const touring=()=>onboarding&&!onboarding.dismissed&&!onboarding.suspended&&onboarding.step!=='done'&&['video','image','director'].includes(onboarding.entry||'video');
@@ -133,7 +135,7 @@ function clearDragFeedback(){document.body.classList.remove('shot-drag');$$('.dr
 function endShotDrag(){dragShot=null;clearDragFeedback()}
 function trackInsertionIndex(x,y){const track=$('#trk');if(expandedVideo){const rows=[...track.querySelectorAll('.sequence-scene-row')];const index=rows.findIndex(row=>{const r=row.getBoundingClientRect();return y<r.top+r.height/2});return index<0?SH.length:index}return insertionIndex(SH.map(s=>s.d),(x-track.getBoundingClientRect().left)/pxs)}
 function insertionCue(clientX,clientY){const trk=$('#trk'),idx=trackInsertionIndex(clientX,clientY);let line=trk.querySelector('.insert-line');if(!line){line=document.createElement('div');line.className='insert-line';trk.append(line)}line.style.left=expandedVideo?'0':(start(idx)*pxs)+'px';line.style.top=expandedVideo?(idx*84)+'px':'0';line.dataset.hint=idx===SH.length?'Insert at end':`Insert before ${SH[idx].n}`;trk.classList.add('dropzone');return idx}
-function insertDraggedShot(idx){if(dragShot.from==='stash'){const it=STASH.splice(dragShot.i,1)[0];SH.splice(idx,0,it.shot);cur=idx;toast(`${it.shot.n} back in the sequence`)}else{const [shot]=SH.splice(dragShot.i,1);idx=movedIndex(dragShot.i,idx);SH.splice(idx,0,shot);cur=idx}endShotDrag();G=Math.min(G,tot()-.01);timeline();head();save()}
+function insertDraggedShot(idx){if(dragShot.from==='stash'){const it=STASH.splice(dragShot.i,1)[0];SH.splice(idx,0,it.shot);cur=idx;toast(`${it.shot.n} back in the sequence`)}else{const moved=moveLinkedClips(SH,dragShot.i,idx);SH.splice(0,SH.length,...moved.shots);cur=moved.index}endShotDrag();G=Math.min(G,tot()-.01);timeline();head();save()}
 function shotPointerDrag(el,from,i){el.draggable=false;el.onpointerdown=ev=>{
  if(ev.button!==0||ev.target.closest('button,.grip'))return;const x=ev.clientX,y=ev.clientY;let moved=false,ghost=null;el.setPointerCapture(ev.pointerId);
  el.onpointermove=m=>{if(!moved&&Math.hypot(m.clientX-x,m.clientY-y)<5)return;
@@ -160,7 +162,7 @@ function timeline(){const body=$('#tl').closest('.window-body');if(body)$('#tl')
   const T=Math.max(tot(),SH.length?0:10);pxs=Math.max(1,W0/T);$('#tot').textContent=`${SH.length} shots · ${+T.toFixed(3)}s`;renderView($('#crumb'),h(Crumb));
   $('#hintT').textContent='click to select · double-click to open · drag to reorder · scrub the ruler';
   renderView($('#ruler'),h(Ruler,{duration:T,pixels:pxs}));
-  renderView(trk,h(SequenceTrack,{expanded:expandedVideo,clips:SH.map((s,i)=>({id:shotId(s),name:s.n,duration:s.d,generated:s.r,hasAudio:!!s.audio&&s.audioLinked!==false,selected:i===cur&&clipSelected,width:s.d*pxs-3,offset:start(i)*pxs,height:80,bind:c=>{
+  renderView(trk,h(SequenceTrack,{expanded:expandedVideo,clips:SH.map((s,i)=>({id:shotId(s),name:s.n,duration:s.d,generated:s.r,continuation:s.continuation&&SH.some(parent=>parent.id===s.continuation.shotId)?SH.find(parent=>parent.id===s.continuation.shotId).n:undefined,onUnlink:()=>{delete s.continuation;timeline();head();save()},hasAudio:!!s.audio&&s.audioLinked!==false,selected:i===cur&&clipSelected,width:s.d*pxs-3,offset:start(i)*pxs,height:80,bind:c=>{
    strip(c,s);
    c.querySelector('.tw').onclick=ev=>{ev.stopPropagation();openShot(i)};
    c.querySelector('[data-a=stash]').onclick=ev=>{ev.stopPropagation();removeShot(i,'stash')};
@@ -189,7 +191,7 @@ function timeline(){const body=$('#tl').closest('.window-body');if(body)$('#tl')
    e.onpointermove=m=>{if(Math.abs(m.clientX-xs)<3&&!mv)return;mv=true;const raw=t0+(m.clientX-xs)/pxs,edge=Math.min(.15,18/pxs);k.anchor=raw<=edge?'start':raw>=s.d-edge?'end':undefined;k.t=k.anchor==='start'?0:k.anchor==='end'?s.d:Math.round(Math.min(s.d,Math.max(0,raw))*(s.fps||24))/(s.fps||24);position()};
    e.onpointerup=()=>{draggingKey=false;e.onpointermove=null;if(mv){if(k.anchor)for(const other of s.keys)if(other!==k&&other.anchor===k.anchor){delete other.anchor;other.t=k.anchor==='start'?Math.min(.2,s.d/2):Math.max(0,s.d-.2)}s.r=false;timeline()}head();save();if(mv)checkTourPlacement()};e.onpointercancel=()=>{draggingKey=false;e.onpointermove=null;timeline();head();save()}};
  }}});
- renderView(trk,h(SequenceTrack,{clips:[{id:shotId(s),name:s.n,duration:s.d,generated:s.r,hasAudio:!!s.audio&&s.audioLinked!==false,selected:clipSelected,width:w,height:96,opened:true,keys,bind:c=>{
+ renderView(trk,h(SequenceTrack,{clips:[{id:shotId(s),name:s.n,duration:s.d,generated:s.r,continuation:s.continuation&&SH.some(parent=>parent.id===s.continuation.shotId)?SH.find(parent=>parent.id===s.continuation.shotId).n:undefined,onUnlink:()=>{delete s.continuation;timeline();head();save()},hasAudio:!!s.audio&&s.audioLinked!==false,selected:clipSelected,width:w,height:96,opened:true,keys,bind:c=>{
   strip(c,s);c.querySelector('.tw').onclick=ev=>{ev.stopPropagation();closeShot()};
   c.onclick=ev=>{if(ev.target.closest('.k,.grip,.tw'))return;selKey=null;$$('.k').forEach(k=>k.classList.remove('on'));head()};
   c.ondblclick=ev=>{if(ev.target.closest('.k,.grip,.tw'))return;closeShot()};trim(c,s);dropTarget(c,i);
@@ -225,7 +227,7 @@ $('#ruler').onpointerup=$('#ruler').onpointercancel=$('#ruler').onlostpointercap
 addEventListener('keydown',e=>{if(!e.defaultPrevented&&e.key==='Escape'&&open!=null&&!/TEXTAREA|INPUT/.test(e.target.tagName))closeShot()});
 function media(ignoreEdit=false){if(librarySelection)return librarySelection;if(workspaceMode==='image')return{type:'keyframe',label:'Image workshop',img:imageDraft.url,spec:SP({}),u:.5};const s=currentShot();if(!SH.length)return null;if(selKey&&s.keys.includes(selKey))return{type:'keyframe',label:`Shot ${cur+1} · keyframe @ ${selKey.t.toFixed(1)}s`,spec:selKey.spec,u:selKey.u,img:selKey.img,ref:{shot:cur,key:s.keys.indexOf(selKey)}};
  return{type:'shot',label:`Shot ${cur+1} · ${s.n} · ${+s.d.toFixed(3)}s`,spec:(s.keys[0]||s).spec,u:.3,video:s.r?s.video:undefined,audio:s.audio,audioPrompt:s.audioPrompt,audioLinked:s.audioLinked,duration:s.d,ref:{shot:cur,shotId:shotId(s)}}}
-function head(){publishTourClip();const s=currentShot();const deleteMedia=document.querySelector('[data-delete-media]');if(deleteMedia)deleteMedia.disabled=!!librarySelection||inTrainingWorkspace()||inEditWorkspace()||workspaceMode!=='video'||(!marqueeIds.size&&(!SH.length||(!selKey&&!clipSelected)));const attributesPanel=$('#videoAttributes');if(attributesPanel)attributesPanel.hidden=false;if(!SH.length)clipSelected=false;$('#tl').classList.toggle('empty-sequence',!SH.length);if(expandedVideo||expandedAudio)trackAttributes();$('#trk').classList.toggle('has-selection',clipSelected);updateViewer();document.getElementById("play").title=clipSelected?"Play selected scene / pause (space)":"Play sequence / pause (space)";cinema=SH.length>1;document.body.classList.toggle("single-scene",!cinema);document.body.classList.toggle('has-guides',s.keys.some(k=>k.img));SHELL.select(media());$('#sNum').textContent=SH.length?`Shot ${cur+1} — `:'Draft — ';if(document.activeElement!==$('#sName'))$('#sName').textContent=s.n;$('#sMeta').textContent=`${+s.d.toFixed(3)}s · ${s.keys.length} keyframe${s.keys.length===1?'':'s'}`;
+function head(){const continueButton=$('#continueVideo');if(continueButton){continueButton.disabled=continuingVideo||!currentShot().video||$('#ov').style.display==='flex';continueButton.textContent=continuingVideo?'Preparing next scene…':'Continue from end frame'}publishTourClip();const s=currentShot();const deleteMedia=document.querySelector('[data-delete-media]');if(deleteMedia)deleteMedia.disabled=!!librarySelection||inTrainingWorkspace()||inEditWorkspace()||workspaceMode!=='video'||(!marqueeIds.size&&(!SH.length||(!selKey&&!clipSelected)));const attributesPanel=$('#videoAttributes');if(attributesPanel)attributesPanel.hidden=false;if(!SH.length)clipSelected=false;$('#tl').classList.toggle('empty-sequence',!SH.length);if(expandedVideo||expandedAudio)trackAttributes();$('#trk').classList.toggle('has-selection',clipSelected);updateViewer();document.getElementById("play").title=clipSelected?"Play selected scene / pause (space)":"Play sequence / pause (space)";cinema=SH.length>1;document.body.classList.toggle("single-scene",!cinema);document.body.classList.toggle('has-guides',s.keys.some(k=>k.img));SHELL.select(media());$('#sNum').textContent=SH.length?`Shot ${cur+1} — `:'Draft — ';if(document.activeElement!==$('#sName'))$('#sName').textContent=s.n;$('#sMeta').textContent=`${+s.d.toFixed(3)}s · ${s.keys.length} keyframe${s.keys.length===1?'':'s'}`;
  if(s.renderWidth)$('#videoWidth').value=String(s.renderWidth);if(s.renderHeight)$('#videoHeight').value=String(s.renderHeight);
  if($('#videoSeed')&&document.activeElement!==$('#videoSeed'))$('#videoSeed').value=String(s.seed??7);
  const fps=s.fps||24,frames=s.renderFrames||Math.max(9,Math.min(121,Math.round(s.d*fps/8)*8+1));
@@ -382,6 +384,25 @@ const seedInput=$('#videoSeed');seedInput.onchange=()=>{if(seedInput.reportValid
 addEventListener('osh-video-seed',event=>{const value=event.detail;if(!Number.isInteger(value)||value<0||value>2147483647)return;currentShot().seed=value;seedInput.value=String(value);save()});
 $('#previousFrame').onclick=()=>viewerSeek(Math.max(0,G-(clipSelected?start(cur):0)-1/(currentShot().fps||24)));$('#nextFrame').onclick=()=>viewerSeek(G-(clipSelected?start(cur):0)+1/(currentShot().fps||24));$('#viewerTime').onchange=e=>{if(e.target.reportValidity())viewerSeek(+e.target.value)};
 $('#editViewer').onclick=()=>{const s=currentShot();if(!s.video)return;SC.set('osh-handoff',{type:'shot',label:s.n,video:s.video,audio:s.audio,audioPrompt:s.audioPrompt,audioLinked:s.audioLinked,duration:s.d,ref:{shot:cur,shotId:shotId(s)},from:'director'});dispatchEvent(new CustomEvent('osh-open-edit',{detail:{type:'shot',label:s.n,video:s.video,audio:s.audio,audioPrompt:s.audioPrompt,audioLinked:s.audioLinked,duration:s.d,ref:{shot:cur,shotId:shotId(s)},from:'director'}}))};
+async function continueVideo(input){
+ if(continuingVideo||generationBusy)return;
+ const url=input?.video||currentShot().video;if(!url)return;
+ const original=SH.find(s=>s.video===url),project=localStorage.getItem('osh-active-project');
+ continuingVideo=true;head();dispatchEvent(new CustomEvent('osh-continuation-busy',{detail:true}));
+ try{
+  await chooseGuideModel();const captured=await captureVideoEnd(url);const uploaded=await OSH.upload(captured.image);
+  if(localStorage.getItem('osh-active-project')!==project||original&&(!SH.includes(original)||original.video!==url))throw Error('The source scene changed. Try again.');
+  const source=original||{...newScene(),n:input?.label||'Video',video:url,r:true,d:captured.duration};
+  if(!original)SH.push(source);shotId(source);
+  const next={...newScene(),n:`Scene ${SH.length+1}`,d:source.d,prompt:source.prompt||'',m:source.m||'',spec:{...source.spec},fps:source.fps,renderWidth:source.renderWidth,renderHeight:source.renderHeight,keys:[{id:crypto.randomUUID(),t:0,u:.5,spec:{...source.spec},img:uploaded.url,anchor:'start'}],continuation:{shotId:source.id,video:url,frame:uploaded.url}};
+  const group=linkedClipIds(SH,source.id);let index=SH.indexOf(source)+1;for(let i=index;i<SH.length;i++)if(group.has(SH[i].id))index=i+1;
+  SH.splice(index,0,next);cur=index;open=null;selKey=null;clipSelected=true;selectedTrack='video';librarySelection=null;G=start(index);setPlaying(false);
+  pushHist({kind:'keyframe',url:uploaded.url,label:'End frame',shotId:next.id},true);
+  dispatchEvent(new CustomEvent('osh-prompt-media-request',{detail:'video'}));dispatchEvent(new CustomEvent('osh-reveal-window',{detail:'timeline'}));dispatchEvent(new CustomEvent('osh-reveal-window',{detail:'prompts'}));timeline();head();save();focusPromptField('shotPromptInput');toast('End frame attached as START. Describe what happens next, then generate.');
+ }catch(error){toast('Could not continue video: '+error.message)}finally{continuingVideo=false;head();dispatchEvent(new CustomEvent('osh-continuation-busy',{detail:false}))}
+}
+$('#continueVideo').onclick=()=>continueVideo(null);
+addEventListener('osh-continue-video',event=>continueVideo(event.detail));
 $('#captureKeyframe').onclick=async()=>{
  if(capturingFrame)return;
  const [i]=clipSelected&&!playing?[cur]:at(G),s=SH[i],video=$('#vid'),url=s.video;

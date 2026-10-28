@@ -15,3 +15,11 @@ export function captureViewerFrame(video:HTMLVideoElement):string{
  context.drawImage(video,0,0,canvas.width,canvas.height);
  return canvas.toDataURL('image/png');
 }
+
+/** Decode the final visible frame without moving the user's viewer/playhead. */
+export async function captureVideoEnd(url:string):Promise<{image:string;duration:number}>{
+ if(!/^\/outputs\/[a-f0-9]{16}\.(webm|mp4)$/.test(url))throw Error('Choose a project video.');
+ const video=document.createElement('video');video.muted=true;video.preload='auto';video.playsInline=true;
+ const wait=(name:string,run:()=>void)=>new Promise<void>((resolve,reject)=>{const cleanup=()=>{clearTimeout(timer);video.removeEventListener(name,done);video.removeEventListener('error',fail)},done=()=>{cleanup();resolve()},fail=()=>{cleanup();reject(Error('Could not decode the video end frame.'))},timer=setTimeout(fail,15000);video.addEventListener(name,done,{once:true});video.addEventListener('error',fail,{once:true});run()});
+ try{await wait('loadeddata',()=>{video.src=url;video.load()});const duration=video.duration;if(!Number.isFinite(duration)||duration<=0)throw Error('Video duration is unavailable.');const time=Math.max(0,duration-.001);if(Math.abs(video.currentTime-time)>.0001)await wait('seeked',()=>{video.currentTime=time});return {image:captureViewerFrame(video),duration}}finally{video.removeAttribute('src');video.load()}
+}

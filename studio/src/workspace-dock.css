@@ -164,3 +164,5 @@ body.studio-single-bar .workspace-toolbar{background:#0c0d10;min-height:38px;pad
 
 /* Toolbar menus must remain above in-panel generation progress. */
 .workspace-toolbar{position:relative;z-index:1001}.window-menu>div{z-index:1;max-height:calc(100dvh - 70px);overflow:auto;overscroll-behavior:contain}.workspace-picker-menu{z-index:1002}
+
+.clip .clip-continuation{position:absolute;bottom:4px;right:7px;display:flex;align-items:center;justify-content:center;width:22px;height:22px;padding:0;border:1px solid #8e7a45;background:#252316;color:#e8c56f;z-index:3}.clip .clip-continuation svg{display:block;flex:none}.clip .clip-continuation:hover,.clip .clip-continuation:focus-visible{border-color:#e8c56f;background:#38301c}

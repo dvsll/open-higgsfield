@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Media } from '../shell';
 type AppEntry = [string, string, string, ('shot' | 'keyframe' | 'frame')[]];
 export function SharedSurface({
@@ -68,6 +68,8 @@ export function SelectedMedia({
   paint: (canvas: HTMLCanvasElement, media: Media) => void | (() => void);
   onOpen: (app: string) => void;
 }) {
+  const [continuing,setContinuing]=useState(false);
+  useEffect(()=>{const update=(event:Event)=>setContinuing(!!(event as CustomEvent).detail);window.addEventListener('osh-continuation-busy',update);return()=>window.removeEventListener('osh-continuation-busy',update)},[]);
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     if (ref.current && media) return paint(ref.current, media);
@@ -81,6 +83,7 @@ export function SelectedMedia({
         <span className="ty">{media.audio&&!media.img&&!media.video?'Audio':{ shot: 'Shot', keyframe: 'Keyframe', frame: 'Frame' }[media.type]}</span>
         <b>{media.label}</b>
       </div>
+      {app==='director'&&media.video&&<button disabled={continuing} onClick={()=>window.dispatchEvent(new CustomEvent('osh-continue-video',{detail:{video:media.video,label:media.label}}))}>{continuing?'Preparing next scene…':'Continue from end frame'}</button>}
       <div className="openin">
         {apps.map(([id, name, , types]) => {
           const available =

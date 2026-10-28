@@ -11,6 +11,8 @@ export type ClipItem = {
   opened?: boolean;
   offset?:number;
   hasAudio?:boolean;
+  continuation?:string;
+  onUnlink?:()=>void;
   bind: (element: HTMLDivElement) => void;
   keys?: GuideItem[];
 };
@@ -70,6 +72,7 @@ function Clip({ item, index }: { item: ClipItem; index: number }) {
           </span>
         )}
       </span>
+      {item.continuation&&<button className="clip-continuation" title={`Continues ${item.continuation} · click to unlink clips (keeps START frame)`} aria-label={`Unlink from ${item.continuation}`} onClick={event=>{event.stopPropagation();item.onUnlink?.()}}><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="M10 8H7a4 4 0 0 0 0 8h3m4-8h3a4 4 0 0 1 0 8h-3M8 12h8"/></svg></button>}
       {item.hasAudio&&<span className="clip-linked-sound" data-compact={item.width<112} aria-label="Linked sound" title="Soundtrack attached to this video"><span aria-hidden="true">♫</span><span className="linked-sound-label">Linked sound</span></span>}
       <div className="grip" title="Drag to trim" />
       {item.keys?.map((key) => (

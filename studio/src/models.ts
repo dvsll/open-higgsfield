@@ -209,4 +209,4 @@ export function mountModels(): void {
 addEventListener('osh-audio-prompt',()=>renderDetails());
 addEventListener('osh-reconnected',()=>{if(document.getElementById('refreshModels'))void refreshModels()});
 /** Pick an installed multi-keyframe workflow before sending a captured camera path to Director. */
-export async function chooseGuideModel(){await refreshModels();const choices=catalog?.video.filter(entry=>entry.capabilities.some(capability=>capability.name==='Keyframe-guided video'&&capability.status==='ready'))||[],entry=choices.find(entry=>entry.id===select('video').value)||choices[0];if(!entry)throw Error('Connect a compatible LTX-Video model to use the three camera guides.');chooseEntry('video',entry.id)}
+export async function chooseGuideModel(){await refreshModels();const choices=catalog?.video.filter(entry=>entry.capabilities.some(capability=>capability.name==='Keyframe-guided video'&&capability.status==='ready'))||[],entry=choices.find(entry=>entry.id===select('video').value)||choices[0];if(!entry)throw Error('Connect a compatible keyframe-guided video model.');chooseEntry('video',entry.id)}

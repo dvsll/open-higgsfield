@@ -1,4 +1,4 @@
-import {installedModels} from './model-inventory.ts';
+import {installedModels,modelTags} from './model-inventory.ts';
 import {texturedGeometryBase,texturedGeometryGraph,texturedGeometryReady} from '../lib/geometry-textured.ts';
 import {ErrorJournal} from './error-log.ts';
 import {blockoutGraph,blockoutReady,blockoutBase} from '../lib/blockout.ts';
@@ -655,7 +655,7 @@ function middleware(env: Env,setup:RuntimeSetup,rewriter:PromptRewriter,creative
       }
       if(url.pathname.startsWith('/api/setup')){
        if(!setupAccess(req))return send(res,403,{error:'Runtime setup is only available from this computer and the app’s own origin.'});
-       if(route==='GET /api/setup/models'){try{return send(res,200,{models:await installedModels(env.COMFYUI_URL||'http://127.0.0.1:8188')})}catch(error:any){return send(res,503,{error:error.message})}}
+       if(route==='GET /api/setup/models'){try{const manifest=JSON.parse(await readFile(join(ROOT,'shared/runtime/models.json'),'utf8'));return send(res,200,{models:(await installedModels(env.COMFYUI_URL||'http://127.0.0.1:8188')).map(model=>modelTags(model,manifest))})}catch(error:any){return send(res,503,{error:error.message})}}
        if(route==='GET /api/setup'){const status=await setup.status();if(status.task.phase==='error'){const key=status.task.startedAt+':'+status.task.message;if(lastSetupError!==key){lastSetupError=key;errors.add('Local setup',new Error(status.task.message))}}return send(res,200,{...status,rendering:queued>0||trainingPending})}
        if(req.method==='POST'){if((queued>0||trainingPending)&&route!=='POST /api/setup/cancel')return send(res,409,{error:'Finish the current generation before changing the local runtime or model files.'});const body=await readBody(req);try{const result=route==='POST /api/setup/connect'?setup.connect(body):route==='POST /api/setup/install'?setup.install(body):route==='POST /api/setup/download'?setup.download(body):route==='POST /api/setup/start'?setup.start():route==='POST /api/setup/cancel'?setup.cancel():null;return send(res,result?202:404,result||{error:'Unknown setup action'})}catch(error:any){errors.add(route,error,{status:400});return send(res,400,{error:error.message})}}
       }

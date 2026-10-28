@@ -4,6 +4,9 @@ Studio technical decisions, licenses, local setup and handoff state.
 
 ## Where we left off (update this before switching agents)
 
+**Latest handoff - 2026-10-28, last-clip actions:** Sequence time scale now reserves32px for the absolute28px Add shot control plus4px gap. Previously clips used full track width so Add covered last clip Delete. Shared pixels-per-second keeps ruler/layers aligned; opened shot view unchanged. Typecheck and React UI check pass.
+
+
 **Latest handoff - 2026-10-28, keep-creating reminder:** Choosing Keep creating after timeline intro dismisses walkthrough and uses existing quiet toast to remind users they can try other workflows from top workflow dropdown. Reminder lasts5.5s; other toast timings unchanged. Typecheck and React UI check pass.
 
 

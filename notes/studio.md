@@ -4,6 +4,9 @@ Studio technical decisions, licenses, local setup and handoff state.
 
 ## Where we left off (update this before switching agents)
 
+**Latest handoff - 2026-10-28, tutorial attention pulse:** Background clicks now pulse the highlighted control outline with two gold halo cycles, rather than outlining its entire dock window. Clicks inside the control or tutorial stay quiet; repeated outside clicks restart the pulse. Reduced motion uses one stationary fading highlight. Existing blocked-click handler retained. Typecheck passes.
+
+
 **Latest handoff - 2026-10-28, dim walkthrough toolbar:** Raised existing SVG spotlight shade above toolbar/menu layers, outlines above shade and popover above both. Same target-shaped cutouts preserve clear highlighted controls; pointer-events:none preserves interactions. Rest of toolbar now dims with workspace. CSS-only change, diff check passed.
 
 

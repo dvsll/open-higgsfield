@@ -57,21 +57,19 @@ export function mountOnboardingTour(options:Options) {
    if(popup.hidden||popup.style.visibility==='hidden'||shade.style.display==='none'||popup.contains(clicked))return;
    const activeRings=rings.filter(r=>!r.hidden);
    if(activeRings.some(r=>{const b=r.getBoundingClientRect();return event.clientX>=b.left&&event.clientX<=b.right&&event.clientY>=b.top&&event.clientY<=b.bottom}))return;
-   focus=targets.map(selector=>document.querySelector<HTMLElement>(selector)?.closest<HTMLElement>('.studio-window')).filter((e):e is HTMLElement=>!!e);
-   focus.push(...activeRings);if(!focus.length)focus=[popup];
+   focus=activeRings.length?activeRings:[popup];
   }
   for(const element of new Set(focus)){
    element.getAnimations().filter(a=>a.id==='tour-attention').forEach(a=>a.cancel());
    const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
    element.animate(reduced?[
-    {outline:'2px solid #f3d58a',outlineOffset:'-2px'},
-    {outline:'2px solid transparent',outlineOffset:'-2px'}
+    {boxShadow:'0 0 0 3px #f3d58a',outline:'2px solid #f3d58a'},
+    {boxShadow:'0 0 0 0 transparent',outline:'2px solid transparent'}
    ]:[
-    {outline:'2px solid transparent',outlineOffset:'-2px'},
-    {outline:'2px solid #f3d58a',outlineOffset:'-2px',offset:.2},
-    {outline:'2px solid #f3d58a',outlineOffset:'-2px',offset:.65},
-    {outline:'2px solid transparent',outlineOffset:'-2px'}
-   ],{duration:reduced?700:550,easing:'ease-out',id:'tour-attention'});
+    {boxShadow:'0 0 0 0 #e8c36f00',outline:'2px solid transparent',outlineOffset:'0px'},
+    {boxShadow:'0 0 0 5px #e8c36f55',outline:'2px solid #f3d58a',outlineOffset:'3px',offset:.5},
+    {boxShadow:'0 0 0 0 #e8c36f00',outline:'2px solid transparent',outlineOffset:'0px'}
+   ],{duration:reduced?700:650,iterations:reduced?1:2,easing:'ease-in-out',id:'tour-attention'});
   }
  }
  document.addEventListener('pointerdown',nudgeFocus,true);

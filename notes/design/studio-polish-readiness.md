@@ -23,3 +23,6 @@ Prompt-to-OBJ generation is now proven with a real stool using installed Z-Image
 
 ### 2026-10-27: blockout acceptance correction
 The gray-chair and horror-corridor videos do not establish faithful blockout transfer. Current3-frame RGB handoff is sparse image guidance only. Structure-preserving depth/motion conditioning and primitive scene blocking are still missing; see [correction and acceptance case](blockout-previz-correction.md). Do not present visual restyling as successful camera/layout transfer.
+
+
+2026-10-28 Audio update: real local Kokoro ComfyUI speech inference, FLAC Project files output and browser playback verified; SRT input is continuous narration, not time-aligned dubbing. Captions Advanced text-only is editable, downloadable TXT and hands off to speech; no SRT written. Plain TXT is not a Project files asset kind. Shared speech prompt/generate styling, model+voice row and Advanced import visually verified.

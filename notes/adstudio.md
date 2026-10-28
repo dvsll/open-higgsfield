@@ -613,3 +613,6 @@ Studio coordination 2026-10-27: additive protected local GET /api/errors, bounde
 
 
 2026-10-27 Studio coordination: user requested removal of LTX Alpha Gen cutout integration. Removed additive cutout routes, workflow and optional model pack; existing generation and Meta image segmentation unchanged.
+
+
+2026-10-28 Studio shared coordination: additive GET/POST /api/speech uses repo-owned local Kokoro ComfyUI node plus native SaveAudio through SDK/proxy. Optional speech pack and explicit setup-speech.py added; Kokoro Apache2, kokoro-onnx MIT, phonemizer/espeak GPL3 noted in studio notes before install. /api/captions optional format=text returns prose and no SRT; defaults preserved. No adstudio app edits.

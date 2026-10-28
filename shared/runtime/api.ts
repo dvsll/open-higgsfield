@@ -18,7 +18,7 @@ import { RuntimeSetup, setupAccess } from './setup.ts';
 import { startComfyProxy } from './proxy.ts';
 import {PromptRewriter,PromptRewriteError,promptInstruction,promptModel,promptDevice} from './prompt-rewriter.ts';
 import {precisionSources,segmentationSource} from './precision-image.ts';
-import {captionSegments,captionSrt} from '../lib/captions.ts';
+import {captionSegments,captionSrt,transcriptionOutput} from '../lib/captions.ts';
 import { JobActivity, phaseForProgress } from './job-activity.ts';
 import {ComfyDiagnostics,loadingLog,nodeProgressMessage} from './comfy-diagnostics.ts';
 import { Comfy } from "@comfyorg/sdk";
@@ -707,6 +707,16 @@ function middleware(env: Env,setup:RuntimeSetup,rewriter:PromptRewriter,creative
          if(semanticCache.size>=100)semanticCache.delete(semanticCache.keys().next().value!);semanticCache.set(key,result);return send(res,200,result);
         }finally{semanticPending=false}
       }
+      if(route==='GET /api/speech'){const nodes=await comfyJson(env,'/object_info'),input=nodes.OSHKokoroSpeech?.input?.required;return send(res,200,{available:!!nodes.SaveAudio&&!!input?.model?.[0]?.length,models:input?.model?.[0]||[],voices:input?.voice?.[0]||[]})}
+      if(route==='POST /api/speech')return send(res,200,await tracked(async body=>{
+        if(typeof body.text!=='string'||!body.text.trim()||body.text.length>6000)throw new HttpError(400,'Enter up to 6000 characters of speech.');
+        const nodes=await comfyJson(env,'/object_info'),input=nodes.OSHKokoroSpeech?.input?.required;
+        if(!nodes.SaveAudio||!input?.model?.[0]?.length)throw new HttpError(503,'Install local Kokoro speech support and restart ComfyUI.');
+        const model=body.model??input.model[0][0],voice=body.voice??input.voice[0][0],speed=body.speed??1;
+        if(!input.model[0].includes(model)||!input.voice[0].includes(voice)||!Number.isFinite(speed)||speed<.5||speed>2)throw new HttpError(400,'Choose an installed model, voice and speed from 0.5 to 2.');
+        await ensureProxy(env);const c=client(env),wf=c.workflows.fromJson(await loadGraph('speech_kokoro'));for(const [key,value]of Object.entries({text:body.text.trim(),model,voice,speed}))wf.setInput('1',key,value);
+        const job=await serialize(()=>runWf(c,wf,body._requestId));return {audio:await save(job,'2','flac'),model,voice};
+      }));
       if(route==='POST /api/captions/srt'){const body=await readBody(req,512*1024);if(!Array.isArray(body?.segments)||body.segments.length>500||body.segments.some((segment:any)=>!Number.isFinite(segment?.end)||segment.end>86400))throw new HttpError(400,'Check the caption text and timing before saving.');const segments=captionSegments(body.segments,86400);if(!segments.length||segments.length!==body.segments.length)throw new HttpError(400,'Check the caption text and timing before saving.');const name=outputName('srt');mkdirSync(OUTPUTS,{recursive:true});await writeFile(join(OUTPUTS,name),captionSrt(segments),'utf8');return send(res,200,{url:'/outputs/'+name})}
       if (route === 'GET /api/captions') {
         const nodes=await comfyJson(env,'/object_info');
@@ -714,6 +724,7 @@ function middleware(env: Env,setup:RuntimeSetup,rewriter:PromptRewriter,creative
         return send(res,200,{available:!!nodes.LoadAudio&&models.length>0,model:models[0]||null,models,devices:nodes.OSHWhisperCaptions?.input?.optional?.device?.[0]||['cpu'],languageSelection:!!nodes.OSHWhisperCaptions?.input?.optional?.language,modelDevices:Object.fromEntries(models.map((model:string)=>[model,['cpu','cuda']])),setup:'Run shared/runtime/setup-captions.py with ComfyUI Python, then restart ComfyUI.'});
       }
       if (route === 'POST /api/captions') return send(res,200,await tracked(async body=>{
+        if(body.format!==undefined&&!['text','subtitles'].includes(body.format))throw new HttpError(400,'Choose text or subtitles output.');
         if(typeof body.audio!=='string'||!/^\/outputs\/[a-f0-9]{16}\.(flac|wav|mp3|m4a|ogg|webm|mp4)$/.test(body.audio))throw new HttpError(400,'Select an audio or video file from this project.');
         const source=outputPath(body.audio);if(statSync(source).size>32*1024*1024)throw new HttpError(400,'Select audio under 32 MB and 10 minutes.');
         const nodes=await comfyJson(env,'/object_info'),models=nodes.OSHWhisperCaptions?.input?.required?.model?.[0]||[],model=body.model===undefined?models[0]:body.model;if(!nodes.LoadAudio||!models.length)throw new HttpError(503,'Install a local Whisper model and restart ComfyUI.');if(typeof model!=='string'||!models.includes(model))throw new HttpError(400,'Choose an installed caption model, then try again.');
@@ -721,7 +732,7 @@ function middleware(env: Env,setup:RuntimeSetup,rewriter:PromptRewriter,creative
         const devices=nodes.OSHWhisperCaptions?.input?.optional?.device?.[0]||['cpu'],device=body.device??devices[0]??'cpu';if(!['cpu','cuda'].includes(device)||!devices.includes(device))throw new HttpError(400,'Choose an available caption processing device.');if(nodes.OSHWhisperCaptions?.input?.optional?.device)wf.setInput('2','device',device);const language=body.language??'auto';if(typeof language!=='string'||!(/^(auto|[a-z]{2,3})$/).test(language))throw new HttpError(400,'Choose a supported caption language.');if(language!=='auto'&&!nodes.OSHWhisperCaptions?.input?.optional?.language)throw new HttpError(503,'Update the Studio caption node and restart ComfyUI to select a language.');if(nodes.OSHWhisperCaptions?.input?.optional?.language)wf.setInput('2','language',language);wf.setInput('2','model',model);wf.setInput('1','audio',c.assets.fromFile(source));const started=Date.now(),job=await serialize(()=>runWf(c,wf,body._requestId)),output=job.getOutputs('2')[0];
         if(!output)throw new HttpError(502,'The caption workflow returned no transcript.');
         const result=JSON.parse(Buffer.from(await output.toBytes()).toString('utf8'));
-        const segments=captionSegments(result.segments),name=segments.length?outputName('srt'):null;if(name)await writeFile(join(OUTPUTS,name),captionSrt(segments),'utf8');return {model,language:typeof result.language==='string'?result.language:null,duration:result.duration,seconds:(Date.now()-started)/1000,segments,srt:name?'/outputs/'+name:null};
+        const segments=captionSegments(result.segments),formatted=transcriptionOutput(segments,body.format),name=formatted.srt?outputName('srt'):null;if(name)await writeFile(join(OUTPUTS,name),formatted.srt!,'utf8');return {model,language:typeof result.language==='string'?result.language:null,duration:result.duration,seconds:(Date.now()-started)/1000,segments,text:formatted.text,srt:name?'/outputs/'+name:null};
       }));
       if(route==='GET /api/image-selection'){
         const nodes=await comfyJson(env,'/object_info'),choices=nodes.CheckpointLoaderSimple?.input?.required?.ckpt_name?.[0]||[];

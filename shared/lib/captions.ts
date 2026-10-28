@@ -15,3 +15,6 @@ export function parseCaptionSrt(input:string):CaptionSegment[]{
  const time=(value:string)=>{const match=value.match(/^(\d{2,}):([0-5]\d):([0-5]\d)[,.](\d{3})$/);if(!match)throw Error('Use SRT timestamps: 00:00:00,000.');return +match[1]*3600 + +match[2]*60 + +match[3] + +match[4]/1000};
  return blocks.map((block,index)=>{const lines=block.split('\n');if(/^\d+$/.test(lines[0].trim()))lines.shift();const range=lines.shift()?.trim().match(/^(\S+)\s+-->\s+(\S+)(?:\s+.*)?$/);if(!range)throw Error(`Caption ${index+1} has an invalid time range.`);const start=time(range[1]),end=time(range[2]),text=lines.join('\n').trim();if(end<=start||end>86400||!text||text.length>500)throw Error(`Check the text and timing of caption ${index+1}.`);return {start,end,text}});
 }
+
+export function captionText(segments:CaptionSegment[]):string{return segments.map(segment=>segment.text.replace(/\s+/g,' ').trim()).filter(Boolean).join(' ')}
+export function transcriptionOutput(segments:CaptionSegment[],format:'subtitles'|'text'='subtitles'):{text:string;srt:string|null}{return {text:captionText(segments),srt:format==='text'||!segments.length?null:captionSrt(segments)}}

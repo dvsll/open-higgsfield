@@ -1,0 +1,4 @@
+{
+ "1":{"class_type":"OSHKokoroSpeech","inputs":{"text":"Hello.","model":"Kokoro 82M","voice":"af_heart","speed":1}},
+ "2":{"class_type":"SaveAudio","inputs":{"audio":["1",0],"filename_prefix":"Studio/speech"}}
+}

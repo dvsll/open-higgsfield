@@ -4,6 +4,9 @@ Studio technical decisions, licenses, local setup and handoff state.
 
 ## Where we left off (update this before switching agents)
 
+**Latest handoff - 2026-10-28, clip hover actions:** Arrow and Delete X hidden until clip hover; keyboard focus-within also reveals controls for access. Visibility keeps reserved header space so labels do not shift or overlap. CSS-only, diff check passes.
+
+
 **Latest handoff - 2026-10-28, empty prompt unlock:** Image/video generation rejects whitespace-only prompts before placeholders, scene creation or GPU calls; shared realShot guard covers batch too. Explicit Advanced visual/motion text counts as a prompt, automatic style defaults do not. Admin Advanced > Fun unlocks checkbox Allow generation without a prompt is browser-wide localStorage, off by default, reversible; read at generation time. Other media retain existing required prompts. Typecheck/build pass;27-check suite initially exposed missing helper injection in extraction harness, fixed with actual helper and added default/enable/disable and no-generation blank-image tests. No inference run.
 
 

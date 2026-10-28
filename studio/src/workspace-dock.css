@@ -184,3 +184,6 @@ body.studio-single-bar .workspace-toolbar{background:#0c0d10;min-height:38px;pad
 .clip-boundary-link svg{display:block;flex:none;pointer-events:none}.clip-boundary-link:hover{color:#8ae9ad!important}.clip-boundary-link:focus-visible{outline:1px solid #8ae9ad;outline-offset:1px}
 
 .window-body .tl .clip .lbl .act button{width:20px;min-width:20px;padding:0;border-radius:0}.window-body .tl #trk .clip .lbl{max-width:100%;overflow:hidden}
+
+/* Reserve action space without showing controls until the clip is hovered. */
+.window-body .tl .clip .lbl .act{visibility:hidden;pointer-events:none}.window-body .tl .clip:hover .lbl .act,.window-body .tl .clip:focus-within .lbl .act{visibility:visible;pointer-events:auto}

@@ -17,6 +17,10 @@ const descriptions: Record<Workflow, string> = {
   edit: 'Trim, retime and resize a take.',
   '3d': 'Generate mesh geometry from an image.',
 };
+function WorkflowIcon({kind}:{kind:'image'|'video'|'3d'|'audio'}) {
+ const paths={image:<><rect x="3" y="3" width="18" height="18"/><circle cx="8" cy="8" r="1.5"/><path d="m3 17 6-6 4 4 3-3 5 5"/></>,video:<><rect x="3" y="5" width="13" height="14"/><path d="m16 10 5-3v10l-5-3"/></>,'3d':<><path d="m12 2 9 5v10l-9 5-9-5V7zM3 7l9 5 9-5M12 12v10M7.5 4.5l9 5"/></>,audio:<><path d="M4 10v4m4-8v12m4-15v18m4-15v12m4-8v4"/></>};
+ return <svg className="tour-workflow-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">{paths[kind]}</svg>;
+}
 export function TourChoice({onChoose,onSkip}:{onChoose:(key:Workflow)=>void;onSkip:()=>void}) {
  const entries:[Workflow|'audio',string,string][]=[
   ['image','Image','Workshop one image, then bring it into motion.'],
@@ -24,7 +28,7 @@ export function TourChoice({onChoose,onSkip}:{onChoose:(key:Workflow)=>void;onSk
   ['3d','3D','Generate and inspect a 3D mesh.'],
   ['audio','Audio walkthrough · coming soon','The Audio workspace is available from the workspace selector.'],
  ];
- return <><CloseButton className="tour-close tour-choice-close" label="Skip walkthrough" onClick={onSkip}/><h2>What would you like to create?</h2><p>Choose a starting workspace. Other workflows have their own walkthroughs.</p><div className="tour-choice-grid" data-kind="workflow">{entries.map(([key,label,description])=><button key={key} type="button" disabled={key==='audio'} onClick={()=>{if(key!=='audio')onChoose(key)}}><strong>{label}</strong><span>{description}</span></button>)}</div><button className="tour-skip" onClick={onSkip}>Skip walkthrough</button></>;
+ return <><CloseButton className="tour-close tour-choice-close" label="Skip walkthrough" onClick={onSkip}/><h2>What would you like to create?</h2><p>Choose a starting workspace. Other workflows have their own walkthroughs.</p><div className="tour-choice-grid" data-kind="workflow">{entries.map(([key,label,description])=><button key={key} type="button" disabled={key==='audio'} onClick={()=>{if(key!=='audio')onChoose(key)}}><strong className="tour-workflow-heading"><WorkflowIcon kind={key as "image"|"video"|"3d"|"audio"}/>{label}</strong><span>{description}</span></button>)}</div><button className="tour-skip" onClick={onSkip}>Skip walkthrough</button></>;
 }
 function DragDiagram({ kind }: { kind: 'add' | 'position' }) {
   return (

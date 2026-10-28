@@ -4,6 +4,9 @@ Studio technical decisions, licenses, local setup and handoff state.
 
 ## Where we left off (update this before switching agents)
 
+**Latest handoff - 2026-10-28, workflow category icons:** Workflow chooser now has aligned gold outline icons for Image, Video, 3D and Audio. Shared React SVG sizing and heading alignment; disabled Audio retains its coming-soon state. Typecheck and React UI check pass.
+
+
 **Latest handoff - 2026-10-28, timeline walkthrough choices:** Adding Sequence now offers image generation (workspace switch/image-guide lesson), another scene (existing add-scene lesson, no automatic generation), or Ignore (dismiss and complete walkthrough). Existing shared button styling. Typecheck, React UI regression and build pass; no inference/browser-state changes.
 
 

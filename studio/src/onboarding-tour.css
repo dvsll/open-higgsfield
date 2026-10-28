@@ -6,3 +6,5 @@
 .tour-popover .tour-popover-top{display:grid;grid-template-columns:minmax(0,1fr) 28px;align-items:start;gap:12px}.tour-popover-top>span{overflow-wrap:anywhere}.tour-popover .tour-close{flex:none}
 
 .tour-next-choices{display:grid;gap:8px}.tour-next-choices button{text-align:left}
+
+.tour-workflow-heading{display:flex;align-items:center;gap:10px}.tour-workflow-icon{display:block;width:22px;height:22px;flex:none;color:var(--ui-accent,#e8c36f)}

@@ -57,6 +57,7 @@ export function TourPopover({
   onWorkflow,
   onFinish,
   onLater,
+  onTimelineChoice,
 }: {
   experience: Experience;
   entry: Workflow;
@@ -67,6 +68,7 @@ export function TourPopover({
   onWorkflow: (workflow: Workflow) => void;
   onFinish: () => void;
   onLater?: () => void;
+  onTimelineChoice?: (choice: "image" | "scene" | "ignore") => void;
 }) {
   return (
     <>
@@ -104,7 +106,7 @@ export function TourPopover({
             <p>{tip.text}</p>
             {onLater&&<button className="tour-secondary" onClick={onLater}>I’ll try it later</button>}
             {tip.diagram && <DragDiagram kind={tip.diagram} />}{' '}
-            {tip.next ? (
+            {onTimelineChoice ? <div className="tour-next-choices"><button onClick={()=>onTimelineChoice("image")}>Go to image generation</button><button onClick={()=>onTimelineChoice("scene")}>Generate another scene</button><button className="tour-secondary" onClick={()=>onTimelineChoice("ignore")}>Ignore</button></div> : tip.next ? (
               <button className="tour-primary" onClick={onNext}>
                 {tip.next}
               </button>

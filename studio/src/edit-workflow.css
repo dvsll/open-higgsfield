@@ -32,7 +32,7 @@ body.editing-selected-image #studioEditViewer .embedded-edit-view{overflow:hidde
 .selected-preview-surface[data-actionable=true]:is(:hover,:focus-within)>.selected-preview-overlay{opacity:1}
 @media(prefers-reduced-motion:reduce){.selected-preview-overlay{transition:none}}
 
-.selected-media-empty{display:flex;flex:1;min-height:0;flex-direction:column;align-items:center;justify-content:center;gap:2cqh;padding:4%;text-align:center;color:var(--ui-muted,#929aa7);container-type:size;position:relative;overflow:hidden}
-.window-workspace .selected-media-empty>strong{order:0;flex:none;font-size:clamp(14px,min(4cqw,5cqh),64px);line-height:1.15;font-weight:500;color:var(--ui-text,#e4e7ed)}
-.window-workspace .selected-media-empty>span{order:1;flex:none;font-size:clamp(11px,min(2cqw,2.6cqh),30px);line-height:1.4;max-width:85%}
-.window-workspace .selected-media-empty>svg.selection-empty-graphic{order:2;display:block;width:min(90cqw,75cqh);height:auto;max-width:none;max-height:none;aspect-ratio:64/56;flex:0 1 auto;min-height:0;margin:2cqh 0 0;stroke:var(--ui-muted,#929aa7);stroke-width:1;stroke-linecap:round;stroke-linejoin:round;opacity:.18}
+.selected-media-empty{display:flex;flex:1;min-height:0;flex-direction:column;align-items:center;justify-content:center;gap:2cqh;padding:4%;text-align:center;color:var(--ui-muted,#929aa7);container-type:size;position:relative;overflow:hidden;isolation:isolate}
+.window-workspace .selected-media-empty>strong{position:relative;z-index:1;flex:none;font-size:clamp(14px,min(4cqw,5cqh),64px);line-height:1.15;font-weight:500;color:var(--ui-text,#e4e7ed)}
+.window-workspace .selected-media-empty>span{position:relative;z-index:1;flex:none;font-size:clamp(11px,min(2cqw,2.6cqh),30px);line-height:1.4;max-width:85%}
+.window-workspace .selected-media-empty>svg.selection-empty-graphic{position:absolute;z-index:0;left:50%;top:50%;transform:translate(-50%,-50%);display:block;width:92cqw;height:86cqh;max-width:none;max-height:none;flex:none;margin:0;stroke:var(--ui-muted,#929aa7);stroke-width:.65;stroke-linecap:butt;stroke-linejoin:miter;opacity:.09;pointer-events:none}

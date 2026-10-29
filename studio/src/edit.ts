@@ -15,7 +15,7 @@ versions.className='precision-versions';inspector.classList.add('precision-inspe
 let selected=new URLSearchParams(location.search).has('from')?SC.get('osh-handoff')||{}:{};
 function show(hand:any){selected=hand;renderView(main,null);inspector.replaceChildren();versions.replaceChildren();actions.replaceChildren();document.getElementById('src')!.textContent=hand.label||'Selected media';
  if(hand.video)renderView(main,createElement(VideoEditor,{hand:hand as VideoHandoff,right:inspector,actions,versionsHost:versions,onFrame:async(data:string)=>{const {OSH}=await import('../../shared/runtime/client');const result=await OSH.upload(data);show({img:result.url,label:'Captured video frame',from:'edit'})}}));
- else renderView(main,createElement(PrecisionEditor,{key:hand.img||'empty',hand,inspector,actions}));
+ else renderView(main,createElement(PrecisionEditor,{key:hand.img||'empty',hand,inspector}));
  if(hand.img||hand.video)SHELL.select({...hand,type:hand.video?'shot':'keyframe'});
 }
 SHELL.mount({app:'edit'});show(selected);document.body.dataset.workflow='edit';

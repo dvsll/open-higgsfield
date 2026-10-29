@@ -21,7 +21,7 @@ try{
  editor.open();assert.equal(workspace,'Video');assert.equal(editor.selected(),null,'video is rejected by image editor');
  scene={type:'keyframe',img:'/outputs/4444444444444444.png'};editor.open();
  const precision=()=>renders.findLast(view=>view?.type?.name==='PrecisionEditor');
- assert.equal(editor.selected().img,scene.img);precision().props.onApply();assert.equal(applied,1);
+ assert.equal(editor.selected().img,scene.img);assert.equal(precision().props.onApply,undefined);assert.equal(precision().props.actions,undefined,'image editor has no apply/dismiss action bar');
  const busy=precision().props.onBusy;busy(true);
  event(window,'osh-project-file-selected',{kind:'image',url:'/outputs/3333333333333333.png',label:'Image'});
  assert.equal(editor.selected().img,scene.img,'active work cannot unmount editor');busy(false);

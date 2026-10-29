@@ -1,7 +1,6 @@
 import {createElement} from 'react';
 import {renderView} from './react/render';
 import {PrecisionEditor} from './react/precision-editor';
-import {CloseButton} from './react/close-button';
 import type {Media} from './shell';
 import {OSH} from '../../shared/runtime/client';
 import './precision-editor.css';
@@ -11,18 +10,17 @@ import './edit-workflow.css';
 export function mountEditWorkflow(current:()=>Media|null,apply:()=>void,resolve?:(file:{url:string;label:string;kind:string})=>Media|null){
  const host=document.createElement('div');host.id='studioEditViewer';host.className='embedded-edit precision-viewer';
  const viewer=document.createElement('div');viewer.className='embedded-edit-view';
- const actions=document.createElement('div');actions.id='studioEditActions';actions.className='embedded-edit-actions';host.append(actions,viewer);
+ host.append(viewer);
  const controls=document.createElement('div');controls.id='studioEditControls';controls.className='precision-inspector';
  document.body.append(host,controls);
  let selected:Media|null=null,pending:Media|null=null,busy=false;
  const active=()=>document.querySelector<HTMLSelectElement>('[aria-label="Workspace setup"]')?.value==='Image';
  const onBusy=(value:boolean)=>{busy=value;host.dataset.editBusy=String(value)};
  function show(hand:Media|null){
-  if(busy)return;selected=hand;renderView(viewer,null);renderView(controls,null);renderView(actions,null);
+  if(busy)return;selected=hand;renderView(viewer,null);renderView(controls,null);
   host.hidden=!hand?.img;document.body.classList.toggle('editing-selected-image',!!hand?.img);
   if(!hand?.img){renderView(controls,createElement('div',null,createElement('p',{role:'status'},'Select an image to edit.'),createElement('button',{onClick:()=>open()},'Edit selected image')));return}
-  renderView(viewer,createElement(PrecisionEditor,{key:hand.img,hand,inspector:controls,actions,onApply:apply,onBusy}));
-  const dismiss=document.createElement('div');renderView(dismiss,createElement(CloseButton,{label:'Finish editing image',onClick:()=>show(null)}));actions.append(dismiss);
+  renderView(viewer,createElement(PrecisionEditor,{key:hand.img,hand,inspector:controls,onBusy}));
 
  }
  const sceneMedia=()=>{const hand=current();return hand?{...hand,from:'director'}:null};

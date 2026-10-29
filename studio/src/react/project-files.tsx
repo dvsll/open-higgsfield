@@ -11,6 +11,7 @@ const kinds=[['video','Videos'],['image','Images'],['audio','Audio'],['captions'
 export function ProjectFilesView({files,organization,onOrganize,onSelect,onOpen,onUseKeyframe,onRename}:{files:ProjectFile[];onRename?:(file:ProjectFile,label:string)=>void;organization:FileOrganization;onOrganize:(value:FileOrganization)=>void;onSelect:(file:ProjectFile)=>void;onOpen:(file:ProjectFile)=>void;onUseKeyframe?:(file:ProjectFile)=>void}){
  const [renaming,setRenaming]=useState<ProjectFile|null>(null),[fileName,setFileName]=useState('');
  const [selected,setSelected]=useState(''),[editing,setEditing]=useState<string|null>(null),[name,setName]=useState(''),[dragOver,setDragOver]=useState<string|null>(null);
+ useEffect(()=>{const select=(event:Event)=>setSelected((event as CustomEvent<ProjectFile>).detail.url);addEventListener('osh-project-file-selected',select);return()=>removeEventListener('osh-project-file-selected',select)},[]);
  const [filter,setFilter]=useState<'all'|'generated'|'uploaded'>('all');const visible=files.filter(file=>filter==='all'||file.origin===filter);
  useEffect(()=>{const showGuides=()=>setFilter('all');window.addEventListener('osh-tour-show-guides',showGuides);return()=>window.removeEventListener('osh-tour-show-guides',showGuides)},[]);
  const [trainingMedia,setTrainingMedia]=useState<'image'|'video'|null>(null);

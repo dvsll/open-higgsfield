@@ -59,13 +59,13 @@ const originalDrop={document:globalThis.document,addEventListener:globalThis.add
 try{
  track.querySelector=()=>({});track.contains=()=>false;
  globalThis.document={getElementById:id=>id==='tl'?track:{classList:{add:name=>classes.get(id).add(name),remove:name=>classes.get(id).delete(name)}}};globalThis.addEventListener=()=>{};
- const {mountSequenceFileDrop}=await dropServer.ssrLoadModule('/studio/src/sequence-file-drop.ts');mountSequenceFileDrop((...args)=>dropped.push(args));
+ const {mountSequenceFileDrop}=await dropServer.ssrLoadModule('/studio/src/sequence-file-drop.ts');let opened=false;mountSequenceFileDrop((...args)=>dropped.push(args),{imageGuideDrop:()=>opened});
  const drag=(action,kind,id,url=video)=>{const event=new Event(action,{cancelable:true});Object.defineProperties(event,{target:{value:{closest:selector=>selector==='#'+id}},clientX:{value:100},dataTransfer:{value:{types:['application/x-studio-file-'+kind],getData:()=>url}}});track.dispatchEvent(event);return event};
  assert.equal(drag('dragover','video','trk').defaultPrevented,true);assert.equal(classes.get('trk').has('file-drop-compatible'),true);assert.equal(classes.get('audioTrack').size,0);
  drag('drop','video','trk');assert.equal(dropped.length,1);assert.equal(dropped[0][1],'video');assert.equal(classes.get('trk').size,0);
  drag('drop','video','audioTrack');drag('drop','video','trk','/outputs/ffffffffffffffff.webm');assert.equal(dropped.length,1,'wrong lane and non-project media rejected');
- drag('dragover','image','overlayTrack');assert.equal(classes.get('overlayTrack').size,1);assert.equal(classes.get('trk').size,1,'images may also become scene guides');
- drag('drop','image','overlayTrack',image);assert.equal(dropped[1][1],'overlays');assert.equal(drag('drop','image','trk',image).defaultPrevented,false,'legacy guide handler retains ownership');
+ track.querySelector=()=>null;assert.equal(drag('dragover','image','trk').defaultPrevented,true,'empty video tracks accept image scenes');drag('dragover','image','overlayTrack');assert.equal(classes.get('overlayTrack').size,1);assert.equal(classes.get('trk').size,1,'images may also become scene guides');
+ drag('drop','image','overlayTrack',image);assert.equal(dropped[1][1],'overlays');assert.equal(drag('drop','image','trk',image).defaultPrevented,true,'sequence accepts images as new scenes');assert.equal(dropped[2][1],'video');opened=true;assert.equal(drag('drop','image','trk',image).defaultPrevented,false,'opened shot retains guide placement');assert.equal(dropped.length,3);
 }finally{await dropServer.close();Object.assign(globalThis,originalDrop);delete globalThis.__sequenceDropTest}
 
 const captionSource={id:'voice',url:'/outputs/1111111111111111.flac',label:'Voice',start:0,origin:'library'};
@@ -89,3 +89,14 @@ const {cameraMove,cameraEase}=await import('../src/camera-motion.ts');
 assert.equal(cameraMove('slowly orbit right around the chair').kind,'orbit');assert.equal(cameraMove('dolly out').direction,-1);assert.equal(cameraMove('crane up').direction,1);assert.equal(cameraMove('gentle pan left').amount,.5);assert.throws(()=>cameraMove('make it cinematic'));assert.throws(()=>cameraMove('orbit left and dolly in'));assert.throws(()=>cameraMove('do not orbit right'));assert.throws(()=>cameraMove('tilt up',NaN));assert.equal(cameraEase(0),0);assert.equal(cameraEase(1),1);assert.equal(cameraEase(.5),.5);
 const {blockoutObject}=await import('../src/geometry-scene.ts');
 const proxy=blockoutObject('person',1),floor=blockoutObject('floor',2);assert.equal(proxy.primitive,'person');assert.deepEqual(readScene([proxy,floor]),[proxy,floor]);assert.equal(readScene([{...proxy,dimensions:[-1,1,1]}]).length,0);const replacedProxy=placeGeneratedMesh([proxy],proxy.id,replacement)[0];assert.equal(replacedProxy.primitive,undefined);assert.equal(replacedProxy.url,replacement.url);assert.equal(replacedProxy.id,proxy.id);
+
+// Exercise the real controller callback: image drops create an ungenerated scene,
+// with one START image and normal insertion/history, rather than a fake video.
+const controllerSource=await (await import('node:fs/promises')).readFile(new URL('../src/director.ts',import.meta.url),'utf8');
+const dropController=controllerSource.slice(controllerSource.indexOf('mountSequenceFileDrop(async'),controllerSource.indexOf('const overlayToggle='));
+let sceneDrop;let savedDrop=false;
+const dropContext={mountSequenceFileDrop:callback=>{sceneDrop=callback},$:selector=>selector==='#ov'?{style:{display:''}}:selector==='#kgo'?{disabled:false}:{getBoundingClientRect:()=>({left:0})},open:null,pxs:100,SH:[{id:'a',d:2},{id:'b',d:2}],newScene:()=>({id:'new',d:4,r:false,keys:[]}),SP:value=>value,crypto:globalThis.crypto,insertionIndex:(durations,position)=>position<2?0:1,librarySelection:{},setPlaying:()=>{},start:i=>i*2,timeline:()=>{},head:()=>{},save:()=>{savedDrop=true},toast:()=>{},cur:0,selKey:null,clipSelected:false,selectedTrack:'',G:0,insertionCue:()=>{}};
+Function('ctx','with(ctx){'+dropController+'}')(dropContext);
+await sceneDrop({kind:'image',url:image,label:'Reference image'},'video',300);
+assert.equal(dropContext.SH.length,3);assert.equal(dropContext.SH[1].video,undefined);assert.equal(dropContext.SH[1].r,false);assert.equal(dropContext.SH[1].keys[0].anchor,'start');assert.equal(dropContext.SH[1].keys[0].t,0);assert.equal(dropContext.SH[1].keys[0].img,image);assert.equal(savedDrop,true);
+console.log('PASS: real image-drop controller inserts a new scene with a START keyframe and saves normal history.');

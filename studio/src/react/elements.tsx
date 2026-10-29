@@ -7,6 +7,7 @@ import type { Element, PoolItem } from '../shell';
 import { OSH } from '../../../shared/runtime/client';
 import { projectKey } from '../projects';
 import {Popup} from './popup';
+import {ReferenceCrop} from './reference-crop';
 function ReferenceImage({url,name}:{url:string;name:string}){const [missing,setMissing]=useState(false);return missing?<div className="element-no-reference">Reference unavailable</div>:<img loading="lazy" src={url} alt={name+' reference'} onError={()=>setMissing(true)}/>}
 export function ElementLibrary({
   elements,
@@ -75,6 +76,7 @@ export function ElementLibrary({
     [kind, setKind] = useState<Element['kind']>(existing?.kind || 'cast'),
     [description, setDescription] = useState(existing?.d || ''),
     [refs, setRefs] = useState(existing?.refs || []),
+    [cropping,setCropping] = useState<number|null>(null),
     [pending, setPending] = useState(false),
     [status, setStatus] = useState(''),
     [over, setOver] = useState(false);
@@ -157,6 +159,7 @@ export function ElementLibrary({
     }
   };
   return createPortal(
+    <>
     <Popup title={existing ? 'Edit element' : 'Create element'} className="element-maker" onClose={onClose} closeLabel="Close element maker">
       <form
         onSubmit={(e) => {
@@ -206,7 +209,7 @@ export function ElementLibrary({
             <div className="element-refs">
               {refs.map((url, index) => (
                 <div key={url + index}>
-                  <img src={url} alt={`Reference ${index + 1}`} />
+                  <button type="button" className="element-crop-reference" aria-label={`Crop reference ${index + 1}`} disabled={pending} onClick={()=>setCropping(index)}><img src={url} alt={`Reference ${index + 1}`} draggable={false}/><span>Crop</span></button>
                   <button
                     type="button"
                     aria-label={`Remove reference ${index + 1}`}
@@ -269,7 +272,9 @@ export function ElementLibrary({
           </button>
         </footer>
       </form>
-    </Popup>,
+    </Popup>
+    {cropping!==null&&refs[cropping]&&<ReferenceCrop url={refs[cropping]} onClose={()=>setCropping(null)} onSave={url=>{setRefs(current=>current.map((value,index)=>index===cropping?url:value));setCropping(null);setStatus('Reference cropped. Save the element to keep it.')}}/>}
+    </>,
     document.body,
   );
 }

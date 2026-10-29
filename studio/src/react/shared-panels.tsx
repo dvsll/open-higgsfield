@@ -68,7 +68,10 @@ export function SelectedMedia({
   paint: (canvas: HTMLCanvasElement, media: Media) => void | (() => void);
   onOpen: (app: string) => void;
 }) {
-  const [continuing,setContinuing]=useState(false);
+  const [continuing,setContinuing]=useState(false),[videoOpen,setVideoOpen]=useState(false);
+  useEffect(()=>setVideoOpen(false),[media?.video]);
+  const activate=()=>{if(media?.img){onOpen('edit');return}if(media?.video){setVideoOpen(true);document.dispatchEvent(new CustomEvent('osh-workspace-select',{detail:'Video'}));dispatchEvent(new CustomEvent('osh-reveal-window',{detail:'assets'}))}};
+  const previewKeys=(event:React.KeyboardEvent)=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();activate()}};
   useEffect(()=>{const update=(event:Event)=>setContinuing(!!(event as CustomEvent).detail);window.addEventListener('osh-continuation-busy',update);return()=>window.removeEventListener('osh-continuation-busy',update)},[]);
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
@@ -78,7 +81,7 @@ export function SelectedMedia({
     return <div className="none">Select a shot, keyframe or frame to open it in another workflow.</div>;
   return (
     <>
-      <>{media.img?<img className="selected-original-image" draggable={false} onDragStart={event=>event.preventDefault()} src={media.img} alt={media.label||"Selected image"} decoding="async"/>:<canvas ref={ref} width={320} height={180} aria-label={media.audio&&!media.img&&!media.video?'Selected audio waveform':'Selected media preview'} />}</>
+      <>{media.img?<img className="selected-original-image" role="button" tabIndex={0} title="Edit image" aria-label="Edit selected image" onClick={activate} onKeyDown={previewKeys} draggable={false} onDragStart={event=>event.preventDefault()} src={media.img} alt={media.label||"Selected image"} decoding="async"/>:media.video&&videoOpen?<video className="selected-original-image" src={media.video} controls autoPlay playsInline/>:<canvas role={media.video?"button":undefined} tabIndex={media.video?0:undefined} title={media.video?"Play video":undefined} onClick={media.video?activate:undefined} onKeyDown={media.video?previewKeys:undefined} ref={ref} width={320} height={180} aria-label={media.audio&&!media.img&&!media.video?'Selected audio waveform':'Selected media preview'} />}</>
       <div className="mt">
         <span className="ty">{media.audio&&!media.img&&!media.video?'Audio':{ shot: 'Shot', keyframe: 'Keyframe', frame: 'Frame' }[media.type]}</span>
         <b>{media.label}</b>

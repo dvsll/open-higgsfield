@@ -73,7 +73,9 @@ try {
 
   const {SelectedMedia}=await server.ssrLoadModule('/studio/src/react/shared-panels.tsx');
   const selectedOriginal=renderToStaticMarkup(createElement(SelectedMedia,{media:{type:'keyframe',label:'Original',img:'/outputs/original.png'},app:'director',apps:[],paint:()=>{},onOpen:()=>{}}));
-  assert.match(selectedOriginal,/<img[^>]+src="\/outputs\/original.png"/);assert.ok(!selectedOriginal.includes('<canvas'));assert.match(selectedOriginal,/draggable="false"/);
+  assert.match(selectedOriginal,/<img[^>]+src="\/outputs\/original.png"/);assert.ok(!selectedOriginal.includes('<canvas'));assert.match(selectedOriginal,/draggable="false"/);assert.match(selectedOriginal,/aria-label="Edit selected image"/);
+  const playable=renderToStaticMarkup(createElement(SelectedMedia,{media:{type:'shot',label:'Video',video:'/outputs/clip.webm'},app:'director',apps:[],paint:()=>{},onOpen:()=>{}}));assert.match(playable,/<canvas[^>]+role="button"/);assert.match(playable,/title="Play video"/);
+
   const { TourPopover, TourChoice } = await server.ssrLoadModule('/studio/src/react/onboarding.tsx');
   const tour = renderToStaticMarkup(
     createElement(TourPopover, {

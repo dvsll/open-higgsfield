@@ -12,7 +12,7 @@ export function serverEstimate(model: ModelChoice, duration: number, width: numb
   const median=(values:number[])=>values.sort((a,b)=>a-b)[Math.floor(values.length/2)];
   let rate=rates.length?median(rates):null;
   let basis=rates.length?`${rates.length} measured warm runs on ${server!.hardware!.name}`:'Hardware calibration needed';
-  if (!rate && /4070\s*super/i.test(server?.hardware?.name||'')) {
+  if (!rate && ['ltxv-2b-0.9.8-distilled.safetensors','z_image_turbo_bf16.safetensors'].includes(model.id) && /4070\s*super/i.test(server?.hardware?.name||'')) {
     rate=(model.timing.duration?25:7)/(768*448*(model.timing.duration?97:1));basis=`Recorded 4070 Super baseline; calibrating this server`;
   }
   if (!rate && samples.length) {const s=samples[samples.length-1];rate=s.seconds/(s.width*s.height*s.frames);basis='First measured run; includes model loading';}

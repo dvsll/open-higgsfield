@@ -45,7 +45,7 @@ export const zImageBaseModel: ModelChoice = {
 };
 export const ltx25Model: ModelChoice = {
   id: 'ltx-2.5-22b-distilled-transformer-bf16.safetensors', label: 'LTX-2.5 22B · distilled', family: 'LTX-2.5',
-  description: 'Best-quality local video · two-stage with 2× latent upscale',
+  description: 'Local video · two-stage with 2× latent upscale',
   generation:{preferredFps:24,fpsNote:'The official LTX-2.5 two-stage workflow renders at 24 FPS.',steps:11,stepNote:'Official distilled two-stage preset: 8 steps at half resolution, then 3 refinement steps after the 2× latent upscale.'},
   capabilities: [{ name: 'Shot prompt', status: 'ready', control: 'shotPromptInput', detail: 'Describe the scene and visual details.' },
     { name: 'Start-frame guide', status: 'ready', control: 'timeline', detail: 'The first keyframe becomes the opening frame. Additional keyframes are not used by this workflow; use LTX-Video 13B for multi-keyframe shots.' },
@@ -57,4 +57,14 @@ export const ltxv13bModel: ModelChoice = {
   id: 'ltxv-13b-0.9.8-distilled-fp8.safetensors', label: 'LTX-Video 13B · distilled', family: 'LTX-Video 0.9.8',
   description: 'High-quality local video · keyframe guides · 8 steps',
   timing: { low: 45, high: 150, width: 768, height: 448, duration: 4, basis: 'Estimate scaled from the 2B model by parameter count; not yet measured locally.' },
+};
+
+export const wan22Model: ModelChoice = {
+  id:'wan2.2_i2v_high_noise_14B_fp8_scaled.safetensors', label:'Wan 2.2 14B · image to video', family:'Wan 2.2',
+  description:'Image-guided video · FP8 high/low noise experts · 20 steps · memory offloading',
+  generation:{preferredFps:16,fpsNote:'Native Wan image-to-video workflow uses 16 FPS.',steps:20,stepNote:'Native non-distilled preset: 20 steps, CFG 3.5; high-noise expert for the first 10, low-noise expert for the final 10.'},
+  capabilities:[{name:'Shot prompt',status:'ready',control:'shotPromptInput',detail:'Describe the appearance and action of the image-guided shot.'},
+    {name:'Start-frame guide',status:'ready',control:'timeline',detail:'Requires exactly one image at the start. Timed and end-frame guides are not supported by this connected workflow.'},
+    {name:'Motion prompt',status:'ready',control:'motion',detail:'Text describes movement; exact camera paths are not enforced.'},...common],
+  timing:{low:400,high:900,width:768,height:448,duration:4.063,basis:'Measured RTX 4070 Super 12 GB / 64 GB RAM: 65 frames at 16 FPS, 20 steps, about 539 seconds including cold loading. Variation and queue time are additional.'},
 };

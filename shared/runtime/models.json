@@ -6,9 +6,10 @@
     {"id":"speech_kokoro","capability":"speech","tier":"fast","label":"Speech · Kokoro 82M","minVramGB":0,"note":"Requires setup-speech.py and restart for the local ComfyUI speech node."},
     {"id":"selection_sam31","capability":"segmentation","tier":"best","label":"Selection · SAM3.1","minVramGB":6},
     { "id": "geometry_hunyuan_mini", "capability": "geometry", "tier": "fast", "label": "3D · Hunyuan mini geometry + training encoder", "minVramGB": 8, "note": "Open-weight geometry model under Tencent Hunyuan Community License; upstream territorial/use restrictions apply. Geometry only; no material training." },
-    { "id": "video_ltx25", "capability": "video", "tier": "best", "label": "Video · LTX-2.5 22B (best)", "minVramGB": 32, "gated": true,
+    { "id": "video_ltx25", "capability": "video", "tier": "best", "label": "Video · LTX-2.5 22B (32 GB+)", "minVramGB": 32, "gated": true,
       "note": "Gated: accept the license at https://huggingface.co/Lightricks/LTX-2.5 and provide a Hugging Face token. Officially needs a 32 GB+ NVIDIA GPU." },
     { "id": "video_ltxv13b", "capability": "video", "tier": "balanced", "label": "Video · LTX-Video 13B (fits 12-24 GB)", "minVramGB": 12 },
+    {"id":"video_wan22_i2v","capability":"video","tier":"balanced","label":"Video · Wan 2.2 14B image-to-video","minVramGB":12,"note":"Requires a start image. Two FP8 expert models, CPU offloading and substantial system RAM; slower than LTX drafts."},
     { "id": "shot_ltxv", "capability": "video", "tier": "fast", "label": "Video · LTX-Video 2B (fast drafts)", "minVramGB": 8 },
     { "id": "image_qwen", "capability": "image", "tier": "best", "label": "Images · Qwen-Image 2512 (best)", "minVramGB": 24 },
     { "id": "image_zimage", "capability": "image", "tier": "balanced", "label": "Images · Z-Image (fits 12-24 GB)", "minVramGB": 10 },
@@ -16,6 +17,10 @@
     { "id": "audio_stable", "capability": "audio", "tier": "best", "label": "Audio · Stable Audio Open", "minVramGB": 6 }
   ],
   "models": [
+    {"file":"diffusion_models/wan2.2_i2v_high_noise_14B_fp8_scaled.safetensors","size_gb":14.29,"sha256":"6122e79d55e0f235698d11d657f3b196c5273c830da00b2b013c5a048d5e6a42","used_by":"video_wan22_i2v","license":"Apache-2.0","url":"https://huggingface.co/Comfy-Org/Wan-2.2/resolve/main/split_files/diffusion_models/wan2.2_i2v_high_noise_14B_fp8_scaled.safetensors"},
+    {"file":"diffusion_models/wan2.2_i2v_low_noise_14B_fp8_scaled.safetensors","size_gb":14.29,"sha256":"5471a457b6ac404202a5fbe6c11595a3d5641fc766b00f38763f72303fffc21e","used_by":"video_wan22_i2v","license":"Apache-2.0","url":"https://huggingface.co/Comfy-Org/Wan-2.2/resolve/main/split_files/diffusion_models/wan2.2_i2v_low_noise_14B_fp8_scaled.safetensors"},
+    {"file":"text_encoders/umt5_xxl_fp8_e4m3fn_scaled.safetensors","size_gb":6.74,"used_by":"video_wan22_i2v","license":"Apache-2.0","url":"https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/text_encoders/umt5_xxl_fp8_e4m3fn_scaled.safetensors"},
+    {"file":"vae/wan_2.1_vae.safetensors","size_gb":0.254,"used_by":"video_wan22_i2v","license":"Apache-2.0","url":"https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/vae/wan_2.1_vae.safetensors"},
     {"file":"diffusion_models/trellis_2_int8_convrot.safetensors","size_gb":5.253,"used_by":"geometry_trellis2","license":"MIT","url":"https://huggingface.co/Comfy-Org/TRELLIS.2/resolve/main/diffusion_models/trellis_2_int8_convrot.safetensors"},
     {"file":"vae/trellis_2_shape_vae_bf16.safetensors","size_gb":1.096,"used_by":"geometry_trellis2","license":"MIT","url":"https://huggingface.co/Comfy-Org/Pixal3D/resolve/main/vae/trellis_2_shape_vae_bf16.safetensors"},
     {"file":"vae/trellis_2_texture_vae_bf16.safetensors","size_gb":0.948,"used_by":"geometry_trellis2","license":"MIT","url":"https://huggingface.co/Comfy-Org/Pixal3D/resolve/main/vae/trellis_2_texture_vae_bf16.safetensors"},

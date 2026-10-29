@@ -33,7 +33,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Connect, Plugin } from "vite";
-import { imageModel, videoModel, qwenImageModel, zImageBaseModel, ltx25Model, ltxv13bModel, type ModelChoice } from './model-catalog.ts';
+import { imageModel, videoModel, qwenImageModel, zImageBaseModel, ltx25Model, ltxv13bModel, wan22Model, type ModelChoice } from './model-catalog.ts';
 
 /** How each selectable model maps onto a workflow: which loader inputs to fill, and which filenames work there (best first). */
 type Recipe={choice:ModelChoice;graph:string;needs:[node:string,classType:string,input:string,files:string[]][];settings?:Record<string,Record<string,unknown>>};
@@ -43,9 +43,10 @@ const imageRecipes:Recipe[]=[
   {choice:imageModel,graph:'keyframe_zimage',needs:[['1','UNETLoader','unet_name',['z_image_turbo_bf16.safetensors']],['2','CLIPLoader','clip_name',['qwen_3_4b_fp8_mixed.safetensors','qwen_3_4b.safetensors']],['3','VAELoader','vae_name',['ae.safetensors']]]},
 ];
 const videoRecipes:Recipe[]=[
-  {choice:{...ltxv13bModel,id:blockoutBase,label:'LTX-Video 13B · depth base',description:'0.9.7 dev · 30 steps · matching depth adapter used for blockouts',generation:{steps:30,stepNote:'Development checkpoint; 30 steps and CFG 3.'}},graph:'shot_ltxv',needs:[['1','CheckpointLoaderSimple','ckpt_name',[blockoutBase]],['2','CLIPLoader','clip_name',['t5xxl_fp8_e4m3fn_scaled.safetensors']]],settings:{'13':{steps:30},'14':{cfg:3}}},
   {choice:ltx25Model,graph:'shot_ltx25',needs:[['1','UNETLoader','unet_name',['ltx-2.5-22b-distilled-transformer-bf16.safetensors','ltx-2.5-22b-distilled-transformer-comfy-int8-convrot.safetensors','ltx-2.5-22b-distilled-transformer-nvfp4.safetensors']],['2','CLIPLoader','clip_name',['gemma4-12b-with-proj-ltx-2.5-bf16.safetensors','gemma4-12b-with-proj-ltx-2.5-comfy-int8-convrot.safetensors']],['10','VAELoader','vae_name',['ltx-2.5-audio-vae-bf16.safetensors']],['21','VAELoader','vae_name',['ltx-2.5-video-vae-bf16.safetensors']],['20','LatentUpscaleModelLoader','model_name',['ltx-2.5-latent-spatial-upscaler-x2-bf16-1.0.safetensors']]]},
   {choice:ltxv13bModel,graph:'shot_ltxv',needs:[['1','CheckpointLoaderSimple','ckpt_name',['ltxv-13b-0.9.8-distilled-fp8.safetensors','ltxv-13b-0.9.8-distilled.safetensors']],['2','CLIPLoader','clip_name',['t5xxl_fp8_e4m3fn_scaled.safetensors']]]},
+  {choice:wan22Model,graph:'shot_wan22',needs:[['1','UNETLoader','unet_name',['wan2.2_i2v_high_noise_14B_fp8_scaled.safetensors']],['2','UNETLoader','unet_name',['wan2.2_i2v_low_noise_14B_fp8_scaled.safetensors']],['3','CLIPLoader','clip_name',['umt5_xxl_fp8_e4m3fn_scaled.safetensors']],['4','VAELoader','vae_name',['wan_2.1_vae.safetensors']]]},
+  {choice:{...ltxv13bModel,id:blockoutBase,label:'LTX-Video 13B · depth base',description:'0.9.7 dev · 30 steps · matching depth adapter used for blockouts',generation:{steps:30,stepNote:'Development checkpoint; 30 steps and CFG 3.'}},graph:'shot_ltxv',needs:[['1','CheckpointLoaderSimple','ckpt_name',[blockoutBase]],['2','CLIPLoader','clip_name',['t5xxl_fp8_e4m3fn_scaled.safetensors']]],settings:{'13':{steps:30},'14':{cfg:3}}},
   {choice:videoModel,graph:'shot_ltxv',needs:[['1','CheckpointLoaderSimple','ckpt_name',['ltxv-2b-0.9.8-distilled.safetensors']],['2','CLIPLoader','clip_name',['t5xxl_fp8_e4m3fn_scaled.safetensors']]]},
 ];
 /** Installed model id -> recipe plus the actual filenames found for each loader. */
@@ -362,6 +363,19 @@ async function shot(body: any, env: Env) {
   const width = dimension(body.width,1024,768,32);
   const height = dimension(body.height,1024,448,32);
   const resolved=resolvedModels.get(model)!;
+  if(resolved.recipe.graph==='shot_wan22'){
+    if(keys.length!==1||keys[0].t!==0)throw new HttpError(400,'Wan 2.2 image-to-video requires one image guide at the start. Remove extra guides or choose LTX-Video for timed guides.');
+    if((keys[0].strength??1)!==1)throw new HttpError(400,'Wan 2.2 uses the full start image. Set guide strength to 100%.');
+    if(width*height>832*480)throw new HttpError(400,'Wan 2.2 local preset supports up to 832×480 pixels.');
+    const graph=applyResolved(await loadGraph('shot_wan22'),resolved);
+    Object.assign(graph['8'].inputs,{width,height,length});
+    graph['5'].inputs.text=body.prompt?str(body.prompt,2000,'prompt'):'continuous natural motion';
+    graph['3'].inputs.device=textDevice;graph['14'].inputs.fps=fps;
+    const seed=Math.floor(num(body.seed,0,2**32,1));graph['11'].inputs.noise_seed=seed;graph['12'].inputs.noise_seed=seed;
+    const wf=c.workflows.fromJson(graph);wf.setInput('7','image',c.assets.fromFile(paths[0]));
+    const t=Date.now();const {job}=await timedRun(c,wf,env,model,width,height,length,body._requestId);
+    return {url:await save(job,'14','webm'),seconds:+((Date.now()-t)/1000).toFixed(1),frames:length,fps,duration:length/fps};
+  }
   if(resolved.recipe.graph==='shot_ltx25'){
     if(keys.length>1)throw new HttpError(400,'LTX-2.5 uses one start-frame guide. Remove the extra keyframes, or choose LTX-Video for multi-keyframe shots.');
     const seed=Math.floor(num(body.seed,0,2**32,1));

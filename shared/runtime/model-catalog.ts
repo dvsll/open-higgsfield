@@ -68,3 +68,11 @@ export const wan22Model: ModelChoice = {
     {name:'Motion prompt',status:'ready',control:'motion',detail:'Text describes movement; exact camera paths are not enforced.'},...common],
   timing:{low:400,high:900,width:768,height:448,duration:4.063,basis:'Measured RTX 4070 Super 12 GB / 64 GB RAM: 65 frames at 16 FPS, 20 steps, about 539 seconds including cold loading. Variation and queue time are additional.'},
 };
+
+export const qwenReferenceModel:ModelChoice={
+ id:'qwen_image_edit_2511_fp8mixed.safetensors',label:'Qwen Image Edit 2511 · references',family:'Qwen Image Edit',
+ description:'Image-conditioned generation · up to 3 reference images · 20 steps',
+ generation:{steps:20,stepNote:'20-step image-conditioned workflow, CFG 4. Reference images enter both visual and VAE conditioning.'},
+ capabilities:[{name:'Reference image editing',status:'ready',control:'kp',detail:'Attach a reference or mention an Element. Up to 3 images condition generation; identity is not guaranteed.'},{name:'Elements',status:'ready',control:'els',detail:'Each mentioned Element contributes its first reference image, including saved crops.'},{name:'Text to image',status:'unavailable',detail:'Requires a reference. Use Z-Image for text-only generation.'}],
+ timing:{low:100,high:300,width:768,height:448,basis:'Prior local Qwen Edit runs on RTX 4070 Super 12 GB; reference count and model loading add time.'}
+};

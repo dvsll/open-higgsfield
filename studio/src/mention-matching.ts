@@ -26,3 +26,9 @@ export function expandMentions(text: string, elements: MentionElement[]): string
   }
   return text;
 }
+
+/** Image generation uses the saved cover of each explicitly mentioned Element. */
+export function mentionedReferenceImages(text:string,elements:MentionElement[],attached:string[]=[]):string[]{
+ const names=mentionRanges(text,elements).map(range=>text.slice(range.start+1,range.end).toLocaleLowerCase());
+ return [...new Set([...attached,...elements.filter(element=>names.includes(element.n.toLocaleLowerCase())).flatMap(element=>element.refs?.[0]?[element.refs[0]]:[])])];
+}

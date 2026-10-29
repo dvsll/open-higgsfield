@@ -52,7 +52,7 @@ export function ElementLibrary({
       <button className="element-edit" aria-label={`Edit ${element.n}`} title={`Edit ${element.n}`} onClick={()=>setEditing(element)}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5 4 4M4 20l4-1L20 7a2.8 2.8 0 0 0-4-4L4 15v5Z"/></svg></button>
     </article>)}</div>
     {!filtered.length&&<p className="element-library-empty">{items.length?'No matching elements. Try another search or category.':'Save a character, place or object to reuse in your scenes.'}</p>}
-    <p className="element-library-help">Click to insert an @mention. Descriptions guide generation; photos are saved references, not identity conditioning.</p>
+    <p className="element-library-help">Click to insert an @mention. In Image, @mentions use the first reference photo with Qwen Image Edit. Other workflows use descriptions.</p>
     {editing!==undefined&&<ElementMaker existing={editing||undefined} elements={items} pool={pool()} onSave={save} onClose={()=>setEditing(undefined)}/>}
   </div>;
 }function ElementMaker({
@@ -255,8 +255,7 @@ export function ElementLibrary({
               />
             </label>
             <p>
-              Use <b data-handle>@{name || 'name'}</b> in a prompt. Current models use this description;
-              reference images are saved for future image conditioning.
+              Use <b data-handle>@{name || 'name'}</b> in a prompt. In Image, Qwen Image Edit uses the first reference photo. Other workflows use this description.
             </p>
           </section>
         </div>

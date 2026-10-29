@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mentionAt, matchingElements, expandMentions, mentionRanges, elementMentionText } from '../src/mention-matching.ts';
+import { mentionAt, matchingElements, expandMentions, mentionRanges, elementMentionText, mentionedReferenceImages } from '../src/mention-matching.ts';
 const elements = [
   { id:'mia', n:'Mia', d:'girl in a yellow raincoat', ic:'', kind:'cast' },
   { id:'bolt', n:'Bolt', d:'small robot', ic:'', kind:'cast' },
@@ -23,3 +23,9 @@ assert.equal(elementMentionText('Scene.',6,'Bolt'),' @Bolt ');
 assert.equal(elementMentionText('Scene ',6,'Bolt'),'@Bolt ');
 assert.equal(elementMentionText('',0,'Bolt'),'@Bolt ');
 assert.equal(expandMentions('Scene.'+elementMentionText('Scene.',6,'Bolt'),elements),'Scene. Bolt (small robot) ');
+
+const pictured=elements.map(e=>({...e,refs:[`/outputs/${e.id}.png`,'unused-second-view.png']}));
+assert.deepEqual(mentionedReferenceImages("@Mia's room and @Bolt! @Miax",pictured),['/outputs/bolt.png','/outputs/room.png']);
+assert.deepEqual(mentionedReferenceImages('@Mia and @Mia',pictured,['/outputs/mia.png']),['/outputs/mia.png']);
+assert.deepEqual(mentionedReferenceImages('test@Mia.com',pictured),[]);
+console.log('PASS: explicit Element references, longest-name boundaries, saved cover selection and attachment deduplication.');

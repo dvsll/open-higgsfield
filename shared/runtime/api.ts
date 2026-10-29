@@ -33,7 +33,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Connect, Plugin } from "vite";
-import { imageModel, videoModel, qwenImageModel, zImageBaseModel, ltx25Model, ltxv13bModel, wan22Model, type ModelChoice } from './model-catalog.ts';
+import { imageModel, videoModel, qwenImageModel, zImageBaseModel, ltx25Model, ltxv13bModel, wan22Model, qwenReferenceModel, type ModelChoice } from './model-catalog.ts';
 
 /** How each selectable model maps onto a workflow: which loader inputs to fill, and which filenames work there (best first). */
 type Recipe={choice:ModelChoice;graph:string;needs:[node:string,classType:string,input:string,files:string[]][];settings?:Record<string,Record<string,unknown>>};
@@ -41,6 +41,7 @@ const imageRecipes:Recipe[]=[
   {choice:qwenImageModel,graph:'keyframe_qwen',needs:[['1','UNETLoader','unet_name',['qwen_image_2512_fp8_e4m3fn.safetensors','qwen_image_2512_bf16.safetensors']],['2','CLIPLoader','clip_name',['qwen_2.5_vl_7b_fp8_scaled.safetensors','qwen_2.5_vl_7b.safetensors']],['3','VAELoader','vae_name',['qwen_image_vae.safetensors']]]},
   {choice:zImageBaseModel,graph:'keyframe_zimage',needs:[['1','UNETLoader','unet_name',['z_image_bf16.safetensors']],['2','CLIPLoader','clip_name',['qwen_3_4b_fp8_mixed.safetensors','qwen_3_4b.safetensors']],['3','VAELoader','vae_name',['ae.safetensors']]],settings:{'8':{steps:50,cfg:4}}},
   {choice:imageModel,graph:'keyframe_zimage',needs:[['1','UNETLoader','unet_name',['z_image_turbo_bf16.safetensors']],['2','CLIPLoader','clip_name',['qwen_3_4b_fp8_mixed.safetensors','qwen_3_4b.safetensors']],['3','VAELoader','vae_name',['ae.safetensors']]]},
+  {choice:qwenReferenceModel,graph:'keyframe_qwen_reference',needs:[['1','UNETLoader','unet_name',['qwen_image_edit_2511_fp8mixed.safetensors','qwen_image_edit_2511_bf16.safetensors']],['2','CLIPLoader','clip_name',['qwen_2.5_vl_7b_fp8_scaled.safetensors']],['3','VAELoader','vae_name',['qwen_image_vae.safetensors']]]},
 ];
 const videoRecipes:Recipe[]=[
   {choice:ltx25Model,graph:'shot_ltx25',needs:[['1','UNETLoader','unet_name',['ltx-2.5-22b-distilled-transformer-bf16.safetensors','ltx-2.5-22b-distilled-transformer-comfy-int8-convrot.safetensors','ltx-2.5-22b-distilled-transformer-nvfp4.safetensors']],['2','CLIPLoader','clip_name',['gemma4-12b-with-proj-ltx-2.5-bf16.safetensors','gemma4-12b-with-proj-ltx-2.5-comfy-int8-convrot.safetensors']],['10','VAELoader','vae_name',['ltx-2.5-audio-vae-bf16.safetensors']],['21','VAELoader','vae_name',['ltx-2.5-video-vae-bf16.safetensors']],['20','LatentUpscaleModelLoader','model_name',['ltx-2.5-latent-spatial-upscaler-x2-bf16-1.0.safetensors']]]},
@@ -277,6 +278,20 @@ async function keyframe(body: any, env: Env) {
   const c = client(env);
   const tune=(await localModels(env)).keyframe.find(entry=>entry.id===body.model&&entry.loraFile);
   const resolved=resolvedModels.get(tune?tune.parentId!:model)!;
+  const references=body.references===undefined?[]:body.references;
+  if(!Array.isArray(references)||references.length>3||references.some(url=>typeof url!=='string'||!/^\/outputs\/[a-f0-9]{16}\.png$/.test(url)||!existsSync(outputPath(url))))throw new HttpError(400,'Use up to 3 images from this project as references.');
+  if(resolved.recipe.graph==='keyframe_qwen_reference'){
+    if(!references.length)throw new HttpError(400,'Attach a reference image or mention an Element with a photo for Qwen Image Edit.');
+    if(tune)throw new HttpError(400,'Reference generation does not support this adapter. Choose Qwen Image Edit.');
+    const graph=applyResolved(await loadGraph('keyframe_qwen_reference'),resolved);
+    graph['5'].inputs.prompt=prompt;graph['6'].inputs.prompt='';graph['8'].inputs.seed=seed;
+    graph['2'].inputs.device=textDevice;Object.assign(graph['7'].inputs,{width,height});
+    references.forEach((url,index)=>{const node=String(11+index);graph[node]={class_type:'LoadImage',inputs:{image:'reference.png'}};for(const encoder of ['5','6'])graph[encoder].inputs['image'+(index+1)]=[node,0]});
+    const wf=c.workflows.fromJson(graph);references.forEach((url,index)=>wf.setInput(String(11+index),'image',c.assets.fromFile(outputPath(url))));
+    const t=Date.now();const {job}=await timedRun(c,wf,env,model,width,height,1,body._requestId);
+    return {url:await save(job,'10','png'),seconds:+((Date.now()-t)/1000).toFixed(1)};
+  }
+  if(references.length)throw new HttpError(400,'This image model does not accept references. Choose Qwen Image Edit.');
   const graph=applyResolved(await loadGraph(resolved.recipe.graph),resolved);
   if(tune){graph['90']={class_type:'LoraLoaderModelOnly',inputs:{model:['1',0],lora_name:tune.loraFile,strength_model:1}};graph['4'].inputs.model=['90',0]}
   const {rw,rh}=cropOutput(graph,'9','10',width,height,16);

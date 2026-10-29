@@ -7,9 +7,10 @@ import { serverEstimate } from './model-estimates';
 import { frameSize, mountFrameSizes, videoTiming } from './frame-size';
 import type { ModelChoice } from '../../shared/runtime/model-catalog';
 import { SHELL } from './shell';
+import {SC} from './scene';
 import { attachElementMentions } from './element-mentions';
 import {blockoutBase} from '../../shared/lib/blockout';
-import { expandMentions } from './mention-matching';
+import { expandMentions,mentionedReferenceImages } from './mention-matching';
 
 type Kind = 'keyframe' | 'video';
 const select = (kind: Kind) => document.getElementById(`${kind}Model`) as HTMLSelectElement;
@@ -39,7 +40,7 @@ const usage: Record<string, string> = {
   'Elements': 'Type @ in Image, Shot or Motion prompt, then search and choose an element. Mentions expand into descriptions; this does not lock character identity.',
   'JSON posing': 'There is no pose JSON input yet. A pose-control workflow and parser must be connected before you can use it.',
   'LoRA stylization': 'LoRA loading is not wired up yet. Training assets are in the local LoRA lab; they are not active style adapters.',
-  'Reference image editing': 'Editing from a source image needs a separate image-edit workflow. The current image model generates a new image from text.',
+  'Reference image editing': 'Attach an image in Prompt or mention an Element to use its saved cover image. Qwen Image Edit conditions generation on up to 3 reference images.',
 };
 let tooltip: HTMLDivElement | null = null;
 function attachHelp(button: HTMLButtonElement, heading: string, description: string): void {
@@ -115,7 +116,10 @@ function chooseModel(kind: Kind): void {
 // The same selections apply to direct generation, automatic keyframes, and stylization.
 export const localGeneration = {
   async keyframe(prompt: string, seed = 1) {
-    const id = model('keyframe'); const result = await OSH.keyframe(expandMentions(prompt, SHELL.ELEMENTS), seed, {...frameSize('keyframe'),textDevice:modelDevice(id)}, id);
+    const references=mentionedReferenceImages(prompt,SHELL.ELEMENTS,SC.get('osh-image-reference')?[SC.get('osh-image-reference')]:[]);
+    if(references.length>3)throw Error('Use at most 3 reference images: remove an attachment or Element mention.');
+    if(references.length){const referenceModel=catalog?.keyframe.find(entry=>entry.family==='Qwen Image Edit'&&!entry.parentId);if(!referenceModel)throw Error('Qwen Image Edit is not ready. Refresh local models; references have not been ignored.');chooseEntry('keyframe',referenceModel.id)}
+    const id = model('keyframe'); const result = await OSH.keyframe(expandMentions(prompt, SHELL.ELEMENTS), seed, {...frameSize('keyframe'),textDevice:modelDevice(id),references}, id);
     catalog=await OSH.models().catch(()=>catalog);renderDetails();return result;
   },
   async shot(keys: ShotKey[], prompt: string, duration: number, seed = 1,timing:{frames:number;fps:number;width?:number;height?:number;depth?:string[];depthStrength?:number}=videoTiming()) {
@@ -191,6 +195,7 @@ export async function refreshModels(): Promise<void> {
 }
 
 export function mountModels(): void {
+ addEventListener('osh-image-reference-attached',async()=>{await refreshModels();const entry=catalog?.keyframe.find(model=>model.family==='Qwen Image Edit'&&!model.parentId);if(entry)chooseEntry('keyframe',entry.id);else dispatchEvent(new CustomEvent('osh-toast',{detail:'Qwen Image Edit is unavailable. Your reference is saved; generation will not ignore it.'}))});
  addEventListener('osh-model-refresh',()=>void refreshModels());
  addEventListener('osh-select-model',async event=>{const {kind,id}=(event as CustomEvent).detail||{};if(!['keyframe','video'].includes(kind))return;await refreshModels();if(catalog?.[kind as Kind].some(entry=>entry.id===id))chooseEntry(kind,id)});
   mountFrameSizes(()=>{const size=frameSize('video',false);const canvas=document.getElementById('cv') as HTMLCanvasElement;canvas.width=size.width;canvas.height=size.height;(canvas.parentElement as HTMLElement).style.aspectRatio=String(size.width/size.height);renderDetails()});

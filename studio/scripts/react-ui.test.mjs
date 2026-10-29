@@ -72,6 +72,7 @@ try {
   assert.ok((zoomedOutRuler.match(/<span/g)||[]).length<12);
 
   const {SelectedMedia}=await server.ssrLoadModule('/studio/src/react/shared-panels.tsx');
+  for(const media of [null,{type:'keyframe',label:'Empty'}]){const empty=renderToStaticMarkup(createElement(SelectedMedia,{media,app:'director',apps:[],paint:()=>{},onOpen:()=>{}}));assert.match(empty,/Nothing selected/);assert.ok(!empty.includes('<canvas'));}
   const selectedOriginal=renderToStaticMarkup(createElement(SelectedMedia,{media:{type:'keyframe',label:'Original',img:'/outputs/original.png'},app:'director',apps:[],paint:()=>{},onOpen:()=>{}}));
   assert.match(selectedOriginal,/<img[^>]+src="\/outputs\/original.png"/);assert.ok(!selectedOriginal.includes('<canvas'));assert.match(selectedOriginal,/draggable="false"/);assert.match(selectedOriginal,/aria-label="Edit selected image"/);assert.match(selectedOriginal,/Click to go to Image workflow/);
   const playable=renderToStaticMarkup(createElement(SelectedMedia,{media:{type:'shot',label:'Video',video:'/outputs/clip.webm'},app:'director',apps:[],paint:()=>{},onOpen:()=>{}}));assert.match(playable,/<video[^>]+role="button"/);assert.ok(!playable.includes("<canvas"));assert.match(playable,/Click to go to Video workflow/);const playableAudio=renderToStaticMarkup(createElement(SelectedMedia,{media:{type:'shot',label:'Audio',audio:'/outputs/clip.flac'},app:'director',apps:[],paint:()=>{},onOpen:()=>{}}));assert.match(playableAudio,/<canvas[^>]+role="button"/);assert.match(playableAudio,/Click to go to Audio workflow/);

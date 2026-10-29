@@ -36,7 +36,7 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
  const videoTop=wide?split('x',split('y',panel('assets'),panel('files'),.5),creation,.19):creation;
  const presets: Record<string, Setup> = custom?.presets||{
   Video: { tree: split('y', videoTop, panel('timeline'), topRatio), mode: 'video' },
-  Image: { tree: split('x',split('y',panel('files'),panel('edit-versions'),.7),split('x',panel('assets'),split('y',panel('prompts'),panel('edit-controls'),.6),.62),.22), mode: 'image' },
+  Image: { tree: split('x',panel('files'),split('x',panel('assets'),split('y',panel('prompts'),panel('edit-controls'),.6),.62),.22), mode: 'image' },
   Audio:{tree:split('y',split('x',panel('files'),split('x',panel('prompts'),panel('speech'),.5),.24),panel('audio-timeline'),.68),mode:'video'},
   Overlays:{tree:split('y',overlayTop,panel('timeline'),topRatio),mode:'video'},
   Training:{tree:split('x',panel('files'),split('y',split('x',panel('training-data'),panel('stylization'),.65),panel('training-runs'),.7),.22),mode:'video'},
@@ -69,6 +69,7 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
  if(!custom&&!localStorage.getItem('osh-3d-shared-prompt-v1')){store.layouts['3D']=clone(presets['3D']);localStorage.setItem('osh-3d-shared-prompt-v1','1')}
  if(!custom){delete store.layouts.Edit;delete store.layouts.Rendering;delete store.deletedLayouts?.Edit;delete store.deletedLayouts?.Rendering;if(store.active==='Edit')store.active='Image';if(store.active==='Rendering')store.active='Video';for(const value of [...Object.values(store.layouts),...Object.values(store.deletedLayouts||{})])value.tree=remove(value.tree,'edit-viewer');if(!localStorage.getItem('osh-image-edit-merged-v1')){store.layouts.Image=clone(presets.Image);localStorage.setItem('osh-image-edit-merged-v1','1')}}
  if(!custom&&!localStorage.getItem('osh-audio-speech-layout-v4')){store.layouts.Audio=clone(presets.Audio);localStorage.setItem('osh-audio-speech-layout-v4','1')}
+ for(const value of [...Object.values(store.layouts),...Object.values(store.deletedLayouts||{})])value.tree=remove(value.tree,custom?'versions':'edit-versions');
  let active = store.active;
  let setup = clone(store.layouts[active] || presets[active] || fallback);
  if(!custom){const replace=(tree:LayoutNode|null):LayoutNode|null=>tree?.kind==='panel'?(tree.id==='overlay-create'?panel('captions'):tree):tree?{...tree,first:replace(tree.first)!,second:replace(tree.second)!}:null;for(const value of [...Object.values(store.layouts),...Object.values(store.deletedLayouts||{})])value.tree=ids(value.tree).includes('captions')?remove(value.tree,'overlay-create'):replace(value.tree);setup.tree=ids(setup.tree).includes('captions')?remove(setup.tree,'overlay-create'):replace(setup.tree)}
@@ -160,7 +161,7 @@ export function mountWorkspaceDock(resize: () => void, workflow: (mode: string) 
  properties.open = true; const viewContent = document.createElement('div'); viewContent.className = 'viewer-content'; viewContent.append(viewer);parking.append(image);
  const speechHost=document.createElement('div');speechHost.className='speech-service-host';renderView(speechHost,createElement(SpeechWindow));add('speech','Text / subtitles to speech',speechHost);
  add('captions','Captions',document.getElementById('studioCaptions')!);add('edit-history','History',document.getElementById('studioEditHistory')!);add('files','Project files',mountProjectFiles());parking.append(document.getElementById('stash')!);
- assets.append(document.getElementById('studioEditViewer')!);add('edit-controls','Edit controls',document.getElementById('studioEditControls')!);add('edit-versions','Edit versions',document.getElementById('studioEditVersions')!);
+ assets.append(document.getElementById('studioEditViewer')!);add('edit-controls','Edit controls',document.getElementById('studioEditControls')!);
  const inspector=document.createElement('div');inspector.className='sequence-inspector';const identity=document.getElementById('videoTrackAttributes')!;identity.hidden=false;identity.className='scene-property-identity';inspector.append(identity);parking.append(inspector);
  const oldStyling=document.getElementById('studioStylization')!;oldStyling.hidden=true;parking.append(oldStyling);
  for(const [id,title,kind] of [['training-data','Training dataset','dataset'],['stylization','Training settings','settings'],['training-runs','Training runs','runs']] as const){const host=document.createElement('div');renderView(host,createElement(TrainingPanel,{panel:kind}));add(id,title,host)}

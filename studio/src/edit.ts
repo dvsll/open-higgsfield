@@ -15,10 +15,10 @@ versions.className='precision-versions';inspector.classList.add('precision-inspe
 let selected=new URLSearchParams(location.search).has('from')?SC.get('osh-handoff')||{}:{};
 function show(hand:any){selected=hand;renderView(main,null);inspector.replaceChildren();versions.replaceChildren();actions.replaceChildren();document.getElementById('src')!.textContent=hand.label||'Selected media';
  if(hand.video)renderView(main,createElement(VideoEditor,{hand:hand as VideoHandoff,right:inspector,actions,versionsHost:versions,onFrame:async(data:string)=>{const {OSH}=await import('../../shared/runtime/client');const result=await OSH.upload(data);show({img:result.url,label:'Captured video frame',from:'edit'})}}));
- else renderView(main,createElement(PrecisionEditor,{key:hand.img||'empty',hand,inspector,history:versions,actions}));
+ else renderView(main,createElement(PrecisionEditor,{key:hand.img||'empty',hand,inspector,actions}));
  if(hand.img||hand.video)SHELL.select({...hand,type:hand.video?'shot':'keyframe'});
 }
 SHELL.mount({app:'edit'});show(selected);document.body.dataset.workflow='edit';
-const tree=split('x',panel('files'),split('x',panel('viewer'),split('y',panel('controls'),panel('versions'),.68),.7),.2);
-mountWorkspaceDock(()=>{},()=>{document.body.dataset.workflow='edit'},{storageKey:'osh-edit-window-workspace-v1',active:'Precision edit',presets:{'Precision edit':{tree,mode:'edit'},'Review':{tree:split('x',panel('viewer'),panel('versions'),.75),mode:'edit'}},panels:[{id:'viewer',title:'Edit viewer',content:main},{id:'controls',title:'Edit controls',content:inspector},{id:'versions',title:'Edit versions',content:versions},{id:'assets',title:'Selected media',content:assets},{id:'files',title:'Project files',content:mountProjectFiles()}]});
+const tree=split('x',panel('files'),split('x',panel('viewer'),panel('controls'),.7),.2);
+mountWorkspaceDock(()=>{},()=>{document.body.dataset.workflow='edit'},{storageKey:'osh-edit-window-workspace-v1',active:'Precision edit',presets:{'Precision edit':{tree,mode:'edit'},'Review':{tree:split('x',panel('files'),panel('viewer'),.25),mode:'edit'}},panels:[{id:'viewer',title:'Edit viewer',content:main},{id:'controls',title:'Edit controls',content:inspector},{id:'assets',title:'Selected media',content:assets},{id:'files',title:'Project files',content:mountProjectFiles()}]});
 addEventListener('osh-project-file-selected',((event:CustomEvent)=>{const file=event.detail;if(file.kind==='image'||file.kind==='video')show({[file.kind==='image'?'img':'video']:file.url,label:file.label,from:'edit'})}) as EventListener);

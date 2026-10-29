@@ -20,7 +20,7 @@ import {searchInput,searchResults} from './semantic-search.ts';
 import { RuntimeSetup, setupAccess } from './setup.ts';
 import { startComfyProxy } from './proxy.ts';
 import {PromptRewriter,PromptRewriteError,promptInstruction,promptModel,promptDevice} from './prompt-rewriter.ts';
-import {precisionSources,segmentationSource} from './precision-image.ts';
+import {maskedEditGraph,precisionSources,segmentationSource} from './precision-image.ts';
 import {captionSegments,captionSrt,transcriptionOutput} from '../lib/captions.ts';
 import { JobActivity, phaseForProgress } from './job-activity.ts';
 import {ComfyDiagnostics,loadingLog,nodeProgressMessage} from './comfy-diagnostics.ts';
@@ -772,27 +772,16 @@ function middleware(env: Env,setup:RuntimeSetup,rewriter:PromptRewriter,creative
         const job=await serialize(()=>runWf(c,wf,body._requestId));if(source.list){const segments=[];for(const [index,out] of job.getOutputs('6').slice(0,16).entries()){const name=outputName('png');await out.toFile(join(OUTPUTS,name));segments.push({id:name,label:`Element ${index+1}`,mask:'/outputs/'+name})}return {segments,width:source.image.width,height:source.image.height,model:'SAM3.1'}}return {mask:await save(job,'6','png'),width:source.image.width,height:source.image.height,model:'SAM3.1'};
       }));
       if (route === 'GET /api/precision-image') {
-        const catalog = await localModels(env), nodes = await comfyJson(env, '/object_info'), graph = await loadGraph('precision_zimage');
-        return send(res, 200, {
-          available: catalog.zimageTurbo && Object.values(graph).every(n => nodes[n.class_type]),
-          automaticSubjectSelection: !!nodes.SAM3_Detect && (nodes.CheckpointLoaderSimple?.input?.required?.ckpt_name?.[0]||[]).includes('sam3.1_multiplex_fp16.safetensors'),
-          model: 'Z-Image Turbo · masked resynthesis',
-          note: 'Experimental masked resynthesis, not an instruction-edit checkpoint. Outside the mask is composited from the original.',
-        });
+        const catalog=await localModels(env),nodes=await comfyJson(env,'/object_info'),graph=await loadGraph('precision_zimage');
+        const models=Object.values(graph).every(n=>nodes[n.class_type])?catalog.keyframe:[];
+        return send(res,200,{available:models.length>0,models,model:'Masked resynthesis',note:'Rebuilds selected pixels, not instruction-based recoloring. Outside the mask is preserved.'});
       }
-      if (route === 'POST /api/precision-image') return send(res, 200, await tracked(async body => {
-        let sources;
-        try { sources = await precisionSources(OUTPUTS, body); }
-        catch (error: any) { throw new HttpError(error.status || 400, error.message); }
-        const catalog = await localModels(env);
-        if (!catalog.zimageTurbo) throw new HttpError(503, 'Precision editing needs Z-Image Turbo (the fast image pack).');
-        const c = client(env), wf = c.workflows.fromJson(await loadGraph('precision_zimage'));
-        wf.setInput('11', 'image', c.assets.fromFile(sources.image.path));
-        wf.setInput('12', 'image', c.assets.fromFile(sources.mask.path));
-        wf.setInput('5', 'text', body.prompt);
-        wf.setInput('8', 'seed', Math.floor(num(body.seed, 0, 2 ** 32, 1)));
-        const start = Date.now(), job = await serialize(() => runWf(c, wf, body._requestId));
-        return { url: await save(job, '10', 'png'), seconds: (Date.now() - start) / 1000, width: sources.image.width, height: sources.image.height };
+      if(route==='POST /api/precision-image')return send(res,200,await tracked(async body=>{
+        let sources;try{sources=await precisionSources(OUTPUTS,body)}catch(error:any){throw new HttpError(error.status||400,error.message)}
+        const model=await selectedModel(body,env,'keyframe'),catalog=await localModels(env),tune=catalog.keyframe.find(entry=>entry.id===body.model&&entry.loraFile),resolved=resolvedModels.get(model)!;
+        const graph=maskedEditGraph(applyResolved(await loadGraph(resolved.recipe.graph),resolved),await loadGraph('precision_zimage'),tune?.loraFile);
+        const c=client(env),wf=c.workflows.fromJson(graph);wf.setInput('11','image',c.assets.fromFile(sources.image.path));wf.setInput('12','image',c.assets.fromFile(sources.mask.path));wf.setInput('5','text',body.prompt);wf.setInput('8','seed',Math.floor(num(body.seed,0,2**32,1)));
+        const start=Date.now(),job=await serialize(()=>runWf(c,wf,body._requestId));return {url:await save(job,'10','png'),seconds:(Date.now()-start)/1000,width:sources.image.width,height:sources.image.height,model:body.model||model};
       }));
       if (route === "POST /api/upload") return send(res, 200, await upload(await readBody(req, MAX_UPLOAD_BODY)));
       if (route === "POST /api/export") return send(res, 200, await exportVideo(await readBody(req), env));

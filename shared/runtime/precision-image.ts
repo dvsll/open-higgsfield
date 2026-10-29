@@ -18,3 +18,10 @@ export async function segmentationSource(root:string,body:any){
  if(!body?.list&&point===undefined&&(typeof body?.prompt!=='string'||!body.prompt.trim()||body.prompt.length>120))throw Object.assign(new Error('Name the object to select (up to120 characters).'),{status:400});
  return {image,point:point?{x:Math.floor(point.x),y:Math.floor(point.y)}:null,prompt:body?.list?'object:16':point?'':body.prompt.trim(),list:body?.list===true};
 }
+
+export function maskedEditGraph(base:Record<string,any>,maskGraph:Record<string,any>,loraFile?:string){
+ const graph=structuredClone(base);
+ for(const id of ['7','11','12','13','14'])graph[id]=structuredClone(maskGraph[id]);graph['10'].inputs.images=['14',0];
+ if(loraFile){graph['90']={class_type:'LoraLoaderModelOnly',inputs:{model:['1',0],lora_name:loraFile,strength_model:1}};graph['4'].inputs.model=['90',0]}
+ return graph;
+}

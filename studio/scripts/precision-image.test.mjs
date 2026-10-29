@@ -6,7 +6,7 @@ import {join} from 'node:path';
 import {Resvg} from '@resvg/resvg-js';
 import {createServer} from 'vite';
 const server=await createServer({configFile:false,cacheDir:'node_modules/.vite-precision-tests',optimizeDeps:{noDiscovery:true,include:[]},server:{middlewareMode:true,hmr:false},appType:'custom'});
-const {precisionSources,segmentationSource}=await server.ssrLoadModule('/shared/runtime/precision-image.ts');
+const {precisionSources,segmentationSource,maskedEditGraph}=await server.ssrLoadModule('/shared/runtime/precision-image.ts');
 await server.close();
 const png=(width,height,fill)=>new Resvg(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"><rect width="100%" height="100%" fill="${fill}"/></svg>`).render().asPng();
 test('precision edit validates owned sources, matching dimensions and nonempty mask',async()=>{
@@ -38,3 +38,8 @@ if(process.env.PRECISION_RESULT)test('real masked result preserves every pixel o
  for(let y=0;y<256;y++)for(let x=0;x<256;x++){const i=(y*256+x)*4;if(source.subarray(i,i+4).some((v,k)=>v!==result[i+k])){if(x>=90&&x<165&&y>=90&&y<165)inside++;else outside++}}
  assert.equal(outside,0);assert.ok(inside>0);console.log({outsideChangedPixels:outside,insideChangedPixels:inside});
 });
+
+const {readFile:readGraph}=await import('node:fs/promises');
+const turbo=JSON.parse(await readGraph('shared/workflows/precision_zimage.json','utf8')),qwen=JSON.parse(await readGraph('shared/workflows/keyframe_qwen.json','utf8'));
+const edit=maskedEditGraph(qwen,turbo,'test.safetensors');
+assert.equal(edit['8'].inputs.steps,50);assert.equal(edit['8'].inputs.cfg,4);assert.equal(edit['1'].inputs.unet_name,qwen['1'].inputs.unet_name);assert.equal(edit['7'].class_type,'VAEEncodeForInpaint');assert.deepEqual(edit['10'].inputs.images,['14',0]);assert.equal(edit['90'].inputs.lora_name,'test.safetensors');assert.equal(qwen['7'].class_type,'EmptySD3LatentImage');

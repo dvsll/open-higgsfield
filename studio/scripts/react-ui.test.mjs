@@ -71,6 +71,9 @@ try {
   assert.ok(!zoomedOutRuler.includes('>1s<'));
   assert.ok((zoomedOutRuler.match(/<span/g)||[]).length<12);
 
+  const {SelectedMedia}=await server.ssrLoadModule('/studio/src/react/shared-panels.tsx');
+  const selectedOriginal=renderToStaticMarkup(createElement(SelectedMedia,{media:{type:'keyframe',label:'Original',img:'/outputs/original.png'},app:'director',apps:[],paint:()=>{},onOpen:()=>{}}));
+  assert.match(selectedOriginal,/<img[^>]+src="\/outputs\/original.png"/);assert.ok(!selectedOriginal.includes('<canvas'));
   const { TourPopover, TourChoice } = await server.ssrLoadModule('/studio/src/react/onboarding.tsx');
   const tour = renderToStaticMarkup(
     createElement(TourPopover, {

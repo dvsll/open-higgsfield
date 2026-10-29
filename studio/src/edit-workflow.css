@@ -18,3 +18,5 @@ body.editing-selected-image #studioEditViewer{flex:1;min-height:0}
 body.editing-selected-image .studio-window[data-window=assets] #shared>.media{display:none}
 body.editing-selected-image .studio-window[data-window=assets] #studioEditViewer{height:100%;flex:1;min-height:0}
 body.editing-selected-image #studioEditViewer .embedded-edit-view{overflow:hidden}
+
+.shared-section .media .selected-original-image{display:block;width:100%;min-width:0;object-fit:contain;background:#000;image-rendering:auto}.studio-window[data-window=assets] #shared .media .selected-original-image{flex:1;min-height:0;width:100%;height:100%;max-height:none;object-fit:contain}

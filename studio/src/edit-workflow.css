@@ -38,4 +38,4 @@ body.editing-selected-image #studioEditViewer .embedded-edit-view{overflow:hidde
 
 /* Size the empty-state artwork from its own available panel space. */
 .selected-media-empty{container-type:size;position:relative}
-.selection-empty-graphic{width:clamp(80px,min(38cqw,38cqh),260px);height:auto;aspect-ratio:64/56;margin-bottom:clamp(10px,3cqh,28px)}
+.window-workspace .selected-media-empty>svg.selection-empty-graphic{width:min(50cqw,48cqh);height:auto;max-width:none;max-height:none;aspect-ratio:64/56;flex:none;margin-bottom:3cqh}

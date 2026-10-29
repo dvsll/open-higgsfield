@@ -29,6 +29,7 @@ export function mountEditWorkflow(current:()=>Media|null,apply:()=>void,resolve?
  const sceneMedia=()=>{const hand=current();return hand?{...hand,from:'director'}:null};
  const open=(hand?:Media)=>{if(busy)return;pending=hand||sceneMedia();if(!pending?.img){show(null);dispatchEvent(new CustomEvent('osh-reveal-window',{detail:'edit-controls'}));return}if(!active())document.dispatchEvent(new CustomEvent('osh-workspace-select',{detail:'Image'}));show(pending);pending=null};
  document.addEventListener('osh-edit-entering',()=>{if(!pending)pending=sceneMedia()});
+ addEventListener('osh-image-selection-restore',event=>{const value=(event as CustomEvent).detail;if(value?.source&&selected?.img!==value.source)open({type:'keyframe',img:value.source,label:'Image selection'})});
  addEventListener('osh-open-edit',((event:CustomEvent<Media>)=>open(event.detail)) as EventListener);
  addEventListener('osh-project-file-selected',((event:CustomEvent)=>{const file=event.detail;if(!['image','video','audio','mesh'].includes(file.kind))return;const hand:Media=resolve?.(file)||{type:file.kind==='video'?'shot':'keyframe',label:file.label,...(file.kind==='image'?{img:file.url}:{video:file.url})};if(active()&&!host.hidden)show(hand.img?hand:null);else pending=hand}) as EventListener);
  document.addEventListener('pointerdown',event=>{if((event.target as Element)?.closest('#trk'))pending=null},true);

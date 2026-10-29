@@ -5,13 +5,16 @@ import {SC} from './scene';
 import {createHistory,recordHistory,historyTarget,validHistory,type HistoryTree} from './edit-history-tree';
 import './edit-history.css';
 type Shot={id?:string;n?:string;keys?:unknown[];[key:string]:unknown};
-export type EditState={SH:Shot[];STASH:unknown[];TRASH:unknown[];imageDraft:unknown;keyframeBatch:number;LAYERS?:unknown;sceneDraft?:Shot};
+export type EditState={SH:Shot[];STASH:unknown[];TRASH:unknown[];imageDraft:unknown;keyframeBatch:number;LAYERS?:unknown;sceneDraft?:Shot;imageSelection?:{source:string;mask:string}|null};
 export function mountEditHistory(read:()=>EditState,restore:(state:EditState)=>void,busy:()=>boolean){
  const stored=SC.get('osh-edit-history');let tree:HistoryTree<EditState>=validHistory<EditState>(stored)&&stored.nodes.every(n=>Array.isArray(n.state.SH)&&Array.isArray(n.state.STASH)&&Array.isArray(n.state.TRASH))?stored:createHistory(read());
+ let imageSelection=tree.nodes.find(n=>n.id===tree.current)?.state.imageSelection||null;
+ const snapshot=()=>({...read(),imageSelection});
  const root=document.createElement('div');root.className='edit-history';let statusMessage='';
  let applying=false,timer:ReturnType<typeof setTimeout>|undefined;
  const persist=()=>{SC.set('osh-edit-history',tree);if(SC.get('osh-edit-history')?.current!==tree.current)statusMessage='Browser storage is full. This session’s new history is available until you close the page.'};
  function label(before:EditState,after:EditState):string{
+  if(JSON.stringify(before.imageSelection)!==JSON.stringify(after.imageSelection))return 'Image selection';
   if(after.SH.length!==before.SH.length)return after.SH.length>before.SH.length?'Add scene':'Remove scene';
   if(after.STASH.length!==before.STASH.length)return 'Move scene to / from Stash';
   if(after.TRASH.length!==before.TRASH.length)return 'Move scene to / from Trash';
@@ -24,16 +27,16 @@ export function mountEditHistory(read:()=>EditState,restore:(state:EditState)=>v
   if(JSON.stringify(before.sceneDraft)!==JSON.stringify(after.sceneDraft))return 'Edit scene draft';
   return 'Edit image workshop';
  }
- function flush(){clearTimeout(timer);if(applying)return;const state=read(),before=tree.nodes.find(n=>n.id===tree.current)!.state;if(recordHistory(tree,state,label(before,state))){persist();draw()}}
- function draw(){const rows:HistoryRow[]=[];const visit=(parent:string|null,depth:number)=>{for(const node of tree.nodes.filter(n=>n.parent===parent)){rows.push({id:node.id,label:node.label,at:node.at,parent:node.parent,depth});visit(node.id,depth+1)}};visit(null,0);rows.sort((a,b)=>tree.nodes.findIndex(n=>n.id===a.id)-tree.nodes.findIndex(n=>n.id===b.id));
-  const selection={active:false,undo:false,redo:false};dispatchEvent(new CustomEvent('osh-selection-history-query',{detail:selection}));
-  for(const direction of ['undo','redo'] as const){const button=document.querySelector<HTMLButtonElement>(`[data-history-${direction}]`);if(button){button.disabled=selection.active?!selection[direction]:busy()||!historyTarget(tree,direction);button.onclick=()=>move(direction)}}
-  renderView(root,createElement(HistoryView,{rows,current:tree.current,status:statusMessage,canUndo:selection.active?selection.undo:!!historyTarget(tree,'undo'),canRedo:selection.active?selection.redo:!!historyTarget(tree,'redo'),onUndo:()=>move('undo'),onRedo:()=>move('redo'),onGo:id=>{flush();go(id)}}));
+ function flush(){clearTimeout(timer);if(applying)return;const state=snapshot(),before=tree.nodes.find(n=>n.id===tree.current)!.state;if(recordHistory(tree,state,label(before,state))){persist();draw()}}
+ function draw(){dispatchEvent(new CustomEvent('osh-history-availability',{detail:{undo:!!historyTarget(tree,'undo'),redo:!!historyTarget(tree,'redo')}}));const rows:HistoryRow[]=[];const visit=(parent:string|null,depth:number)=>{for(const node of tree.nodes.filter(n=>n.parent===parent)){rows.push({id:node.id,label:node.label,at:node.at,parent:node.parent,depth});visit(node.id,depth+1)}};visit(null,0);rows.sort((a,b)=>tree.nodes.findIndex(n=>n.id===a.id)-tree.nodes.findIndex(n=>n.id===b.id));
+  for(const direction of ['undo','redo'] as const){const button=document.querySelector<HTMLButtonElement>(`[data-history-${direction}]`);if(button){button.disabled=busy()||!historyTarget(tree,direction);button.onclick=()=>move(direction)}}
+  renderView(root,createElement(HistoryView,{rows,current:tree.current,status:statusMessage,canUndo:!!historyTarget(tree,'undo'),canRedo:!!historyTarget(tree,'redo'),onUndo:()=>move('undo'),onRedo:()=>move('redo'),onGo:id=>{flush();go(id)}}));
  }
- function go(id:string|null){if(!id||id===tree.current)return;if(busy()){statusMessage='Finish the current generation or drag before changing history.';draw();return}const n=tree.nodes.find(n=>n.id===id);if(!n)return;applying=true;try{restore(JSON.parse(JSON.stringify(n.state)));const old=tree.nodes.find(p=>p.id===tree.current)!;tree.preferred??={};if(old.parent===id)tree.preferred[id]=old.id;else if(n.parent)tree.preferred[n.parent]=id;tree.current=id;statusMessage=n.label;persist()}finally{applying=false;draw()}}
- const move=(direction:'undo'|'redo')=>{if(!dispatchEvent(new CustomEvent('osh-selection-history-move',{detail:direction,cancelable:true})))return;flush();go(historyTarget(tree,direction))};
+ function go(id:string|null){if(!id||id===tree.current)return;if(busy()){statusMessage='Finish the current generation or drag before changing history.';draw();return}const n=tree.nodes.find(n=>n.id===id);if(!n)return;applying=true;try{const target=JSON.parse(JSON.stringify(n.state)),now=snapshot(),withoutSelection=(state:EditState)=>{const {imageSelection,...rest}=state;return rest};if(JSON.stringify(withoutSelection(now))!==JSON.stringify(withoutSelection(target)))restore(target);imageSelection=target.imageSelection||null;dispatchEvent(new CustomEvent('osh-image-selection-restore',{detail:imageSelection}));const old=tree.nodes.find(p=>p.id===tree.current)!;tree.preferred??={};if(old.parent===id)tree.preferred[id]=old.id;else if(n.parent)tree.preferred[n.parent]=id;tree.current=id;statusMessage=n.label;persist()}finally{applying=false;draw()}}
+ const move=(direction:'undo'|'redo')=>{flush();go(historyTarget(tree,direction))};
  addEventListener('keydown',e=>{const target=e.target as HTMLElement;if(e.defaultPrevented||!(e.ctrlKey||e.metaKey)||e.altKey||target.closest('input,textarea,select,[contenteditable=true],dialog'))return;const key=e.key.toLowerCase();if(key!=='z'&&key!=='y')return;e.preventDefault();move(key==='y'||e.shiftKey?'redo':'undo')});
- addEventListener('osh-selection-history-updated',draw);
+ addEventListener('osh-image-selection-change',event=>{clearTimeout(timer);imageSelection=(event as CustomEvent).detail;flush()});
+ addEventListener('osh-history-move',event=>move((event as CustomEvent).detail));addEventListener('osh-history-query',()=>{draw();dispatchEvent(new CustomEvent('osh-image-selection-restore',{detail:imageSelection}))});
  const schedule=()=>{if(applying)return;clearTimeout(timer);timer=setTimeout(flush,450)};
  for(const event of ['input','change','click','pointerup'])addEventListener(event,schedule);
  addEventListener('focusout',()=>{if(!applying)flush()});addEventListener('pagehide',flush);

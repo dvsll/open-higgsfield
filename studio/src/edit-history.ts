@@ -36,7 +36,7 @@ export function mountEditHistory(read:()=>EditState,restore:(state:EditState)=>v
  const move=(direction:'undo'|'redo')=>{flush();go(historyTarget(tree,direction))};
  addEventListener('keydown',e=>{const target=e.target as HTMLElement;if(e.defaultPrevented||!(e.ctrlKey||e.metaKey)||e.altKey||target.closest('input,textarea,select,[contenteditable=true],dialog'))return;const key=e.key.toLowerCase();if(key!=='z'&&key!=='y')return;e.preventDefault();move(key==='y'||e.shiftKey?'redo':'undo')});
  addEventListener('osh-image-selection-change',event=>{clearTimeout(timer);imageSelection=(event as CustomEvent).detail;flush()});
- addEventListener('osh-history-move',event=>move((event as CustomEvent).detail));addEventListener('osh-history-query',()=>{draw();dispatchEvent(new CustomEvent('osh-image-selection-restore',{detail:imageSelection}))});
+ addEventListener('osh-history-move',event=>move((event as CustomEvent).detail));addEventListener('osh-history-query',event=>{draw();if(imageSelection?.source===(event as CustomEvent).detail?.source)dispatchEvent(new CustomEvent('osh-image-selection-restore',{detail:imageSelection}))});
  const schedule=()=>{if(applying)return;clearTimeout(timer);timer=setTimeout(flush,450)};
  for(const event of ['input','change','click','pointerup'])addEventListener(event,schedule);
  addEventListener('focusout',()=>{if(!applying)flush()});addEventListener('pagehide',flush);

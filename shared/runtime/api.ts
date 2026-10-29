@@ -779,7 +779,8 @@ function middleware(env: Env,setup:RuntimeSetup,rewriter:PromptRewriter,creative
       if(route==='POST /api/precision-image')return send(res,200,await tracked(async body=>{
         let sources;try{sources=await precisionSources(OUTPUTS,body)}catch(error:any){throw new HttpError(error.status||400,error.message)}
         const model=await selectedModel(body,env,'keyframe'),catalog=await localModels(env),tune=catalog.keyframe.find(entry=>entry.id===body.model&&entry.loraFile),resolved=resolvedModels.get(model)!;
-        const graph=maskedEditGraph(applyResolved(await loadGraph(resolved.recipe.graph),resolved),await loadGraph('precision_zimage'),tune?.loraFile);
+        const precision=await loadGraph('precision_zimage'),base=resolved.recipe.graph==='keyframe_zimage'?applyResolved(precision,resolved):applyResolved(await loadGraph(resolved.recipe.graph),resolved);
+        const graph=maskedEditGraph(base,precision,tune?.loraFile);
         const c=client(env),wf=c.workflows.fromJson(graph);wf.setInput('11','image',c.assets.fromFile(sources.image.path));wf.setInput('12','image',c.assets.fromFile(sources.mask.path));wf.setInput('5','text',body.prompt);wf.setInput('8','seed',Math.floor(num(body.seed,0,2**32,1)));
         const start=Date.now(),job=await serialize(()=>runWf(c,wf,body._requestId));return {url:await save(job,'10','png'),seconds:(Date.now()-start)/1000,width:sources.image.width,height:sources.image.height,model:body.model||model};
       }));

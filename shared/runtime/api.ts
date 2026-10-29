@@ -79,7 +79,6 @@ import {validateHeroSettings} from '../lib/hero-ad.ts';
 import {generateQwenHero,qwenAvailability,verifyWeightFiles,qwenContract} from './qwen-hero.ts';
 import {qwenSDKTransport} from './qwen-sdk.ts';
 import {createQwenRelay} from './qwen-relay.ts';
-import {imageReferencePrompt} from './image-reference-prompt.ts';
 import {acceptanceGate,acceptanceRequest,claimAcceptanceJob} from './qwen-app-session.ts';
 import {createBrandService} from './brand-service.ts';
 import {brandBackendStatus} from './brand-analysis.ts';
@@ -285,7 +284,7 @@ async function keyframe(body: any, env: Env) {
     if(!references.length)throw new HttpError(400,'Attach a reference image or mention an Element with a photo for Qwen Image Edit.');
     if(tune)throw new HttpError(400,'Reference generation does not support this adapter. Choose Qwen Image Edit.');
     const graph=applyResolved(await loadGraph('keyframe_qwen_reference'),resolved);
-    graph['5'].inputs.prompt=imageReferencePrompt(prompt);graph['6'].inputs.prompt='';graph['8'].inputs.seed=seed;
+    graph['5'].inputs.prompt=prompt;graph['6'].inputs.prompt='';graph['8'].inputs.seed=seed;
     graph['2'].inputs.device=textDevice;Object.assign(graph['7'].inputs,{width,height});
     references.forEach((url,index)=>{const node=String(11+index);graph[node]={class_type:'LoadImage',inputs:{image:'reference.png'}};for(const encoder of ['5','6'])graph[encoder].inputs['image'+(index+1)]=[node,0]});
     const wf=c.workflows.fromJson(graph);references.forEach((url,index)=>wf.setInput(String(11+index),'image',c.assets.fromFile(outputPath(url))));
@@ -693,7 +692,7 @@ function middleware(env: Env,setup:RuntimeSetup,rewriter:PromptRewriter,creative
       const tracked=async(handler:(body:any)=>Promise<any>,limit=MAX_BODY)=>{if(setup.task.busy)throw new HttpError(503,'Local runtime setup is in progress. Finish or stop setup before generating.');const body=await readBody(req,limit);if(!body||typeof body!=='object'||Array.isArray(body))throw new HttpError(400,'Expected a JSON request object.');body._requestId=req.headers['x-osh-request']||body._requestId;let id:string|null;try{id=activity.begin(body._requestId)}catch(error:any){throw new HttpError(400,error.message)}try{const result=await handler(body);activity.update(id,'complete','Media ready.');return result}catch(error:any){activity.update(id,'error','Generation stopped: '+String(error.message||error));throw error}};
       if (route === "GET /api/health") return send(res, 200, await health(env,setup.task.busy));
       if(route==='GET /api/prompt-rewriter')return send(res,200,await rewriter.status());
-      if(route==='POST /api/prompt-rewriter'){const body=await readBody(req);return send(res,200,await rewriter.rewrite(body.prompt,body.details,body.device));}
+      if(route==='POST /api/prompt-rewriter'){const body=await readBody(req);return send(res,200,body.media==='image'?await rewriter.rewriteImage(body.prompt,body.references===true,body.device):await rewriter.rewrite(body.prompt,body.details,body.device));}
       if(route==='GET /api/brand/status')return send(res,200,await (env.ADSTUDIO_BRAND_MODEL?analysisStatus(env):brandBackendStatus(brandBackend)));
       if(route==='POST /api/brand/research')return send(res,200,await brand.discover(await readBody(req)));
       if(route==='POST /api/brand/analyze')return send(res,200,await brand.analyze(await readBody(req)));
@@ -850,7 +849,7 @@ export function comfyApi(env: Env): Plugin {
   const setup=new RuntimeSetup(ROOT,env,ensureProxy,()=>{comfy=null},(url,text)=>diagnostics.capture(url,text));
   const rewriter=new PromptRewriter({
    status:async()=>{try{const nodes=await comfyJson(env,'/object_info');const available=!!nodes.TextGenerate?.input?.optional?.system_prompt&&!!nodes.SaveText&&nodes.CLIPLoader?.input?.required?.clip_name?.[0]?.includes(promptModel);return {available,cpuSupported:false,id:promptModel,model:'Qwen3 4B · ComfyUI',reason:available?'Uses installed Qwen3 through ComfyUI. GPU/offload is managed by ComfyUI unless CPU is selected.':'Prompt polishing needs current ComfyUI TextGenerate/SaveText nodes and the Qwen3 4B text encoder from the image model pack.'}}catch{return {available:false,id:promptModel,model:'Qwen3 4B · ComfyUI',reason:'Connect ComfyUI to polish prompts. Advanced manual editing is available.'}}},
-   generate:async(content,device)=>{if(queued>0)throw new PromptRewriteError(409,'ComfyUI is busy generating. Polish again when the current job finishes.');await ensureProxy(env);const c=client(env),wf=c.workflows.fromJson(await loadGraph('prompt_polish'));wf.setInput('1','device',device);wf.setInput('2','prompt',content);wf.setInput('2','system_prompt',promptInstruction);if(queued>0)throw new PromptRewriteError(409,'ComfyUI is busy generating. Polish again when the current job finishes.');const job=await serialize(()=>runWf(c,wf));const output=job.getOutputs('3')[0];if(!output)throw new PromptRewriteError(502,'ComfyUI returned no polished prompt. Your prompt is unchanged.');return Buffer.from(await output.toBytes()).toString('utf8')}
+   generate:async(content,device,system)=>{if(queued>0)throw new PromptRewriteError(409,'ComfyUI is busy generating. Polish again when the current job finishes.');await ensureProxy(env);const c=client(env),wf=c.workflows.fromJson(await loadGraph('prompt_polish'));wf.setInput('1','device',device);wf.setInput('2','prompt',content);wf.setInput('2','system_prompt',system??promptInstruction);if(queued>0)throw new PromptRewriteError(409,'ComfyUI is busy generating. Polish again when the current job finishes.');const job=await serialize(()=>runWf(c,wf));const output=job.getOutputs('3')[0];if(!output)throw new PromptRewriteError(502,'ComfyUI returned no polished prompt. Your prompt is unchanged.');return Buffer.from(await output.toBytes()).toString('utf8')}
   });
   const textReadiness=async(ownJob=false)=>{creativeTextRouting(env);const [nodes,queue,stats]=await Promise.all(['/object_info','/queue','/system_stats'].map(path=>comfyJson(env,path).catch(()=>null)));return creativeTextReadiness(nodes,queue,stats,(!ownJob&&queued>0)||trainingPending||setup.task.busy);};
   const creativeBackend:CreativeBackend={

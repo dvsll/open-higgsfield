@@ -1,11 +1,4 @@
 import assert from 'node:assert/strict';
-import {imageReferencePrompt} from '../../shared/runtime/image-reference-prompt.ts';
-const shortImageRequest='make the robot watter the flower';
-assert.ok(imageReferencePrompt(shortImageRequest).endsWith('Request: '+shortImageRequest));
-assert.match(imageReferencePrompt(shortImageRequest),/Change the pose and object interactions/);
-assert.match(imageReferencePrompt(shortImageRequest),/Keep unrelated details unchanged/);
-assert.ok(imageReferencePrompt('Make the flower red and move the camera overhead.').endsWith('Request: Make the flower red and move the camera overhead.'));
-assert.match(imageReferencePrompt('Make the flower red.'),/request takes priority over preservation/);
 import {modelDevice,setModelDevice} from '../src/model-device.ts';
 import {applyPromptDetails,manualPromptFields,shouldRewriteBeforeGeneration} from '../src/prompt-assistant.ts';
 import {rewriteInput,validatePromptDetails,preserveRequestedSilence,validateReviewDetails,PromptRewriter,promptDevice,parsePromptDetails} from '../../shared/runtime/prompt-rewriter.ts';
@@ -35,3 +28,15 @@ let release;const blocked=new PromptRewriter({status:async()=>({available:true,m
 console.log('PASS: automatic details, legacy/manual/silent overrides, reset, bounded input, response validation and honest missing-runtime errors. No model inference.');
 
 const storage=new Map();globalThis.localStorage={getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v)};assert.equal(modelDevice('video'),'default');setModelDevice('video','cpu');assert.equal(modelDevice('video'),'cpu');assert.equal(modelDevice('image'),'default');storage.set('osh-model-compute','invalid');assert.equal(modelDevice('video'),'default');delete globalThis.localStorage;
+
+let imageContent,imageSystem;
+const imageRewriter=new PromptRewriter({status:async()=>({available:true,model:'Qwen3 test',reason:''}),generate:async(content,device,system)=>{imageContent=content;imageSystem=system;return JSON.stringify({visual:'The same robot tilts its watering can toward the flower, with water falling onto it. Preserve the reference appearance and scene.',motion:'',audio:''})}});
+const imageDetails=await imageRewriter.rewriteImage('make the robot watter the flower',true);
+assert.match(imageContent,/make the robot watter the flower/);
+assert.match(imageContent,/Reference images attached: yes/);
+assert.match(imageSystem,/still image/);
+assert.match(imageSystem,/never invent their visual details/);
+assert.match(imageDetails.visual,/tilts its watering can/);
+assert.equal(imageDetails.model,'Qwen3 test');
+await assert.rejects(()=>missing.rewriteImage('a robot',true),/unavailable/);
+assert.equal((await missing.status()).busy,false);

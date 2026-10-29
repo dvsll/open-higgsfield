@@ -119,7 +119,12 @@ export const localGeneration = {
     const references=mentionedReferenceImages(prompt,SHELL.ELEMENTS,SC.get('osh-image-reference')?[SC.get('osh-image-reference')]:[]);
     if(references.length>3)throw Error('Use at most 3 reference images: remove an attachment or Element mention.');
     if(references.length){const referenceModel=catalog?.keyframe.find(entry=>entry.family==='Qwen Image Edit'&&!entry.parentId);if(!referenceModel)throw Error('Qwen Image Edit is not ready. Refresh local models; references have not been ignored.');chooseEntry('keyframe',referenceModel.id)}
-    const id = model('keyframe'); const result = await OSH.keyframe(expandMentions(prompt, SHELL.ELEMENTS), seed, {...frameSize('keyframe'),textDevice:modelDevice(id),references}, id);
+    const id = model('keyframe');
+    const polished=await fetch('/api/prompt-rewriter',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({media:'image',prompt:expandMentions(prompt,SHELL.ELEMENTS),references:references.length>0,device:modelDevice(id)})});
+    const details=await polished.json();
+    if(!polished.ok)throw Error(details.error||'Image prompt polishing failed. No image generation started.');
+    if(typeof details.visual!=='string'||!details.visual.trim())throw Error('Image prompt polishing returned no instruction. No image generation started.');
+    const result = await OSH.keyframe(details.visual, seed, {...frameSize('keyframe'),textDevice:modelDevice(id),references}, id);
     catalog=await OSH.models().catch(()=>catalog);renderDetails();return result;
   },
   async shot(keys: ShotKey[], prompt: string, duration: number, seed = 1,timing:{frames:number;fps:number;width?:number;height?:number;depth?:string[];depthStrength?:number}=videoTiming()) {

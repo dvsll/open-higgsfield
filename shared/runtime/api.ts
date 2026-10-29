@@ -79,6 +79,7 @@ import {validateHeroSettings} from '../lib/hero-ad.ts';
 import {generateQwenHero,qwenAvailability,verifyWeightFiles,qwenContract} from './qwen-hero.ts';
 import {qwenSDKTransport} from './qwen-sdk.ts';
 import {createQwenRelay} from './qwen-relay.ts';
+import {imageReferencePrompt} from './image-reference-prompt.ts';
 import {acceptanceGate,acceptanceRequest,claimAcceptanceJob} from './qwen-app-session.ts';
 import {createBrandService} from './brand-service.ts';
 import {brandBackendStatus} from './brand-analysis.ts';
@@ -284,7 +285,7 @@ async function keyframe(body: any, env: Env) {
     if(!references.length)throw new HttpError(400,'Attach a reference image or mention an Element with a photo for Qwen Image Edit.');
     if(tune)throw new HttpError(400,'Reference generation does not support this adapter. Choose Qwen Image Edit.');
     const graph=applyResolved(await loadGraph('keyframe_qwen_reference'),resolved);
-    graph['5'].inputs.prompt=prompt;graph['6'].inputs.prompt='';graph['8'].inputs.seed=seed;
+    graph['5'].inputs.prompt=imageReferencePrompt(prompt);graph['6'].inputs.prompt='';graph['8'].inputs.seed=seed;
     graph['2'].inputs.device=textDevice;Object.assign(graph['7'].inputs,{width,height});
     references.forEach((url,index)=>{const node=String(11+index);graph[node]={class_type:'LoadImage',inputs:{image:'reference.png'}};for(const encoder of ['5','6'])graph[encoder].inputs['image'+(index+1)]=[node,0]});
     const wf=c.workflows.fromJson(graph);references.forEach((url,index)=>wf.setInput(String(11+index),'image',c.assets.fromFile(outputPath(url))));

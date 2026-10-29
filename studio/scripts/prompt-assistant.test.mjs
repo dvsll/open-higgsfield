@@ -1,4 +1,11 @@
 import assert from 'node:assert/strict';
+import {imageReferencePrompt} from '../../shared/runtime/image-reference-prompt.ts';
+const shortImageRequest='make the robot watter the flower';
+assert.ok(imageReferencePrompt(shortImageRequest).endsWith('Request: '+shortImageRequest));
+assert.match(imageReferencePrompt(shortImageRequest),/Change the pose and object interactions/);
+assert.match(imageReferencePrompt(shortImageRequest),/Keep unrelated details unchanged/);
+assert.ok(imageReferencePrompt('Make the flower red and move the camera overhead.').endsWith('Request: Make the flower red and move the camera overhead.'));
+assert.match(imageReferencePrompt('Make the flower red.'),/request takes priority over preservation/);
 import {modelDevice,setModelDevice} from '../src/model-device.ts';
 import {applyPromptDetails,manualPromptFields,shouldRewriteBeforeGeneration} from '../src/prompt-assistant.ts';
 import {rewriteInput,validatePromptDetails,preserveRequestedSilence,validateReviewDetails,PromptRewriter,promptDevice,parsePromptDetails} from '../../shared/runtime/prompt-rewriter.ts';

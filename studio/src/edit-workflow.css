@@ -22,3 +22,5 @@ body.editing-selected-image #studioEditViewer .embedded-edit-view{overflow:hidde
 .shared-section .media .selected-original-image{display:block;width:100%;min-width:0;object-fit:contain;background:#000;image-rendering:auto}.studio-window[data-window=assets] #shared .media .selected-original-image{flex:1;min-height:0;width:100%;height:100%;max-height:none;object-fit:contain}
 
 .shared-section .media :is(img,canvas)[role=button]{cursor:pointer}.shared-section .media :is(img,canvas)[role=button]:focus-visible{outline:2px solid var(--ui-accent,#e8c36f);outline-offset:-2px}
+
+.shared-section .media .selected-audio-player{display:block;width:100%;margin:auto 0}

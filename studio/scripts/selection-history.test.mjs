@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import {stripTypeScriptTypes} from 'node:module';
+const source=await readFile(new URL('../src/react/precision-editor.tsx',import.meta.url),'utf8');
+const code=source.slice(source.indexOf(" function moveSelection("),source.indexOf(' function undoSelection()'));
+let pixels=3,changed=0;const ctx={busy:false,ready:true,compare:false,start:{current:null},mask:{current:{getContext:()=>({getImageData:()=>({value:pixels}),putImageData:value=>pixels=value.value})}},undoMasks:{current:[{value:0},{value:1},{value:2}]},redoMasks:{current:[]},size:{width:1,height:1},snapshot:{current:null},setActiveSegment:()=>{},finish:()=>{},selectionChanged:()=>changed++};
+const js=stripTypeScriptTypes(code);
+const move=Function('ctx','with(ctx){'+js+';return moveSelection}')(ctx);
+move('undo');assert.equal(pixels,2);move('undo');assert.equal(pixels,1);move('undo');assert.equal(pixels,0);move('undo');assert.equal(pixels,0);
+move('redo');assert.equal(pixels,1);move('redo');assert.equal(pixels,2);ctx.busy=true;move('redo');assert.equal(pixels,2);assert.equal(changed,5);
+assert.match(source,/redoMasks.current=\[\]/);assert.match(source,/onClick=\{undoSelection\}/);
+console.log('PASS: actual selection controller supports repeated undo/redo, empty-stack no-op and busy protection.');

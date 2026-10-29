@@ -26,12 +26,14 @@ export function mountEditHistory(read:()=>EditState,restore:(state:EditState)=>v
  }
  function flush(){clearTimeout(timer);if(applying)return;const state=read(),before=tree.nodes.find(n=>n.id===tree.current)!.state;if(recordHistory(tree,state,label(before,state))){persist();draw()}}
  function draw(){const rows:HistoryRow[]=[];const visit=(parent:string|null,depth:number)=>{for(const node of tree.nodes.filter(n=>n.parent===parent)){rows.push({id:node.id,label:node.label,at:node.at,parent:node.parent,depth});visit(node.id,depth+1)}};visit(null,0);rows.sort((a,b)=>tree.nodes.findIndex(n=>n.id===a.id)-tree.nodes.findIndex(n=>n.id===b.id));
-  for(const direction of ['undo','redo'] as const){const button=document.querySelector<HTMLButtonElement>(`[data-history-${direction}]`);if(button){button.disabled=busy()||!historyTarget(tree,direction);button.onclick=()=>move(direction)}}
-  renderView(root,createElement(HistoryView,{rows,current:tree.current,status:statusMessage,canUndo:!!historyTarget(tree,'undo'),canRedo:!!historyTarget(tree,'redo'),onUndo:()=>move('undo'),onRedo:()=>move('redo'),onGo:id=>{flush();go(id)}}));
+  const selection={active:false,undo:false,redo:false};dispatchEvent(new CustomEvent('osh-selection-history-query',{detail:selection}));
+  for(const direction of ['undo','redo'] as const){const button=document.querySelector<HTMLButtonElement>(`[data-history-${direction}]`);if(button){button.disabled=selection.active?!selection[direction]:busy()||!historyTarget(tree,direction);button.onclick=()=>move(direction)}}
+  renderView(root,createElement(HistoryView,{rows,current:tree.current,status:statusMessage,canUndo:selection.active?selection.undo:!!historyTarget(tree,'undo'),canRedo:selection.active?selection.redo:!!historyTarget(tree,'redo'),onUndo:()=>move('undo'),onRedo:()=>move('redo'),onGo:id=>{flush();go(id)}}));
  }
  function go(id:string|null){if(!id||id===tree.current)return;if(busy()){statusMessage='Finish the current generation or drag before changing history.';draw();return}const n=tree.nodes.find(n=>n.id===id);if(!n)return;applying=true;try{restore(JSON.parse(JSON.stringify(n.state)));const old=tree.nodes.find(p=>p.id===tree.current)!;tree.preferred??={};if(old.parent===id)tree.preferred[id]=old.id;else if(n.parent)tree.preferred[n.parent]=id;tree.current=id;statusMessage=n.label;persist()}finally{applying=false;draw()}}
- const move=(direction:'undo'|'redo')=>{flush();go(historyTarget(tree,direction))};
+ const move=(direction:'undo'|'redo')=>{if(!dispatchEvent(new CustomEvent('osh-selection-history-move',{detail:direction,cancelable:true})))return;flush();go(historyTarget(tree,direction))};
  addEventListener('keydown',e=>{const target=e.target as HTMLElement;if(e.defaultPrevented||!(e.ctrlKey||e.metaKey)||e.altKey||target.closest('input,textarea,select,[contenteditable=true],dialog'))return;const key=e.key.toLowerCase();if(key!=='z'&&key!=='y')return;e.preventDefault();move(key==='y'||e.shiftKey?'redo':'undo')});
+ addEventListener('osh-selection-history-updated',draw);
  const schedule=()=>{if(applying)return;clearTimeout(timer);timer=setTimeout(flush,450)};
  for(const event of ['input','change','click','pointerup'])addEventListener(event,schedule);
  addEventListener('focusout',()=>{if(!applying)flush()});addEventListener('pagehide',flush);

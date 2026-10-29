@@ -2,7 +2,7 @@ import {heroSource} from './hero-ad.ts';
 import {Resvg} from '@resvg/resvg-js';
 export async function precisionSources(root:string,body:any){
  if(typeof body?.prompt!=='string'||!body.prompt.trim()||body.prompt.length>2000)throw Object.assign(new Error('Describe the selected-area edit in up to 2,000 characters.'),{status:400});
- if(body.strength!==undefined&&(typeof body.strength!=='number'||!Number.isFinite(body.strength)||body.strength<0.05||body.strength>1))throw Object.assign(new Error('Choose a change strength from 5% to 100%.'),{status:400});
+ if(body.guidance!==undefined&&(typeof body.guidance!=='number'||!Number.isFinite(body.guidance)||body.guidance<1||body.guidance>10))throw Object.assign(new Error('Choose prompt guidance from 1 to 10.'),{status:400});
  const image=await heroSource(root,body.image),mask=await heroSource(root,body.mask);
  if(image.width*image.height>768*768||mask.width!==image.width||mask.height!==image.height)throw Object.assign(new Error('Use matching image/mask dimensions, up to 768×768 total pixels.'),{status:400});
  const pixels=new Resvg(`<svg xmlns="http://www.w3.org/2000/svg" width="${mask.width}" height="${mask.height}"><image href="${mask.data}" width="${mask.width}" height="${mask.height}"/></svg>`).render().pixels;
@@ -20,12 +20,20 @@ export async function segmentationSource(root:string,body:any){
  return {image,point:point?{x:Math.floor(point.x),y:Math.floor(point.y)}:null,prompt:body?.list?'object:16':point?'':body.prompt.trim(),list:body?.list===true};
 }
 
-export function maskedEditGraph(base:Record<string,any>,maskGraph:Record<string,any>,loraFile?:string,strength=0.35){
- const graph=structuredClone(base);
- for(const id of ['7','11','12','13','14'])graph[id]=structuredClone(maskGraph[id]);graph['10'].inputs.images=['14',0];
- graph['7']={class_type:'VAEEncode',inputs:{pixels:['11',0],vae:['3',0]}};
- graph['15']={class_type:'SetLatentNoiseMask',inputs:{samples:['7',0],mask:['13',0]}};
- graph['8'].inputs.latent_image=['15',0];graph['8'].inputs.denoise=strength;
- if(loraFile){graph['90']={class_type:'LoraLoaderModelOnly',inputs:{model:['1',0],lora_name:loraFile,strength_model:1}};graph['4'].inputs.model=['90',0]}
- return graph;
+// Editing models receive both the source image and the user's instruction.
+// Text-to-image models must not appear here as interchangeable editors.
+export const instructionEditModels=[
+ {id:'qwen_image_edit_2511_fp8mixed.safetensors',label:'Qwen Image Edit 2511',graph:'precision_qwen_edit'},
+ {id:'qwen_image_edit_2511_bf16.safetensors',label:'Qwen Image Edit 2511 - BF16',graph:'precision_qwen_edit'},
+];
+export function instructionEditReady(nodes:Record<string,any>,graph:Record<string,any>){
+ return instructionEditModels.filter(model=>Object.values(graph).every(node=>!!nodes[node.class_type])&&
+ nodes.UNETLoader?.input?.required?.unet_name?.[0]?.includes(model.id)&&
+ nodes.CLIPLoader?.input?.required?.clip_name?.[0]?.includes(graph['2'].inputs.clip_name)&&
+ nodes.VAELoader?.input?.required?.vae_name?.[0]?.includes(graph['3'].inputs.vae_name));
+}
+
+export function instructionEditSize(width:number,height:number){
+ const scale=Math.sqrt(1024*1024/(width*height));
+ return {width:Math.max(8,Math.round(width*scale/8)*8),height:Math.max(8,Math.round(height*scale/8)*8)};
 }

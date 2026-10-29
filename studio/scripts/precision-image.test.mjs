@@ -29,6 +29,7 @@ test('precision edit validates owned sources, matching dimensions and nonempty m
   await assert.rejects(precisionSources(root,{...body,mask:'/outputs/3333333333333333.png'}),/matching/);
   await assert.rejects(precisionSources(root,{...body,mask:'/outputs/4444444444444444.png'}),/Select an area/);
   await assert.rejects(precisionSources(root,{...body,prompt:''}),/Describe/);
+ for(const strength of [0,1.1,'0.5',null])await assert.rejects(precisionSources(root,{...body,strength}),/strength/);
  }finally{await rm(root,{recursive:true,force:true})}
 });
 // Opt-in verification of a real generated output; no inference is started by this test.
@@ -42,4 +43,4 @@ if(process.env.PRECISION_RESULT)test('real masked result preserves every pixel o
 const {readFile:readGraph}=await import('node:fs/promises');
 const turbo=JSON.parse(await readGraph('shared/workflows/precision_zimage.json','utf8')),qwen=JSON.parse(await readGraph('shared/workflows/keyframe_qwen.json','utf8'));
 const edit=maskedEditGraph(qwen,turbo,'test.safetensors');
-assert.equal(edit['8'].inputs.steps,50);assert.equal(edit['8'].inputs.cfg,4);assert.equal(edit['1'].inputs.unet_name,qwen['1'].inputs.unet_name);assert.equal(edit['7'].class_type,'VAEEncodeForInpaint');assert.deepEqual(edit['10'].inputs.images,['14',0]);assert.equal(edit['90'].inputs.lora_name,'test.safetensors');assert.equal(qwen['7'].class_type,'EmptySD3LatentImage');
+assert.equal(edit['8'].inputs.steps,50);assert.equal(edit['8'].inputs.cfg,4);assert.equal(edit['1'].inputs.unet_name,qwen['1'].inputs.unet_name);assert.equal(edit['7'].class_type,'VAEEncode');assert.deepEqual(edit['15'].inputs,{samples:['7',0],mask:['13',0]});assert.deepEqual(edit['8'].inputs.latent_image,['15',0]);assert.equal(edit['8'].inputs.denoise,0.35);assert.equal(maskedEditGraph(qwen,turbo,undefined,0.65)['8'].inputs.denoise,0.65);assert.deepEqual(edit['10'].inputs.images,['14',0]);assert.equal(edit['90'].inputs.lora_name,'test.safetensors');assert.equal(qwen['7'].class_type,'EmptySD3LatentImage');

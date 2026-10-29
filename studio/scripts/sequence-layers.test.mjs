@@ -12,3 +12,8 @@ const parsed=validLayers(JSON.parse(JSON.stringify(state)));
 assert.equal(parsed.overlays.length,1);assert.equal(parsed.audio.length,1);assert.equal(parsed.audio[0].url,url);
 assert.deepEqual(validLayers(null),{overlays:[],audio:[]});
 console.log('PASS: three-lane persistence validation, overlapping layer packing and default linked soundtrack ownership.');
+
+const placed=layerRows([{...layer('chosen',2,2),row:0},{...layer('lower',0,2),row:1},layer('auto',2,1)]);
+assert.equal(placed.get('chosen'),0,'Moving up preserves the requested row');assert.equal(placed.get('lower'),1,'Manual lower row does not collapse');assert.equal(placed.get('auto'),1,'Automatic placement avoids occupied manual clips');
+const saved=validLayers({audio:[{...layer('saved',0,2),kind:'sfx',row:1}]});assert.equal(saved.audio[0].row,1);
+assert.equal(independentSoundtracks([{id:'row',n:'Row',d:2,audio:url,audioLinked:false,audioRow:2}])[0].row,2);

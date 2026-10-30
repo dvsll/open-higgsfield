@@ -61,6 +61,7 @@ try{
  globalThis.document={getElementById:id=>id==='tl'?track:{classList:{add:name=>classes.get(id).add(name),remove:name=>classes.get(id).delete(name)}}};globalThis.addEventListener=()=>{};
  const {mountSequenceFileDrop}=await dropServer.ssrLoadModule('/studio/src/sequence-file-drop.ts');let opened=false;mountSequenceFileDrop((...args)=>dropped.push(args),{imageGuideDrop:()=>opened});
  const drag=(action,kind,id,url=video)=>{const event=new Event(action,{cancelable:true});Object.defineProperties(event,{target:{value:{closest:selector=>selector==='#'+id}},clientX:{value:100},dataTransfer:{value:{types:['application/x-studio-file-'+kind],getData:()=>url}}});track.dispatchEvent(event);return event};
+ assert.equal(drag('dragenter','image','trk').defaultPrevented,true,'accept fast image drags before the first dragover, so the browser can deliver drop');
  assert.equal(drag('dragover','video','trk').defaultPrevented,true);assert.equal(classes.get('trk').has('file-drop-compatible'),true);assert.equal(classes.get('audioTrack').size,0);
  drag('drop','video','trk');assert.equal(dropped.length,1);assert.equal(dropped[0][1],'video');assert.equal(classes.get('trk').size,0);
  drag('drop','video','audioTrack');drag('drop','video','trk','/outputs/ffffffffffffffff.webm');assert.equal(dropped.length,1,'wrong lane and non-project media rejected');

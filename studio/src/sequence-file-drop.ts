@@ -6,12 +6,14 @@ export function mountSequenceFileDrop(onDrop:(file:ProjectFile,lane:'video'|'aud
  const clear=()=>{Object.values(lanes).flat().forEach(id=>document.getElementById(id)?.classList.remove('file-drop-compatible'));const track=document.getElementById('trk');track?.querySelector?.('.insert-line')?.remove();track?.classList.remove('dropzone')};
  const kind=(event:DragEvent)=>['video','audio','image'].find(value=>event.dataTransfer?.types.includes('application/x-studio-file-'+value));
  const lane=(event:DragEvent)=>{const target=event.target as Element;return (Object.keys(lanes) as (keyof typeof lanes)[]).find(name=>lanes[name].some(id=>target.closest('#'+id)))};
- timeline.addEventListener('dragover',event=>{
+ const hover=(event:DragEvent)=>{
   const type=kind(event),target=lane(event);if(!type)return;clear();
   const compatible=type==='image'?['overlays','video']:[type];
   for(const name of compatible)for(const id of lanes[name as keyof typeof lanes])document.getElementById(id)?.classList.add('file-drop-compatible');
   if(target&&compatible.includes(target)){event.preventDefault();event.dataTransfer!.dropEffect='copy';if(type==='image'&&target==='video'&&!options.imageGuideDrop?.()){event.stopPropagation();options.imageSceneOver?.(event.clientX,event.clientY)}}else event.dataTransfer!.dropEffect='none';
- },true);
+ };
+ timeline.addEventListener('dragenter',hover,true);
+ timeline.addEventListener('dragover',hover,true);
  timeline.addEventListener('dragleave',event=>{if(!timeline.contains(event.relatedTarget as Node))clear()});
  timeline.addEventListener('drop',event=>{
   const type=kind(event),target=lane(event);if(!type)return;clear();

@@ -62,6 +62,7 @@ export function TourPopover({
   onFinish,
   onLater,
   onTimelineChoice,
+  onBlockoutChoice,
 }: {
   experience: Experience;
   entry: Workflow;
@@ -72,6 +73,7 @@ export function TourPopover({
   onWorkflow: (workflow: Workflow) => void;
   onFinish: () => void;
   onLater?: () => void;
+  onBlockoutChoice?: (choice:"video"|"stay")=>void;
   onTimelineChoice?: (choice: "image" | "scene" | "ignore") => void;
 }) {
   return (
@@ -110,7 +112,7 @@ export function TourPopover({
             <p>{tip.text}</p>
             {onLater&&<button className="tour-secondary" onClick={onLater}>I’ll try it later</button>}
             {tip.diagram && <DragDiagram kind={tip.diagram} />}{' '}
-            {onTimelineChoice ? <div className="tour-next-choices"><button onClick={()=>onTimelineChoice("image")}>Create start and end images</button><button onClick={()=>onTimelineChoice("scene")}>Learn to join videos</button><button className="tour-secondary" onClick={()=>onTimelineChoice("ignore")}>Keep creating</button></div> : tip.next ? (
+            {onBlockoutChoice ? <div className="tour-next-choices"><button onClick={()=>onBlockoutChoice("video")}>Use for video generation</button><button className="tour-secondary" onClick={()=>onBlockoutChoice("stay")}>Keep working in 3D</button></div> : onTimelineChoice ? <div className="tour-next-choices"><button onClick={()=>onTimelineChoice("image")}>Create start and end images</button><button onClick={()=>onTimelineChoice("scene")}>Learn to join videos</button><button className="tour-secondary" onClick={()=>onTimelineChoice("ignore")}>Keep creating</button></div> : tip.next ? (
               <button className="tour-primary" onClick={onNext}>
                 {tip.next}
               </button>

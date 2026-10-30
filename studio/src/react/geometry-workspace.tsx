@@ -48,8 +48,11 @@ export function GeometryWorkspace(){
     reference=result.url;setImage(reference);const files=SC.get('osh-project-files')||[];SC.set('osh-project-files',[...files,{url:reference,label:'3D reference',kind:'image',origin:'generated'}]);dispatchEvent(new Event('osh-project-media'));
    }
    setMessage('Generating mesh geometry...');const result=await OSH.geometry({image:reference,model,seed,steps,resolution:64,texture:outputMode!=='shape'});setUrl(result.url);
-   setMessage('Preparing OBJ...');const response=await fetch(result.url);if(!response.ok)throw Error('Could not read the generated mesh.');const gltf=await new GLTFLoader().parseAsync(await response.arrayBuffer(),'');let text:string;try{text=new OBJExporter().parse(gltf.scene)}finally{disposeMesh(gltf.scene)}
-   const exported=await fetch('/api/training-mesh',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({obj:text})}),asset=await exported.json();if(!exported.ok)throw Error(asset.error||'OBJ export failed. The GLB is still available.');
+   // OBJ is an optional training/export derivative; never discard a successful GLB.
+   let asset={url:result.url};
+   try{const response=await fetch(result.url);if(!response.ok)throw Error('Could not read mesh for OBJ export.');const gltf=await new GLTFLoader().parseAsync(await response.arrayBuffer(),'');let text:string;try{text=new OBJExporter().parse(gltf.scene)}finally{disposeMesh(gltf.scene)}
+    if(new Blob([text]).size<=5*1024*1024){const exported=await fetch('/api/training-mesh',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({obj:text})});if(exported.ok)asset=await exported.json()}
+   }catch{ /* The original GLB remains the usable generated asset. */ }
    setObj(asset.url);const item=sceneMesh(result.url,asset.url,(targetRole==='environment'?'Environment ':'Object ')+(objects.length+1),targetRole);if(outputMode==='both'&&targetRole==='object'&&!result.textured)await paint(item,material.trim()||prompt.trim()||'neutral gray matte surface',false);setObjects(current=>placeGeneratedMesh(current,target,item));if(!target)setSelected(item.id);const files=SC.get('osh-project-files')||[];SC.set('osh-project-files',[...files,{url:outputMode==='both'?item.url:asset.url,previewUrl:item.url,label:'Mesh',kind:'mesh',origin:'generated'}]);revealGeneratedFile(outputMode==='both'?item.url:asset.url);setMessage(outputMode==='both'&&targetRole==='object'?'Textured mesh ready.':'Mesh ready.');dispatchEvent(new Event('osh-geometry-generated'));
   }catch(error){setMessage((error as Error).message);setFailure((error as Error).message)}finally{setBusy(false)}
  }

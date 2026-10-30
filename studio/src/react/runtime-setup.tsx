@@ -97,7 +97,7 @@ export function RuntimeSetupSurface() {
         <h3>{'Choose model packs'}</h3>
         <p>
           {
-            'Downloads happen here before generation. Only missing files are fetched; each pack shows its size and licenses.'
+            'Model downloads can use tens of GB of internet data. Check the total below before starting, especially on a metered connection. Only missing files are fetched; interrupted downloads can resume.'
           }
         </p>
         <div data-packs></div>

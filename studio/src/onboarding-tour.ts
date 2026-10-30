@@ -94,6 +94,7 @@ export function mountOnboardingTour(options:Options) {
   chooser.addEventListener('close',()=>{unmountView(currentDialog);currentDialog.remove();if(chooser===currentDialog)chooser=null});document.body.append(chooser);chooser.showModal();
  }
  function prepare(step:string){
+  if(step==='3d-motion')dispatchEvent(new Event('osh-tour-camera-prompt'));
   if(step==='3d')dispatchEvent(new Event('osh-tour-3d-prompt'));
   if(step==='3d-record')dispatchEvent(new Event('osh-camera-prompt-reveal'));
   if(step==='add')dispatchEvent(new Event('osh-tour-show-guides'));
@@ -129,7 +130,7 @@ export function mountOnboardingTour(options:Options) {
    'image-video':{title:'Animate your image',text:beginner?'Your image is attached as START. Press the highlighted Generate video button to animate it.':'Press Generate video to animate your starting image.',target:'#gen'},
    '3d':localStep===0?{title:'Describe your 3D scene',text:'Describe a subject and its appearance, just like a video prompt. We prepared a copper robot holding a watering can. Keep it or make it yours; you can also attach an image.',target:'#geometryPrompt',next:'Next: generate object'}:{title:'Generate your object',text:'Press Generate object (or Replace object). We’ll continue when the mesh is ready.',target:'#geometryGenerate'},
    '3d-camera':{title:'Find the scene camera',text:'Drag empty space to orbit until the camera is in view. Follow the camera indicator, then click the camera to edit its movement.',target:'.geometry-viewer'},
-   '3d-motion':{title:'Describe the camera move',text:'Try "Pan right slowly" in Camera movement. Keep it or describe another move, then continue to record your blockout.',target:'#cameraMovementPrompt',next:'Next: record blockout'},
+   '3d-motion':{title:'Describe the camera move',text:'We prepared "Pan right slowly". Keep it or describe another move, then continue to record your blockout.',target:'#cameraMovementPrompt',next:'Next: record blockout'},
    '3d-record':{title:'Record your blockout',text:'A blockout is a rough 3D guide for your shot. Press Create reference video to record the camera move. We’ll continue when it is saved.',target:'.scene-playback'},
    '3d-guide':{title:'Guide a generated video',text:'Press Use for video generation. Your blockout’s depth and camera movement will guide a new video scene.',target:'.scene-playback'},
    '3d-video':{title:'Give your blockout its final look',text:'Describe how the finished shot should look, then press Generate video. The blockout guides its shapes and camera move; the model adds the appearance.',target:'#shotPromptInput',secondary:'#gen'},

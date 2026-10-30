@@ -1,4 +1,8 @@
 import assert from 'node:assert/strict';
+import {validBase64} from '../../shared/lib/base64.ts';
+assert.ok(validBase64(Buffer.alloc(12*1024*1024,123).toString('base64')),'Real scene-sized embedded meshes must not overflow regex stack');
+for(const value of ['','abc','ab=c','a===','abcd\n','abcd====',null,42])assert.equal(validBase64(value),false);
+for(const value of ['YQ==','YWI=','YWJj'])assert.ok(validBase64(value));
 import {texturedGeometryGraph,texturedGeometryReady,texturedGeometryBase} from '../../shared/lib/geometry-textured.ts';
 const full=texturedGeometryGraph(43,20);
 assert.deepEqual(full['20'].inputs.shape_latent,['18',0],'Texture generation must use the sampled shape latent');

@@ -79,6 +79,7 @@ import {validateHeroSettings} from '../lib/hero-ad.ts';
 import {generateQwenHero,qwenAvailability,verifyWeightFiles,qwenContract} from './qwen-hero.ts';
 import {qwenSDKTransport} from './qwen-sdk.ts';
 import {createQwenRelay} from './qwen-relay.ts';
+import {validBase64} from '../lib/base64.ts';
 import {acceptanceGate,acceptanceRequest,claimAcceptanceJob} from './qwen-app-session.ts';
 import {createBrandService} from './brand-service.ts';
 import {brandBackendStatus} from './brand-analysis.ts';
@@ -711,7 +712,7 @@ function middleware(env: Env,setup:RuntimeSetup,rewriter:PromptRewriter,creative
         if (route === "GET /api/models") return send(res, 200, await localModels(env));
         if(route==='GET /api/blockout')return send(res,200,{available:!!blockoutReady(await comfyJson(env,'/object_info'))});
         if(route==='POST /api/geometry-material'){
-         const body=await readBody(req,48*1024*1024);if(typeof body.glb!=='string'||!/^[A-Za-z0-9+/]+=*$/.test(body.glb))throw new HttpError(400,'Invalid mesh data.');const bytes=Buffer.from(body.glb,'base64');if(bytes.length<28||bytes.length>32*1024*1024||bytes.toString('ascii',0,4)!=='glTF'||bytes.readUInt32LE(4)!==2||bytes.readUInt32LE(8)!==bytes.length||bytes.readUInt32LE(16)!==0x4e4f534a)throw new HttpError(400,'Choose a self-contained GLB under 32 MB.');let json;try{json=JSON.parse(bytes.toString('utf8',20,20+bytes.readUInt32LE(12)))}catch{throw new HttpError(400,'Invalid GLB metadata.')}if(!json.meshes?.length||JSON.stringify(json).match(/"uri"\s*:\s*"(?!data:)/))throw new HttpError(400,'Mesh resources must be embedded.');const name=outputName('glb');await writeFile(join(OUTPUTS,name),bytes);return send(res,200,{url:'/outputs/'+name});
+         const body=await readBody(req,48*1024*1024);if(!validBase64(body.glb))throw new HttpError(400,'Invalid mesh data.');const bytes=Buffer.from(body.glb,'base64');if(bytes.length<28||bytes.length>32*1024*1024||bytes.toString('ascii',0,4)!=='glTF'||bytes.readUInt32LE(4)!==2||bytes.readUInt32LE(8)!==bytes.length||bytes.readUInt32LE(16)!==0x4e4f534a)throw new HttpError(400,'Choose a self-contained GLB under 32 MB.');let json;try{json=JSON.parse(bytes.toString('utf8',20,20+bytes.readUInt32LE(12)))}catch{throw new HttpError(400,'Invalid GLB metadata.')}if(!json.meshes?.length||JSON.stringify(json).match(/"uri"\s*:\s*"(?!data:)/))throw new HttpError(400,'Mesh resources must be embedded.');const name=outputName('glb');await writeFile(join(OUTPUTS,name),bytes);return send(res,200,{url:'/outputs/'+name});
         }
       if(route==='POST /api/training-mesh'){
        const body=await readBody(req,6*1024*1024);let obj;try{obj=trainingObj(body?.obj)}catch(error:any){throw new HttpError(400,error.message)}const name=outputName('obj');await writeFile(join(OUTPUTS,name),obj);return send(res,200,{url:'/outputs/'+name});

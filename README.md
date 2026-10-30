@@ -1,7 +1,4 @@
-# Open Source Higgsfield
-
-Open-model cinema Studio for Comfy Org's Open Source Higgsfield competition.
-
+an AI-native web app for creatives at every level of experience for every endeavor built convivially
 ## Quick Start:
 
 Download this project, then run corresponding command file:

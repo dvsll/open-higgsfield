@@ -307,7 +307,7 @@ function focusPromptField(id){if(id!=='shotPromptInput')dispatchEvent(new Event(
 $('#gen').onclick=async()=>{if($('#ov').style.display==='flex'||$('#kgo').disabled)return;const s=currentShot();
  try{requireGenerationPrompt([s.prompt,s.m,$('#promptAdvanced').open?s.visualPrompt:''].filter(Boolean).join(' '))}catch(e){toast(e.message);focusPromptField('shotPromptInput');return}
  if(!$('#videoFrames').reportValidity()||!$('#videoFPS').reportValidity())return;
- if(OSH.online){try{const libraryOnly=!touring()&&!clipSelected&&!selKey;if(!libraryOnly)ensureScene();const r=await realShot(cur,`Generating shot ${cur+1}`,libraryOnly);timeline();head();toast(libraryOnly?'Video ready in Project files':r.audioError?`Video ready; audio failed: ${r.audioError}`:`Shot ${cur+1} generated${s.audio?" with audio":""}`)}catch(e){toast('Generation failed: '+e.message)}return}
+ if(OSH.online){try{ensureScene();const r=await realShot(cur,`Generating shot ${cur+1}`);timeline();head();toast(r.audioError?`Video ready; audio failed: ${r.audioError}`:`Shot ${cur+1} generated${s.audio?" with audio":""}`)}catch(e){toast('Generation failed: '+e.message)}return}
  toast('Start ComfyUI on port 8188, then refresh local models')};
 $('#genAll').onclick=async()=>{const todo=SH.filter(s=>!s.r);if(!todo.length)return toast('Nothing to generate');
  if(OSH.online){try{for(const s of todo){const i=SH.indexOf(s);await realShot(i,`Shot ${i+1} of ${SH.length}`);timeline();head()}toast('All shots generated')}catch(e){toast('Generation failed: '+e.message)}return}

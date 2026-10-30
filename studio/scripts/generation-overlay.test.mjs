@@ -17,3 +17,19 @@ emit('complete');assert.equal(elements['#ov'].style.display,'none');emit('loadin
 await busy('Preparing',async()=>{assert.equal(elements['#empty'].style.display,'none');emit('complete');assert.equal(elements['#ov'].style.display,'flex')});assert.equal(elements['#ov'].style.display,'none');
 await assert.rejects(busy('Preparing',async()=>{throw Error('fixture')}));assert.equal(elements['#ov'].style.display,'none');
 console.log('PASS: common progress for SDK jobs, real percentages, terminal cleanup and preparing-stage ownership.');
+
+// Execute the real Generate handler: selection must never redirect output off timeline.
+const generateCode=source.slice(source.indexOf("$('#gen').onclick=async"),source.indexOf("\n$('#genAll').onclick"));
+for(const empty of [true,false]){
+ const shots=empty?[]:[{n:'Scene',keys:[]}],draft={n:'Draft',keys:[]};
+ const controls={'#gen':{},'#ov':{style:{display:'none'}},'#kgo':{disabled:false},'#promptAdvanced':{open:false},'#videoFrames':{reportValidity:()=>true},'#videoFPS':{reportValidity:()=>true}};
+ let rendered=0,submitted=0;
+ new Function('$','currentShot','requireGenerationPrompt','focusPromptField','OSH','ensureScene','realShot','timeline','head','toast','cur',generateCode)(
+  id=>controls[id],()=>shots[0]||draft,()=>{},()=>{},{online:true},()=>{if(!shots.length)shots.push(draft)},
+  async(index,label,libraryOnly=false)=>{submitted++;assert.equal(libraryOnly,false);assert.ok(shots[index]);shots[index].video='/outputs/generated.webm';return {url:shots[index].video}},
+  ()=>rendered++,()=>{},()=>{},0
+ );
+ await controls['#gen'].onclick();
+ assert.equal(submitted,1);assert.equal(rendered,1);assert.equal(shots[0].video,'/outputs/generated.webm');
+}
+console.log('PASS: Generate targets timeline scenes with empty or populated timelines, without a selected clip.');

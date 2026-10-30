@@ -191,3 +191,15 @@ assert.equal(geometryTourStep('3d-motion','osh-camera-generated'),null);
 
 assert.equal(geometryTourStep('3d-preview','osh-camera-preview-complete'),'3d-record');
 assert.equal(geometryTourStep('3d-preview','osh-camera-motion-ended'),null);
+
+const {audioTourMilestone}=await import('../src/onboarding-progress.ts');
+assert.equal(workflowForSetup('Audio'),'audio');
+assert.deepEqual(audioTourMilestone({step:'audio-generate'},'osh-audio-generated',{url:'bell'}),{step:'audio-file',audioUrl:'bell'});
+assert.equal(audioTourMilestone({step:'audio-generate'},'osh-project-media'),null);
+assert.equal(audioTourMilestone({step:'audio-add',audioUrl:'bell'},'osh-audio-timeline-save',{url:'unrelated',start:0,duration:3}),null);
+assert.deepEqual(audioTourMilestone({step:'audio-add',audioUrl:'bell'},'osh-audio-timeline-save',{url:'bell',start:1,duration:3}),{step:'audio-preview',audioEnd:4});
+assert.deepEqual(audioTourMilestone({step:'audio-speech-add',speechUrl:'voice',audioEnd:4},'osh-audio-timeline-save',{url:'voice',id:'voice-clip',start:0,duration:2}),{step:'audio-position',speechLayerId:'voice-clip'});
+assert.equal(audioTourMilestone({step:'audio-position',speechLayerId:'voice-clip',audioEnd:4},'osh-audio-timeline-save',{url:'voice',id:'other',start:5,duration:2}),null);
+assert.deepEqual(audioTourMilestone({step:'audio-position',speechLayerId:'voice-clip',audioEnd:4},'osh-audio-timeline-save',{url:'voice',id:'voice-clip',start:4,duration:2}),{step:'audio-mix-preview'});
+assert.deepEqual(audioTourMilestone({step:'audio-mix-preview'},'osh-audio-preview-complete'),{step:'done'});
+assert.deepEqual(windowLesson('audio-speech',new Set(),false),{window:'speech',stage:'menu'});

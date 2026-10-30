@@ -5,6 +5,8 @@ export function seedOnboarding(id:string):void{
  const set=(key:string,value:unknown)=>localStorage.setItem(`osh:${id}:${key}`,JSON.stringify(value));
  set('osh-director',{SH:[shot],cur:0,G:0,STASH:[],TRASH:[],HISTORY:[]});
  set('osh-workspace',{mode:'video',keyframeCount:2,image:{prompt:'A tiny copper robot beside a bright yellow flower on a wooden workbench in a sunlit glass greenhouse, small watering can in its hands, warm morning light, cinematic photography.',url:null}});
+ set('osh-audio-composer',{prompt:'A short, soft bell chime with a clean ringing tail, no speech or music.',duration:3,seed:7});
+ set('osh-speech-draft',{text:'A little kindness can brighten the day.',voice:'af_heart',speed:1});
  set('osh-3d-camera',{prompt:'Pan right slowly',duration:4});
  set('osh-geometry',{prompt:'A tiny copper robot holding a watering can, full body, isolated on a plain background.',inputMode:'prompt'});
  set('osh-onboarding',{step:'prompt',shotId,images:[],firstVideo:null,dismissed:false});

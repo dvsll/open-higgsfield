@@ -1,6 +1,7 @@
 import {CloseButton} from './close-button';
 import type { Experience, Workflow } from '../onboarding-progress';
 export const workflowNames: Record<Workflow, string> = {
+  audio:'Audio',
   video: 'Video',
   image: 'Image',
   director: 'Director',
@@ -8,8 +9,9 @@ export const workflowNames: Record<Workflow, string> = {
   edit: 'Edit',
   '3d': '3D',
 };
-export type TourTip = { title: string; text: string; next?: string; diagram?: 'add' | 'position' };
+export type TourTip = { title: string; text: string; next?: string; diagram?: 'add' | 'position' | 'audio' | 'audio-position' };
 const descriptions: Record<Workflow, string> = {
+  audio:'Create sound, speech and an audio sequence.',
   image: 'Workshop one image.',
   video: 'Bring a scene into motion.',
   director: 'Direct with movable keyframes.',
@@ -26,26 +28,27 @@ export function TourChoice({onChoose,onSkip}:{onChoose:(key:Workflow)=>void;onSk
   ['image','Image','Workshop one image, then bring it into motion.'],
   ['video','Video','Prompt a video, then direct it with keyframes.'],
   ['3d','3D','Generate and inspect a 3D mesh.'],
-  ['audio','Audio walkthrough · coming soon','The Audio workspace is available from the workspace selector.'],
+  ['audio','Audio','Create sound, add speech and arrange a mix.'],
  ];
- return <><CloseButton className="tour-close tour-choice-close" label="Skip walkthrough" onClick={onSkip}/><h2>What would you like to create?</h2><p>Choose a starting workspace. Other workflows have their own walkthroughs.</p><div className="tour-choice-grid" data-kind="workflow">{entries.map(([key,label,description])=><button key={key} type="button" disabled={key==='audio'} onClick={()=>{if(key!=='audio')onChoose(key)}}><strong className="tour-workflow-heading"><WorkflowIcon kind={key as "image"|"video"|"3d"|"audio"}/>{label}</strong><span>{description}</span></button>)}</div><button className="tour-skip" onClick={onSkip}>Skip walkthrough</button></>;
+ return <><CloseButton className="tour-close tour-choice-close" label="Skip walkthrough" onClick={onSkip}/><h2>What would you like to create?</h2><p>Choose a starting workspace. Other workflows have their own walkthroughs.</p><div className="tour-choice-grid" data-kind="workflow">{entries.map(([key,label,description])=><button key={key} type="button" onClick={()=>onChoose(key)}><strong className="tour-workflow-heading"><WorkflowIcon kind={key as "image"|"video"|"3d"|"audio"}/>{label}</strong><span>{description}</span></button>)}</div><button className="tour-skip" onClick={onSkip}>Skip walkthrough</button></>;
 }
-function DragDiagram({ kind }: { kind: 'add' | 'position' }) {
+function DragDiagram({ kind }: { kind: 'add' | 'position' | 'audio' | 'audio-position' }) {
+  if(kind==='audio-position')return <figure className="tour-audio-order" role="img" aria-label="Place the voice clip after the sound clip"><div className="tour-audio-order-clips"><span>SOUND</span><i aria-hidden="true">→</i><span>VOICE</span></div><figcaption>Sound ends · voice begins</figcaption></figure>;
   return (
     <figure
       className="tour-drag-demo"
-      data-kind={kind}
+      data-kind={kind==='audio'?'add':kind}
       role="img"
       aria-label={
-        kind === 'add'
+        kind==='audio'?'Drag the audio file from Project files onto the audio timeline':kind === 'add'
           ? 'Drag an image result onto the timeline'
           : 'Drag keyframes to the start and end of the clip'
       }
     >
-      <span className="demo-source">{kind === 'add' ? 'IMAGE' : '◆'}</span>
+      <span className="demo-source">{kind==='audio'?'AUDIO':kind === 'add' ? 'IMAGE' : '◆'}</span>
       <div className="demo-track">
-        <span>START</span>
-        <span>END</span>
+        <span>{kind.startsWith('audio')?'0s':'START'}</span>
+        <span>{kind==='audio'?'TIMELINE':'END'}</span>
       </div>
       <span className="demo-cursor">◆</span>
     </figure>
@@ -63,6 +66,7 @@ export function TourPopover({
   onLater,
   onTimelineChoice,
   onBlockoutChoice,
+  onAudioChoice,
 }: {
   experience: Experience;
   entry: Workflow;
@@ -73,6 +77,7 @@ export function TourPopover({
   onWorkflow: (workflow: Workflow) => void;
   onFinish: () => void;
   onLater?: () => void;
+  onAudioChoice?: (choice:"speech"|"stay")=>void;
   onBlockoutChoice?: (choice:"video"|"stay")=>void;
   onTimelineChoice?: (choice: "image" | "scene" | "ignore") => void;
 }) {
@@ -91,7 +96,7 @@ export function TourPopover({
             Your {workflowNames[entry]} walkthrough is complete. Explore another workflow. Choose one below and we’ll guide you to it in the workspace selector.
           </p>
           <div className="tour-workflow-teasers">
-            {(['image', 'video', '3d'] as Workflow[])
+            {(['image', 'video', '3d', 'audio'] as Workflow[])
               .filter((next) => next !== entry)
               .map((next) => (
                 <button key={next} className="tour-workflow-card" onClick={() => onWorkflow(next)}>
@@ -100,7 +105,7 @@ export function TourPopover({
                 </button>
               ))}
           </div>
-          <p className="tour-planned">Coming later: a dedicated Audio workflow.</p>
+          
           <button className="tour-secondary" onClick={onFinish}>
             Keep creating
           </button>
@@ -112,7 +117,7 @@ export function TourPopover({
             <p>{tip.text}</p>
             {onLater&&<button className="tour-secondary" onClick={onLater}>I’ll try it later</button>}
             {tip.diagram && <DragDiagram kind={tip.diagram} />}{' '}
-            {onBlockoutChoice ? <div className="tour-next-choices"><button onClick={()=>onBlockoutChoice("video")}>Use for video generation</button><button className="tour-secondary" onClick={()=>onBlockoutChoice("stay")}>Keep working in 3D</button></div> : onTimelineChoice ? <div className="tour-next-choices"><button onClick={()=>onTimelineChoice("image")}>Create start and end images</button><button onClick={()=>onTimelineChoice("scene")}>Learn to join videos</button><button className="tour-secondary" onClick={()=>onTimelineChoice("ignore")}>Keep creating</button></div> : tip.next ? (
+            {onAudioChoice ? <div className="tour-next-choices"><button onClick={()=>onAudioChoice("speech")}>Add a voice</button><button className="tour-secondary" onClick={()=>onAudioChoice("stay")}>Keep creating audio</button></div> : onBlockoutChoice ? <div className="tour-next-choices"><button onClick={()=>onBlockoutChoice("video")}>Use for video generation</button><button className="tour-secondary" onClick={()=>onBlockoutChoice("stay")}>Keep working in 3D</button></div> : onTimelineChoice ? <div className="tour-next-choices"><button onClick={()=>onTimelineChoice("image")}>Create start and end images</button><button onClick={()=>onTimelineChoice("scene")}>Learn to join videos</button><button className="tour-secondary" onClick={()=>onTimelineChoice("ignore")}>Keep creating</button></div> : tip.next ? (
               <button className="tour-primary" onClick={onNext}>
                 {tip.next}
               </button>

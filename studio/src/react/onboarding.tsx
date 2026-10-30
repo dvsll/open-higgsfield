@@ -105,7 +105,7 @@ export function TourPopover({
                 </button>
               ))}
           </div>
-          
+
           <button className="tour-secondary" onClick={onFinish}>
             Keep creating
           </button>

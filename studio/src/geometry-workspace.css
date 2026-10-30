@@ -28,3 +28,5 @@
 .scene-mini-timeline{flex-basis:100%;display:flex;gap:10px;align-items:center;pointer-events:auto;background:var(--card);padding:8px;font-size:11px;box-sizing:border-box}.scene-mini-timeline input{flex:1;min-width:30px;height:3px;appearance:none;cursor:ew-resize}.scene-mini-timeline input::-webkit-slider-thumb{appearance:none;width:3px;height:15px;background:var(--key)}.scene-mini-timeline output{font-variant-numeric:tabular-nums;color:var(--dim);min-width:65px}.geometry-viewer .scene-playback{bottom:10px}
 
 .geometry-texturing{display:grid;gap:6px;margin:12px 0}.geometry-texturing label{font-size:11px;color:var(--ui-muted)}.geometry-texturing label:first-child{display:flex;gap:8px;align-items:center}.geometry-texturing small{font-size:11px;color:var(--ui-muted)}.geometry-texturing button{justify-self:start}
+
+.geometry-camera-locator{position:absolute;z-index:4;transform:translateX(-50%);pointer-events:none;background:var(--bg,#111317);border:1px solid var(--key,#e8c36f);color:var(--key,#e8c36f);padding:7px 10px;font-size:12px;white-space:nowrap}

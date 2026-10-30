@@ -182,3 +182,6 @@ assert.equal(workflowTourStep({entry:'3d',step:'3d-video'},'video'),'3d-video');
 assert.equal(geometryTourStep('3d-video','osh-video-generated',{shotId:'other'},'new'),null);
 assert.equal(geometryTourStep('3d-video','osh-video-generated',{shotId:'new'},'new'),'done');
 assert.deepEqual(windowLesson('3d-record',new Set(['stage']),false),{window:'prompts',stage:'menu'});
+
+assert.equal(geometryTourStep('3d-camera','osh-camera-prompt-reveal'),'3d-motion');
+assert.equal(geometryTourStep('3d-motion','osh-camera-prompt-reveal'),null);

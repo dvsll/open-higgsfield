@@ -17,9 +17,11 @@ type Kind = 'keyframe' | 'video';
 const select = (kind: Kind) => document.getElementById(`${kind}Model`) as HTMLSelectElement;
 const storageKey = 'osh-local-models';
 let chosen: Partial<Record<Kind, string>> = {};
+let automatic:Partial<Record<Kind,boolean>>={};
 let catalog: LocalModels | null = null;
 let context = { duration: 4, missingKeys: 0, frames:97 };
 try { chosen = JSON.parse(localStorage.getItem(storageKey) || '{}') || {}; } catch { /* Use installed defaults. */ }
+try{automatic=JSON.parse(localStorage.getItem('osh-automatic-models')||'{}')||{}}catch{}
 
 function model(kind: Kind): string {
   const control = select(kind);
@@ -105,7 +107,7 @@ function renderModelInfo(kind:Kind,entry:ModelChoice,el:HTMLElement):void{
  renderView(el,createElement(ModelCapabilities,{info}));
  const estimate=document.getElementById(video?'videoGenerationEstimate':'keyframeGenerationEstimate');if(estimate)renderView(estimate,createElement(ModelTiming,{info,attach:attachHelp}));
 }
-function chooseEntry(kind:Kind,id:string):void{select(kind).value=id;chosen[kind]=id;localStorage.setItem(storageKey,JSON.stringify(chosen));renderDetails();chooser?.close()}
+function chooseEntry(kind:Kind,id:string):void{automatic[kind]=false;localStorage.setItem('osh-automatic-models',JSON.stringify(automatic));select(kind).value=id;chosen[kind]=id;localStorage.setItem(storageKey,JSON.stringify(chosen));renderDetails();chooser?.close()}
 let chooser: HTMLDialogElement | null = null;
 let chooserHost:HTMLDivElement|null=null;
 function chooseModel(kind: Kind): void {
@@ -151,16 +153,20 @@ export async function refreshModels(): Promise<void> {
       control.replaceChildren();
       for (const entry of data[kind]) control.add(new Option(entry.label, entry.id));
       if (!data[kind].length) control.add(new Option('No compatible model installed', ''));
-      if (data[kind].some(entry => entry.id === chosen[kind])) control.value = chosen[kind]!;
+      automatic[kind]??=!chosen[kind];
+      if(automatic[kind]||!data[kind].some(entry=>entry.id===chosen[kind])){automatic[kind]=true;control.value=data.recommended?.[kind]?.id||'';}
+      else if (data[kind].some(entry => entry.id === chosen[kind])) control.value = chosen[kind]!;
       chosen[kind] = control.value;
       control.disabled = data[kind].length === 0;
       control.onchange = () => {
+        automatic[kind]=false;localStorage.setItem('osh-automatic-models',JSON.stringify(automatic));
         chosen[kind] = control.value;
         localStorage.setItem(storageKey, JSON.stringify(chosen));
         renderDetails();
       };
     }
     localStorage.setItem(storageKey, JSON.stringify(chosen));
+    localStorage.setItem('osh-automatic-models',JSON.stringify(automatic));
     renderDetails();
     const inventory = document.getElementById('modelInventory')!;
     inventory.replaceChildren();
@@ -201,6 +207,7 @@ export async function refreshModels(): Promise<void> {
 }
 
 export function mountModels(): void {
+ addEventListener('osh-use-hardware-defaults',async()=>{automatic={keyframe:true,video:true};localStorage.setItem('osh-automatic-models',JSON.stringify(automatic));await refreshModels();dispatchEvent(new CustomEvent('osh-toast',{detail:'Hardware defaults applied. Reference and timed-guide requirements still take priority.'}))});
  addEventListener('osh-image-reference-attached',async()=>{await refreshModels();const entry=catalog?.keyframe.find(model=>model.family==='Qwen Image Edit'&&!model.parentId);if(entry)chooseEntry('keyframe',entry.id);else dispatchEvent(new CustomEvent('osh-toast',{detail:'Qwen Image Edit is unavailable. Your reference is saved; generation will not ignore it.'}))});
  addEventListener('osh-model-refresh',()=>void refreshModels());
  addEventListener('osh-select-model',async event=>{const {kind,id}=(event as CustomEvent).detail||{};if(!['keyframe','video'].includes(kind))return;await refreshModels();if(catalog?.[kind as Kind].some(entry=>entry.id===id))chooseEntry(kind,id)});
@@ -222,7 +229,7 @@ export function mountModels(): void {
 addEventListener('osh-audio-prompt',()=>renderDetails());
 addEventListener('osh-reconnected',()=>{if(document.getElementById('refreshModels'))void refreshModels()});
 /** Pick an installed multi-keyframe workflow before sending a captured camera path to Director. */
-export async function chooseGuideModel(depth=false){await refreshModels();const choices=catalog?.video.filter(entry=>entry.capabilities.some(capability=>capability.name==='Keyframe-guided video'&&capability.status==='ready'))||[],entry=depth?choices.find(entry=>entry.id===blockoutBase):choices.find(entry=>entry.id===select('video').value)||choices[0];if(!entry)throw Error('Connect a compatible keyframe-guided video model.');chooseEntry('video',entry.id)}
+export async function chooseGuideModel(depth=false){await refreshModels();const choices=catalog?.video.filter(entry=>entry.capabilities.some(capability=>capability.name==='Keyframe-guided video'&&capability.status==='ready'))||[],entry=depth?choices.find(entry=>entry.id===blockoutBase):choices.find(entry=>entry.id===select('video').value)||choices.find(entry=>entry.id===catalog?.recommended?.video.id)||choices[0];if(!entry)throw Error('Connect a compatible keyframe-guided video model.');chooseEntry('video',entry.id)}
 export async function ensureTimedGuideModel(keys:{t:number;img?:string;anchor?:string}[]):Promise<boolean>{
  const guides=keys.filter(key=>key.img);
  if(guides.length<=1&&!guides.some(key=>key.anchor==='end'||key.t>0))return false;

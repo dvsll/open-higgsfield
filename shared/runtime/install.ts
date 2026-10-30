@@ -213,11 +213,13 @@ for (const capability of ['video', 'image', 'audio'] as const) {
   const options = manifest.packs.filter(p => p.capability === capability).sort((a, b) => tierRank[a.tier] - tierRank[b.tier]);
   let target = args.fast ? options.find(p => p.tier === 'fast') || options.at(-1)!
     : args.quality ? options[0]!
-    : options.find(p => p.tier !== 'fast' && p.minVramGB <= gpu.gb + 0.5) || options.filter(p => p.tier !== 'fast').at(-1) || options[0]!;
-  if (!args.fast && !args.quality && target !== options[0] && !options.some(p => installed(p) && p.tier === 'best')
-    && await yes(`  Your GPU is small for ${options[0]!.label}. Download it anyway? It will be slow.`, false)) target = options[0]!;
+    : options.find(p => p.minVramGB <= gpu.gb + 0.15) || options.at(-1)!;
+  if(!args.quality&&target.minVramGB>gpu.gb+.15){
+    say(`  No ${capability} pack is expected to fit the detected GPU memory.`);
+    if(!await yes(`  Try ${target.label} with memory offloading anyway?`,false))continue;
+  }
   // Reuse anything already installed that's at least as good as the target.
-  const owned = options.find(p => installed(p) && tierRank[p.tier] <= tierRank[target.tier]);
+  const owned = options.find(p => installed(p) && (args.fast?p.tier==='fast':tierRank[p.tier] <= tierRank[target.tier]) && (args.quality||p.minVramGB<=gpu.gb+.15));
   if (owned) { plan.push({ pack: owned, reuse: true, missing: [] }); continue; }
   if (target.gated && !token && !args['dry-run']) {
     say(`\n  ${target.label} is the best fit, but it's gated on Hugging Face.`);

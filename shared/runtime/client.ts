@@ -10,7 +10,8 @@ export type ProductVideoOptions = { image: string; background?: string; mode: 'l
 export type ProductVideoResult = ShotResult & { width: number; height: number; mode: 'locked' | 'camera'; motion: string; protectedRect: { x: number; y: number; width: number; height: number } | null };
 import type { ModelChoice } from './model-catalog';
 import type { ServerTiming } from './render-timings';
-export type LocalModels = { keyframe: ModelChoice[]; video: ModelChoice[]; geometry?:ModelChoice[]; audio?:{available:boolean;model:string}; timing: ServerTiming; research: { repo: string; revision: string; bytes: number }[]; inventory: { category: string; files: string[] }[] };
+import type {HardwareDefaults} from '../lib/hardware-models';
+export type LocalModels = { recommended?:HardwareDefaults; keyframe: ModelChoice[]; video: ModelChoice[]; geometry?:ModelChoice[]; audio?:{available:boolean;model:string}; timing: ServerTiming; research: { repo: string; revision: string; bytes: number }[]; inventory: { category: string; files: string[] }[] };
 
 let online = false;
 let info: Health | null = null;

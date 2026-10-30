@@ -1,5 +1,6 @@
 export type Capability = { name: string; status: 'ready' | 'prompt' | 'unavailable'; detail: string; control?: 'motion' | 'shotPromptInput' | 'kp' | 'els' | 'timeline' };
 export type ModelChoice = {
+  requiresStartImage?:boolean;
   id: string; parentId?:string;loraFile?:string;label: string; family: string; description: string;
   capabilities: Capability[];
   generation?:{preferredFps?:number;fpsNote?:string;steps:number;stepNote:string};
@@ -60,6 +61,7 @@ export const ltxv13bModel: ModelChoice = {
 };
 
 export const wan22Model: ModelChoice = {
+  requiresStartImage:true,
   id:'wan2.2_i2v_high_noise_14B_fp8_scaled.safetensors', label:'Wan 2.2 14B · image to video', family:'Wan 2.2',
   description:'Image-guided video · FP8 high/low noise experts · 20 steps · memory offloading',
   generation:{preferredFps:16,fpsNote:'Native Wan image-to-video workflow uses 16 FPS.',steps:20,stepNote:'Native non-distilled preset: 20 steps, CFG 3.5; high-noise expert for the first 10, low-noise expert for the final 10.'},

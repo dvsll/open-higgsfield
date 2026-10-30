@@ -80,6 +80,7 @@ import {generateQwenHero,qwenAvailability,verifyWeightFiles,qwenContract} from '
 import {qwenSDKTransport} from './qwen-sdk.ts';
 import {createQwenRelay} from './qwen-relay.ts';
 import {validBase64} from '../lib/base64.ts';
+import {hardwareDefaults} from '../lib/hardware-models.ts';
 import {acceptanceGate,acceptanceRequest,claimAcceptanceJob} from './qwen-app-session.ts';
 import {createBrandService} from './brand-service.ts';
 import {brandBackendStatus} from './brand-analysis.ts';
@@ -227,13 +228,14 @@ async function localModels(env: Env) {
     research = lab.models.map((m: any) => ({ repo: m.repo, revision: m.revision, bytes: m.files.reduce((sum: number, f: any) => sum + f.bytes, 0) }));
   } catch { /* Training assets are optional and not generation choices. */ }
   const hardware = identifyHardware(await comfyJson(env,'/system_stats').catch(()=>null));
+  const recommended=hardwareDefaults({keyframe,video,geometry},hardware,JSON.parse(await readFile(join(ROOT,'shared/runtime/models.json'),'utf8')));
   const audio=has('CheckpointLoaderSimple','ckpt_name','stable-audio-open-1.0.safetensors')&&has('CLIPLoader','clip_name','t5_base.safetensors')&&graphReady(await loadGraph('audio_stable'));
-  return { keyframe, video, geometry, zimageTurbo, audio:{available:audio,model:'Stable Audio Open 1.0'}, research, timing: await serverTiming(OUTPUTS,hardware,queued), inventory: inventory.filter(c => c.files.length > 0) };
+  return { keyframe, video, geometry, recommended, zimageTurbo, audio:{available:audio,model:'Stable Audio Open 1.0'}, research, timing: await serverTiming(OUTPUTS,hardware,queued), inventory: inventory.filter(c => c.files.length > 0) };
 }
 
 async function selectedModel(body: any, env: Env, kind: "keyframe" | "video") {
-  const models = (await localModels(env))[kind];
-  const model = body.model ?? models[0]?.id;
+  const catalog=await localModels(env),models=catalog[kind];
+  const model = body.model ?? catalog.recommended[kind].id;
   if (!models.some(m => m.id === model)) throw new HttpError(400, `Selected ${kind} model is unavailable or has no compatible workflow. Refresh local models.`);
   await ensureProxy(env);
   return models.find(entry=>entry.id===model)!.parentId||model as string;

@@ -49,7 +49,7 @@ Missing models: `npm run setup -- --dry-run` previews the plan; `npm run models 
 
 ## For developers
 
-See [`AGENTS.md`](AGENTS.md), [`RULES.md`](RULES.md), [`DEADLINES.md`](DEADLINES.md). The installer is `shared/runtime/install.ts`, and the model list is `shared/runtime/models.json`.
+See [`AGENTS.md`](AGENTS.md) for development and generation requirements. The installer is `shared/runtime/install.ts`, and the model list is `shared/runtime/models.json`.
 
 ## License
 

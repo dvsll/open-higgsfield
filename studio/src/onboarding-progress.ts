@@ -19,7 +19,7 @@ export function canResumeWorkflow(state: { entry?:Workflow; shotId?:string; dism
 }
 export function ownsTour(page:'director'|'edit', entry?:Workflow): boolean { return page === 'edit' ? entry === 'edit' : entry !== 'edit'; }
 export function windowLesson(step:string, visible:ReadonlySet<string>, menuOpen:boolean):{window:string;stage:'menu'|'item'}|null {
- const required:Record<string,string[]>={'play-video':['viewer'],keyframes:['prompts'],add:['files','timeline'],position:['timeline'],image:['prompts'],'image-review':['viewer'],'image-video':['prompts'],prompt:['prompts'],regenerate:['prompts'],'render-settings':['properties'],'render-takes':['files'],'3d':['stage']};
+ const required:Record<string,string[]>={'play-video':['viewer'],keyframes:['prompts'],add:['files','timeline'],position:['timeline'],image:['prompts'],'image-review':['viewer'],'image-video':['prompts'],prompt:['prompts'],regenerate:['prompts'],'render-settings':['properties'],'render-takes':['files'],'3d':['prompts'],'3d-camera':['stage'],'3d-record':['stage','prompts'],'3d-guide':['stage'],'3d-video':['prompts']};
  const missing=required[step]?.find(id=>!visible.has(id));
  return missing?{window:missing,stage:menuOpen?'item':'menu'}:null;
 }
@@ -30,9 +30,19 @@ export function guidesPlaced(keys: { img?: string; anchor?: string }[]): boolean
 export function continuesImageTour(state:{entry?:Workflow;step:string;dismissed?:boolean;suspended?:boolean}|null,entry:Workflow):boolean{return !!state&&!state.dismissed&&!state.suspended&&state.entry==='image'&&entry==='video'&&['image-review','return-video','add','position','image-video'].includes(state.step)}
 export function workflowTourStep(state:{entry?:Workflow;step:string;dismissed?:boolean;suspended?:boolean}|null,entry:Workflow):string|null{
  if(!state||state.dismissed||state.suspended)return null;
+ if(state.entry==='3d'&&entry==='video'&&['3d-guide','3d-video'].includes(state.step))return '3d-video';
  if(['video','director'].includes(state.entry||'')){
   if(entry==='image'&&['switch-image','keyframes'].includes(state.step))return 'keyframes';
   if(entry==='video'&&['return-video','add','position','regenerate'].includes(state.step))return state.step==='return-video'?'add':state.step;
  }
  return continuesImageTour(state,entry)?(['image-review','return-video'].includes(state!.step)?'add':state!.step):null;
+}
+
+/** Only successful backend milestones advance the 3D lesson. */
+export function geometryTourStep(step:string,event:string,detail?:{reference?:unknown;shotId?:string},shotId?:string):string|null {
+ if(event==='osh-geometry-generated'&&step==='3d')return '3d-camera';
+ if(event==='osh-scene-video-status'&&detail?.reference&&['3d-camera','3d-record'].includes(step))return '3d-guide';
+ if(event==='osh-3d-guide-attached'&&step==='3d-guide'&&detail?.shotId)return '3d-video';
+ if(event==='osh-video-generated'&&step==='3d-video'&&detail?.shotId===shotId)return 'done';
+ return null;
 }

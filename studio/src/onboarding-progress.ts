@@ -52,7 +52,7 @@ export function geometryTourStep(step:string,event:string,detail?:{reference?:un
 }
 
 export type AudioTourProgress={step:string;audioUrl?:string;speechUrl?:string;audioEnd?:number;speechLayerId?:string};
-export function audioTourMilestone(state:AudioTourProgress,event:string,value?:{url?:string;id?:string;start?:number;duration?:number}):Partial<AudioTourProgress>|null{
+export function audioTourMilestone(state:AudioTourProgress,event:string,value?:{url?:string;id?:string;start?:number;duration?:number;playing?:boolean}):Partial<AudioTourProgress>|null{
  if(event==='osh-audio-generated'&&state.step==='audio-generate'&&value?.url)return {step:'audio-file',audioUrl:value.url};
  if(event==='osh-speech-generated'&&state.step==='audio-speech-generate'&&value?.url)return {step:'audio-speech-file',speechUrl:value.url};
  if(event==='osh-audio-timeline-save'&&value?.url&&Number.isFinite(value.start)&&Number.isFinite(value.duration)){
@@ -60,7 +60,9 @@ export function audioTourMilestone(state:AudioTourProgress,event:string,value?:{
   if(state.step==='audio-speech-add'&&value.url===state.speechUrl)return {step:value.start!>=(state.audioEnd||0)?'audio-mix-preview':'audio-position',speechLayerId:value.id};
   if(state.step==='audio-position'&&value.id===state.speechLayerId&&value.start!>=(state.audioEnd||0))return {step:'audio-mix-preview'};
  }
- if(event==='osh-audio-preview-complete'&&state.step==='audio-preview')return {step:'audio-choice'};
- if(event==='osh-audio-preview-complete'&&state.step==='audio-mix-preview')return {step:'done'};
+ if(event==='osh-audio-preview-toggle'&&value?.playing===true&&state.step==='audio-preview')return {step:'audio-watching'};
+ if(event==='osh-audio-preview-toggle'&&value?.playing===true&&state.step==='audio-mix-preview')return {step:'audio-mix-watching'};
+ if((event==='osh-audio-preview-complete'||event==='osh-audio-preview-toggle'&&value?.playing===false)&&['audio-preview','audio-watching'].includes(state.step))return {step:'audio-choice'};
+ if((event==='osh-audio-preview-complete'||event==='osh-audio-preview-toggle'&&value?.playing===false)&&['audio-mix-preview','audio-mix-watching'].includes(state.step))return {step:'done'};
  return null;
 }

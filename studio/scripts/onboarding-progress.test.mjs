@@ -206,3 +206,8 @@ assert.deepEqual(windowLesson('audio-speech',new Set(),false),{window:'speech',s
 
 assert.equal(geometryTourStep('3d-preview','osh-camera-motion',{action:'play'}),'3d-watching');
 assert.equal(geometryTourStep('3d-watching','osh-camera-motion-ended'),'3d-preview-choice');
+
+assert.deepEqual(audioTourMilestone({step:'audio-preview'},'osh-audio-preview-toggle',{playing:true}),{step:'audio-watching'});
+assert.deepEqual(audioTourMilestone({step:'audio-watching'},'osh-audio-preview-toggle',{playing:false}),{step:'audio-choice'});
+assert.deepEqual(audioTourMilestone({step:'audio-mix-watching'},'osh-audio-preview-complete'),{step:'done'});
+assert.deepEqual(audioTourMilestone({step:'audio-mix-watching'},'osh-audio-preview-toggle',{playing:false}),{step:'done'});

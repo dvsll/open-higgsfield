@@ -40,3 +40,8 @@ assert.match(imageDetails.visual,/tilts its watering can/);
 assert.equal(imageDetails.model,'Qwen3 test');
 await assert.rejects(()=>missing.rewriteImage('a robot',true),/unavailable/);
 assert.equal((await missing.status()).busy,false);
+let cameraRaw='{"kind":"pan","direction":-1,"amount":0.5}';let cameraCalls=0;
+const cameraAI=new PromptRewriter({status:async()=>({available:true,model:'test local model',reason:''}),generate:async(content,device,system)=>{cameraCalls++;assert.ok(system.includes('Interpret camera direction'));return cameraRaw}});
+assert.deepEqual(await cameraAI.camera('Slide gently toward the left',4),{kind:'pan',direction:-1,amount:.5,duration:4,model:'test local model'});
+for(const invalid of ['{"kind":"fly","direction":1,"amount":1}','{"kind":"pan","direction":0,"amount":1}','{"kind":"pan","direction":1,"amount":100}','not JSON','{"error":"Use one move at a time"}']){cameraRaw=invalid;await assert.rejects(cameraAI.camera('move',4));}
+await assert.rejects(cameraAI.camera('move',0));assert.equal(cameraCalls,6);

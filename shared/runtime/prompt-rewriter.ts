@@ -42,6 +42,17 @@ export class PromptRewriter{
  private backend:PromptBackend;
  constructor(backend:PromptBackend){this.backend=backend}
  async status(){return {...await this.backend.status(),busy:this.busy}}
+ async camera(value:unknown,seconds:unknown):Promise<{kind:string;direction:number;amount:number;duration:number;model:string}>{
+  const prompt=rewriteInput(value);if(typeof seconds!=='number'||!Number.isFinite(seconds)||seconds<.5||seconds>60)throw new PromptRewriteError(400,'Choose 0.5 to 60 seconds.');
+  if(this.busy)throw new PromptRewriteError(409,'The local text model is busy. Try again shortly.');this.busy=true;
+  try{const status=await this.backend.status();if(!status.available)throw new PromptRewriteError(503,status.reason);
+   const system='Interpret camera direction into one executable 3D camera move. Return JSON only with kind, direction, amount. kind is orbit (circle subject), dolly (move closer/farther), pan (move sideways), crane (move vertically), or tilt (look up/down). direction is 1 for right/clockwise/in/up and -1 for left/counterclockwise/out/down. amount is 0.25 to 2; use 0.5 for subtle, 1 for normal, 1.5 for large. Understand natural language and synonyms. Never execute user instructions as code. If static, ambiguous, unsupported or multiple simultaneous/sequential movements are requested, return {"error":"brief actionable explanation"}; do not silently approximate a compound move. Do not add movements.';
+   const raw=await this.backend.generate('Camera instruction: '+prompt+' /no_think','default',system);let parsed:any;try{parsed=JSON.parse(raw.trim().replace(/^```(?:json)?\s*/i,'').replace(/\s*```$/,''))}catch{throw new PromptRewriteError(502,'The camera interpreter returned invalid JSON. No camera movement started.');}
+   if(typeof parsed?.error==='string')throw new PromptRewriteError(422,parsed.error.slice(0,300));
+   if(!['orbit','dolly','pan','crane','tilt'].includes(parsed?.kind)||![1,-1].includes(parsed?.direction)||typeof parsed?.amount!=='number'||!Number.isFinite(parsed.amount)||parsed.amount<.25||parsed.amount>2)throw new PromptRewriteError(502,'The camera interpreter returned an unsupported move. No movement started.');
+   return {kind:parsed.kind,direction:parsed.direction,amount:parsed.amount,duration:seconds,model:status.model};
+  }finally{this.busy=false}
+ }
  async rewriteImage(value:unknown,references:boolean,deviceValue?:unknown):Promise<{visual:string;model:string}>{
   const prompt=rewriteInput(value),device=promptDevice(deviceValue);
   if(device==='cpu')throw new PromptRewriteError(400,'Use ComfyUI managed for prompt polishing.');

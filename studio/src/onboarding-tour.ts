@@ -94,6 +94,7 @@ export function mountOnboardingTour(options:Options) {
   chooser.addEventListener('close',()=>{unmountView(currentDialog);currentDialog.remove();if(chooser===currentDialog)chooser=null});document.body.append(chooser);chooser.showModal();
  }
  function prepare(step:string){
+  if(step==='3d')dispatchEvent(new Event('osh-tour-3d-prompt'));
   if(step==='3d-record')dispatchEvent(new Event('osh-camera-prompt-reveal'));
   if(step==='add')dispatchEvent(new Event('osh-tour-show-guides'));
   if(['prompt','add','position'].includes(step))dispatchEvent(new Event('osh-tour-keyframe-view'));
@@ -126,7 +127,7 @@ export function mountOnboardingTour(options:Options) {
    image:localStep===0?{title:'Start with one image',text:beginner?'Describe a subject, setting and visual style. We prepared a matching robot-and-flower prompt. Keep it or make it yours.':'Edit the prepared image prompt.',target:'#kp',next:'Next: generate image'}:{title:'Generate your first image',text:'Press the highlighted Generate image button. We’ll continue when your picture is ready.',target:'#kgo'},
    'image-review':{title:'Make this image a video keyframe',text:beginner?'Your picture can become the START keyframe of a video. Press Turn into a video to bring it into the Video workflow. Then you’ll generate motion from it.':'Press Turn into a video to switch workflows with this image attached as START. Your original image stays saved.',target:'#animateImage'},
    'image-video':{title:'Animate your image',text:beginner?'Your image is attached as START. Press the highlighted Generate video button to animate it.':'Press Generate video to animate your starting image.',target:'#gen'},
-   '3d':localStep===0?{title:'Describe your 3D scene',text:'Describe a subject and its appearance, just like a video prompt. Try “A tiny copper robot holding a watering can.” You can also attach an image.',target:'.geometry-composer',next:'Next: generate object'}:{title:'Generate your object',text:'Press Generate object (or Replace object). We’ll continue when the mesh is ready.',target:'.geometry-composer .generate-button, .geometry-composer'},
+   '3d':localStep===0?{title:'Describe your 3D scene',text:'Describe a subject and its appearance, just like a video prompt. We prepared a copper robot holding a watering can. Keep it or make it yours; you can also attach an image.',target:'.geometry-composer',next:'Next: generate object'}:{title:'Generate your object',text:'Press Generate object (or Replace object). We’ll continue when the mesh is ready.',target:'.geometry-composer .generate-button, .geometry-composer'},
    '3d-camera':{title:'Pan your camera',text:'Select the object, then click the camera in the scene to open Camera movement. Try “Pan right slowly”. Press Play scene to preview the move; drag empty space to orbit your view.',target:'.geometry-workspace',secondary:'.geometry-composer',next:'Next: record blockout'},
    '3d-record':{title:'Record your blockout',text:'A blockout is a rough 3D guide for your shot. Press Create reference video to record the camera move. We’ll continue when it is saved.',target:'.scene-playback',secondary:'.geometry-composer'},
    '3d-guide':{title:'Guide a generated video',text:'Press Use for video generation. Your blockout’s depth and camera movement will guide a new video scene.',target:'.scene-playback'},

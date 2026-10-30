@@ -126,7 +126,7 @@ const rendered={prompt:'old',r:true,video:'/outputs/clip.webm'};const promptCont
 const shotCode=source.slice(source.indexOf('async function realShot('),source.indexOf('\nasync function fake('));
 for(const stage of ['regenerate','image-video','watch-video','play-video']){
  const scene={id:'review-scene',n:'Scene',d:4,prompt:'new',r:false,keys:[{img:'start',anchor:'start',t:0},{img:'end',anchor:'end',t:4}],audioLinked:false};
- const ctx={requireGenerationPrompt,generationDraft:null,SH:[scene],busy:async(_,job)=>job(),$:()=>({open:true}),shouldRewriteBeforeGeneration:()=>false,localGeneration:{shot:async()=>({url:'/outputs/new.webm',frames:97,duration:4,fps:24})},shotPrompt:()=>scene.prompt,start:()=>0,G:3.99,setPlaying:()=>{},pushHist:()=>{},shotId:s=>s.id,touring:()=>true,onboarding:{shotId:scene.id,step:stage,afterReview:'add-scenes'},advanceTour:step=>ctx.onboarding.step=step};
+ const ctx={ensureTimedGuideModel:async()=>false,toast:()=>{},requireGenerationPrompt,generationDraft:null,SH:[scene],busy:async(_,job)=>job(),$:()=>({open:true}),shouldRewriteBeforeGeneration:()=>false,localGeneration:{shot:async()=>({url:'/outputs/new.webm',frames:97,duration:4,fps:24})},shotPrompt:()=>scene.prompt,start:()=>0,G:3.99,setPlaying:()=>{},pushHist:()=>{},shotId:s=>s.id,touring:()=>true,onboarding:{shotId:scene.id,step:stage,afterReview:'add-scenes'},advanceTour:step=>ctx.onboarding.step=step};
  const render=Function('ctx','with(ctx){'+shotCode+';return realShot}')(ctx);await render(0,'Render');assert.equal(ctx.onboarding.step,'play-video');assert.equal(ctx.onboarding.firstVideo,'/outputs/new.webm');assert.equal(ctx.onboarding.videoReviewed,false);assert.equal(ctx.G,0);assert.equal(ctx.onboarding.afterReview,'add-scenes');
 }
 
@@ -149,7 +149,7 @@ const animateCtx={$:()=>animateControl,touring:()=>true,onboarding:{entry:'image
 // Untargeted generation saves an asset without replacing the current timeline shot.
 {
  const scene={id:'existing',n:'Existing',d:4,prompt:'new',video:'/outputs/original.webm',r:true,keys:[],audioLinked:false};let output;
- const ctx={requireGenerationPrompt,generationDraft:null,currentShot:()=>scene,SH:[scene],busy:async(_,job)=>job(),$:()=>({open:true}),shouldRewriteBeforeGeneration:()=>false,localGeneration:{shot:async()=>({url:'/outputs/library.webm',frames:97,duration:4,fps:24})},shotPrompt:s=>s.prompt,start:()=>0,G:2,setPlaying:()=>{},pushHist:(asset,reveal)=>output={asset,reveal},shotId:s=>s.id,touring:()=>false};
+ const ctx={ensureTimedGuideModel:async()=>false,toast:()=>{},requireGenerationPrompt,generationDraft:null,currentShot:()=>scene,SH:[scene],busy:async(_,job)=>job(),$:()=>({open:true}),shouldRewriteBeforeGeneration:()=>false,localGeneration:{shot:async()=>({url:'/outputs/library.webm',frames:97,duration:4,fps:24})},shotPrompt:s=>s.prompt,start:()=>0,G:2,setPlaying:()=>{},pushHist:(asset,reveal)=>output={asset,reveal},shotId:s=>s.id,touring:()=>false};
  const render=Function('ctx','with(ctx){'+shotCode+';return realShot}')(ctx);await render(0,'Render',true);assert.equal(scene.video,'/outputs/original.webm');assert.equal(ctx.G,2);assert.equal(output.asset.url,'/outputs/library.webm');assert.equal(output.reveal,true);
 }
 

@@ -1,3 +1,4 @@
+import {useLayoutEffect,useState} from 'react';
 import {CloseButton} from './close-button';
 import type { Experience, Workflow } from '../onboarding-progress';
 export const workflowNames: Record<Workflow, string> = {
@@ -135,4 +136,10 @@ export function TourPopover({
       )}
     </>
   );
+}
+
+export function WorkflowDiscoveryHint({onDismiss}:{onDismiss:()=>void}){
+ const [position,setPosition]=useState({left:12,top:60});
+ useLayoutEffect(()=>{const anchor=document.querySelector<HTMLElement>('[aria-label="Workspace setup"]');if(!anchor)return;const place=()=>{const rect=anchor.getBoundingClientRect();setPosition({left:Math.max(12,Math.min(innerWidth-320,rect.left)),top:rect.bottom+10})};place();const observer=new ResizeObserver(place);observer.observe(anchor);addEventListener('resize',place);return()=>{observer.disconnect();removeEventListener('resize',place)}},[]);
+ return <aside className="tour-popover workflow-discovery-hint" role="note" aria-label="Try other workflows" style={position}><CloseButton className="tour-close" label="Dismiss workflow hint" onClick={onDismiss}/><p>Click the workflow dropdown to try other workflows whenever you want.</p></aside>;
 }

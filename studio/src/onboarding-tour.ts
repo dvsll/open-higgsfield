@@ -1,7 +1,7 @@
 import {tourPlacement} from './tour-placement';
 import {createElement} from 'react';
 import {renderView,unmountView} from './react/render';
-import {TourChoice,TourPopover} from './react/onboarding';
+import {TourChoice,TourPopover,WorkflowDiscoveryHint} from './react/onboarding';
 import './onboarding-tour.css';
 import './onboarding-focus.css';
 import './onboarding-guidance.css';
@@ -19,6 +19,10 @@ export function mountOnboardingTour(options:Options) {
  const suspended:Partial<Record<Workflow,TourState>>=SC.get('osh-workflow-tours')||{};
  const persist=()=>{const state=options.get();options.save();if(state?.entry){suspended[state.entry]=JSON.parse(JSON.stringify(state));SC.set('osh-workflow-tours',suspended)}};
  const popup=document.createElement('section');popup.className='tour-popover';popup.setAttribute('role','dialog');popup.setAttribute('aria-label','Studio walkthrough');popup.setAttribute('aria-live','polite');popup.hidden=true;
+ const hintHost=document.createElement('div');document.body.append(hintHost);
+ const dismissHint=()=>unmountView(hintHost);
+ const showHint=()=>renderView(hintHost,createElement(WorkflowDiscoveryHint,{onDismiss:dismissHint}));
+ addEventListener('osh-workflow-discovery-hint',showHint);addEventListener('pagehide',()=>{removeEventListener('osh-workflow-discovery-hint',showHint);dismissHint();hintHost.remove()});
  const shade=document.createElementNS('http://www.w3.org/2000/svg','svg');shade.classList.add('tour-shade');shade.setAttribute('aria-hidden','true');shade.style.display='none';
  const shadePath=document.createElementNS(shade.namespaceURI,'path');shadePath.setAttribute('fill-rule','evenodd');shade.append(shadePath);
  const rings=[0,1,2].map(()=>{const ring=document.createElement('div');ring.className='tour-target';ring.hidden=true;return ring});document.body.append(shade,...rings,popup);

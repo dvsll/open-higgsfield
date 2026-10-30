@@ -476,7 +476,7 @@ mountWorkspaceDock(()=>{timeline();head()},setWorkflow);
 if(inEditWorkspace())embeddedEdit.open();
 if(onboarding?.entry==='image'&&!onboarding.images?.length&&imageDraft.url){onboarding.images=[imageDraft.url];SC.set('osh-onboarding',onboarding)}
 onboardingUI=mountOnboardingTour({
- onKeepCreating:()=>{toast('Try other workflows anytime from the workflow dropdown at the top.',5500);const picker=document.querySelector('[aria-label="Workspace setup"]');if(picker&&!matchMedia('(prefers-reduced-motion: reduce)').matches)picker.animate([{outline:'2px solid transparent',outlineOffset:'2px'},{outline:'2px solid #e8c36f',outlineOffset:'2px'},{outline:'2px solid transparent',outlineOffset:'2px'}],{duration:1800,iterations:2})},
+ onKeepCreating:()=>dispatchEvent(new Event('osh-workflow-discovery-hint')),
  get:()=>onboarding,set:state=>{onboarding=state},save:()=>{if(onboarding)SC.set('osh-onboarding',onboarding)},
  current:()=>workflowForSetup(document.querySelector('[aria-label="Workspace setup"]')?.value||'Video',workspaceMode),
  begin:entry=>({step:entry==='audio'?'audio-prompt':entry==='image'?(imageDraft.url?'image-review':'image'):entry==='director'?(results.filter(r=>r.img).length>=2?'return-video':'switch-image'):entry==='3d'?'3d':entry==='rendering'?'render-settings':entry==='edit'?'edit-settings':currentShot().r?'switch-image':'prompt',shotId:shotId(currentShot()),images:results.filter(r=>r.img).map(r=>r.img),dismissed:false,entry}),

@@ -186,5 +186,8 @@ assert.deepEqual(windowLesson('3d-record',new Set(['stage']),false),{window:'pro
 assert.equal(geometryTourStep('3d-camera','osh-camera-prompt-reveal'),'3d-motion');
 assert.equal(geometryTourStep('3d-motion','osh-camera-prompt-reveal'),null);
 
-assert.equal(geometryTourStep('3d-motion-generate','osh-camera-generated'),'3d-record');
+assert.equal(geometryTourStep('3d-motion-generate','osh-camera-generated'),'3d-preview');
 assert.equal(geometryTourStep('3d-motion','osh-camera-generated'),null);
+
+assert.equal(geometryTourStep('3d-preview','osh-camera-preview-complete'),'3d-record');
+assert.equal(geometryTourStep('3d-preview','osh-camera-motion-ended'),null);

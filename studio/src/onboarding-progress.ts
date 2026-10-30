@@ -19,7 +19,7 @@ export function canResumeWorkflow(state: { entry?:Workflow; shotId?:string; dism
 }
 export function ownsTour(page:'director'|'edit', entry?:Workflow): boolean { return page === 'edit' ? entry === 'edit' : entry !== 'edit'; }
 export function windowLesson(step:string, visible:ReadonlySet<string>, menuOpen:boolean):{window:string;stage:'menu'|'item'}|null {
- const required:Record<string,string[]>={'play-video':['viewer'],keyframes:['prompts'],add:['files','timeline'],position:['timeline'],image:['prompts'],'image-review':['viewer'],'image-video':['prompts'],prompt:['prompts'],regenerate:['prompts'],'render-settings':['properties'],'render-takes':['files'],'3d':['prompts'],'3d-camera':['stage'],'3d-motion':['prompts'],'3d-motion-generate':['prompts'],'3d-record':['stage','prompts'],'3d-guide':['stage'],'3d-video':['prompts']};
+ const required:Record<string,string[]>={'play-video':['viewer'],keyframes:['prompts'],add:['files','timeline'],position:['timeline'],image:['prompts'],'image-review':['viewer'],'image-video':['prompts'],prompt:['prompts'],regenerate:['prompts'],'render-settings':['properties'],'render-takes':['files'],'3d':['prompts'],'3d-camera':['stage'],'3d-motion':['prompts'],'3d-motion-generate':['prompts'],'3d-preview':['stage'],'3d-record':['stage','prompts'],'3d-guide':['stage'],'3d-video':['prompts']};
  const missing=required[step]?.find(id=>!visible.has(id));
  return missing?{window:missing,stage:menuOpen?'item':'menu'}:null;
 }
@@ -40,7 +40,8 @@ export function workflowTourStep(state:{entry?:Workflow;step:string;dismissed?:b
 
 /** Only successful backend milestones advance the 3D lesson. */
 export function geometryTourStep(step:string,event:string,detail?:{reference?:unknown;shotId?:string},shotId?:string):string|null {
- if(event==='osh-camera-generated'&&step==='3d-motion-generate')return '3d-record';
+ if(event==='osh-camera-generated'&&step==='3d-motion-generate')return '3d-preview';
+ if(event==='osh-camera-preview-complete'&&step==='3d-preview')return '3d-record';
  if(event==='osh-camera-prompt-reveal'&&step==='3d-camera')return '3d-motion';
  if(event==='osh-geometry-generated'&&step==='3d')return '3d-camera';
  if(event==='osh-scene-video-status'&&detail?.reference&&['3d-camera','3d-record'].includes(step))return '3d-guide';

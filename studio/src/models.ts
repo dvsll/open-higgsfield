@@ -223,3 +223,11 @@ addEventListener('osh-audio-prompt',()=>renderDetails());
 addEventListener('osh-reconnected',()=>{if(document.getElementById('refreshModels'))void refreshModels()});
 /** Pick an installed multi-keyframe workflow before sending a captured camera path to Director. */
 export async function chooseGuideModel(depth=false){await refreshModels();const choices=catalog?.video.filter(entry=>entry.capabilities.some(capability=>capability.name==='Keyframe-guided video'&&capability.status==='ready'))||[],entry=depth?choices.find(entry=>entry.id===blockoutBase):choices.find(entry=>entry.id===select('video').value)||choices[0];if(!entry)throw Error('Connect a compatible keyframe-guided video model.');chooseEntry('video',entry.id)}
+export async function ensureTimedGuideModel(keys:{t:number;img?:string;anchor?:string}[]):Promise<boolean>{
+ const guides=keys.filter(key=>key.img);
+ if(guides.length<=1&&!guides.some(key=>key.anchor==='end'||key.t>0))return false;
+ await refreshModels();
+ const current=catalog?.video.find(entry=>entry.id===select('video').value);
+ if(current?.capabilities.some(cap=>cap.name==='Keyframe-guided video'&&cap.status==='ready'))return false;
+ await chooseGuideModel();return true;
+}

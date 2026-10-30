@@ -4,6 +4,17 @@ const mapped=renderGuideTimes([{t:0},{t:2.5},{t:5}],5,97,24);
 assert.deepEqual(mapped.map(key=>key.t),[0,97/48,97/24]);
 assert.deepEqual(renderGuideTimes([{t:0},{t:4}],4,97,24).map(key=>key.t),[0,97/24]);
 import {readFileSync} from 'node:fs';
+import {stripTypeScriptTypes} from 'node:module';
+const modelsSource=readFileSync(new URL('../src/models.ts',import.meta.url),'utf8');
+const guideSelector=modelsSource.slice(modelsSource.indexOf('export async function ensureTimedGuideModel'));
+let chosen=0;
+const ensureTimed=new Function('refreshModels','catalog','select','chooseGuideModel',stripTypeScriptTypes(guideSelector.replace('export ',''))+';return ensureTimedGuideModel')(
+ async()=>{}, {video:[{id:'wan',capabilities:[{name:'Start-frame guide',status:'ready'}]}]},()=>({value:'wan'}),async()=>{chosen++}
+);
+assert.equal(await ensureTimed([{img:'reference.png',t:0,anchor:'end'}]),true,'END binding requires timed-guide model even if time is stale');
+assert.equal(await ensureTimed([{img:'reference.png',t:4}]),true);
+assert.equal(await ensureTimed([{img:'reference.png',t:0}]),false);
+assert.equal(chosen,2);
 const source=readFileSync(new URL('../src/director.ts',import.meta.url),'utf8');
 const code=source.slice(source.indexOf('let generationActivity=null'),source.indexOf('\nasync function realShot'));
 const elements=Object.fromEntries(['ov','empty','pb','ovt','ovDiagnostics'].map(id=>['#'+id,{style:{display:'none'},textContent:''}]));

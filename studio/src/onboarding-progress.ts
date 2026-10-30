@@ -39,9 +39,10 @@ export function workflowTourStep(state:{entry?:Workflow;step:string;dismissed?:b
 }
 
 /** Only successful backend milestones advance the 3D lesson. */
-export function geometryTourStep(step:string,event:string,detail?:{reference?:unknown;shotId?:string},shotId?:string):string|null {
+export function geometryTourStep(step:string,event:string,detail?:{reference?:unknown;shotId?:string;action?:string},shotId?:string):string|null {
  if(event==='osh-camera-generated'&&step==='3d-motion-generate')return '3d-preview';
- if(event==='osh-camera-preview-complete'&&step==='3d-preview')return '3d-record';
+ if(event==='osh-camera-motion'&&step==='3d-preview'&&(detail as {action?:string})?.action==='play')return '3d-watching';
+ if(['osh-camera-motion-ended','osh-camera-preview-complete'].includes(event)&&['3d-watching','3d-preview'].includes(step))return '3d-preview-choice';
  if(event==='osh-camera-prompt-reveal'&&step==='3d-camera')return '3d-motion';
  if(event==='osh-geometry-generated'&&step==='3d')return '3d-camera';
  if(event==='osh-scene-video-status'&&detail?.reference&&['3d-camera','3d-record'].includes(step))return '3d-guide';

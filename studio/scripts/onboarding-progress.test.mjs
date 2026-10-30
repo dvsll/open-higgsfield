@@ -189,8 +189,8 @@ assert.equal(geometryTourStep('3d-motion','osh-camera-prompt-reveal'),null);
 assert.equal(geometryTourStep('3d-motion-generate','osh-camera-generated'),'3d-preview');
 assert.equal(geometryTourStep('3d-motion','osh-camera-generated'),null);
 
-assert.equal(geometryTourStep('3d-preview','osh-camera-preview-complete'),'3d-record');
-assert.equal(geometryTourStep('3d-preview','osh-camera-motion-ended'),null);
+assert.equal(geometryTourStep('3d-preview','osh-camera-preview-complete'),'3d-preview-choice');
+assert.equal(geometryTourStep('3d-preview','osh-camera-motion-ended'),'3d-preview-choice');
 
 const {audioTourMilestone}=await import('../src/onboarding-progress.ts');
 assert.equal(workflowForSetup('Audio'),'audio');
@@ -203,3 +203,6 @@ assert.equal(audioTourMilestone({step:'audio-position',speechLayerId:'voice-clip
 assert.deepEqual(audioTourMilestone({step:'audio-position',speechLayerId:'voice-clip',audioEnd:4},'osh-audio-timeline-save',{url:'voice',id:'voice-clip',start:4,duration:2}),{step:'audio-mix-preview'});
 assert.deepEqual(audioTourMilestone({step:'audio-mix-preview'},'osh-audio-preview-complete'),{step:'done'});
 assert.deepEqual(windowLesson('audio-speech',new Set(),false),{window:'speech',stage:'menu'});
+
+assert.equal(geometryTourStep('3d-preview','osh-camera-motion',{action:'play'}),'3d-watching');
+assert.equal(geometryTourStep('3d-watching','osh-camera-motion-ended'),'3d-preview-choice');

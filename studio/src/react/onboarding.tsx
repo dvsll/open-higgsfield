@@ -66,6 +66,7 @@ export function TourPopover({
   onLater,
   onTimelineChoice,
   onBlockoutChoice,
+  blockoutAvailable=true,
   onAudioChoice,
 }: {
   experience: Experience;
@@ -78,6 +79,7 @@ export function TourPopover({
   onFinish: () => void;
   onLater?: () => void;
   onAudioChoice?: (choice:"speech"|"stay")=>void;
+  blockoutAvailable?:boolean;
   onBlockoutChoice?: (choice:"video"|"stay")=>void;
   onTimelineChoice?: (choice: "image" | "scene" | "ignore") => void;
 }) {
@@ -117,7 +119,7 @@ export function TourPopover({
             <p>{tip.text}</p>
             {onLater&&<button className="tour-secondary" onClick={onLater}>I’ll try it later</button>}
             {tip.diagram && <DragDiagram kind={tip.diagram} />}{' '}
-            {onAudioChoice ? <div className="tour-next-choices"><button onClick={()=>onAudioChoice("speech")}>Add a voice</button><button className="tour-secondary" onClick={()=>onAudioChoice("stay")}>Keep creating audio</button></div> : onBlockoutChoice ? <div className="tour-next-choices"><button onClick={()=>onBlockoutChoice("video")}>Use for video generation</button><button className="tour-secondary" onClick={()=>onBlockoutChoice("stay")}>Ignore · keep working in 3D</button></div> : onTimelineChoice ? <div className="tour-next-choices"><button onClick={()=>onTimelineChoice("image")}>Create start and end images</button><button onClick={()=>onTimelineChoice("scene")}>Learn to join videos</button><button className="tour-secondary" onClick={()=>onTimelineChoice("ignore")}>Keep creating</button></div> : tip.next ? (
+            {onAudioChoice ? <div className="tour-next-choices"><button onClick={()=>onAudioChoice("speech")}>Add a voice</button><button className="tour-secondary" onClick={()=>onAudioChoice("stay")}>Keep creating audio</button></div> : onBlockoutChoice ? <div className="tour-next-choices">{blockoutAvailable&&<button onClick={()=>onBlockoutChoice("video")}>Use for video generation</button>}<button className="tour-secondary" onClick={()=>onBlockoutChoice("stay")}>Ignore · keep working in 3D</button></div> : onTimelineChoice ? <div className="tour-next-choices"><button onClick={()=>onTimelineChoice("image")}>Create start and end images</button><button onClick={()=>onTimelineChoice("scene")}>Learn to join videos</button><button className="tour-secondary" onClick={()=>onTimelineChoice("ignore")}>Keep creating</button></div> : tip.next ? (
               <button className="tour-primary" onClick={onNext}>
                 {tip.next}
               </button>

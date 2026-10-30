@@ -1,4 +1,8 @@
 import assert from 'node:assert/strict';
+import {renderGuideTimes} from '../src/video-guide-timing.ts';
+const mapped=renderGuideTimes([{t:0},{t:2.5},{t:5}],5,97,24);
+assert.deepEqual(mapped.map(key=>key.t),[0,97/48,97/24]);
+assert.deepEqual(renderGuideTimes([{t:0},{t:4}],4,97,24).map(key=>key.t),[0,97/24]);
 import {readFileSync} from 'node:fs';
 const source=readFileSync(new URL('../src/director.ts',import.meta.url),'utf8');
 const code=source.slice(source.indexOf('let generationActivity=null'),source.indexOf('\nasync function realShot'));

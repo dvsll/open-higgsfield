@@ -8,6 +8,7 @@ import { frameSize, mountFrameSizes, videoTiming } from './frame-size';
 import type { ModelChoice } from '../../shared/runtime/model-catalog';
 import { SHELL } from './shell';
 import {SC} from './scene';
+import {renderGuideTimes} from './video-guide-timing';
 import { attachElementMentions } from './element-mentions';
 import {blockoutBase} from '../../shared/lib/blockout';
 import { expandMentions,mentionedReferenceImages } from './mention-matching';
@@ -129,7 +130,7 @@ export const localGeneration = {
   },
   async shot(keys: ShotKey[], prompt: string, duration: number, seed = 1,timing:{frames:number;fps:number;width?:number;height?:number;depth?:string[];depthStrength?:number}=videoTiming()) {
     if(timing.depth){await refreshModels();if(!catalog?.video.some(entry=>entry.id===blockoutBase))throw Error('The blockout depth model is not installed yet.');chooseEntry('video',blockoutBase)}
-    const id = model('video'); const result = await OSH.shot(keys, expandMentions(prompt, SHELL.ELEMENTS), duration, seed, {...frameSize('video'),...timing,...(timing.depth?{width:512,height:320}:{}),model:id,textDevice:modelDevice(id)});
+    const id = model('video'); const result = await OSH.shot(renderGuideTimes(keys,duration,timing.frames,timing.fps), expandMentions(prompt, SHELL.ELEMENTS), duration, seed, {...frameSize('video'),...timing,...(timing.depth?{width:512,height:320}:{}),model:id,textDevice:modelDevice(id)});
     catalog=await OSH.models().catch(()=>catalog);renderDetails();return result;
   },
 };
